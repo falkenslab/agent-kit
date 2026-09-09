@@ -1,0 +1,33 @@
+{
+  "name": "@moodle-agent/agent-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generic, domain-agnostic scaffolding for building an agent on top of the Claude Agent SDK: session/options wiring, human-in-the-loop hooks and tools, transcript logging, tool-label formatting, global config, and Claude auth. Extracted from moodle-agent (see its CLAUDE.md for the extraction history). Own repo, own versioning (0.x — API not yet stable); not published to npm yet, consumed by sibling agent repos via a `file:` dependency pointing here.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"test/**/*.test.ts\"",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.234",
+    "@inquirer/prompts": "^8.5.2",
+    "picocolors": "^1.1.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.9.1",
+    "globals": "^17.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.68.0"
+  }
+}
