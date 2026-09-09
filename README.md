@@ -1,10 +1,8 @@
-# @falkenslab/agent-kit
+# agent-kit
 
-Scaffolding genérico y agnóstico de dominio para construir agentes de IA sobre el [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk). No es un agente en sí mismo: es la capa reutilizable de infraestructura (wiring de sesión, hooks de human-in-the-loop, herramientas MCP genéricas, logging de transcripción, un TUI de chat en terminal, autenticación, configuración global, formateo de etiquetas de herramientas) que cualquier agente concreto puede montar encima, aportando solo lo que de verdad es específico de su dominio.
+Librería para construir agentes de IA sobre el [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk). No es un agente en sí mismo: es la capa reutilizable de infraestructura (wiring de sesión, hooks de human-in-the-loop, herramientas MCP genéricas, logging de transcripción, un TUI de chat en terminal, autenticación, configuración global, formateo de etiquetas de herramientas) que cualquier agente concreto puede montar encima, aportando solo lo que de verdad es específico de su dominio.
 
-Se extrajo de `moodle-agent` (un agente concreto construido sobre este kit, en otro repo) para poder versionar y reutilizar la parte genérica de forma independiente. Cada agente concreto (uno por dominio) consume esta librería.
-
-> **Estado:** versión `0.x`, API todavía no estable. Aún no se publica en npm; se consume desde repos hermanos vía dependencia `file:` apuntando a este repo.
+> **Estado:** versión `0.x`, API todavía no estable. Aún no se publica en npm.
 
 ## ¿Qué resuelve?
 
