@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { confirm } from "@inquirer/prompts";
 import { isExitPromptError } from "./promptErrors.js";
 import { createGlobalConfigStore, type BaseGlobalConfig } from "./globalConfigStore.js";
-import * as ui from "./ui.js";
+import * as ui from "./tui/ui.js";
 
 // The real format of "claude setup-token" tokens ("sk-ant-oat01-...", seen in the
 // installed @anthropic-ai/claude-code binary) — used to extract the token from its output.

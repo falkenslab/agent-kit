@@ -1,4 +1,4 @@
-export * as ui from "./ui.js";
+export * as ui from "./tui/ui.js";
 export { isExitPromptError } from "./promptErrors.js";
 export { allowAnyMcpTool } from "./mcpPermissions.js";
 export { createPromptLoader } from "./promptTemplate.js";
@@ -34,3 +34,5 @@ export { setSharedReadline, getSharedReadline } from "./hooks/sharedReadline.js"
 export { createHumanApprovalServer, DEFAULT_HUMAN_APPROVAL_TEXTS, type HumanApprovalTexts } from "./tools/humanApproval.js";
 export { createManualLoginServer, DEFAULT_MANUAL_INTERVENTION_TEXTS, type ManualInterventionTexts } from "./tools/manualLogin.js";
 export { createSaveToKnowledgeServer } from "./tools/saveToKnowledge.js";
+
+export { runChatTui, type ChatTuiOptions } from "./tui/chatTui.js";
