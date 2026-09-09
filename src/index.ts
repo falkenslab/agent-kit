@@ -12,6 +12,7 @@ export {
 } from "./toolLabels.js";
 export type { Mode, BaseSessionConfig, AgentSpec } from "./agentSpec.js";
 export { buildSessionOptions, createInputQueue, createDeferred } from "./session.js";
+export { runQuery, type AgentEvent, type AgentRun } from "./runner.js";
 
 export { createTranscriptLogger, summarizeToolResponse, type TranscriptLogger } from "./hooks/transcriptLogger.js";
 export { createStepGate } from "./hooks/stepGate.js";
