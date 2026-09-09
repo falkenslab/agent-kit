@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isExitPromptError } from "../src/promptErrors.js";
+import { isExitPromptError } from "../../src/tui/promptErrors.js";
 
 test("isExitPromptError recognizes @inquirer/prompts' Ctrl+C error", () => {
   const error = new Error("cancelled");

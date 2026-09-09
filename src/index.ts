@@ -1,9 +1,10 @@
 export * as ui from "./tui/ui.js";
-export { isExitPromptError } from "./promptErrors.js";
+export { isExitPromptError } from "./tui/promptErrors.js";
 export { allowAnyMcpTool } from "./mcpPermissions.js";
 export { createPromptLoader } from "./promptTemplate.js";
 export { createGlobalConfigStore, type BaseGlobalConfig, type GlobalConfigStore } from "./globalConfigStore.js";
 export { createClaudeAuth } from "./claudeAuth.js";
+export { createClaudeAuthTui } from "./tui/claudeAuth.js";
 export {
   createFriendlyToolLabel,
   truncate,
