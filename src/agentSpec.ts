@@ -17,9 +17,6 @@ export type Mode = "interactive" | "guided" | "autonomous" | "chat";
  */
 export interface BaseSessionConfig {
   mode: Mode;
-  /** What persona/profile the agent acts as in this session (e.g. "student"/"teacher") — an opaque string as far as this kit is concerned; only `AgentSpec` interprets it. */
-  role: string;
-  headless: boolean;
   /** Project root: the folder under which context/knowledge/sessions live (see the project-directory helpers). */
   projectDir: string;
   /** Only set when this session has a project directory with its own context/knowledge (as opposed to a config-less/legacy invocation). */
@@ -48,8 +45,9 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    * MCP servers this agent always registers (e.g. Playwright for a browser-driving
    * agent), on top of the generic ones `buildSessionOptions()` wires up itself when
    * applicable (human approval, manual intervention, save-to-knowledge) — those aren't
-   * part of the spec because they're driven by generic `BaseSessionConfig` fields (mode,
-   * headless, contextDir/knowledgeDir), not by anything domain-specific.
+   * part of the spec because they're driven by `mode` plus this spec's own
+   * `manualInterventionTexts`/`contextDir`/`knowledgeDir`, not by anything else
+   * domain-specific.
    */
   buildMcpServers(config: TConfig, runDir: string): Record<string, McpServerConfig>;
 
@@ -90,9 +88,13 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
   humanApprovalTexts?: { description: string; approved: string; rejected: string };
 
   /**
-   * Text for the generic manual-intervention checkpoint (see tools/manualLogin.ts) — what
-   * exactly a human needs to do by hand (log into a site, solve a captcha, ...) is
-   * domain-specific. Omit to use this kit's own generic defaults.
+   * Text for the generic manual-intervention checkpoint (see tools/manualLogin.ts), AND
+   * this domain's opt-in signal for offering that checkpoint at all: `buildSessionOptions()`
+   * only registers `request_manual_login` when this is set (and `mode !== "autonomous"`).
+   * Manual intervention only makes sense for a domain that drives some live UI a human could
+   * actually step into by hand (a browser window, say) — there's no generic default to fall
+   * back to the way there is for `humanApprovalTexts` above, because this kit can't assume
+   * every agent built on it has such a UI at all. Leave unset for a domain that doesn't.
    */
   manualInterventionTexts?: {
     toolDescription: string;

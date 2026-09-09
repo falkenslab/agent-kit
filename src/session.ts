@@ -38,10 +38,11 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // The human approval server only exists outside autonomous mode: the point of
   // autonomous is that the agent has no channel to ask for human intervention at all.
   const includeApprovalTool = mode !== "autonomous";
-  // Available as a safety net except in autonomous (checked above) or --headless (no
-  // visible window for a human to act on it) — useful both when there's no configured
-  // way to complete a step and when there is one but it fails unexpectedly.
-  const includeManualLoginTool = mode !== "autonomous" && !config.headless;
+  // Manual intervention only makes sense for a domain that drives some live UI a human
+  // could actually step into by hand — `spec.manualInterventionTexts` being set is that
+  // domain's own opt-in signal (see its doc comment in agentSpec.ts), not a generic
+  // boolean this kit could infer on its own.
+  const includeManualLoginTool = mode !== "autonomous" && spec.manualInterventionTexts !== undefined;
   // context/knowledge/skills only exist when this config has a project directory of its
   // own (as opposed to a config-less/legacy invocation).
   const includeFileTools = Boolean(config.contextDir);
