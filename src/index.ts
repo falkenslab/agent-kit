@@ -1,4 +1,4 @@
-export * from "./ui.js";
+export * as ui from "./ui.js";
 export { isExitPromptError } from "./promptErrors.js";
 export { allowAnyMcpTool } from "./mcpPermissions.js";
 export { createPromptLoader } from "./promptTemplate.js";
