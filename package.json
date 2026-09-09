@@ -1,5 +1,5 @@
 {
-  "name": "@moodle-agent/agent-kit",
+  "name": "@falkenslab/agent-kit",
   "version": "0.1.0",
   "private": true,
   "description": "Generic, domain-agnostic scaffolding for building an agent on top of the Claude Agent SDK: session/options wiring, human-in-the-loop hooks and tools, transcript logging, tool-label formatting, global config, and Claude auth. Extracted from moodle-agent (see its CLAUDE.md for the extraction history). Own repo, own versioning (0.x — API not yet stable); not published to npm yet, consumed by sibling agent repos via a `file:` dependency pointing here.",
