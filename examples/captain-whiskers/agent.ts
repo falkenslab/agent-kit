@@ -31,9 +31,9 @@ const spec: AgentSpec<BaseSessionConfig> = {
   // Plugin local con manifiesto (.claude-plugin/plugin.json, name: "captain-whiskers")
   // demostrando una skill (pirate-joke, enseña al modelo a construir el chiste) y un
   // comando de barra propio: se invoca como /captain-whiskers:chiste (namespaced con el
-  // nombre del plugin - un /chiste a secas no se reconoce, confirmado empíricamente: se
-  // comporta como si no se hubiera escrito nada, igual que en moodle-agent's
-  // /moodle-agent:map). Ver plugin/skills/pirate-joke/SKILL.md y plugin/commands/chiste.md.
+  // nombre del plugin - un /chiste a secas no se reconoce, igual que en moodle-agent's
+  // /moodle-agent:map; runChatTui() avisa con "Unknown command: /chiste" en vez de
+  // tragárselo en silencio). Ver plugin/skills/pirate-joke/SKILL.md y plugin/commands/chiste.md.
   pluginRoots: () => [path.join(__dirname, "plugin")],
   buildSubagents: () => undefined,
   // Sin acceso real a ficheros (no hay contextDir, ver main()): esto ya bastaba para que

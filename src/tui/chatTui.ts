@@ -102,6 +102,17 @@ export async function saveHistory(filePath: string, entries: readonly HistoryEnt
 }
 
 /**
+ * The command name a typed line would invoke (e.g. "chiste" for both "/chiste" and
+ * "/chiste con salsa"), or `null` for a line that isn't a slash command at all (doesn't
+ * start with "/") or is just a bare "/" with nothing after it.
+ */
+export function slashCommandToken(line: string): string | null {
+  if (!line.startsWith("/")) return null;
+  const token = line.slice(1).split(/\s/, 1)[0];
+  return token ? token : null;
+}
+
+/**
  * Reads `events` one turn at a time — up to and including a `turn-end` — via manual
  * `.next()` calls, calling `onEvent` for each. Deliberately never uses
  * `for await...of` + `break`: `run.events` (see runner.ts) is one long-lived generator
@@ -210,6 +221,19 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
     write(`${text}\n`);
   }
 
+  // Cached lazily (not fetched until the first "/..." line, and only once — the SDK docs
+  // don't promise this list changes mid-session, and re-fetching per line would add a
+  // round-trip to the CLI subprocess for every turn): every registered command name/alias,
+  // built-ins (`/compact`, ...) included, so `/exit`-style local ones never false-flag.
+  let knownCommandTokens: Set<string> | null = null;
+  async function isKnownSlashCommand(token: string): Promise<boolean> {
+    if (!knownCommandTokens) {
+      const commands = await run.supportedCommands();
+      knownCommandTokens = new Set(commands.flatMap((c) => [c.name, ...(c.aliases ?? [])]));
+    }
+    return knownCommandTokens.has(token);
+  }
+
   let turnInFlight = false;
   let agentLabelPrinted = false;
   rl.on("SIGINT", () => {
@@ -240,6 +264,19 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
         await saveHistory(tuiOptions.historyPath, historyEntries);
       }
       if (exitCommands.has(line.toLowerCase())) break;
+
+      // A line that *looks* like a slash command but matches nothing registered (a typo,
+      // an unnamespaced plugin command, ...) would otherwise reach the model as literal
+      // text with no special handling — confirmed empirically (captain-whiskers'
+      // /chiste before it was renamed /captain-whiskers:chiste) that this can look
+      // exactly like nothing happened at all. Caught here, before the turn even starts,
+      // so it's an immediate, unambiguous message instead of a guess at what the model's
+      // silence on unrecognized input might mean.
+      const commandToken = slashCommandToken(line);
+      if (commandToken && !(await isKnownSlashCommand(commandToken))) {
+        writeLine(ui.warn(`\nUnknown command: /${commandToken}`));
+        continue;
+      }
 
       queue.push(line);
       turnInFlight = true;

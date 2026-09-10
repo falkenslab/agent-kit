@@ -93,6 +93,8 @@ Pasa `historyPath` para persistir cada línea no vacía que el humano escribe (`
 
 Se encarga de todo: leer líneas por teclado, enviarlas a la sesión multi-turno, imprimir el texto de la respuesta en streaming y las acciones (herramientas) con etiquetas legibles, interrumpir el turno en curso con Ctrl+C (sin cerrar la sesión) y salir limpiamente con `/exit` o Ctrl+C en el prompt. Además, coordina su propio `readline` con cualquier checkpoint humano que la sesión dispare (el step gate del modo `interactive`, o las herramientas de aprobación/intervención manual), así que nunca compiten por el teclado.
 
+Si escribes algo que empieza por `/` y no coincide con ningún comando registrado (propio, de un plugin, o de los propios de Claude Code), se avisa con `Unknown command: /lo-que-sea` y no llega a enviarse al agente — sin esto, una línea así habría llegado al modelo como texto literal sin ningún manejo especial, indistinguible de no haber escrito nada.
+
 ### Modos de ejecución (`BaseSessionConfig.mode`)
 
 | Modo | Comportamiento |

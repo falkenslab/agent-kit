@@ -29,9 +29,13 @@ de agent-kit o cambia `mode: "autonomous"` en `agent.ts` a mano.
 La primera vez, si no tienes ya un token de Claude configurado, te lo pedirá.
 
 Dentro del chat, escribe `/captain-whiskers:chiste` para pedirle uno directamente (namespaced
-con el nombre del plugin — un `/chiste` a secas no se reconoce y se comporta como si no
-hubieras escrito nada; usa la skill `pirate-joke` para construirlo y lo suelta directamente,
-sin pedir permiso) — o simplemente pídeselo por texto normal, la skill se activa igual.
+con el nombre del plugin — un `/chiste` a secas no se reconoce y ahora avisa con
+`Unknown command: /chiste` en vez de comportarse como si no hubieras escrito nada; usa la
+skill `pirate-joke` para construirlo y lo suelta directamente, sin pedir permiso) — o
+simplemente pídeselo por texto normal, la skill se activa igual.
+
+Si escribes cualquier otro `/algo` que no exista (`/pepe`, por ejemplo), `runChatTui()` lo
+detecta y avisa igual — nunca llega a enviarse al capitán.
 
 Con las flechas ↑/↓ en el prompt recorres los mensajes que has escrito antes — incluso de
 sesiones anteriores, no solo la actual.
