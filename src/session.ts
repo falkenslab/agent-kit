@@ -42,18 +42,19 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // domain's own opt-in signal (see its doc comment in agentSpec.ts), not a generic
   // boolean this kit could infer on its own.
   const includeManualLoginTool = mode !== "autonomous" && spec.manualInterventionTexts !== undefined;
-  // context/knowledge/skills only exist when this config has a project directory of its
-  // own (as opposed to a config-less/legacy invocation).
-  //
-  // TODO(revisit): this one flag also gates `cwd`/`skills: "all"`/`plugins` below (not just
-  // Read/Write/Glob), so an agent that wants a custom skill/command/plugin but no raw
-  // filesystem access has no way to ask for that independently — it must set a (possibly
-  // unused) `contextDir` just to flip this on. Found via captain-whiskers wanting a plugin
-  // skill+command with nothing worth putting in contextDir (examples/captain-whiskers/context/
-  // is a placeholder for exactly this reason). Same shape of issue as the old Mode "chat"
-  // alias — consider splitting "skills/commands/plugins available" from "Read/Write/Glob +
-  // contextDir/knowledgeDir available" into two independent config flags.
+  // context/knowledge only exist when this config has a project directory of its own (as
+  // opposed to a config-less/legacy invocation) — gates Read/Write/Glob and
+  // additionalDirectories below.
   const includeFileTools = Boolean(config.contextDir);
+  // Skills/commands/plugins are a separate concern from Read/Write/Glob file access: an
+  // agent that wants a plugin-provided skill/command but has nothing worth putting under a
+  // contextDir shouldn't have to invent one just to get `cwd`/`skills: "all"`/`plugins`
+  // wired up (found via captain-whiskers, which used to carry a throwaway
+  // `context/README.md` placeholder for exactly this). Gated on either signal, not on
+  // `pluginRoots` alone, so an agent that already sets `contextDir` keeps getting the SDK's
+  // own project-level `.claude/skills`/`.claude/commands` discovery it always had.
+  const pluginRoots = spec.pluginRoots(config);
+  const includeSkillsAndPlugins = includeFileTools || pluginRoots.length > 0;
   // Whatever opt-in subagents `spec` wants for this config, or undefined if none apply.
   // Either opt-in feature needs the Agent tool (to delegate to a subagent) and Bash (used
   // only by the subagent itself — see createSubagentBashGate() below, which denies Bash
@@ -94,19 +95,22 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     // Real text streaming instead of silently waiting for the turn's complete message —
     // see the caller's message loop.
     includePartialMessages: true,
-    ...(includeFileTools
+    ...(includeSkillsAndPlugins
       ? {
           // With cwd pointing at the project, the SDK's own "project settings" discovery
           // finds <project>/.claude/skills/ on its own — the user's own custom
           // skills, on top of the plugin-provided built-ins from spec.pluginRoots()
           // below. skipMcpDiscovery: true on those plugins is the caller's choice.
           cwd: config.projectDir,
+          // Empty when there's no contextDir/knowledgeDir (the plugin-only case) — an
+          // empty array is a valid, no-op value for this SDK option, not omitted, since
+          // this whole block is already conditioned on includeSkillsAndPlugins.
           additionalDirectories: [config.contextDir, config.knowledgeDir].filter((d): d is string => Boolean(d)),
           // "skills" acts as a name whitelist, not an addition: "all" enables both the
           // SDK's own official skills (pdf/docx), the project's own custom ones, and the
           // plugin-provided built-ins below.
           skills: "all",
-          plugins: spec.pluginRoots(config).map((pluginPath) => ({ type: "local" as const, path: pluginPath, skipMcpDiscovery: true })),
+          plugins: pluginRoots.map((pluginPath) => ({ type: "local" as const, path: pluginPath, skipMcpDiscovery: true })),
         }
       : {}),
     maxTurns: 400,

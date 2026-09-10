@@ -50,16 +50,12 @@ async function main(): Promise<void> {
 
   // No `manualInterventionTexts` on `spec`: no live UI a human could step into by hand
   // (no browser, nothing), so request_manual_login is correctly never offered - see
-  // agentSpec.ts.
-  //
-  // `contextDir` is set purely to flip on `includeFileTools` in buildSessionOptions()
-  // (session.ts) — that's what wires up `cwd`/`skills: "all"`/`plugins`, so it's the only
-  // way to make spec.pluginRoots() above actually take effect; this example doesn't use
-  // the context/knowledge convention for anything else (see context/README.md).
+  // agentSpec.ts. No `contextDir` either: this example doesn't use the context/knowledge
+  // convention for anything — spec.pluginRoots() above is enough on its own to wire up
+  // skills/plugins in buildSessionOptions() (session.ts).
   const config: BaseSessionConfig = {
     mode: "autonomous",
     projectDir: __dirname,
-    contextDir: path.join(__dirname, "context"),
   };
 
   const { options } = await buildSessionOptions(config, runDir, spec);
