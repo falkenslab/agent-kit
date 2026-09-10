@@ -51,7 +51,8 @@ function friendlyTimestamp(): string {
 async function main(): Promise<void> {
   await createClaudeAuthTui("captain-whiskers").ensureClaudeAuth();
 
-  const runDir = path.join(__dirname, ".run", friendlyTimestamp());
+  const runsDir = path.join(__dirname, ".run");
+  const runDir = path.join(runsDir, friendlyTimestamp());
   await mkdir(runDir, { recursive: true });
 
   // No `manualInterventionTexts` on `spec`: no live UI a human could step into by hand
@@ -73,6 +74,9 @@ async function main(): Promise<void> {
     promptLabel: `\n${ui.user("tú>")} `,
     agentLabel: ui.agent("Capitán Bigotes>"),
     sessionLogPath: path.join(runDir, "session.log"),
+    // A fixed path directly under .run/ (not runDir, which is per-run/timestamped) — so
+    // ↑/↓ recalls prompts from earlier sessions too, not just the current one.
+    historyPath: path.join(runsDir, "history.jsonl"),
   });
 }
 

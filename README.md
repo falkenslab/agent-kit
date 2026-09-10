@@ -89,6 +89,8 @@ await runChatTui(options, {
 
 Pasa `sessionLogPath` para que, además, se vuelque a un fichero (texto plano, sin colores ANSI) todo lo que aparece en la terminal — bienvenida, cada línea que escribe el humano, la respuesta del agente y las líneas de acción — a diferencia de `transcriptPath` (de `buildSessionOptions()`), que solo se escribe si el agente llega a invocar alguna herramienta, `sessionLogPath` se crea siempre que se pase, incluso en una conversación que nunca usa ninguna.
 
+Pasa `historyPath` para persistir cada línea no vacía que el humano escribe (`{text, timestamp}`, un objeto JSON por línea) y recargarla al arrancar como historial de `readline` — así ↑/↓ recorre prompts anteriores, incluso de otra ejecución, si `historyPath` apunta a una ruta fija en vez de a una carpeta por sesión. Se recorta a los `historyLimit` más recientes (100 por defecto), descartando los más antiguos.
+
 Se encarga de todo: leer líneas por teclado, enviarlas a la sesión multi-turno, imprimir el texto de la respuesta en streaming y las acciones (herramientas) con etiquetas legibles, interrumpir el turno en curso con Ctrl+C (sin cerrar la sesión) y salir limpiamente con `/exit` o Ctrl+C en el prompt. Además, coordina su propio `readline` con cualquier checkpoint humano que la sesión dispare (el step gate del modo `interactive`, o las herramientas de aprobación/intervención manual), así que nunca compiten por el teclado.
 
 ### Modos de ejecución (`BaseSessionConfig.mode`)

@@ -1,6 +1,8 @@
 import readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { createWriteStream, type WriteStream } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import { createInputQueue } from "../session.js";
 import { runQuery, type AgentEvent } from "../runner.js";
@@ -48,10 +50,56 @@ export interface ChatTuiOptions {
    * skip session logging entirely.
    */
   sessionLogPath?: string;
+  /**
+   * When set, every non-empty line the human submits (including exit commands — a shell's
+   * own history keeps those too) is appended here as one JSON object per line
+   * (`{ text: string, timestamp: string }`, ISO 8601), trimmed to the most recent
+   * `historyLimit` entries (oldest dropped first). Loaded back at startup — including
+   * across separate runs of the same agent, since this path is normally a fixed file, not
+   * one under a per-run timestamped directory — into `readline`'s own history, so ↑/↓ at
+   * the prompt cycles through prior prompts. Omit to skip persistence entirely (↑/↓ still
+   * works for the current session alone, via readline's own in-memory default).
+   */
+  historyPath?: string;
+  /** Max entries kept in `historyPath` (and in the in-session ↑/↓ list). Defaults to 100. */
+  historyLimit?: number;
+}
+
+interface HistoryEntry {
+  text: string;
+  timestamp: string;
 }
 
 const DEFAULT_PROMPT_LABEL = "\n> ";
 const DEFAULT_EXIT_COMMANDS: readonly string[] = ["/exit", "/quit"];
+const DEFAULT_HISTORY_LIMIT = 100;
+
+/** Keeps only the most recent `limit` entries (oldest-first order in, oldest-first out). */
+export function capHistory(entries: readonly HistoryEntry[], limit: number): HistoryEntry[] {
+  return entries.length > limit ? entries.slice(-limit) : entries.slice();
+}
+
+/** Oldest-first. Missing file reads as empty — nothing to load yet is the normal case. */
+export async function loadHistory(filePath: string): Promise<HistoryEntry[]> {
+  let raw: string;
+  try {
+    raw = await readFile(filePath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+  return raw
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line) as HistoryEntry);
+}
+
+/** Overwrites the whole file (not appended) so a prior prune (oldest entries dropped) sticks. */
+export async function saveHistory(filePath: string, entries: readonly HistoryEntry[]): Promise<void> {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  const body = entries.map((entry) => JSON.stringify(entry)).join("\n");
+  await writeFile(filePath, entries.length > 0 ? `${body}\n` : "", "utf8");
+}
 
 /**
  * Reads `events` one turn at a time — up to and including a `turn-end` — via manual
@@ -101,7 +149,17 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
   const run = runQuery(queue.iterable, options);
   const events = run.events[Symbol.asyncIterator]();
 
-  const rl = readline.createInterface({ input: stdin, output: stdout });
+  const historyLimit = tuiOptions.historyLimit ?? DEFAULT_HISTORY_LIMIT;
+  let historyEntries: HistoryEntry[] = tuiOptions.historyPath ? capHistory(await loadHistory(tuiOptions.historyPath), historyLimit) : [];
+
+  const rl = readline.createInterface({
+    input: stdin,
+    output: stdout,
+    // readline wants most-recent-first (↑ shows historyEntries' last/newest entry first);
+    // this file is stored oldest-first (append-friendly, reads top-to-bottom like a log).
+    history: historyEntries.map((entry) => entry.text).reverse(),
+    historySize: historyLimit,
+  });
   setSharedReadline(rl);
 
   const sessionLog: WriteStream | null = tuiOptions.sessionLogPath ? createWriteStream(tuiOptions.sessionLogPath, { flags: "a" }) : null;
@@ -177,6 +235,10 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
 
       if (!line) continue;
       mirror(`${promptLabel}${line}\n`);
+      if (tuiOptions.historyPath) {
+        historyEntries = capHistory([...historyEntries, { text: line, timestamp: new Date().toISOString() }], historyLimit);
+        await saveHistory(tuiOptions.historyPath, historyEntries);
+      }
       if (exitCommands.has(line.toLowerCase())) break;
 
       queue.push(line);

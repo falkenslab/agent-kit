@@ -33,9 +33,17 @@ con el nombre del plugin — un `/chiste` a secas no se reconoce y se comporta c
 hubieras escrito nada; usa la skill `pirate-joke` para construirlo y lo suelta directamente,
 sin pedir permiso) — o simplemente pídeselo por texto normal, la skill se activa igual.
 
+Con las flechas ↑/↓ en el prompt recorres los mensajes que has escrito antes — incluso de
+sesiones anteriores, no solo la actual.
+
 Cada sesión deja su propia carpeta `.run/<fecha-y-hora>/` (ignorada por git) con dos ficheros:
 - `transcript.jsonl` — un evento JSON por cada llamada a herramienta (pre/post). Solo se
   crea si el capitán llega a invocar alguna herramienta durante la sesión.
 - `session.log` — espejo en texto plano de todo lo que apareció en la terminal (bienvenida,
   lo que escribes, la respuesta del capitán, las líneas `[action]`), sin códigos de color.
   Se crea siempre, aunque la conversación no use ninguna herramienta.
+
+Además, directamente bajo `.run/` (no dentro de cada carpeta de sesión, para que persista
+entre ejecuciones): `history.jsonl`, un objeto JSON por línea (`{text, timestamp}`) con
+cada mensaje no vacío que escribes — de ahí sale el historial de ↑/↓. Se limita a los 100
+más recientes; los más antiguos se van descartando.
