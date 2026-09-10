@@ -33,7 +33,15 @@ export type AgentEvent =
    * in `resultText` instead of `errorText` in that specific case (confirmed empirically:
    * an org-level access error came back as subtype "success", is_error: true, with the
    * real message in `result`) — check `failed`, not `status === "success"`. */
-  | { type: "turn-end"; status: string; failed: boolean; resultText: string | null; errorText: string };
+  | { type: "turn-end"; status: string; failed: boolean; resultText: string | null; errorText: string }
+  /** Out-of-band text from the CLI loop itself, not from the model: local-command output
+   * (e.g. built-in `/usage`) or an informational banner (hook feedback, an unrecognized
+   * `/slash-command` notice, ...). Without this, those `system` messages fell through
+   * `generateEvents()` unhandled — confirmed empirically: typing an unrecognized/
+   * unnamespaced plugin slash command produced total silence (no text, no error, nothing),
+   * because the SDK's own response to it arrives as exactly this message shape and this
+   * module simply dropped it. */
+  | { type: "info"; text: string; level: "info" | "notice" | "suggestion" | "warning" | "local-command" };
 
 export interface AgentRun {
   /** Normalized events for this run — iterate with `for await`. */
@@ -61,6 +69,16 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
       if (message.type === "system" && message.subtype === "init") {
         const failedServers = message.mcp_servers.filter((s) => s.status === "failed").map((s) => s.name);
         if (failedServers.length > 0) yield { type: "mcp-error", failedServers };
+        continue;
+      }
+
+      if (message.type === "system" && message.subtype === "informational") {
+        yield { type: "info", text: message.content, level: message.level };
+        continue;
+      }
+
+      if (message.type === "system" && message.subtype === "local_command_output") {
+        yield { type: "info", text: message.content, level: "local-command" };
         continue;
       }
 
