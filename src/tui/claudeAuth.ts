@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { confirm } from "@inquirer/prompts";
-import { createClaudeAuth } from "../core/claudeAuth.js";
-import { createGlobalConfigStore, type BaseGlobalConfig } from "../core/globalConfigStore.js";
+import { resolveClaudeAuth, type ClaudeAuthConfig } from "../core/claudeAuth.js";
 import { isExitPromptError } from "./promptErrors.js";
 import * as ui from "./ui.js";
 
@@ -50,56 +49,55 @@ function runSetupToken(): Promise<string> {
 }
 
 /**
- * Builds an `ensureClaudeAuth()` bound to `~/.<appName>/config.json` — the terminal-facing
- * counterpart to `createClaudeAuth()` (claudeAuth.ts), which only *looks up* a token. This
- * one also gets you one: if `resolveClaudeAuth()` comes back empty, it prints why, offers
- * to run "claude setup-token" interactively, and persists the result for next time. Exits
- * the process if the user declines or cancels — there's no agent to run without a token.
- * Only makes sense with a real terminal in front of a human (confirm prompt, colored
- * console output), which is why it lives here rather than in the non-interactive core.
+ * The terminal-facing counterpart to `resolveClaudeAuth()` (core/claudeAuth.ts), which only
+ * *looks up* a token. This one also gets you one: if `resolveClaudeAuth(config)` comes back
+ * empty, it prints why, offers to run "claude setup-token" interactively, and sets the
+ * result on `process.env.CLAUDE_CODE_OAUTH_TOKEN` for this run. Exits the process if the
+ * user declines or cancels — there's no agent to run without a token.
+ *
+ * Persisting a freshly-generated token across runs is *not* this function's job — unlike an
+ * earlier version, this kit owns no config-file storage of its own (see git history). When
+ * the interactive flow does generate one, it's returned so the caller can save it wherever
+ * it wants (a file, an OS keychain, ...) and pass it back in as `config.claudeCodeOAuthToken`
+ * next time; returns `undefined` when auth was already resolved (an env var, or the `config`
+ * passed in) and nothing new was generated.
+ *
+ * Only makes sense with a real terminal in front of a human (confirm prompt, colored console
+ * output), which is why it lives here rather than in the non-interactive core.
  */
-export function createClaudeAuthTui(appName: string): { ensureClaudeAuth: () => Promise<void> } {
-  const { resolveClaudeAuth } = createClaudeAuth(appName);
-  const store = createGlobalConfigStore<BaseGlobalConfig>(appName);
+export async function ensureClaudeAuth(config: ClaudeAuthConfig = {}): Promise<string | undefined> {
+  if (resolveClaudeAuth(config)) return undefined;
 
-  async function ensureClaudeAuth(): Promise<void> {
-    if (await resolveClaudeAuth()) return;
+  console.log(ui.warn("\nNo Claude authentication token was found"));
+  console.log(ui.dim("(neither the CLAUDE_CODE_OAUTH_TOKEN environment variable, nor one passed in)."));
 
-    console.log(ui.warn("\nNo Claude authentication token was found"));
-    console.log(ui.dim(
-      `(neither the CLAUDE_CODE_OAUTH_TOKEN environment variable, nor ${store.path()}).`,
-    ));
+  try {
+    const generate = await confirm({
+      message: 'Generate one now with "claude setup-token" (requires a Claude Pro/Max subscription)?',
+      default: true,
+    });
 
-    try {
-      const generate = await confirm({
-        message: 'Generate one now with "claude setup-token" (requires a Claude Pro/Max subscription)?',
-        default: true,
-      });
-
-      if (!generate) {
-        console.log(ui.error(
-          "\nThe agent can't start without a token. Set CLAUDE_CODE_OAUTH_TOKEN by hand " +
-            "(or run this again and accept generating it) and try again.",
-        ));
-        process.exit(0);
-      }
-    } catch (error) {
-      if (isExitPromptError(error)) process.exit(0);
-      throw error;
+    if (!generate) {
+      console.log(ui.error(
+        "\nThe agent can't start without a token. Set CLAUDE_CODE_OAUTH_TOKEN by hand " +
+          "(or run this again and accept generating it) and try again.",
+      ));
+      process.exit(0);
     }
-
-    console.log(ui.heading("\n=== Generating a Claude authentication token ==="));
-    console.log(ui.dim(
-      "A browser will open to log in; follow the instructions the command itself prints " +
-        "below.\n",
-    ));
-
-    const token = await runSetupToken();
-    process.env.CLAUDE_CODE_OAUTH_TOKEN = token;
-    const globalConfig = await store.read();
-    await store.write({ ...globalConfig, claudeCodeOAuthToken: token });
-    console.log(ui.success(`\nToken saved to ${store.path()} for future runs.\n`));
+  } catch (error) {
+    if (isExitPromptError(error)) process.exit(0);
+    throw error;
   }
 
-  return { ensureClaudeAuth };
+  console.log(ui.heading("\n=== Generating a Claude authentication token ==="));
+  console.log(ui.dim(
+    "A browser will open to log in; follow the instructions the command itself prints " +
+      "below.\n",
+  ));
+
+  const token = await runSetupToken();
+  process.env.CLAUDE_CODE_OAUTH_TOKEN = token;
+  console.log(ui.success("\nToken generated for this run. Save it yourself (e.g. CLAUDE_CODE_OAUTH_TOKEN in your shell profile) to skip this next time.\n"));
+
+  return token;
 }

@@ -5,7 +5,7 @@ import pc from "picocolors";
 import {
   buildSessionOptions,
   runChatTui,
-  createClaudeAuthTui,
+  ensureClaudeAuth,
   ui,
   type AgentSpec,
   type BaseSessionConfig,
@@ -49,7 +49,12 @@ function friendlyTimestamp(): string {
 }
 
 async function main(): Promise<void> {
-  await createClaudeAuthTui("captain-whiskers").ensureClaudeAuth();
+  // agent-kit no guarda ningún token por su cuenta (ver git history: solía persistir en
+  // ~/.captain-whiskers/config.json) - solo mira CLAUDE_CODE_OAUTH_TOKEN/ANTHROPIC_API_KEY.
+  // Si ninguna existe, esto pide uno interactivamente con "claude setup-token" pero solo
+  // para esta ejecución - guardarlo entre ejecuciones (fichero propio, variable de entorno
+  // permanente...) es cosa de cada agente, y este ejemplo deliberadamente no se molesta.
+  await ensureClaudeAuth();
 
   const runsDir = path.join(__dirname, ".run");
   const runDir = path.join(runsDir, friendlyTimestamp());

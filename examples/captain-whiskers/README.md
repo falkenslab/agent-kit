@@ -4,9 +4,9 @@ Ejemplo mínimo de un agente construido sobre agent-kit: un gato pirata que corr
 modo `autonomous` — sin ningún canal para pedir permiso, ni siquiera para los chistes.
 
 Con el mínimo código posible, demuestra:
-- `AgentSpec` + `buildSessionOptions()` (../../src/agentSpec.ts, session.ts)
+- `AgentSpec` + `buildSessionOptions()` (../../src/core/agentSpec.ts, session.ts)
 - El chat en terminal ya armado: `runChatTui()`
-- Autenticación automática con Claude: `createClaudeAuthTui()`
+- Autenticación automática con Claude: `ensureClaudeAuth()`
 - Una skill y un comando de barra propios, vía `pluginRoots()` (`plugin/skills/pirate-joke/`,
   `plugin/commands/chiste.md`, `plugin/.claude-plugin/plugin.json`) — el mismo mecanismo
   (plugin local con manifiesto, subcarpetas `skills/`/`commands/`, comando invocado
@@ -26,7 +26,7 @@ El modo es fijo (`autonomous`, ver agent.ts) — no admite argumentos para cambi
 el checkpoint humano (`request_human_approval`, modo `guided`) u otros modos, mira los tests
 de agent-kit o cambia `mode: "autonomous"` en `agent.ts` a mano.
 
-La primera vez, si no tienes ya un token de Claude configurado, te lo pedirá.
+Si no tienes `CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY` en el entorno, te ofrece generar uno con `claude setup-token` — pero solo para esa ejecución: el ejemplo no lo guarda en ningún sitio, así que te lo volverá a pedir la próxima vez. Si no quieres repetirlo cada vez, exporta `CLAUDE_CODE_OAUTH_TOKEN` tú mismo (en tu perfil de shell, por ejemplo) con el token que te dé.
 
 Dentro del chat, escribe `/captain-whiskers:chiste` para pedirle uno directamente (namespaced
 con el nombre del plugin — un `/chiste` a secas no se reconoce y ahora avisa con
