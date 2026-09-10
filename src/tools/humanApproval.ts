@@ -21,7 +21,7 @@ export const DEFAULT_HUMAN_APPROVAL_TEXTS: HumanApprovalTexts = {
 };
 
 /**
- * Checkpoint tool for "guided" mode (and "chat" mode): the agent explores freely, but
+ * Checkpoint tool for "guided" mode: the agent explores freely, but
  * must call this tool and wait for human approval right before any action that publishes
  * something visible to others and that's hard to naturally undo. Everything else —
  * browsing and reading — doesn't go through this.

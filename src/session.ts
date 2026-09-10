@@ -24,8 +24,7 @@ import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
  *
  * The per-mode behavioral differences (whether the approval/manual-intervention tools
  * exist, whether the interactive step gate hook runs) all fall out of `config.mode`
- * alone — "chat" behaves exactly like "guided" here (approval tool always on, no step
- * gate), so there's no separate chat-specific branch to maintain.
+ * alone.
  */
 export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   config: TConfig,
@@ -45,6 +44,15 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const includeManualLoginTool = mode !== "autonomous" && spec.manualInterventionTexts !== undefined;
   // context/knowledge/skills only exist when this config has a project directory of its
   // own (as opposed to a config-less/legacy invocation).
+  //
+  // TODO(revisit): this one flag also gates `cwd`/`skills: "all"`/`plugins` below (not just
+  // Read/Write/Glob), so an agent that wants a custom skill/command/plugin but no raw
+  // filesystem access has no way to ask for that independently — it must set a (possibly
+  // unused) `contextDir` just to flip this on. Found via captain-whiskers wanting a plugin
+  // skill+command with nothing worth putting in contextDir (examples/captain-whiskers/context/
+  // is a placeholder for exactly this reason). Same shape of issue as the old Mode "chat"
+  // alias — consider splitting "skills/commands/plugins available" from "Read/Write/Glob +
+  // contextDir/knowledgeDir available" into two independent config flags.
   const includeFileTools = Boolean(config.contextDir);
   // Whatever opt-in subagents `spec` wants for this config, or undefined if none apply.
   // Either opt-in feature needs the Agent tool (to delegate to a subagent) and Bash (used
