@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { summarizeToolResponse } from "../../src/hooks/transcriptLogger.js";
+import { summarizeToolResponse } from "../../../src/core/hooks/transcriptLogger.js";
 
 test("truncates a long response string", () => {
   const long = "a".repeat(3000);

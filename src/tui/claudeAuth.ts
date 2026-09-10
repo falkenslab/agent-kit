@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { confirm } from "@inquirer/prompts";
-import { createClaudeAuth } from "../claudeAuth.js";
-import { createGlobalConfigStore, type BaseGlobalConfig } from "../globalConfigStore.js";
+import { createClaudeAuth } from "../core/claudeAuth.js";
+import { createGlobalConfigStore, type BaseGlobalConfig } from "../core/globalConfigStore.js";
 import { isExitPromptError } from "./promptErrors.js";
 import * as ui from "./ui.js";
 

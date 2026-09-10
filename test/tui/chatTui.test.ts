@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { drainTurn } from "../../src/tui/chatTui.js";
-import type { AgentEvent } from "../../src/runner.js";
+import type { AgentEvent } from "../../src/core/runner.js";
 
 /** A fake multi-turn `run.events` source, shaped like `runner.ts`'s own generator. */
 async function* fakeEvents(): AsyncGenerator<AgentEvent> {

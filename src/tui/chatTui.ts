@@ -4,10 +4,10 @@ import { createWriteStream, type WriteStream } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
-import { createInputQueue } from "../session.js";
-import { runQuery, type AgentEvent } from "../runner.js";
-import { createFriendlyToolLabel } from "../toolLabels.js";
-import { setSharedReadline } from "../hooks/sharedReadline.js";
+import { createInputQueue } from "../core/session.js";
+import { runQuery, type AgentEvent } from "../core/runner.js";
+import { createFriendlyToolLabel } from "../core/toolLabels.js";
+import { setSharedReadline } from "../core/hooks/sharedReadline.js";
 import * as ui from "./ui.js";
 
 // Only strips picocolors' own SGR sequences (`\x1b[<codes>m`) — the only kind this file
