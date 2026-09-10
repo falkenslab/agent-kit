@@ -87,6 +87,8 @@ await runChatTui(options, {
 });
 ```
 
+Pasa `sessionLogPath` para que, además, se vuelque a un fichero (texto plano, sin colores ANSI) todo lo que aparece en la terminal — bienvenida, cada línea que escribe el humano, la respuesta del agente y las líneas de acción — a diferencia de `transcriptPath` (de `buildSessionOptions()`), que solo se escribe si el agente llega a invocar alguna herramienta, `sessionLogPath` se crea siempre que se pase, incluso en una conversación que nunca usa ninguna.
+
 Se encarga de todo: leer líneas por teclado, enviarlas a la sesión multi-turno, imprimir el texto de la respuesta en streaming y las acciones (herramientas) con etiquetas legibles, interrumpir el turno en curso con Ctrl+C (sin cerrar la sesión) y salir limpiamente con `/exit` o Ctrl+C en el prompt. Además, coordina su propio `readline` con cualquier checkpoint humano que la sesión dispare (el step gate del modo `interactive`, o las herramientas de aprobación/intervención manual), así que nunca compiten por el teclado.
 
 ### Modos de ejecución (`BaseSessionConfig.mode`)
@@ -96,13 +98,14 @@ Se encarga de todo: leer líneas por teclado, enviarlas a la sesión multi-turno
 | `interactive` | Pausa antes de **cada** llamada a herramienta y pide confirmación (step gate). |
 | `guided` | Solo pausa antes de acciones difíciles de deshacer o visibles para terceros (herramienta de aprobación disponible). |
 | `autonomous` | Sin canal humano-en-el-bucle: ni aprobación ni intervención manual. |
-| `chat` | Conversación multi-turno; se comporta igual que `guided` a efectos de aprobación. |
+
+Deliberadamente independiente de si la sesión es de una sola pregunta o una conversación multi-turno — eso lo decide el propio caller usando `runChatTui()`/`createInputQueue()` frente a una llamada directa a `query()`, no este campo. Un agente concreto que necesite saber "esto es una sesión de chat" para su propio propósito (p. ej. elegir otra plantilla de system prompt) debe llevar ese dato como su propio campo de dominio, no mezclarlo con `mode`.
 
 Todo lo demás (qué herramientas están disponibles, qué hooks se registran, qué servidores MCP genéricos se activan) se deriva de este campo más de si hay `contextDir`/`knowledgeDir` configurados — el agente concreto no tiene que replicar esa lógica.
 
 ## Ejemplo
 
-[`examples/captain-whiskers/`](./examples/captain-whiskers) es un agente mínimo y funcional construido sobre este kit: un gato pirata que solo cuenta chistes con aprobación humana. Se ejecuta directamente con `npx tsx examples/captain-whiskers/agent.ts` — sin instalación aparte, ver su propio README.
+[`examples/captain-whiskers/`](./examples/captain-whiskers) es un agente mínimo y funcional construido sobre este kit: un gato pirata que corre siempre en modo `autonomous`. Se ejecuta directamente con `npx tsx examples/captain-whiskers/agent.ts` — sin instalación aparte, ver su propio README.
 
 ## Qué incluye
 
