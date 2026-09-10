@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import pc from "picocolors";
 import {
   buildSessionOptions,
   runChatTui,
@@ -35,6 +36,11 @@ const spec: AgentSpec<BaseSessionConfig> = {
   // /moodle-agent:map). Ver plugin/skills/pirate-joke/SKILL.md y plugin/commands/chiste.md.
   pluginRoots: () => [path.join(__dirname, "plugin")],
   buildSubagents: () => undefined,
+  // Sin acceso real a ficheros (no hay contextDir, ver main()): esto ya bastaba para que
+  // includeFileTools los omitiera de `tools`/`allowedTools` en session.ts, pero
+  // disallowedTools lo hace explícito e independiente de esa condición - el capitán sigue
+  // teniendo WebFetch/WebSearch y su plugin (skills/comando) disponibles.
+  disallowedTools: ["Read", "Write", "Glob"],
 };
 
 /** e.g. "2026-09-09T16-50-12-345Z" — filesystem-safe (no ":") and still sorts chronologically. */
@@ -61,7 +67,9 @@ async function main(): Promise<void> {
   const { options } = await buildSessionOptions(config, runDir, spec);
 
   await runChatTui(options, {
-    welcomeMessage: "El Capitán Bigotes ha subido a bordo. Escribe /exit para desembarcar, o /captain-whiskers:chiste para pedirle uno directamente.",
+    welcomeMessage: pc.gray(
+      "🏴‍☠️🐱 El Capitán Bigotes ha subido a bordo. Escribe /exit para desembarcar, o /captain-whiskers:chiste para pedirle uno directamente. 🦜💀",
+    ),
     promptLabel: `\n${ui.user("tú>")} `,
     agentLabel: ui.agent("Capitán Bigotes>"),
     sessionLogPath: path.join(runDir, "session.log"),

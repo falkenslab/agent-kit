@@ -11,6 +11,8 @@ Con el mínimo código posible, demuestra:
   `plugin/commands/chiste.md`, `plugin/.claude-plugin/plugin.json`) — el mismo mecanismo
   (plugin local con manifiesto, subcarpetas `skills/`/`commands/`, comando invocado
   namespaced como `/<nombre-del-plugin>:<comando>`) que usa moodle-agent
+- `spec.disallowedTools`: el capitán no tiene `Read`/`Write`/`Glob` (no le hacen falta,
+  no toca ficheros del proyecto), pero conserva `WebFetch`/`WebSearch` y su plugin
 
 ## Ejecutar
 
