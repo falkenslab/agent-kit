@@ -34,7 +34,6 @@ export async function askForDecision(runDir: string, prompt: ApprovalPrompt): Pr
   if (interactive) {
     console.log(`\n=== ${prompt.title} ===`);
     for (const line of prompt.lines) console.log(line);
-    console.log('Answer "y"/"n" (or "q" to stop):');
   }
 
   const responseFile = path.join(runDir, "approval-response.txt");
