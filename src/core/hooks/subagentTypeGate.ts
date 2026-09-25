@@ -10,7 +10,7 @@ import type { HookCallback, PreToolUseHookInput } from "@anthropic-ai/claude-age
  * actually declares. Without this hook, that built-in type is a way to route around
  * subagentBashGate.ts entirely: once inside it, `agent_id` is set exactly like an
  * intended subagent, so the Bash-from-main-thread check alone can't tell them apart —
- * this is exactly what happened in practice on moodle-agent (the model delegated a plain
+ * this is exactly what happened in practice in a real consuming agent (the model delegated a plain
  * file deletion to a spontaneous "general-purpose" agent to get at Bash, instead of using
  * its own tools and leaving the stray file alone).
  */

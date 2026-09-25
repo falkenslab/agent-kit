@@ -193,8 +193,8 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
   // Tracks whether the terminal cursor currently sits at column 0 of a fresh row — true
   // right after any write ending in "\n" (writeLine's normal case), false right after a
   // streamed text delta that doesn't (the common case: deltas rarely end mid-sentence on a
-  // newline). Confirmed empirically (against moodle-agent's own, working chat loop, whose
-  // `endStreamIfNeeded()` does exactly this): even with `prevRows` reset to 0 above, if the
+  // newline). Confirmed empirically (against a working chat loop that
+  // ends its streamed text block with an explicit newline): even with `prevRows` reset to 0 above, if the
   // cursor is left *mid-row* when the next prompt redraws, `[kRefreshLine]`'s `cursorTo(0)`
   // moves it to column 0 of that *same* row — the row still holding the tail of what we
   // just wrote — and the following `clearScreenDown` wipes the row from there on, eating

@@ -12,7 +12,7 @@ description: Checklist for adding or changing anything in agent-kit's public API
 - `src/tui/`: terminal-only (`readline`, `picocolors`, `@inquirer/prompts`): `runChatTui()`, `ensureClaudeAuth()`, `ui`.
 - `core/` must never import from `tui/`. Only `src/index.ts` may import from both.
 - If a core function needs to print or prompt, that is a sign it belongs in `tui/`, or the terminal behavior must be gated (see `askForDecision()`, silent when stdin is not a TTY).
-- Keep the kit domain-agnostic: no Moodle, courses, credentials or any concrete agent's concepts. Domain data goes in the consumer's own config type extending `BaseSessionConfig`; things a consumer needs to decide go through an `AgentSpec` method or an option.
+- Keep the kit domain-agnostic: no course, credential or other concrete-agent concepts. Domain data goes in the consumer's own config type extending `BaseSessionConfig`; things a consumer needs to decide go through an `AgentSpec` method or an option.
 
 ## 2. Implement
 

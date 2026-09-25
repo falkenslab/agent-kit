@@ -4,8 +4,8 @@ import type { HookCallback, PreToolUseHookInput } from "@anthropic-ai/claude-age
  * PreToolUse hook forcing `run_in_background: false` on every Agent-tool call that spawns
  * one of this session's own subagents. The Agent tool's own input schema defaults to
  * background execution ("Agents run in the background by default", its own description
- * says) unless the model explicitly opts out per call — confirmed empirically (on
- * moodle-agent) that with a less directive prompt, the model left it on that default, the
+ * says) unless the model explicitly opts out per call — confirmed empirically (in a real
+ * consuming agent) that with a less directive prompt, the model left it on that default, the
  * main turn's "result" fired before the subagent had done anything at all, and the whole
  * invocation was silently lost: no file written, no error, nothing — because the caller's
  * message loop had no code watching for background-task completion

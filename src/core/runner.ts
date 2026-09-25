@@ -3,9 +3,9 @@ import { query, type Options, type SDKUserMessage, type SlashCommand } from "@an
 /**
  * A transport-agnostic view of one turn's worth of output from `query()` — the same
  * normalized shape whether the caller is going to print it to a console, forward it to a
- * chat REPL, or serialize it over Electron IPC (see moodle-agent's runCommand.ts/
- * chatCommand.ts/explore.ts and its desktop app's chatSession.ts, all four of which used
- * to parse the SDK's raw message stream themselves, nearly identically).
+ * chat REPL, or serialize it over Electron IPC (a real consuming agent had four
+ * separate entry points — CLI run, CLI chat, an exploration mode and a desktop chat — that
+ * all parsed the SDK's raw message stream themselves, nearly identically).
  *
  * Deliberately thin: no formatting (no "[agent]"/"[action]" prefixes, no friendly tool
  * labels — those are domain/presentation concerns the caller owns), and no filtering
