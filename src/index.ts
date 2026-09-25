@@ -13,7 +13,7 @@ export {
 export type { Mode, BaseSessionConfig, AgentSpec } from "./core/agentSpec.js";
 export { buildSessionOptions, createInputQueue, createDeferred } from "./core/session.js";
 export { runQuery, type AgentEvent, type AgentRun } from "./core/runner.js";
-export { vaultPluginRoot, vaultPromptSection } from "./core/vault.js";
+export { knowledgePluginRoot, knowledgePromptSection } from "./core/knowledge.js";
 
 // Re-exported so a concrete agent (implementing AgentSpec, wiring up buildSessionOptions())
 // never has to import @anthropic-ai/claude-agent-sdk itself just for these types — this

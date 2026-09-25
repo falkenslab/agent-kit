@@ -101,14 +101,14 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
   saveToSourcesDescription?: string;
 
   /**
-   * The built-in knowledge vault (see vault.ts): when `config.knowledgeDir` is set, the kit
-   * appends its "Knowledge vault" rules to the system prompt and loads its plugin (skills
-   * vault-pages/vault-ingest/vault-query/vault-lint, commands /vault:ingest, /vault:query,
-   * /vault:lint), so the agent maintains its notes as an interlinked wiki. On by default;
+   * The built-in knowledge base (see knowledge.ts): when `config.knowledgeDir` is set, the kit
+   * appends its "Knowledge base" rules to the system prompt and loads its plugin (skills
+   * knowledge-pages/knowledge-ingest/knowledge-query/knowledge-lint, commands /knowledge:ingest, /knowledge:query,
+   * /knowledge:lint), so the agent maintains its notes as an interlinked wiki. On by default;
    * set `false` for an agent that writes its own rules for `knowledgeDir` (or wants plain
-   * notes) — `vaultPromptSection()`/`vaultPluginRoot()` are exported to reuse the pieces.
+   * notes) — `knowledgePromptSection()`/`knowledgePluginRoot()` are exported to reuse the pieces.
    */
-  vault?: boolean;
+  knowledgeBase?: boolean;
 
   /**
    * Text for the generic human-approval checkpoint (see tools/humanApproval.ts) — what

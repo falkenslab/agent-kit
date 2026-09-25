@@ -1,15 +1,15 @@
 ---
-name: vault-lint
-description: Health-check the knowledge vault - broken links, pages missing from index.md, orphan pages, one-way links, duplicated concepts, mentioned-but-missing concepts, contradictions, gaps - fix what's mechanical and report the rest.
+name: knowledge-lint
+description: Health-check the knowledge base - broken links, pages missing from index.md, orphan pages, one-way links, duplicated concepts, mentioned-but-missing concepts, contradictions, gaps - fix what's mechanical and report the rest.
 ---
 
-# Linting the knowledge vault
+# Linting the knowledge base
 
-A vault maintained across sessions drifts: links break, pages go unlisted, the same concept appears under two names. Lint it when asked and after a large ingest. Load `vault-pages` first for the templates.
+A knowledge base maintained across sessions drifts: links break, pages go unlisted, the same concept appears under two names. Lint it when asked and after a large ingest. Load `knowledge-pages` first for the templates.
 
 ## Checks
 
-Use `Glob` to list pages and `Grep` (always with `path` inside the vault) to find links, instead of reading every page in full.
+Use `Glob` to list pages and `Grep` (always with `path` inside the knowledge base) to find links, instead of reading every page in full.
 
 1. **Broken links**: a relative link whose target file doesn't exist. Fix it if the right target is obvious (a typo, a page under a close name); otherwise report it.
 2. **Index**: every page is listed in `index.md` and every entry there points to an existing page. Fix it.

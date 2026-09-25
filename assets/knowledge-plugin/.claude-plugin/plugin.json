@@ -1,0 +1,4 @@
+{
+  "name": "knowledge",
+  "description": "Built-in knowledge base workflows (an LLM wiki): page templates, ingesting sources, querying the knowledge base and health-checking it."
+}

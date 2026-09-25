@@ -1,11 +1,11 @@
 ---
-name: vault-pages
-description: Exact templates and conventions for every page of the knowledge vault (index, log, overview, summary, concept, entity and synthesis pages) - load it before creating a vault page or restructuring one, so every page keeps the same shape and links.
+name: knowledge-pages
+description: Exact templates and conventions for every page of the knowledge base (index, log, overview, summary, concept, entity and synthesis pages) - load it before creating a knowledge base page or restructuring one, so every page keeps the same shape and links.
 ---
 
-# Knowledge vault page templates
+# Knowledge base page templates
 
-The vault's layout and rules are in the system prompt ("Knowledge vault"). This skill only adds the exact shape of each page. Headings and frontmatter keys stay in English (they are structure); the text under them is in the human's language. Dates are `YYYY-MM-DD`. Links are relative markdown links (from `concepts/x.md`, a summary is `../summaries/y.md`; an original file is `../../sources/...`, adjusted to where the folders really are).
+The knowledge base's layout and rules are in the system prompt ("Knowledge base"). This skill only adds the exact shape of each page. Headings and frontmatter keys stay in English (they are structure); the text under them is in the human's language. Dates are `YYYY-MM-DD`. Links are relative markdown links (from `concepts/x.md`, a summary is `../summaries/y.md`; an original file is `../../sources/...`, adjusted to where the folders really are).
 
 Every page starts with YAML frontmatter; `updated` changes whenever you edit the page.
 
@@ -34,7 +34,7 @@ Append-only; never edit past entries. Newest at the bottom.
 
 ## overview.md
 
-A living synthesis of the whole vault, rewritten (not appended) as understanding grows: what it covers, its main blocks and how they connect (with links), what is still unknown.
+A living synthesis of the whole knowledge base, rewritten (not appended) as understanding grows: what it covers, its main blocks and how they connect (with links), what is still unknown.
 
 ## Summary page (`summaries/<slug>.md`)
 
@@ -62,7 +62,7 @@ updated: YYYY-MM-DD
 - [Concept or entity](../concepts/<slug>.md)
 
 ## New or surprising
-- What this source adds to what the vault already had.
+- What this source adds to what the knowledge base already had.
 
 ## Contradictions
 - Conflicts with other pages, linked.

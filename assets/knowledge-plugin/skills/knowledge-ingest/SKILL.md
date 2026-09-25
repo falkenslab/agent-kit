@@ -1,15 +1,15 @@
 ---
-name: vault-ingest
-description: Ingest one source into the knowledge vault - a file in sources/, a document, a page - creating its summary page, creating or updating the concept and entity pages it touches, linking everything both ways, and updating index.md and log.md.
+name: knowledge-ingest
+description: Ingest one source into the knowledge base - a file in sources/, a document, a page - creating its summary page, creating or updating the concept and entity pages it touches, linking everything both ways, and updating index.md and log.md.
 ---
 
-# Ingesting a source into the vault
+# Ingesting a source into the knowledge base
 
-A source is ingested once, and from then on the vault holds what it taught: later sessions read the pages, not the original again. Ingesting is not summarizing a file in isolation - its value is in how it connects to what the vault already knows. Load the `vault-pages` skill first for the page templates.
+A source is ingested once, and from then on the knowledge base holds what it taught: later sessions read the pages, not the original again. Ingesting is not summarizing a file in isolation - its value is in how it connects to what the knowledge base already knows. Load the `knowledge-pages` skill first for the page templates.
 
 ## 1. Check it isn't already ingested
 
-Look for it in `index.md` (Summaries) or `Grep` its file name or URL inside the vault. If it already has a page:
+Look for it in `index.md` (Summaries) or `Grep` its file name or URL inside the knowledge base. If it already has a page:
 - unchanged source: nothing to do;
 - the source changed or the page is thin: update that page instead of creating another.
 
@@ -27,7 +27,7 @@ For every concept or entity the source explains or relies on:
 - no page yet: create it;
 - page exists: add what is new (a better definition, an example, a nuance, a fact) with `Edit`, and link the summary under "Sources".
 
-Check first whether it exists under another name (`Grep` the vault for the term and look at `aliases`): a duplicate page is worse than none.
+Check first whether it exists under another name (`Grep` the knowledge base for the term and look at `aliases`): a duplicate page is worse than none.
 
 ## 5. Link both ways and look for conflicts
 

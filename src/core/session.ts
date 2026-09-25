@@ -10,7 +10,7 @@ import { createHumanApprovalServer } from "./tools/humanApproval.js";
 import { createManualLoginServer } from "./tools/manualLogin.js";
 import { createSaveToSourcesServer } from "./tools/saveToSources.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
-import { vaultPluginRoot, vaultPromptSection } from "./vault.js";
+import { knowledgePluginRoot, knowledgePromptSection } from "./knowledge.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 
 /**
@@ -62,10 +62,10 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // to invent one just to get `cwd`/`skills: "all"`/`plugins` wired up. Gated on either
   // signal, not on `pluginRoots` alone, so an agent with file tools keeps getting the SDK's
   // own project-level `.claude/skills`/`.claude/commands` discovery.
-  // The built-in vault (rules in the system prompt + its skills/commands as a plugin) needs
-  // somewhere to keep the wiki, so it follows `knowledgeDir`; `spec.vault: false` opts out.
-  const includeVault = Boolean(config.knowledgeDir) && spec.vault !== false;
-  const pluginRoots = [...spec.pluginRoots(config), ...(includeVault ? [vaultPluginRoot()] : [])];
+  // The built-in knowledge base (rules in the system prompt + its skills/commands as a plugin) needs
+  // somewhere to keep the wiki, so it follows `knowledgeDir`; `spec.knowledgeBase: false` opts out.
+  const includeKnowledgeBase = Boolean(config.knowledgeDir) && spec.knowledgeBase !== false;
+  const pluginRoots = [...spec.pluginRoots(config), ...(includeKnowledgeBase ? [knowledgePluginRoot()] : [])];
   const includeSkillsAndPlugins = includeFileTools || pluginRoots.length > 0;
   const skillTools = includeSkillsAndPlugins ? ["Skill"] : [];
   // Whatever opt-in subagents `spec` wants for this config, or undefined if none apply.
@@ -89,8 +89,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);
 
   const sdkOptions: Options = {
-    systemPrompt: includeVault && config.knowledgeDir
-      ? `${spec.buildSystemPrompt(config)}\n\n${vaultPromptSection(config.projectDir, config.knowledgeDir, config.sourcesDir)}`
+    systemPrompt: includeKnowledgeBase && config.knowledgeDir
+      ? `${spec.buildSystemPrompt(config)}\n\n${knowledgePromptSection(config.projectDir, config.knowledgeDir, config.sourcesDir)}`
       : spec.buildSystemPrompt(config),
     settings: { autoCompactEnabled: options.autoCompactEnabled ?? true },
     // No built-in tools except, if applicable, Read/Write/Edit/Glob/Grep scoped to the

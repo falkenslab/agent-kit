@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { vaultPluginRoot, vaultPromptSection } from "../../src/core/vault.js";
+import { knowledgePluginRoot, knowledgePromptSection } from "../../src/core/knowledge.js";
 import { buildSessionOptions } from "../../src/core/session.js";
 import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
 
@@ -19,12 +19,12 @@ function makeSpec(overrides: Partial<AgentSpec<BaseSessionConfig>> = {}): AgentS
   };
 }
 
-const runDir = fs.mkdtempSync(path.join(os.tmpdir(), "vault-test-"));
+const runDir = fs.mkdtempSync(path.join(os.tmpdir(), "knowledge-test-"));
 
-test("the vault plugin ships its manifest, skills and commands", () => {
-  const root = vaultPluginRoot();
+test("the knowledge base plugin ships its manifest, skills and commands", () => {
+  const root = knowledgePluginRoot();
   assert.ok(fs.existsSync(path.join(root, ".claude-plugin", "plugin.json")));
-  for (const skill of ["vault-pages", "vault-ingest", "vault-query", "vault-lint"]) {
+  for (const skill of ["knowledge-pages", "knowledge-ingest", "knowledge-query", "knowledge-lint"]) {
     assert.ok(fs.existsSync(path.join(root, "skills", skill, "SKILL.md")), skill);
   }
   for (const command of ["ingest", "query", "lint"]) {
@@ -33,28 +33,28 @@ test("the vault plugin ships its manifest, skills and commands", () => {
 });
 
 test("the prompt section names the project's real folders, and only mentions originals when there are some", () => {
-  const withSources = vaultPromptSection(projectDir, path.join(projectDir, "knowledge"), path.join(projectDir, "sources"));
-  assert.match(withSources, /## Knowledge vault \(knowledge\/\)/);
+  const withSources = knowledgePromptSection(projectDir, path.join(projectDir, "knowledge"), path.join(projectDir, "sources"));
+  assert.match(withSources, /## Knowledge base \(knowledge\/\)/);
   assert.match(withSources, /Originals \(read-only for you\)\*\*: `sources\/`/);
-  const withoutSources = vaultPromptSection(projectDir, path.join(projectDir, "knowledge"));
+  const withoutSources = knowledgePromptSection(projectDir, path.join(projectDir, "knowledge"));
   assert.doesNotMatch(withoutSources, /Originals/);
 });
 
-test("with knowledgeDir set, the vault rules and plugin are added on top of the spec's own", async () => {
+test("with knowledgeDir set, the knowledge base rules and plugin are added on top of the spec's own", async () => {
   const config: BaseSessionConfig = { mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") };
   const { options } = await buildSessionOptions(config, runDir, makeSpec({ pluginRoots: () => ["/own/plugin"] }));
-  assert.match(options.systemPrompt as string, /^BASE PROMPT\n\n## Knowledge vault/);
+  assert.match(options.systemPrompt as string, /^BASE PROMPT\n\n## Knowledge base/);
   assert.deepEqual(
     options.plugins?.map((p) => p.path),
-    ["/own/plugin", vaultPluginRoot()],
+    ["/own/plugin", knowledgePluginRoot()],
   );
 });
 
-test("vault: false, or no knowledgeDir, leaves the prompt and plugins alone", async () => {
+test("knowledgeBase: false, or no knowledgeDir, leaves the prompt and plugins alone", async () => {
   const optedOut = await buildSessionOptions(
     { mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") },
     runDir,
-    makeSpec({ vault: false }),
+    makeSpec({ knowledgeBase: false }),
   );
   assert.equal(optedOut.options.systemPrompt, "BASE PROMPT");
   assert.deepEqual(optedOut.options.plugins, []);
