@@ -109,9 +109,11 @@ Deliberadamente independiente de si la sesión es de una sola pregunta o una con
 
 Todo lo demás (qué herramientas están disponibles, qué hooks se registran, qué servidores MCP genéricos se activan) se deriva de este campo más de si hay `contextDir`/`knowledgeDir` configurados — el agente concreto no tiene que replicar esa lógica.
 
-## Ejemplo
+## Ejemplos
 
 [`examples/captain-whiskers/`](./examples/captain-whiskers) es un agente mínimo y funcional construido sobre este kit: un gato pirata que corre siempre en modo `autonomous`. Se ejecuta directamente con `npx tsx examples/captain-whiskers/agent.ts` — sin instalación aparte, ver su propio README.
+
+[`student-agent`](../student-agent) (repo hermano, antes en `examples/`) es mucho más sustancial: un port completo del rol `student` de [`moodle-agent`](https://github.com/falkenslab/moodle-agent) — hace un curso de Moodle real navegando con el navegador de verdad, con sus 20 skills + 7 comandos, subagentes opcionales, y un workspace propio con credenciales. Consume este kit vía dependencia `file:`; ver su propio README.
 
 ## Qué incluye
 
