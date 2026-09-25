@@ -91,6 +91,8 @@ Pasa `sessionLogPath` para que, además, se vuelque a un fichero (texto plano, s
 
 Pasa `historyPath` para persistir cada línea no vacía que el humano escribe (`{text, timestamp}`, un objeto JSON por línea) y recargarla al arrancar como historial de `readline` — así ↑/↓ recorre prompts anteriores, incluso de otra ejecución, si `historyPath` apunta a una ruta fija en vez de a una carpeta por sesión. Se recorta a los `historyLimit` más recientes (100 por defecto), descartando los más antiguos.
 
+Pasa `initialPrompt` para que el agente actúe primero, antes de esperar al humano — se envía como si fuera la primera línea que alguien escribió, en cuanto arranca el chat (útil para un agente que debe hacer algo nada más empezar, como iniciar sesión en algún sitio, en vez de quedarse esperando en el prompt). Ver el repo hermano `student-agent`.
+
 Se encarga de todo: leer líneas por teclado, enviarlas a la sesión multi-turno, imprimir el texto de la respuesta en streaming y las acciones (herramientas) con etiquetas legibles, interrumpir el turno en curso con Ctrl+C (sin cerrar la sesión) y salir limpiamente con `/exit` o Ctrl+C en el prompt. Además, coordina su propio `readline` con cualquier checkpoint humano que la sesión dispare (el step gate del modo `interactive`, o las herramientas de aprobación/intervención manual), así que nunca compiten por el teclado.
 
 Si escribes algo que empieza por `/` y no coincide con ningún comando registrado (propio, de un plugin, o de los propios de Claude Code), se avisa con `Unknown command: /lo-que-sea` y no llega a enviarse al agente — sin esto, una línea así habría llegado al modelo como texto literal sin ningún manejo especial, indistinguible de no haber escrito nada.

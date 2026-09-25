@@ -41,6 +41,15 @@ export interface ChatTuiOptions {
   /** Lines (trimmed, case-insensitive) that end the chat. */
   exitCommands?: readonly string[];
   /**
+   * When set, submitted as the very first turn — before the human is ever prompted —
+   * exactly as if they'd typed it themselves (mirrored to `sessionLogPath`/history like
+   * any other line). For an agent that should act proactively at the start of a chat (log
+   * into a site, load some state) instead of sitting idle at the prompt until the human
+   * says something first. Omit for the plain "wait at the prompt" behavior this kit had
+   * before.
+   */
+  initialPrompt?: string;
+  /**
    * When set, mirrors everything this loop prints — the welcome message, each prompt
    * line the human types, the agent's streamed reply, action lines, and any error/warning
    * — into this file as it happens (appended, plain text with ANSI color codes stripped),
@@ -249,6 +258,16 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
   if (tuiOptions.welcomeMessage) writeLine(tuiOptions.welcomeMessage);
 
   try {
+    if (tuiOptions.initialPrompt) {
+      mirror(`${promptLabel}${tuiOptions.initialPrompt}\n`);
+      queue.push(tuiOptions.initialPrompt);
+      turnInFlight = true;
+      agentLabelPrinted = false;
+      await drainTurn(events, renderEvent);
+      turnInFlight = false;
+      if (!cursorAtLineStart) write("\n");
+    }
+
     while (true) {
       let line: string;
       try {
