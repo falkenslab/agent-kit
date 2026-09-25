@@ -28,6 +28,16 @@ export interface BaseSessionConfig {
   /** Only set when this session has a project directory with its own context/knowledge (as opposed to a config-less/legacy invocation). */
   contextDir?: string;
   knowledgeDir?: string;
+  /**
+   * Where original source files (downloaded documents, transcripts...) are kept, apart
+   * from the notes the agent writes in `knowledgeDir`. When set, the file-copy tool is
+   * `save_to_sources` (copies here) instead of `save_to_knowledge`.
+   */
+  sourcesDir?: string;
+  /** Directories besides `knowledgeDir`/`sourcesDir` where Write/Edit are allowed (see hooks/fileScopeGate.ts). */
+  extraWritableDirs?: string[];
+  /** Files or directories the agent must never read, search or write, e.g. a config file holding a password (see hooks/fileScopeGate.ts). */
+  deniedPaths?: string[];
   /** Extra values (e.g. a password) to scrub out of the transcript log — see hooks/transcriptLogger.ts. */
   secrets?: string[];
 }
@@ -85,6 +95,9 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
 
   /** Overrides this kit's generic `save_to_knowledge` tool description with domain-specific wording. */
   saveToKnowledgeDescription?: string;
+
+  /** Same, for `save_to_sources` (registered instead of `save_to_knowledge` when `config.sourcesDir` is set). */
+  saveToSourcesDescription?: string;
 
   /**
    * Text for the generic human-approval checkpoint (see tools/humanApproval.ts) — what

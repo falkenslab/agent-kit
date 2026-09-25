@@ -28,11 +28,12 @@ export { createStepGate } from "./core/hooks/stepGate.js";
 export { createSubagentBashGate } from "./core/hooks/subagentBashGate.js";
 export { createSubagentTypeGate } from "./core/hooks/subagentTypeGate.js";
 export { createSubagentForegroundGate } from "./core/hooks/subagentForegroundGate.js";
+export { createFileScopeGate, checkFileScope, type FileScope } from "./core/hooks/fileScopeGate.js";
 export { askForDecision, type ApprovalPrompt } from "./core/hooks/humanInput.js";
 export { setSharedReadline, getSharedReadline } from "./core/hooks/sharedReadline.js";
 
 export { createHumanApprovalServer, DEFAULT_HUMAN_APPROVAL_TEXTS, type HumanApprovalTexts } from "./core/tools/humanApproval.js";
 export { createManualLoginServer, DEFAULT_MANUAL_INTERVENTION_TEXTS, type ManualInterventionTexts } from "./core/tools/manualLogin.js";
-export { createSaveToKnowledgeServer } from "./core/tools/saveToKnowledge.js";
+export { createSaveToKnowledgeServer, createSaveToSourcesServer } from "./core/tools/saveToKnowledge.js";
 
 export { runChatTui, type ChatTuiOptions } from "./tui/chatTui.js";

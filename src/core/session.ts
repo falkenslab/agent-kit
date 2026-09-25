@@ -5,9 +5,10 @@ import { createStepGate } from "./hooks/stepGate.js";
 import { createSubagentBashGate } from "./hooks/subagentBashGate.js";
 import { createSubagentTypeGate } from "./hooks/subagentTypeGate.js";
 import { createSubagentForegroundGate } from "./hooks/subagentForegroundGate.js";
+import { createFileScopeGate } from "./hooks/fileScopeGate.js";
 import { createHumanApprovalServer } from "./tools/humanApproval.js";
 import { createManualLoginServer } from "./tools/manualLogin.js";
-import { createSaveToKnowledgeServer } from "./tools/saveToKnowledge.js";
+import { createSaveToKnowledgeServer, createSaveToSourcesServer } from "./tools/saveToKnowledge.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 
@@ -46,6 +47,12 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // opposed to a config-less/legacy invocation) — gates Read/Write/Glob and
   // additionalDirectories below.
   const includeFileTools = Boolean(config.contextDir);
+  const fileTools = includeFileTools ? ["Read", "Write", "Edit", "Glob", "Grep"] : [];
+  // Where Write/Edit may act and Grep may search (see hooks/fileScopeGate.ts): the
+  // project's own folders, never the whole cwd — which would include whatever else the
+  // project directory holds (the user's config, context/ itself for writes).
+  const writableDirs = [config.knowledgeDir, config.sourcesDir, ...(config.extraWritableDirs ?? [])].filter((d): d is string => Boolean(d));
+  const searchableDirs = [config.contextDir, ...writableDirs].filter((d): d is string => Boolean(d));
   // Skills/commands/plugins are a separate concern from Read/Write/Glob file access: an
   // agent that wants a plugin-provided skill/command but has nothing worth putting under a
   // contextDir shouldn't have to invent one just to get `cwd`/`skills: "all"`/`plugins`
@@ -78,13 +85,13 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const sdkOptions: Options = {
     systemPrompt: spec.buildSystemPrompt(config),
     settings: { autoCompactEnabled: options.autoCompactEnabled ?? true },
-    // No built-in tools except, if applicable, Read/Write/Glob restricted to the
-    // project's context/knowledge (additionalDirectories, below), and WebFetch/WebSearch
+    // No built-in tools except, if applicable, Read/Write/Edit/Glob/Grep scoped to the
+    // project's own folders (fileScopeGate below), and WebFetch/WebSearch
     // with no domain restriction (not conditioned on includeFileTools: it's read-only,
     // doesn't depend on there being a project directory) — any priority order between
     // them is the domain's own system prompt's job to establish, not this function's.
-    tools: [...(includeFileTools ? ["Read", "Write", "Glob"] : []), "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
-    allowedTools: [...(includeFileTools ? ["Read", "Write", "Glob"] : []), "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
+    tools: [...fileTools, "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
+    allowedTools: [...fileTools, "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
     // Every mcp__* tool (whatever spec.buildMcpServers() registers, approvals/manualLogin
     // when enabled below, knowledgeFiles, and any server a project's own .mcp.json
     // declares) is approved generically here rather than listed one by one — see
@@ -105,7 +112,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           // Empty when there's no contextDir/knowledgeDir (the plugin-only case) — an
           // empty array is a valid, no-op value for this SDK option, not omitted, since
           // this whole block is already conditioned on includeSkillsAndPlugins.
-          additionalDirectories: [config.contextDir, config.knowledgeDir].filter((d): d is string => Boolean(d)),
+          additionalDirectories: searchableDirs,
           // "skills" acts as a name whitelist, not an addition: "all" enables both the
           // SDK's own official skills (pdf/docx), the project's own custom ones, and the
           // plugin-provided built-ins below.
@@ -119,13 +126,18 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       ...spec.buildMcpServers(config, runDir),
       ...(includeApprovalTool ? { approvals: createHumanApprovalServer(runDir, spec.humanApprovalTexts) } : {}),
       ...(includeManualLoginTool ? { manualLogin: createManualLoginServer(runDir, spec.manualInterventionTexts) } : {}),
-      ...(includeFileTools && config.contextDir && config.knowledgeDir
-        ? { knowledgeFiles: createSaveToKnowledgeServer(runDir, config.contextDir, config.knowledgeDir, spec.saveToKnowledgeDescription) }
-        : {}),
+      ...(includeFileTools && config.contextDir && config.sourcesDir
+        ? { knowledgeFiles: createSaveToSourcesServer(runDir, config.contextDir, config.sourcesDir, spec.saveToSourcesDescription) }
+        : includeFileTools && config.contextDir && config.knowledgeDir
+          ? { knowledgeFiles: createSaveToKnowledgeServer(runDir, config.contextDir, config.knowledgeDir, spec.saveToKnowledgeDescription) }
+          : {}),
     },
     hooks: {
       PreToolUse: [
         { hooks: [transcriptLogger.preToolUse] },
+        ...(includeFileTools
+          ? [{ hooks: [createFileScopeGate({ projectDir: config.projectDir, writableDirs, searchableDirs, deniedPaths: config.deniedPaths ?? [] })] }]
+          : []),
         ...(mode === "interactive" ? [{ hooks: [createStepGate(runDir)] }] : []),
         ...(includeSubagentTools
           ? [

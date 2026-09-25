@@ -49,23 +49,40 @@ async function resolveExistingFileToleratingNormalization(resolvedPath: string):
   return match ? path.join(dir, match) : undefined;
 }
 
+/** Same idea as DEFAULT_DESCRIPTION, for `save_to_sources`: the original file kept apart from the notes written about it. */
+const DEFAULT_SOURCES_DESCRIPTION =
+  "Copy a file from this run's own folder (e.g. something just downloaded) into a folder " +
+  "under sources/, where original source files are kept apart from your own notes, so " +
+  "it becomes readable there with the SDK's own Read tool, which already extracts text " +
+  "from PDF/DOCX and interprets images directly. This tool does no parsing or conversion " +
+  "itself, it only relocates the file. Use it right after downloading a document you're " +
+  "about to study in depth, so it's still there for later sessions instead of only " +
+  "existing for this run.";
+
 /**
  * Deliberately just an fs.copyFile: no parsing, no format conversion, no third-party
  * library. A document downloaded via a browser-automation tool typically lands in this
  * run's own folder, which Read/Write/Glob can't reach if `additionalDirectories` only
- * covers context/+knowledge/ — this tool's only job is getting the file into knowledge/,
- * where the SDK's own Read tool already knows how to interpret it (PDF/DOCX text
- * extraction, multimodal images), exactly as it already does for context/.
+ * covers the project's own folders — this tool's only job is getting the file into
+ * `targetDir`, where the SDK's own Read tool already knows how to interpret it (PDF/DOCX
+ * text extraction, multimodal images), exactly as it already does for context/.
  */
-export function createSaveToKnowledgeServer(runDir: string, contextDir: string, knowledgeDir: string, description = DEFAULT_DESCRIPTION) {
-  const saveToKnowledge = tool(
-    "save_to_knowledge",
+function createSaveFileServer(
+  toolName: string,
+  targetLabel: string,
+  runDir: string,
+  contextDir: string,
+  targetDir: string,
+  description: string,
+) {
+  const saveFile = tool(
+    toolName,
     description,
     {
       source: z
         .string()
         .describe("Path to the file, relative to this run's own folder (or to context/) - not a URL"),
-      destination: z.string().describe('Path to save it under, relative to knowledge/, e.g. "topic-3/slides.pdf"'),
+      destination: z.string().describe(`Path to save it under, relative to ${targetLabel}, e.g. "topic-3/slides.pdf"`),
     },
     async (args) => {
       const runDirCandidate = resolveWithin(runDir, args.source);
@@ -87,10 +104,10 @@ export function createSaveToKnowledgeServer(runDir: string, contextDir: string, 
         };
       }
 
-      const resolvedDestination = resolveWithin(knowledgeDir, args.destination);
+      const resolvedDestination = resolveWithin(targetDir, args.destination);
       if (!resolvedDestination) {
         return {
-          content: [{ type: "text" as const, text: `"${args.destination}" isn't inside knowledge/ - refusing to write there.` }],
+          content: [{ type: "text" as const, text: `"${args.destination}" isn't inside ${targetLabel} - refusing to write there.` }],
           isError: true,
         };
       }
@@ -100,16 +117,27 @@ export function createSaveToKnowledgeServer(runDir: string, contextDir: string, 
         await copyFile(resolvedSource, resolvedDestination);
       } catch (error) {
         return {
-          content: [{ type: "text" as const, text: `Couldn't copy "${args.source}" to knowledge/: ${error instanceof Error ? error.message : String(error)}` }],
+          content: [{ type: "text" as const, text: `Couldn't copy "${args.source}" to ${targetLabel}: ${error instanceof Error ? error.message : String(error)}` }],
           isError: true,
         };
       }
 
+      const savedAs = path.relative(targetDir, resolvedDestination).split(path.sep).join("/");
       return {
-        content: [{ type: "text" as const, text: `Saved to knowledge/${path.relative(knowledgeDir, resolvedDestination)} - read it from there with Read.` }],
+        content: [{ type: "text" as const, text: `Saved to ${targetLabel}${savedAs} - read it from there with Read.` }],
       };
     },
   );
 
-  return createSdkMcpServer({ name: "knowledgeFiles", version: "1.0.0", tools: [saveToKnowledge] });
+  return createSdkMcpServer({ name: "knowledgeFiles", version: "1.0.0", tools: [saveFile] });
+}
+
+/** `save_to_knowledge`: copies into `knowledgeDir`. */
+export function createSaveToKnowledgeServer(runDir: string, contextDir: string, knowledgeDir: string, description = DEFAULT_DESCRIPTION) {
+  return createSaveFileServer("save_to_knowledge", "knowledge/", runDir, contextDir, knowledgeDir, description);
+}
+
+/** `save_to_sources`: copies into `sourcesDir`, for a project that keeps original files apart from its notes. */
+export function createSaveToSourcesServer(runDir: string, contextDir: string, sourcesDir: string, description = DEFAULT_SOURCES_DESCRIPTION) {
+  return createSaveFileServer("save_to_sources", "sources/", runDir, contextDir, sourcesDir, description);
 }

@@ -1,8 +1,9 @@
 /**
  * Turns a raw tool name + input into a short, readable console description, instead of
  * the tool's technical name (e.g. "mcp__playwright__browser_click"). Covers the tools
- * this kit itself provides (Read/Write/Glob/Bash/Agent/WebFetch/WebSearch/Skill, plus its
- * own human-approval/manual-intervention/save-to-knowledge MCP tools) generically; a
+ * this kit itself provides (Read/Write/Edit/Glob/Grep/Bash/Agent/WebFetch/WebSearch/Skill,
+ * plus its own human-approval/manual-intervention/save-to-knowledge/sources MCP tools)
+ * generically; a
  * concrete agent supplies a `describe` callback for its own domain-specific tools (e.g.
  * moodle-agent's Playwright browser_* cases) via `createFriendlyToolLabel()`.
  */
@@ -31,6 +32,10 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
       const destination = typeof input.destination === "string" ? input.destination : "knowledge/";
       return `Saving a file to knowledge/${truncatePath(destination, 70)}`;
     }
+    case "save_to_sources": {
+      const destination = typeof input.destination === "string" ? input.destination : "";
+      return `Saving a file to sources/${truncatePath(destination, 70)}`;
+    }
     case "Read": {
       const file = typeof input.file_path === "string" ? input.file_path : "a file";
       return `Reading ${truncatePath(file, 80)}`;
@@ -39,9 +44,17 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
       const file = typeof input.file_path === "string" ? input.file_path : "a file";
       return `Writing to ${truncatePath(file, 80)}`;
     }
+    case "Edit": {
+      const file = typeof input.file_path === "string" ? input.file_path : "a file";
+      return `Editing ${truncatePath(file, 80)}`;
+    }
     case "Glob": {
       const pattern = typeof input.pattern === "string" ? input.pattern : "*";
       return `Searching for files matching "${truncate(pattern, 60)}"`;
+    }
+    case "Grep": {
+      const pattern = typeof input.pattern === "string" ? input.pattern : "";
+      return `Searching file contents for "${truncate(pattern, 60)}"`;
     }
     case "Bash": {
       const command = typeof input.command === "string" ? input.command : "";
