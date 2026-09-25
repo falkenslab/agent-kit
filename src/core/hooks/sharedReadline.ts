@@ -22,3 +22,24 @@ export function setSharedReadline(rl: readline.Interface | null): void {
 export function getSharedReadline(): readline.Interface | null {
   return current;
 }
+
+let activeQuestions = 0;
+
+/**
+ * Asks `question` on the shared interface, flagging it as in progress meanwhile — so the
+ * REPL that owns the interface can tell a human-in-the-loop checkpoint waiting on the
+ * keyboard apart from a turn simply streaming (e.g. Esc must not interrupt the turn while
+ * an approval question is on screen).
+ */
+export async function askOnSharedReadline(rl: readline.Interface, question: string): Promise<string> {
+  activeQuestions++;
+  try {
+    return await rl.question(question);
+  } finally {
+    activeQuestions--;
+  }
+}
+
+export function isSharedQuestionActive(): boolean {
+  return activeQuestions > 0;
+}

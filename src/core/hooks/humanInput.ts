@@ -2,7 +2,7 @@ import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { getSharedReadline } from "./sharedReadline.js";
+import { askOnSharedReadline, getSharedReadline } from "./sharedReadline.js";
 
 export interface ApprovalPrompt {
   title: string;
@@ -49,7 +49,8 @@ export async function askForDecision(runDir: string, prompt: ApprovalPrompt): Pr
   const fromKeyboard = (async (): Promise<string> => {
     if (!rl) return await new Promise<string>(() => {}); // non-interactive: let the file channel win
     try {
-      return await rl.question(prompt.question ?? "Allow this to continue? [Y/n/q] ");
+      const question = prompt.question ?? "Allow this to continue? [Y/n/q] ";
+      return await (sharedRl ? askOnSharedReadline(sharedRl, question) : rl.question(question));
     } catch {
       // Non-interactive stdin (e.g. process piloted in the background): don't race,
       // let the response file win.

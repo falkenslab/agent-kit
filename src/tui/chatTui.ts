@@ -7,7 +7,7 @@ import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import { createInputQueue } from "../core/session.js";
 import { runQuery, type AgentEvent } from "../core/runner.js";
 import { createFriendlyToolLabel } from "../core/toolLabels.js";
-import { setSharedReadline } from "../core/hooks/sharedReadline.js";
+import { isSharedQuestionActive, setSharedReadline } from "../core/hooks/sharedReadline.js";
 import * as ui from "./ui.js";
 
 // Only strips picocolors' own SGR sequences (`\x1b[<codes>m`) — the only kind this file
@@ -244,16 +244,31 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
   }
 
   let turnInFlight = false;
+  let turnInterrupted = false;
   let agentLabelPrinted = false;
+  function interruptTurn(): void {
+    if (turnInterrupted) return;
+    turnInterrupted = true;
+    void run.interrupt();
+    writeLine(ui.warn("\n(interrupted)"));
+  }
   rl.on("SIGINT", () => {
     if (turnInFlight) {
-      void run.interrupt();
-      writeLine(ui.warn("\n(interrupted)"));
+      interruptTurn();
     } else {
       queue.end();
       rl.close();
     }
   });
+  // Esc interrupts the turn in flight too, like Ctrl+C — but, unlike it, never ends the
+  // chat, and does nothing while a human-in-the-loop checkpoint is asking on this same
+  // interface (Esc there is just a keystroke on the question). The readline interface
+  // already emits "keypress" on stdin, and only reports name "escape" for a lone Esc, not
+  // for the Esc-prefixed sequences of arrow/function keys.
+  const onKeypress = (_chunk: string | undefined, key: { name?: string } | undefined): void => {
+    if (key?.name === "escape" && turnInFlight && !isSharedQuestionActive()) interruptTurn();
+  };
+  stdin.on("keypress", onKeypress);
 
   if (tuiOptions.welcomeMessage) writeLine(tuiOptions.welcomeMessage);
 
@@ -262,6 +277,7 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
       mirror(`${promptLabel}${tuiOptions.initialPrompt}\n`);
       queue.push(tuiOptions.initialPrompt);
       turnInFlight = true;
+      turnInterrupted = false;
       agentLabelPrinted = false;
       await drainTurn(events, renderEvent);
       turnInFlight = false;
@@ -299,12 +315,14 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
 
       queue.push(line);
       turnInFlight = true;
+      turnInterrupted = false;
       agentLabelPrinted = false;
       await drainTurn(events, renderEvent);
       turnInFlight = false;
       if (!cursorAtLineStart) write("\n");
     }
   } finally {
+    stdin.off("keypress", onKeypress);
     queue.end();
     run.close();
     setSharedReadline(null);
