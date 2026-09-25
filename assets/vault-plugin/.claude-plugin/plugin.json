@@ -1,0 +1,4 @@
+{
+  "name": "vault",
+  "description": "Built-in knowledge vault workflows (an LLM wiki): page templates, ingesting sources, querying the vault and health-checking it."
+}

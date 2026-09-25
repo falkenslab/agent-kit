@@ -17,21 +17,25 @@ export type Mode = "interactive" | "guided" | "autonomous";
 
 /**
  * The minimum a config object needs to drive `buildSessionOptions()` — a concrete agent's
- * own config type (e.g. moodle-agent's `Config`) extends this with whatever domain fields
+ * own config type (e.g. a `Config`) extends this with whatever domain fields
  * it needs (a course URL, credentials, ...), which `buildSessionOptions()` itself never
  * looks at directly: only `AgentSpec`'s methods receive the full concrete config.
  */
 export interface BaseSessionConfig {
   mode: Mode;
-  /** Project root: the folder under which context/knowledge/sessions live (see the project-directory helpers). */
+  /** Project root (the session's cwd): the folder under which the agent's notes, sources and runs live. */
   projectDir: string;
-  /** Only set when this session has a project directory with its own context/knowledge (as opposed to a config-less/legacy invocation). */
-  contextDir?: string;
+  /**
+   * Where the agent writes its own notes (the "wiki"). Setting this or `sourcesDir` is what
+   * gives the session the file tools (Read/Write/Edit/Glob/Grep, scoped — see
+   * hooks/fileScopeGate.ts); without either, the agent has no file access at all.
+   */
   knowledgeDir?: string;
   /**
-   * Where original source files (downloaded documents, transcripts...) are kept, apart
-   * from the notes the agent writes in `knowledgeDir`. When set, the file-copy tool is
-   * `save_to_sources` (copies here) instead of `save_to_knowledge`.
+   * Original files, kept as obtained and apart from the notes in `knowledgeDir`: material
+   * the user drops in, plus whatever the agent saves with `save_to_sources` (downloaded
+   * documents, transcripts...). The agent can read and search it but never edit it — Write/
+   * Edit are scoped to `knowledgeDir` — and `save_to_sources` never overwrites.
    */
   sourcesDir?: string;
   /** Directories besides `knowledgeDir`/`sourcesDir` where Write/Edit are allowed (see hooks/fileScopeGate.ts). */
@@ -62,14 +66,14 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    * agent), on top of the generic ones `buildSessionOptions()` wires up itself when
    * applicable (human approval, manual intervention, save-to-knowledge) — those aren't
    * part of the spec because they're driven by `mode` plus this spec's own
-   * `manualInterventionTexts`/`contextDir`/`knowledgeDir`, not by anything else
+   * `manualInterventionTexts`/`knowledgeDir`/`sourcesDir`, not by anything else
    * domain-specific.
    */
   buildMcpServers(config: TConfig, runDir: string): Record<string, McpServerConfig>;
 
   /**
    * Local plugin roots (skills/commands, SDK "local" plugin type) to load, in the order
-   * given, when `config.contextDir` is set. Absolute paths; `buildSessionOptions()`
+   * given, when the session has file tools (`config.knowledgeDir`/`config.sourcesDir`). Absolute paths; `buildSessionOptions()`
    * doesn't know or care where they live on disk.
    */
   pluginRoots(config: TConfig): string[];
@@ -93,11 +97,18 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    */
   disallowedTools?: string[];
 
-  /** Overrides this kit's generic `save_to_knowledge` tool description with domain-specific wording. */
-  saveToKnowledgeDescription?: string;
-
-  /** Same, for `save_to_sources` (registered instead of `save_to_knowledge` when `config.sourcesDir` is set). */
+  /** Overrides this kit's generic `save_to_sources` tool description (registered whenever `config.sourcesDir` is set) with domain-specific wording. */
   saveToSourcesDescription?: string;
+
+  /**
+   * The built-in knowledge vault (see vault.ts): when `config.knowledgeDir` is set, the kit
+   * appends its "Knowledge vault" rules to the system prompt and loads its plugin (skills
+   * vault-pages/vault-ingest/vault-query/vault-lint, commands /vault:ingest, /vault:query,
+   * /vault:lint), so the agent maintains its notes as an interlinked wiki. On by default;
+   * set `false` for an agent that writes its own rules for `knowledgeDir` (or wants plain
+   * notes) — `vaultPromptSection()`/`vaultPluginRoot()` are exported to reuse the pieces.
+   */
+  vault?: boolean;
 
   /**
    * Text for the generic human-approval checkpoint (see tools/humanApproval.ts) — what

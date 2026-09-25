@@ -6,30 +6,37 @@ import { checkFileScope, createFileScopeGate, type FileScope } from "../../../sr
 const projectDir = path.resolve("/workspace");
 const knowledgeDir = path.join(projectDir, "knowledge");
 const sourcesDir = path.join(projectDir, "sources");
-const contextDir = path.join(projectDir, "context");
 const configFile = path.join(projectDir, "config.json");
 
 const scope: FileScope = {
   projectDir,
-  writableDirs: [knowledgeDir, sourcesDir],
-  searchableDirs: [contextDir, knowledgeDir, sourcesDir],
+  writableDirs: [knowledgeDir],
+  readOnlyDirs: [sourcesDir],
+  searchableDirs: [knowledgeDir, sourcesDir],
   deniedPaths: [configFile],
 };
 
 test("Write/Edit are allowed inside the writable dirs, by absolute or project-relative path", () => {
   assert.equal(checkFileScope(scope, "Write", { file_path: path.join(knowledgeDir, "concepts", "x.md") }), undefined);
-  assert.equal(checkFileScope(scope, "Edit", { file_path: "sources/topic-1/slides.md" }), undefined);
+  assert.equal(checkFileScope(scope, "Edit", { file_path: "knowledge/topic-1/slides.md" }), undefined);
 });
 
-test("Write/Edit are denied outside the writable dirs, including context/ and the project root", () => {
-  assert.match(checkFileScope(scope, "Write", { file_path: "context/notes.md" }) ?? "", /only allowed inside knowledge\/, sources\//);
+test("Write/Edit are denied outside the writable dirs, including the project root", () => {
+  assert.match(checkFileScope(scope, "Write", { file_path: "notes.md" }) ?? "", /only allowed inside knowledge\//);
   assert.ok(checkFileScope(scope, "Edit", { file_path: "config.json" }));
   assert.ok(checkFileScope(scope, "Write", { file_path: "knowledge/../instructions.md" }));
   assert.ok(checkFileScope(scope, "Write", { file_path: path.resolve("/elsewhere/x.md") }));
 });
 
+test("sources/ is read-only: originals can be read and searched, never written or edited", () => {
+  assert.match(checkFileScope(scope, "Write", { file_path: "sources/slides.pdf" }) ?? "", /read-only/);
+  assert.match(checkFileScope(scope, "Edit", { file_path: path.join(sourcesDir, "a", "b.md") }) ?? "", /read-only/);
+  assert.equal(checkFileScope(scope, "Read", { file_path: "sources/slides.pdf" }), undefined);
+  assert.equal(checkFileScope(scope, "Grep", { pattern: "x", path: "sources" }), undefined);
+});
+
 test("Read is only denied for the denied paths", () => {
-  assert.equal(checkFileScope(scope, "Read", { file_path: "context/notes.pdf" }), undefined);
+  assert.equal(checkFileScope(scope, "Read", { file_path: "sources/notes.pdf" }), undefined);
   assert.equal(checkFileScope(scope, "Read", { file_path: "sessions/run-1/transcript.jsonl" }), undefined);
   assert.match(checkFileScope(scope, "Read", { file_path: "config.json" }) ?? "", /off limits/);
   assert.ok(checkFileScope(scope, "Read", { file_path: configFile }));
@@ -37,7 +44,7 @@ test("Read is only denied for the denied paths", () => {
 
 test("Grep needs a path inside a searchable dir; the default (project root) is denied", () => {
   assert.equal(checkFileScope(scope, "Grep", { pattern: "x", path: "knowledge" }), undefined);
-  assert.equal(checkFileScope(scope, "Grep", { pattern: "x", path: path.join(contextDir, "sub") }), undefined);
+  assert.equal(checkFileScope(scope, "Grep", { pattern: "x", path: path.join(sourcesDir, "sub") }), undefined);
   assert.ok(checkFileScope(scope, "Grep", { pattern: "password" }));
   assert.ok(checkFileScope(scope, "Grep", { pattern: "password", path: "." }));
 });

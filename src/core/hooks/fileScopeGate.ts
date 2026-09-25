@@ -4,7 +4,7 @@ import type { HookCallback, PreToolUseHookInput } from "@anthropic-ai/claude-age
 /**
  * Where the built-in file tools may act. Without this, the only boundary is the SDK's own
  * working-directory scope — the whole project directory — so keeping the agent out of the
- * user's own files (context/, a config file holding a password) would rest on the system
+ * user's own files (a config file holding a password, the originals in sources/) would rest on the system
  * prompt alone.
  */
 export interface FileScope {
@@ -12,6 +12,8 @@ export interface FileScope {
   projectDir: string;
   /** Write/Edit are only allowed inside these. */
   writableDirs: string[];
+  /** Readable and searchable but never writable; only affects the wording of the denial. */
+  readOnlyDirs?: string[];
   /** Grep is only allowed inside these — it prints file contents, so it isn't let loose on the whole project. */
   searchableDirs: string[];
   /** Never readable, searchable or writable. */
@@ -48,6 +50,9 @@ export function checkFileScope(scope: FileScope, toolName: string, input: Record
       const target = resolve(input.file_path);
       if (!target) return undefined;
       if (!isDenied(target) && scope.writableDirs.some((dir) => isWithin(dir, target))) return undefined;
+      if (!isDenied(target) && scope.readOnlyDirs?.some((dir) => isWithin(dir, target))) {
+        return `"${input.file_path}" is read-only: originals are never modified — write your own notes inside ${describeDirs(scope, scope.writableDirs)} instead.`;
+      }
       return `"${input.file_path}" can't be written: writing is only allowed inside ${describeDirs(scope, scope.writableDirs)}.`;
     }
     case "Grep": {

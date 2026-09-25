@@ -8,8 +8,9 @@ import { createSubagentForegroundGate } from "./hooks/subagentForegroundGate.js"
 import { createFileScopeGate } from "./hooks/fileScopeGate.js";
 import { createHumanApprovalServer } from "./tools/humanApproval.js";
 import { createManualLoginServer } from "./tools/manualLogin.js";
-import { createSaveToKnowledgeServer, createSaveToSourcesServer } from "./tools/saveToKnowledge.js";
+import { createSaveToSourcesServer } from "./tools/saveToSources.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
+import { vaultPluginRoot, vaultPromptSection } from "./vault.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 
 /**
@@ -42,25 +43,29 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // could actually step into by hand — `spec.manualInterventionTexts` being set is that
   // domain's own opt-in signal (see its doc comment in agentSpec.ts), not a generic
   // boolean this kit could infer on its own.
-  const includeManualLoginTool = mode !== "autonomous" && spec.manualInterventionTexts !== undefined;
-  // context/knowledge only exist when this config has a project directory of its own (as
-  // opposed to a config-less/legacy invocation) — gates Read/Write/Glob and
-  // additionalDirectories below.
-  const includeFileTools = Boolean(config.contextDir);
+  const manualInterventionTexts = mode !== "autonomous" ? spec.manualInterventionTexts : undefined;
+  // The file tools exist as soon as the project has a place for the agent's notes
+  // (`knowledgeDir`) or for original files (`sourcesDir`) — there is no separate "context"
+  // folder: material the user provides is just more of `sourcesDir`.
+  const includeFileTools = Boolean(config.knowledgeDir || config.sourcesDir);
   const fileTools = includeFileTools ? ["Read", "Write", "Edit", "Glob", "Grep"] : [];
   // Where Write/Edit may act and Grep may search (see hooks/fileScopeGate.ts): the
   // project's own folders, never the whole cwd — which would include whatever else the
-  // project directory holds (the user's config, context/ itself for writes).
-  const writableDirs = [config.knowledgeDir, config.sourcesDir, ...(config.extraWritableDirs ?? [])].filter((d): d is string => Boolean(d));
-  const searchableDirs = [config.contextDir, ...writableDirs].filter((d): d is string => Boolean(d));
-  // Skills/commands/plugins are a separate concern from Read/Write/Glob file access: an
-  // agent that wants a plugin-provided skill/command but has nothing worth putting under a
-  // contextDir shouldn't have to invent one just to get `cwd`/`skills: "all"`/`plugins`
-  // wired up (found via captain-whiskers, which used to carry a throwaway
-  // `context/README.md` placeholder for exactly this). Gated on either signal, not on
-  // `pluginRoots` alone, so an agent that already sets `contextDir` keeps getting the SDK's
-  // own project-level `.claude/skills`/`.claude/commands` discovery it always had.
-  const pluginRoots = spec.pluginRoots(config);
+  // project directory holds (the user's config...). `sourcesDir` is searchable but
+  // deliberately NOT writable: originals stay as obtained, and the only way to add to it is
+  // the `save_to_sources` tool (which never overwrites).
+  const writableDirs = [config.knowledgeDir, ...(config.extraWritableDirs ?? [])].filter((d): d is string => Boolean(d));
+  const searchableDirs = [config.knowledgeDir, config.sourcesDir, ...(config.extraWritableDirs ?? [])].filter((d): d is string => Boolean(d));
+  const readOnlyDirs = config.sourcesDir ? [config.sourcesDir] : [];
+  // Skills/commands/plugins are a separate concern from the file tools: an agent that
+  // wants a plugin-provided skill/command but has no notes or sources folder shouldn't have
+  // to invent one just to get `cwd`/`skills: "all"`/`plugins` wired up. Gated on either
+  // signal, not on `pluginRoots` alone, so an agent with file tools keeps getting the SDK's
+  // own project-level `.claude/skills`/`.claude/commands` discovery.
+  // The built-in vault (rules in the system prompt + its skills/commands as a plugin) needs
+  // somewhere to keep the wiki, so it follows `knowledgeDir`; `spec.vault: false` opts out.
+  const includeVault = Boolean(config.knowledgeDir) && spec.vault !== false;
+  const pluginRoots = [...spec.pluginRoots(config), ...(includeVault ? [vaultPluginRoot()] : [])];
   const includeSkillsAndPlugins = includeFileTools || pluginRoots.length > 0;
   const skillTools = includeSkillsAndPlugins ? ["Skill"] : [];
   // Whatever opt-in subagents `spec` wants for this config, or undefined if none apply.
@@ -84,7 +89,9 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);
 
   const sdkOptions: Options = {
-    systemPrompt: spec.buildSystemPrompt(config),
+    systemPrompt: includeVault && config.knowledgeDir
+      ? `${spec.buildSystemPrompt(config)}\n\n${vaultPromptSection(config.projectDir, config.knowledgeDir, config.sourcesDir)}`
+      : spec.buildSystemPrompt(config),
     settings: { autoCompactEnabled: options.autoCompactEnabled ?? true },
     // No built-in tools except, if applicable, Read/Write/Edit/Glob/Grep scoped to the
     // project's own folders (fileScopeGate below), and WebFetch/WebSearch
@@ -97,7 +104,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     tools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
     allowedTools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
     // Every mcp__* tool (whatever spec.buildMcpServers() registers, approvals/manualLogin
-    // when enabled below, knowledgeFiles, and any server a project's own .mcp.json
+    // when enabled below, sourceFiles, and any server a project's own .mcp.json
     // declares) is approved generically here rather than listed one by one — see
     // mcpPermissions.ts for why a fixed allowedTools wildcard can't cover a server whose
     // name isn't known ahead of time.
@@ -113,7 +120,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           // skills, on top of the plugin-provided built-ins from spec.pluginRoots()
           // below. skipMcpDiscovery: true on those plugins is the caller's choice.
           cwd: config.projectDir,
-          // Empty when there's no contextDir/knowledgeDir (the plugin-only case) — an
+          // Empty when there's no knowledgeDir/sourcesDir (the plugin-only case) — an
           // empty array is a valid, no-op value for this SDK option, not omitted, since
           // this whole block is already conditioned on includeSkillsAndPlugins.
           additionalDirectories: searchableDirs,
@@ -129,18 +136,14 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     mcpServers: {
       ...spec.buildMcpServers(config, runDir),
       ...(includeApprovalTool ? { approvals: createHumanApprovalServer(runDir, spec.humanApprovalTexts) } : {}),
-      ...(includeManualLoginTool ? { manualLogin: createManualLoginServer(runDir, spec.manualInterventionTexts) } : {}),
-      ...(includeFileTools && config.contextDir && config.sourcesDir
-        ? { knowledgeFiles: createSaveToSourcesServer(runDir, config.contextDir, config.sourcesDir, spec.saveToSourcesDescription) }
-        : includeFileTools && config.contextDir && config.knowledgeDir
-          ? { knowledgeFiles: createSaveToKnowledgeServer(runDir, config.contextDir, config.knowledgeDir, spec.saveToKnowledgeDescription) }
-          : {}),
+      ...(manualInterventionTexts ? { manualLogin: createManualLoginServer(runDir, manualInterventionTexts) } : {}),
+      ...(config.sourcesDir ? { sourceFiles: createSaveToSourcesServer(runDir, config.sourcesDir, spec.saveToSourcesDescription) } : {}),
     },
     hooks: {
       PreToolUse: [
         { hooks: [transcriptLogger.preToolUse] },
         ...(includeFileTools
-          ? [{ hooks: [createFileScopeGate({ projectDir: config.projectDir, writableDirs, searchableDirs, deniedPaths: config.deniedPaths ?? [] })] }]
+          ? [{ hooks: [createFileScopeGate({ projectDir: config.projectDir, writableDirs, searchableDirs, readOnlyDirs, deniedPaths: config.deniedPaths ?? [] })] }]
           : []),
         ...(mode === "interactive" ? [{ hooks: [createStepGate(runDir)] }] : []),
         ...(includeSubagentTools

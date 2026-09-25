@@ -2,10 +2,10 @@
  * Turns a raw tool name + input into a short, readable console description, instead of
  * the tool's technical name (e.g. "mcp__playwright__browser_click"). Covers the tools
  * this kit itself provides (Read/Write/Edit/Glob/Grep/Bash/Agent/WebFetch/WebSearch/Skill,
- * plus its own human-approval/manual-intervention/save-to-knowledge/sources MCP tools)
+ * plus its own human-approval/manual-intervention/save-to-sources MCP tools)
  * generically; a
  * concrete agent supplies a `describe` callback for its own domain-specific tools (e.g.
- * moodle-agent's Playwright browser_* cases) via `createFriendlyToolLabel()`.
+ * Playwright's browser_* cases) via `createFriendlyToolLabel()`.
  */
 
 export function truncate(text: string, max = 60): string {
@@ -28,12 +28,8 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
     }
     case "request_manual_login":
       return "Waiting for a human to intervene manually";
-    case "save_to_knowledge": {
-      const destination = typeof input.destination === "string" ? input.destination : "knowledge/";
-      return `Saving a file to knowledge/${truncatePath(destination, 70)}`;
-    }
     case "save_to_sources": {
-      const destination = typeof input.destination === "string" ? input.destination : "";
+      const destination = typeof input.destination === "string" ? input.destination : "sources/";
       return `Saving a file to sources/${truncatePath(destination, 70)}`;
     }
     case "Read": {
@@ -95,14 +91,14 @@ export type ToolDescriber = (shortName: string, input: Record<string, unknown>) 
  * Builds a `friendlyToolLabel(toolName, toolInput)` — `describe` lets the host agent
  * layer its own domain-specific cases (e.g. Playwright's browser_* tools) on top of this
  * kit's generic ones; `extraLocalServers` names any *additional* MCP server (beyond this
- * kit's own "approvals"/"manualLogin"/"knowledgeFiles") whose tools should be unwrapped
- * without a "[server] " prefix, e.g. moodle-agent's "playwright".
+ * kit's own "approvals"/"manualLogin"/"sourceFiles") whose tools should be unwrapped
+ * without a "[server] " prefix, e.g. "playwright".
  */
 export function createFriendlyToolLabel(options: { describe?: ToolDescriber; extraLocalServers?: readonly string[] } = {}): (toolName: string, toolInput: unknown) => string {
-  const localServers = new Set(["approvals", "manualLogin", "knowledgeFiles", ...(options.extraLocalServers ?? [])]);
+  const localServers = new Set(["approvals", "manualLogin", "sourceFiles", ...(options.extraLocalServers ?? [])]);
 
   const describe = (shortName: string, input: Record<string, unknown>): string =>
-    options.describe?.(shortName, input) ?? describeCore(shortName, input) ?? shortName.replace(/^browser_/, "").replace(/_/g, " ");
+    options.describe?.(shortName, input) ?? describeCore(shortName, input) ?? shortName.replace(/_/g, " ");
 
   return (toolName: string, toolInput: unknown): string => {
     const input = toolInput && typeof toolInput === "object" ? (toolInput as Record<string, unknown>) : {};

@@ -9,27 +9,15 @@ export interface ManualInterventionTexts {
   checkpointQuestion?: string;
 }
 
-/** Domain-neutral defaults — a concrete agent should normally override these via `AgentSpec.manualInterventionTexts` (e.g. moodle-agent's wording about no saved credentials / 2FA / captcha). */
-export const DEFAULT_MANUAL_INTERVENTION_TEXTS: ManualInterventionTexts = {
-  toolDescription:
-    "Call this tool when you can't complete a step yourself (e.g. no credentials " +
-    "configured, or an unexpected obstacle like 2FA/a captcha/a locked account). Pause " +
-    "execution and wait for a human to intervene by hand in the already-open browser " +
-    "window. Don't make up or guess credentials, and don't use it if the normal path " +
-    "works fine.",
-  confirmedMessage: "Manual intervention confirmed by the human. Continue from where you left off.",
-  checkpointTitle: "Manual intervention required",
-  checkpointLines: ["A human needs to intervene by hand in the already-open browser window."],
-  checkpointQuestion: "Press Enter once you've finished (or 'q' to cancel): ",
-};
-
 /**
- * Checkpoint tool for when the agent hits something it can't do itself (typically: no
- * saved credentials, or a login flow that fails unexpectedly). Pauses execution until a
- * human confirms they've intervened by hand in the browser window (already running in
- * visible/headed mode), and then lets the agent continue.
+ * Checkpoint tool for when the agent hits something it can't do itself (typically a login
+ * it has no credentials for, or one that fails unexpectedly). Pauses execution until a
+ * human confirms they've intervened by hand in whatever live interface the agent is driving
+ * (a browser window, say), and then lets the agent continue. There is deliberately no
+ * default wording: what counts as a manual intervention is entirely the domain's, so the
+ * concrete agent always supplies `texts` (see `AgentSpec.manualInterventionTexts`).
  */
-export function createManualLoginServer(runDir: string, texts: ManualInterventionTexts = DEFAULT_MANUAL_INTERVENTION_TEXTS) {
+export function createManualLoginServer(runDir: string, texts: ManualInterventionTexts) {
   const requestManualLogin = tool(
     "request_manual_login",
     texts.toolDescription,
