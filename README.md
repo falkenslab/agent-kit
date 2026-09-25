@@ -18,17 +18,21 @@ Construir un agente sobre el Claude Agent SDK implica resolver, una y otra vez, 
 
 ## Instalación
 
-Aún no está publicado en npm. Se instala como dependencia `file:` desde un repo hermano:
+Aún no está publicado en npm. Se instala directamente desde GitHub, fijando una versión (tag) — al instalar, npm ejecuta el script `prepare` y compila `dist/`:
 
 ```json
 {
   "dependencies": {
-    "@falkenslab/agent-kit": "file:../agent-kit"
+    "@falkenslab/agent-kit": "git+https://github.com/falkenslab/agent-kit.git#v0.1.0"
   }
 }
 ```
 
-Requiere Node.js `>=20` y, como *peerDependency*, `@anthropic-ai/claude-agent-sdk`.
+- Sin `#<tag>` instala la rama por defecto (`main`); mejor fijar siempre un tag, o un rango con `#semver:^0.1.0`.
+- Si tu configuración de npm restringe los scripts de instalación, permite el de este paquete con `"allowScripts": { "@falkenslab/agent-kit@0.1.0": true }` en tu `package.json`.
+- Para probar cambios locales del kit sin publicarlos, apunta temporalmente a un clon hermano: `"file:../agent-kit"` (ahí sí hay que ejecutar `npm run build` en el kit tras cada cambio).
+
+Requiere Node.js `>=20`.
 
 ## Idea central: `AgentSpec` + `buildSessionOptions`
 
