@@ -1,53 +1,29 @@
 # Captain Whiskers
 
-Ejemplo mínimo de un agente construido sobre agent-kit: un gato pirata que corre siempre en
-modo `autonomous` — sin ningún canal para pedir permiso, ni siquiera para los chistes.
+Ejemplo mínimo de un agente construido sobre agent-kit: un gato pirata que cuenta chistes en
+un chat de terminal. Es un proyecto autónomo que consume el kit vía `file:../..`.
 
-Con el mínimo código posible, demuestra:
-- `AgentSpec` + `buildSessionOptions()` (../../src/core/agentSpec.ts, session.ts)
-- El chat en terminal ya armado: `runChatTui()`
-- Autenticación automática con Claude: `ensureClaudeAuth()`
-- Una skill y un comando de barra propios, vía `pluginRoots()` (`plugin/skills/pirate-joke/`,
-  `plugin/commands/chiste.md`, `plugin/.claude-plugin/plugin.json`) — el mismo mecanismo
-  (plugin local con manifiesto, subcarpetas `skills/`/`commands/`, comando invocado
-  namespaced como `/<nombre-del-plugin>:<comando>`) que usa moodle-agent
-- `spec.disallowedTools`: el capitán no tiene `Read`/`Write`/`Glob` (no le hacen falta,
-  no toca ficheros del proyecto), pero conserva `WebFetch`/`WebSearch` y su plugin
+## Puesta en marcha
 
-## Ejecutar
-
-Desde la raíz del repo:
+Con el kit compilado (en la raíz del repo, una vez y tras cada cambio en el kit):
 
 ```
-npx tsx examples/captain-whiskers/agent.ts
+npm install && npm run build
 ```
 
-El modo es fijo (`autonomous`, ver agent.ts) — no admite argumentos para cambiarlo. Para ver
-el checkpoint humano (`request_human_approval`, modo `guided`) u otros modos, mira los tests
-de agent-kit o cambia `mode: "autonomous"` en `agent.ts` a mano.
+Y desde esta carpeta:
 
-Si no tienes `CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY` en el entorno, te ofrece generar uno con `claude setup-token` — pero solo para esa ejecución: el ejemplo no lo guarda en ningún sitio, así que te lo volverá a pedir la próxima vez. Si no quieres repetirlo cada vez, exporta `CLAUDE_CODE_OAUTH_TOKEN` tú mismo (en tu perfil de shell, por ejemplo) con el token que te dé.
+```
+npm install
+npm start
+```
 
-Dentro del chat, escribe `/captain-whiskers:chiste` para pedirle uno directamente (namespaced
-con el nombre del plugin — un `/chiste` a secas no se reconoce y ahora avisa con
-`Unknown command: /chiste` en vez de comportarse como si no hubieras escrito nada; usa la
-skill `pirate-joke` para construirlo y lo suelta directamente, sin pedir permiso) — o
-simplemente pídeselo por texto normal, la skill se activa igual.
+Necesita autenticación con Claude: exporta `CLAUDE_CODE_OAUTH_TOKEN` (o `ANTHROPIC_API_KEY`)
+para no tener que repetirlo. Si no, te ofrece generar un token con `claude setup-token`, pero
+solo vale para esa ejecución.
 
-Si escribes cualquier otro `/algo` que no exista (`/pepe`, por ejemplo), `runChatTui()` lo
-detecta y avisa igual — nunca llega a enviarse al capitán.
+## Uso
 
-Con las flechas ↑/↓ en el prompt recorres los mensajes que has escrito antes — incluso de
-sesiones anteriores, no solo la actual.
-
-Cada sesión deja su propia carpeta `.run/<fecha-y-hora>/` (ignorada por git) con dos ficheros:
-- `transcript.jsonl` — un evento JSON por cada llamada a herramienta (pre/post). Solo se
-  crea si el capitán llega a invocar alguna herramienta durante la sesión.
-- `session.log` — espejo en texto plano de todo lo que apareció en la terminal (bienvenida,
-  lo que escribes, la respuesta del capitán, las líneas `[action]`), sin códigos de color.
-  Se crea siempre, aunque la conversación no use ninguna herramienta.
-
-Además, directamente bajo `.run/` (no dentro de cada carpeta de sesión, para que persista
-entre ejecuciones): `history.jsonl`, un objeto JSON por línea (`{text, timestamp}`) con
-cada mensaje no vacío que escribes — de ahí sale el historial de ↑/↓. Se limita a los 100
-más recientes; los más antiguos se van descartando.
+Escribe con normalidad, `/captain-whiskers:chiste` para pedir un chiste directamente, y `/exit`
+para salir. Con ↑/↓ recuperas mensajes anteriores. Cada sesión guarda su transcripción en
+`.run/<fecha-hora>/` (ignorada por git); el historial de ↑/↓ vive en `.run/history.jsonl`.

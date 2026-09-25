@@ -111,7 +111,7 @@ Todo lo demás (qué herramientas están disponibles, qué hooks se registran, q
 
 ## Ejemplos
 
-[`examples/captain-whiskers/`](./examples/captain-whiskers) es un agente mínimo y funcional construido sobre este kit: un gato pirata que corre siempre en modo `autonomous`. Se ejecuta directamente con `npx tsx examples/captain-whiskers/agent.ts` — sin instalación aparte, ver su propio README.
+[`examples/captain-whiskers/`](./examples/captain-whiskers) es un agente mínimo y funcional construido sobre este kit: un gato pirata que corre siempre en modo `autonomous`. Es un proyecto autónomo (propio `package.json`, consume el kit vía `file:../..`): `npm install && npm start` desde su carpeta, con el kit ya compilado — ver su propio README.
 
 [`student-agent`](../student-agent) (repo hermano, antes en `examples/`) es mucho más sustancial: un port completo del rol `student` de [`moodle-agent`](https://github.com/falkenslab/moodle-agent) — hace un curso de Moodle real navegando con el navegador de verdad, con sus 20 skills + 7 comandos, subagentes opcionales, y un workspace propio con credenciales. Consume este kit vía dependencia `file:`; ver su propio README.
 
