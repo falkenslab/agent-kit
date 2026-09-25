@@ -23,7 +23,7 @@ Aún no está publicado en npm. Se instala directamente desde GitHub, fijando un
 ```json
 {
   "dependencies": {
-    "@falkenslab/agent-kit": "git+https://github.com/falkenslab/agent-kit.git#v0.1.0"
+    "@falkenslab/agent-kit": "git+https://github.com/falkenslab/agent-kit.git#v0.1.1"
   }
 }
 ```
