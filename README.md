@@ -23,13 +23,13 @@ Aún no está publicado en npm. Se instala directamente desde GitHub, fijando un
 ```json
 {
   "dependencies": {
-    "@falkenslab/agent-kit": "git+https://github.com/falkenslab/agent-kit.git#v0.4.0"
+    "@falkenslab/agent-kit": "git+https://github.com/falkenslab/agent-kit.git#v0.5.0"
   }
 }
 ```
 
-- Sin `#<tag>` instala la rama por defecto (`main`); mejor fijar siempre un tag, o un rango con `#semver:^0.4.0`.
-- Si tu configuración de npm restringe los scripts de instalación, permite el de este paquete con `"allowScripts": { "@falkenslab/agent-kit@0.4.0": true }` en tu `package.json`.
+- Sin `#<tag>` instala la rama por defecto (`main`); mejor fijar siempre un tag, o un rango con `#semver:^0.5.0`.
+- Si tu configuración de npm restringe los scripts de instalación, permite el de este paquete con `"allowScripts": { "@falkenslab/agent-kit@0.5.0": true }` en tu `package.json`.
 - Para probar cambios locales del kit sin publicarlos, apunta temporalmente a un clon hermano: `"file:../agent-kit"` (ahí sí hay que ejecutar `npm run build` en el kit tras cada cambio).
 
 Requiere Node.js `>=20`.
