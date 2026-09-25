@@ -17,10 +17,13 @@ const TOKEN_PATTERN = /sk-ant-oat\d{2}-[A-Za-z0-9_-]+/;
  */
 function runSetupToken(): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn("npx", ["@anthropic-ai/claude-code", "setup-token"], {
-      stdio: ["inherit", "pipe", "inherit"],
-      shell: process.platform === "win32",
-    });
+    // On Windows npx is npx.cmd, which only runs through a shell. The command is passed as
+    // one fixed string there (nothing user-supplied in it): an args array with
+    // `shell: true` triggers Node's DEP0190 warning, since args are concatenated unescaped.
+    const stdio: ["inherit", "pipe", "inherit"] = ["inherit", "pipe", "inherit"];
+    const child = process.platform === "win32"
+      ? spawn("npx @anthropic-ai/claude-code setup-token", { stdio, shell: true })
+      : spawn("npx", ["@anthropic-ai/claude-code", "setup-token"], { stdio });
 
     let output = "";
     child.stdout.on("data", (chunk: Buffer) => {
