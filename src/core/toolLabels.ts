@@ -78,9 +78,8 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
       const query = typeof input.query === "string" ? input.query : "";
       return `Searching the web for "${truncate(query, 80)}"`;
     }
-    // The SDK's own tool for invoking a skill — registered automatically whenever
-    // `skills: "all"` is set, without appearing in any allowedTools list in code.
-    // Confirmed empirically: its input is `{ skill: "name" }`.
+    // The SDK's own tool for invoking a skill (see session.ts for why it's listed
+    // explicitly in `tools`). Confirmed empirically: its input is `{ skill: "name" }`.
     case "Skill": {
       const skill = typeof input.skill === "string" ? input.skill : "a skill";
       return `Applying the "${skill}" skill`;

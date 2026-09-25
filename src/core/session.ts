@@ -62,6 +62,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // own project-level `.claude/skills`/`.claude/commands` discovery it always had.
   const pluginRoots = spec.pluginRoots(config);
   const includeSkillsAndPlugins = includeFileTools || pluginRoots.length > 0;
+  const skillTools = includeSkillsAndPlugins ? ["Skill"] : [];
   // Whatever opt-in subagents `spec` wants for this config, or undefined if none apply.
   // Either opt-in feature needs the Agent tool (to delegate to a subagent) and Bash (used
   // only by the subagent itself — see createSubagentBashGate() below, which denies Bash
@@ -90,8 +91,11 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     // with no domain restriction (not conditioned on includeFileTools: it's read-only,
     // doesn't depend on there being a project directory) — any priority order between
     // them is the domain's own system prompt's job to establish, not this function's.
-    tools: [...fileTools, "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
-    allowedTools: [...fileTools, "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
+    // "Skill" has to be listed explicitly: with an explicit `tools` list the SDK loads the
+    // skills (they show up in the init message) but doesn't offer the tool to invoke them,
+    // so the model ends up looking for SKILL.md files by hand (confirmed empirically).
+    tools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
+    allowedTools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
     // Every mcp__* tool (whatever spec.buildMcpServers() registers, approvals/manualLogin
     // when enabled below, knowledgeFiles, and any server a project's own .mcp.json
     // declares) is approved generically here rather than listed one by one — see
