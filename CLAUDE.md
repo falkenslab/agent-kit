@@ -74,6 +74,9 @@ The manual-intervention tool (`tools/manualLogin.ts`, `request_manual_login`) is
 
 Its event-draining loop (`drainTurn()`, exported from `chatTui.ts` for testing but not re-exported from `index.ts`) deliberately consumes `run.events` via manual `.next()` calls, never `for await...of` + `break` — `run.events` is one long-lived generator spanning the *whole* multi-turn session, and breaking a `for-await-of` loop calls the generator's `.return()`, permanently closing it. Getting this wrong silently drops every turn after the first. `test/tui/chatTui.test.ts` regression-tests exactly this.
 
+How events are printed lives in `createConsoleRenderer()` (`src/tui/consoleRenderer.ts`), exported so a one-shot run can print `runQuery()` events exactly like the chat does: it tracks whether the cursor sits at a line start and ends the current line only when needed, never with a fixed leading "
+" (which used to leave a blank line between consecutive `[action]` lines). `runChatTui()` uses it with an `onWrite` hook for its session-log mirror and readline's `prevRows` reset. Tested in `test/tui/consoleRenderer.test.ts`.
+
 `src/tui/ui.ts` (the picocolors console palette, exported as the `ui` namespace) lives alongside it — it's terminal presentation, used by `runChatTui()` and by `tui/claudeAuth.ts`'s console output.
 
 ### MCP tool permissions
