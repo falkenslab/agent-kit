@@ -38,3 +38,4 @@ export { createManualLoginServer, type ManualInterventionTexts } from "./core/to
 export { createSaveToSourcesServer } from "./core/tools/saveToSources.js";
 
 export { runChatTui, type ChatTuiOptions } from "./tui/chatTui.js";
+export { createConsoleRenderer, type ConsoleRenderer, type ConsoleRendererOptions } from "./tui/consoleRenderer.js";

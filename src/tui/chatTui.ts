@@ -6,9 +6,9 @@ import path from "node:path";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import { createInputQueue } from "../core/session.js";
 import { runQuery, type AgentEvent } from "../core/runner.js";
-import { createFriendlyToolLabel } from "../core/toolLabels.js";
 import { isSharedQuestionActive, setSharedReadline } from "../core/hooks/sharedReadline.js";
 import * as ui from "./ui.js";
+import { createConsoleRenderer } from "./consoleRenderer.js";
 
 // Only strips picocolors' own SGR sequences (`\x1b[<codes>m`) — the only kind this file
 // ever writes to the console — not a general-purpose ANSI stripper for arbitrary escape
@@ -161,7 +161,6 @@ export async function drainTurn(events: AsyncIterator<AgentEvent>, onEvent: (eve
  * interface itself before returning.
  */
 export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = {}): Promise<void> {
-  const formatAction = tuiOptions.formatAction ?? createFriendlyToolLabel();
   const exitCommands = new Set((tuiOptions.exitCommands ?? DEFAULT_EXIT_COMMANDS).map((c) => c.toLowerCase()));
   const promptLabel = tuiOptions.promptLabel ?? DEFAULT_PROMPT_LABEL;
 
@@ -202,33 +201,36 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
   // its only row). Ending every turn's output on a fresh blank row (see below, after
   // `drainTurn()`) sidesteps this entirely: `clearScreenDown` then only ever clears blank
   // space, on any row.
-  let cursorAtLineStart = true;
-  function write(text: string): void {
-    stdout.write(text);
-    mirror(text);
-    if (text.length > 0) cursorAtLineStart = text.endsWith("\n");
-    // node:readline's `Interface` tracks, on itself, how many terminal rows its own last
-    // rendered prompt+line took (`prevRows`), so that the *next* time it redraws (the next
-    // `rl.question()` for the following turn, but — confirmed empirically — also any
-    // ordinary keystroke typed ahead while a long reply is still streaming here, since the
-    // interface keeps listening to stdin the whole time, not just while a `question()` is
-    // pending) it knows how far to move the cursor up before clearing. Every write this
-    // function makes happens outside readline entirely, so that bookkeeping goes stale the
-    // moment we print anything — left uncorrected, that next redraw moves the cursor up by
-    // the stale (small/zero) row count from wherever it *actually* is now (the bottom of
-    // everything just written) and clears from there down, visibly eating the tail of a
-    // short reply (or, for a long one the user started typing over), a chunk out of its
-    // middle. `prevRows` isn't part of readline's public/typed API, but it *is* a plain,
-    // externally-settable instance property at runtime (not a real JS `#private` field) —
-    // resetting it to 0 after every write of our own keeps that bookkeeping honest right up
-    // to the moment readline's own logic (ours or a stray keystroke's) needs it next, so
-    // the cursor-up step is always a no-op and the clear only ever touches blank space
-    // below the real cursor.
-    (rl as unknown as { prevRows?: number }).prevRows = 0;
-  }
-  function writeLine(text: string): void {
-    write(`${text}\n`);
-  }
+  // Every write goes through the shared console renderer (./consoleRenderer.ts), which
+  // tracks whether the cursor sits at the start of a line and never emits a blank line
+  // between consecutive action lines.
+  const renderer = createConsoleRenderer({
+    formatAction: tuiOptions.formatAction,
+    agentLabel: tuiOptions.agentLabel,
+    output: (text) => void stdout.write(text),
+    onWrite: (text) => {
+      mirror(text);
+      // node:readline's `Interface` tracks, on itself, how many terminal rows its own last
+      // rendered prompt+line took (`prevRows`), so that the *next* time it redraws (the next
+      // `rl.question()` for the following turn, but — confirmed empirically — also any
+      // ordinary keystroke typed ahead while a long reply is still streaming here, since the
+      // interface keeps listening to stdin the whole time, not just while a `question()` is
+      // pending) it knows how far to move the cursor up before clearing. Every write this
+      // function makes happens outside readline entirely, so that bookkeeping goes stale the
+      // moment we print anything — left uncorrected, that next redraw moves the cursor up by
+      // the stale (small/zero) row count from wherever it *actually* is now (the bottom of
+      // everything just written) and clears from there down, visibly eating the tail of a
+      // short reply (or, for a long one the user started typing over), a chunk out of its
+      // middle. `prevRows` isn't part of readline's public/typed API, but it *is* a plain,
+      // externally-settable instance property at runtime (not a real JS `#private` field) —
+      // resetting it to 0 after every write of our own keeps that bookkeeping honest right up
+      // to the moment readline's own logic (ours or a stray keystroke's) needs it next, so
+      // the cursor-up step is always a no-op and the clear only ever touches blank space
+      // below the real cursor.
+      (rl as unknown as { prevRows?: number }).prevRows = 0;
+    },
+  });
+  const { writeLine } = renderer;
 
   // Cached lazily (not fetched until the first "/..." line, and only once — the SDK docs
   // don't promise this list changes mid-session, and re-fetching per line would add a
@@ -245,12 +247,11 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
 
   let turnInFlight = false;
   let turnInterrupted = false;
-  let agentLabelPrinted = false;
   function interruptTurn(): void {
     if (turnInterrupted) return;
     turnInterrupted = true;
     void run.interrupt();
-    writeLine(ui.warn("\n(interrupted)"));
+    writeLine(ui.warn("(interrupted)"));
   }
   rl.on("SIGINT", () => {
     if (turnInFlight) {
@@ -278,10 +279,10 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
       queue.push(tuiOptions.initialPrompt);
       turnInFlight = true;
       turnInterrupted = false;
-      agentLabelPrinted = false;
-      await drainTurn(events, renderEvent);
+      renderer.startTurn();
+      await drainTurn(events, renderer.render);
       turnInFlight = false;
-      if (!cursorAtLineStart) write("\n");
+      renderer.endLine();
     }
 
     while (true) {
@@ -309,17 +310,17 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
       // silence on unrecognized input might mean.
       const commandToken = slashCommandToken(line);
       if (commandToken && !(await isKnownSlashCommand(commandToken))) {
-        writeLine(ui.warn(`\nUnknown command: /${commandToken}`));
+        writeLine(ui.warn(`Unknown command: /${commandToken}`));
         continue;
       }
 
       queue.push(line);
       turnInFlight = true;
       turnInterrupted = false;
-      agentLabelPrinted = false;
-      await drainTurn(events, renderEvent);
+      renderer.startTurn();
+      await drainTurn(events, renderer.render);
       turnInFlight = false;
-      if (!cursorAtLineStart) write("\n");
+      renderer.endLine();
     }
   } finally {
     stdin.off("keypress", onKeypress);
@@ -328,33 +329,5 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
     setSharedReadline(null);
     rl.close();
     sessionLog?.end();
-  }
-
-  function renderEvent(event: AgentEvent): void {
-    switch (event.type) {
-      case "text":
-        if (!tuiOptions.agentLabel) {
-          write(event.text);
-          return;
-        }
-        if (!agentLabelPrinted) {
-          write(`\n${tuiOptions.agentLabel} `);
-          agentLabelPrinted = true;
-        }
-        write(ui.agent(event.text));
-        return;
-      case "action":
-        writeLine(ui.action(`\n[action] ${formatAction(event.toolName, event.input)}`));
-        return;
-      case "mcp-error":
-        writeLine(ui.warn(`Some MCP servers failed to connect: ${event.failedServers.join(", ")}`));
-        return;
-      case "info":
-        writeLine((event.level === "warning" ? ui.warn : ui.dim)(`\n(${event.text})`));
-        return;
-      case "turn-end":
-        if (event.failed) writeLine(ui.error(`\n${event.errorText}`));
-        return;
-    }
   }
 }
