@@ -8,11 +8,19 @@ export interface HistoryItem {
   text: string;
 }
 
+/**
+ * What a line of output is, which is also its color: the human's line, the agent's words,
+ * its actions, a notice (welcome, info, warnings), an error, or a checkpoint/header note.
+ */
+export type OutputKind = "user" | "agent" | "action" | "notice" | "error" | "note";
+
 export interface SessionSnapshot {
   /** Finished lines, rendered once in Ink's `<Static>` and left in the scrollback. */
   items: HistoryItem[];
   /** The line still being written, e.g. the agent's reply mid-stream. */
   live: string;
+  /** The line in progress starts a new kind of output: shown with a blank line above it. */
+  liveGap: boolean;
   /** A turn is in flight. */
   busy: boolean;
   /** Label of the main agent's latest action in this turn. */
@@ -45,9 +53,9 @@ export interface SessionModel {
   renderer: ConsoleRenderer;
   render(event: AgentEvent): void;
   /** A line through the console renderer: shown and passed to `onWrite`. */
-  writeLine(text: string): void;
-  /** Lines shown in the history but not passed to `onWrite` (checkpoints, the header). */
-  note(text: string): void;
+  writeLine(text: string, kind?: OutputKind): void;
+  /** Lines shown in the history but not passed to `onWrite` (the human's line, checkpoints, the header). */
+  note(text: string, kind?: OutputKind): void;
   /** One blank line in the history (not logged), unless the history is empty or already ends on one. */
   separate(): void;
   startTurn(): void;
@@ -56,12 +64,23 @@ export interface SessionModel {
   getSnapshot(): SessionSnapshot;
 }
 
+const EVENT_KINDS: Record<AgentEvent["type"], OutputKind> = {
+  text: "agent",
+  action: "action",
+  "subagent-action": "action",
+  "mcp-error": "notice",
+  info: "notice",
+  "turn-end": "error",
+};
+
+const isBlank = (line: string): boolean => stripAnsi(line).trim() === "";
+
 /**
  * The state behind the Ink views. Every event goes through `createConsoleRenderer()`, so
  * `onWrite` logs exactly what the plain console shows, and the history reads the same
- * text, spaced for reading: blank lines between turns (`separate()`), none between the
- * agent's words and its actions. Ink only adds what a console can't redraw (the line in
- * progress, a spinner, the status bar).
+ * text, spaced for reading: one blank line wherever the kind of output (its color)
+ * changes, none inside a run of the same kind (consecutive actions stay together). Ink only
+ * adds what a console can't redraw (the line in progress, a spinner, the status bar).
  */
 export function createSessionModel(options: SessionModelOptions = {}): SessionModel {
   const formatAction = options.formatAction ?? createFriendlyToolLabel();
@@ -71,6 +90,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
   let snapshot: SessionSnapshot = {
     items: [],
     live: "",
+    liveGap: false,
     busy: false,
     activity: null,
     subagentActivity: null,
@@ -83,34 +103,63 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     for (const listener of listeners) listener();
   }
 
-  function addLines(lines: string[]): HistoryItem[] {
-    return [...snapshot.items, ...lines.map((text) => ({ id: nextId++, text }))];
+  // The kind being written now, the kind of the line in progress (the kind it started
+  // with) and the kind of the last line shown.
+  let currentKind: OutputKind = "notice";
+  let partialKind: OutputKind = "notice";
+  let lastKind: OutputKind | null = null;
+  // Blank lines inside a run (paragraphs in a reply), held until the next line shows
+  // whether the run goes on (kept) or another kind follows (replaced by one separator).
+  // Display only: `onWrite` still gets them.
+  let heldBlanks = 0;
+
+  function lastIsBlank(items: HistoryItem[]): boolean {
+    const last = items.at(-1);
+    return !last || isBlank(last.text);
   }
 
-  // Blank lines the reply ended on, held back until something follows them: an action
-  // goes right under what the agent said, and a turn ends without trailing blanks, so they
-  // are only shown before more text. Display only: `onWrite` still gets them.
-  let heldBlanks = 0;
-  let droppingBlanks = false;
+  function append(items: HistoryItem[], lines: { text: string; kind: OutputKind }[]): HistoryItem[] {
+    const next = [...items];
+    const push = (text: string): void => void next.push({ id: nextId++, text });
+    for (const { text, kind } of lines) {
+      if (isBlank(text)) {
+        heldBlanks++;
+        continue;
+      }
+      if (lastKind !== null && kind !== lastKind) {
+        if (!lastIsBlank(next)) push("");
+      } else {
+        for (let i = 0; i < heldBlanks; i++) push("");
+      }
+      heldBlanks = 0;
+      push(text);
+      lastKind = kind;
+    }
+    return next;
+  }
 
-  function releaseBlanks(): string[] {
-    const blanks = droppingBlanks ? [] : Array.from({ length: heldBlanks }, () => "");
-    heldBlanks = 0;
-    return blanks;
+  function liveGap(): boolean {
+    return !isBlank(buffer.partial) && lastKind !== null && partialKind !== lastKind && !lastIsBlank(snapshot.items);
   }
 
   const renderer = createConsoleRenderer({
     formatAction,
     agentLabel: options.agentLabel,
     output: (text) => {
+      // A line belongs to the kind it started with: the first line this write completes
+      // may have been started by an earlier write of another kind.
+      const firstKind = isBlank(buffer.partial) ? currentKind : partialKind;
       const lines = buffer.push(text);
-      if (options.width) lines.push(...buffer.wrap(options.width()));
-      const shown: string[] = [];
-      for (const line of lines) {
-        if (stripAnsi(line).trim() === "") heldBlanks++;
-        else shown.push(...releaseBlanks(), line);
-      }
-      update({ items: shown.length > 0 ? addLines(shown) : snapshot.items, live: buffer.partial });
+      const restKind = lines.length > 0 ? currentKind : firstKind;
+      const rows = options.width ? buffer.wrap(options.width()) : [];
+      const tagged = [
+        ...lines.map((line, i) => ({ text: line, kind: i === 0 ? firstKind : currentKind })),
+        ...rows.map((row) => ({ text: row, kind: restKind })),
+      ];
+      partialKind = restKind;
+      const items = tagged.length > 0 ? append(snapshot.items, tagged) : snapshot.items;
+      snapshot = { ...snapshot, items };
+      update({ live: buffer.partial, liveGap: liveGap() });
     },
     onWrite: options.onWrite,
   });
@@ -118,20 +167,23 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
   return {
     renderer,
     render(event: AgentEvent): void {
-      droppingBlanks = event.type === "action";
+      currentKind = EVENT_KINDS[event.type];
       renderer.render(event);
-      droppingBlanks = false;
       if (event.type === "action") update({ activity: formatAction(event.toolName, event.input), subagentActivity: null });
       else if (event.type === "subagent-action") update({ subagentActivity: formatAction(event.toolName, event.input) });
       else if (event.type === "turn-end") update({ turns: snapshot.turns + 1, usage: event.usage ?? snapshot.usage });
     },
-    writeLine: (text) => renderer.writeLine(text),
-    note(text: string): void {
-      update({ items: addLines([...releaseBlanks(), ...text.split("\n")]) });
+    writeLine(text: string, kind: OutputKind = "notice"): void {
+      currentKind = kind;
+      renderer.writeLine(text);
+    },
+    note(text: string, kind: OutputKind = "note"): void {
+      const items = append(snapshot.items, text.split("\n").map((line) => ({ text: line, kind })));
+      update({ items, liveGap: liveGap() });
     },
     separate(): void {
-      const last = snapshot.items.at(-1);
-      if (last && stripAnsi(last.text).trim() !== "") update({ items: addLines([""]) });
+      heldBlanks = 0;
+      if (!lastIsBlank(snapshot.items)) update({ items: [...snapshot.items, { id: nextId++, text: "" }] });
     },
     startTurn(): void {
       renderer.startTurn();

@@ -224,7 +224,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       if (!line) continue;
 
       mirror(`${promptLabel}${line}\n`);
-      model.note(`${promptLabel.replace(/^\n+/, "")}${line}`);
+      model.note(`${promptLabel.replace(/^\n+/, "")}${line}`, "user");
       if (tuiOptions.historyPath) {
         historyEntries = capHistory([...historyEntries, { text: line, timestamp: new Date().toISOString() }], historyLimit);
         await saveHistory(tuiOptions.historyPath, historyEntries);

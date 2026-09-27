@@ -99,7 +99,11 @@ export function SessionView({ model, interaction, renderApproval, mode, closed, 
       <Static items={session.items}>{(item) => <Text key={item.id}>{item.text || " "}</Text>}</Static>
       {closed ? null : (
         <Box flexDirection="column" width={width}>
-          {stripAnsi(session.live) ? <Text>{session.live}</Text> : null}
+          {stripAnsi(session.live) ? (
+            <Box flexDirection="column" marginTop={session.liveGap ? 1 : 0}>
+              <Text>{session.live}</Text>
+            </Box>
+          ) : null}
           {checkpoint ? (
             <CheckpointPanel checkpoint={checkpoint} renderApproval={renderApproval} />
           ) : session.busy ? (
