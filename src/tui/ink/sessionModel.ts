@@ -71,6 +71,7 @@ const EVENT_KINDS: Record<AgentEvent["type"], OutputKind> = {
   "mcp-error": "notice",
   info: "notice",
   "turn-end": "error",
+  "prompt-suggestion": "notice", // never printed
 };
 
 const isBlank = (line: string): boolean => stripAnsi(line).trim() === "";

@@ -44,7 +44,11 @@ export type AgentEvent =
    * unnamespaced plugin slash command produced total silence (no text, no error, nothing),
    * because the SDK's own response to it arrives as exactly this message shape and this
    * module simply dropped it. */
-  | { type: "info"; text: string; level: "info" | "notice" | "suggestion" | "warning" | "local-command" };
+  | { type: "info"; text: string; level: "info" | "notice" | "suggestion" | "warning" | "local-command" }
+  /** The predicted next prompt, when `Options.promptSuggestions` is on. It arrives after
+   * that turn's `turn-end`, so a reader that stops at `turn-end` sees it first thing in the
+   * next turn; a console log ignores it. */
+  | { type: "prompt-suggestion"; suggestion: string };
 
 /**
  * Running totals for the whole `query()` session so far, not for one turn: the SDK's own
@@ -113,6 +117,11 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
             yield { type, toolName: block.name, input: block.input };
           }
         }
+        continue;
+      }
+
+      if (message.type === "prompt_suggestion") {
+        yield { type: "prompt-suggestion", suggestion: message.suggestion };
         continue;
       }
 
