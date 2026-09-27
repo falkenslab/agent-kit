@@ -139,7 +139,7 @@ Todo lo de abajo salvo lo marcado "TUI" vive en `src/core/` — sin ninguna depe
 - **Utilidades de consola** (`tui/ui.ts`) — paleta de colores consistente (`agent`, `action`, `heading`, `success`, `warn`, `error`, `dim`), usada por el TUI y por `ensureClaudeAuth()`.
 - **Carga de prompts con plantillas** (`core/promptTemplate.ts`) — sustitución `{{variable}}` sobre archivos de prompt, con fallo explícito si falta una variable.
 
-Consulta [`CLAUDE.md`](./CLAUDE.md) para el detalle de cada pieza y las decisiones de diseño (incluyendo comportamientos del SDK confirmados empíricamente que motivan varios de estos guardarraíles).
+Consulta [`.minispec/`](./.minispec/README.md) para la arquitectura de cada pieza y las decisiones de diseño (incluyendo comportamientos del SDK confirmados empíricamente que motivan varios de estos guardarraíles).
 
 ## Desarrollo
 

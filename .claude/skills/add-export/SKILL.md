@@ -31,7 +31,7 @@ Add or extend a test under `test/` mirroring the `src/` path (`test/core/...`, `
 ## 5. Docs
 
 - `README.md` (Spanish, user-facing): mention the new option/function where its area is described.
-- `CLAUDE.md` (English, for future Claude sessions): update the relevant architecture section if the design or a rule changed.
+- `.minispec/` (English, for future Claude sessions): update `core/architecture.md` if the design changed, and the ADR in `decisions/` (or a new one) if a decision or a rule changed.
 - Update stale statements you notice while there (paths, lists of event types, mode values).
 
 ## 6. Finish

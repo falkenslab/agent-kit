@@ -5,7 +5,7 @@ description: Upgrade @anthropic-ai/claude-agent-sdk in agent-kit and re-validate
 
 # Upgrading the Claude Agent SDK
 
-The kit encodes many SDK behaviors that were confirmed empirically and are not always documented (they are called out as "confirmed empirically" in source comments and `CLAUDE.md`). A new SDK version can silently change any of them, so an upgrade is more than `npm update`.
+The kit encodes many SDK behaviors that were confirmed empirically and are not always documented (they are called out as "confirmed empirically" in source comments and the ADRs in `.minispec/decisions/`). A new SDK version can silently change any of them, so an upgrade is more than `npm update`.
 
 ## 1. Upgrade
 
