@@ -2,7 +2,7 @@
 
 ## Decision
 
-`askForDecision()` (used by the step gate and the approval tool) races two channels: the keyboard when stdin is a TTY, and `<runDir>/approval-response.txt`. Without a TTY it prints nothing and creates no `readline.Interface`. A chat REPL shares its own readline through `sharedReadline.ts`.
+`askForDecision()` (used by the step gate and the approval tool) races two channels: the keyboard when stdin is a TTY, and `<runDir>/approval-response.txt`. Without a TTY it prints nothing and creates no `readline.Interface`. A chat REPL shares its own readline with the terminal port (`tui/terminalInteraction.ts`, ADR-013).
 
 ## Motivation
 

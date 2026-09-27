@@ -10,4 +10,4 @@ The same sessions and approvals run in non-terminal hosts: an Electron main proc
 
 ## Consequences
 
-A capability that needs a human at a keyboard (prompts, colors, `process.exit`) is split: pure logic in `core/`, the terminal wrapper in `tui/` (auth is the model, ADR-009). A non-terminal host replaces `src/tui/` entirely with its own UI. `humanInput.ts` still reads a TTY when there is one; a UI-agnostic interaction port is the planned next step (feature `ink-ui`).
+A capability that needs a human at a keyboard (prompts, colors, `process.exit`) is split: pure logic in `core/`, the terminal wrapper in `tui/` (auth is the model, ADR-009). A non-terminal host replaces `src/tui/` entirely with its own UI. The keyboard side of human-in-the-loop checkpoints goes through an interaction port (ADR-013).

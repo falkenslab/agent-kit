@@ -19,7 +19,8 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `session.ts` — `buildSessionOptions()`: tools, hooks and MCP servers per mode; `createInputQueue()`.
 - `runner.ts` — `runQuery()`: SDK messages to `AgentEvent` (`text`, `action`, `mcp-error`, `info`, `turn-end`); drops tool calls made inside subagents; check `failed`, not `status`.
 - `hooks/subagentBashGate.ts`, `subagentTypeGate.ts`, `subagentForegroundGate.ts` — subagent security (ADR-003).
-- `hooks/humanInput.ts` + `sharedReadline.ts` — `askForDecision()`, terminal vs response file (ADR-004).
+- `interaction.ts` — `InteractionPort`, the UI side of checkpoints; `setInteractionPort()` (ADR-013).
+- `hooks/humanInput.ts` — `askForDecision()`, `askForManualIntervention()`: port vs response file (ADR-004).
 - `hooks/stepGate.ts` — interactive mode: pause before every tool call.
 - `tools/humanApproval.ts` — `request_human_approval` (guided mode).
 - `tools/manualLogin.ts` — `request_manual_login`, only with `manualInterventionTexts` (ADR-005).
@@ -34,6 +35,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 
 - `chatTui.ts` — `runChatTui()`: multi-turn chat on `createInputQueue()` + `runQuery()`, history, Esc to interrupt, session log; registers its readline via `setSharedReadline()`; `drainTurn()` (ADR-010).
 - `consoleRenderer.ts` — `createConsoleRenderer()`: prints events, shared by chat and one-shot runs.
+- `terminalInteraction.ts` — `terminalInteractionPort`, the default port installed by `index.ts`; `setSharedReadline()` for the chat's interface.
 - `claudeAuth.ts` — `ensureClaudeAuth()`: offers `claude setup-token`, returns a new token for the caller to persist.
 - `ui.ts` — the picocolors palette (`ui` namespace).
 
