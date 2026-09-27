@@ -62,6 +62,8 @@ export interface SessionModel {
   endTurn(): void;
   subscribe(listener: () => void): () => void;
   getSnapshot(): SessionSnapshot;
+  /** The agent's text in the latest turn, plain (for /copy). */
+  lastReply(): string;
 }
 
 const EVENT_KINDS: Record<AgentEvent["type"], OutputKind> = {
@@ -113,6 +115,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
   // whether the run goes on (kept) or another kind follows (replaced by one separator).
   // Display only: `onWrite` still gets them.
   let heldBlanks = 0;
+  let reply = "";
   // A blank line asked for by `separate()`, not yet in the history. Ink's <Static> drops a
   // render whose only new item is a blank line (confirmed with ink-testing-library: the
   // separator before a turn never reached the screen), so a separator always goes into the
@@ -177,6 +180,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
   return {
     renderer,
     render(event: AgentEvent): void {
+      if (event.type === "text") reply += event.text;
       currentKind = EVENT_KINDS[event.type];
       renderer.render(event);
       if (event.type === "action") update({ activity: formatAction(event.toolName, event.input), subagentActivity: null });
@@ -197,6 +201,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
       update({ liveGap: liveGap() });
     },
     startTurn(): void {
+      reply = "";
       renderer.startTurn();
       update({ busy: true, activity: null, subagentActivity: null });
     },
@@ -210,5 +215,6 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
       return () => listeners.delete(listener);
     },
     getSnapshot: () => snapshot,
+    lastReply: () => reply.trim(),
   };
 }

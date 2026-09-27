@@ -19,6 +19,7 @@ import {
   type Selection,
 } from "./fullscreen.js";
 import { framePosition } from "./terminalCursor.js";
+import { isFocusReport } from "./terminalStatus.js";
 import type { Checkpoint, InkInteraction } from "./inkInteraction.js";
 import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import * as ui from "../ui.js";
@@ -259,6 +260,7 @@ function FullscreenSession({
   useInput((text, key) => {
     const page = Math.max(1, historyHeight - 1);
     if (isMouseReport(text)) handleMouse(text);
+    else if (isFocusReport(text)) return;
     else if (key.pageUp) setAnchor((a) => scrollBy(a, -page, total, historyHeight));
     else if (key.pageDown) setAnchor((a) => scrollBy(a, page, total, historyHeight));
     else if (key.ctrl && key.end) setAnchor(null);

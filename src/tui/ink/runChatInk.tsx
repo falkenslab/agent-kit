@@ -16,6 +16,7 @@ import { SessionView, type RenderApproval } from "./SessionView.js";
 import { stripAnsi } from "./lineBuffer.js";
 import { clipboardSequence, enterFullscreen } from "./fullscreen.js";
 import { createCursorController, CursorContext } from "./terminalCursor.js";
+import { createTerminalStatus, focusFromReport } from "./terminalStatus.js";
 import { headerLines, type HeaderInfo } from "./header.js";
 
 export type { HeaderInfo } from "./header.js";
@@ -45,6 +46,12 @@ export interface InkChatOptions extends ChatTuiOptions {
    * On by default; `false` turns it off.
    */
   promptSuggestions?: boolean;
+  /**
+   * Show the chat's state outside it (on by default): the tab title during a turn, the
+   * taskbar button's progress, and a mark on it when a turn ends while the window isn't
+   * focused (Windows Terminal). Also enables `/copy`, which copies the last reply.
+   */
+  terminalIntegration?: boolean;
   /**
    * The suggestion shown (and taken with Tab) until the first turn starts: the SDK never
    * suggests after the first turn, so without it the prompt is empty until the second reply.
@@ -139,10 +146,11 @@ interface ChatAppProps {
   mode?: Mode;
   fullscreen?: boolean;
   header?: string[];
+  onFocusChange?: (focused: boolean) => void;
   onInterrupt(): void;
 }
 
-function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, onInterrupt }: ChatAppProps) {
+function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, onFocusChange, onInterrupt }: ChatAppProps) {
   const chat = useSyncExternalStore(input.subscribe, input.getSnapshot);
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
@@ -150,6 +158,11 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
   // Ctrl+C stops what is running (a checkpoint, then the turn) and leaves only when idle;
   // Esc interrupts the turn but never answers a checkpoint or leaves.
   useInput((text, key) => {
+    const focused = focusFromReport(text);
+    if (focused !== null) {
+      onFocusChange?.(focused);
+      return;
+    }
     if (key.ctrl && text === "c") {
       if (checkpoint) checkpoint.answer(checkpoint.kind === "decision" ? "q" : "");
       if (checkpoint || session.busy) onInterrupt();
@@ -238,7 +251,8 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
   );
   void knownCommands.then((names) => {
     const exits = [...exitCommands].filter((c) => c.startsWith("/")).map((c) => c.slice(1));
-    input.setCommands([...new Set([...(names ?? []), ...exits])].sort());
+    const local = tuiOptions.terminalIntegration === false ? [] : ["copy"];
+    input.setCommands([...new Set([...(names ?? []), ...exits, ...local])].sort());
   });
 
   let turnInterrupted = false;
@@ -280,6 +294,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
 
   async function runTurn(line: string): Promise<void> {
     input.setSuggestion(null);
+    status?.turnStarted();
     turnInterrupted = false;
     model.separate();
     model.startTurn();
@@ -287,6 +302,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
     queue.push(line);
     await finished;
     model.endTurn();
+    status?.turnEnded();
     if (readError) throw readError;
   }
 
@@ -294,6 +310,9 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
   setInteractionPort(interaction.port);
   const restoreTerminal = tuiOptions.fullscreen ? enterFullscreen(stdout) : null;
   const cursor = tuiOptions.fullscreen ? createCursorController(stdout) : null;
+  const status =
+    tuiOptions.terminalIntegration === false ? null : createTerminalStatus((text) => void stdout.write(text), tuiOptions.header?.title ?? "agent");
+  status?.start();
   const app = render(
     <CursorContext.Provider value={cursor}>
     <ChatApp
@@ -305,6 +324,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       mode={tuiOptions.mode}
       fullscreen={tuiOptions.fullscreen}
       header={tuiOptions.header && tuiOptions.fullscreen ? headerLines(tuiOptions.header) : undefined}
+      onFocusChange={status ? (focused) => status.setFocused(focused) : undefined}
       onInterrupt={interruptTurn}
     />
     </CursorContext.Provider>,
@@ -340,6 +360,14 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       }
       if (exitCommands.has(line.toLowerCase())) break;
 
+      // A local command, never sent to the model: the last reply to the clipboard (OSC 52).
+      if (status && line.toLowerCase() === "/copy") {
+        const reply = model.lastReply();
+        if (reply) stdout.write(clipboardSequence(reply));
+        model.writeLine(ui.dim(reply ? `(copied the last reply: ${reply.length} characters)` : "(nothing to copy yet)"));
+        continue;
+      }
+
       const commandToken = slashCommandToken(line);
       if (commandToken) {
         const names = await knownCommands;
@@ -360,6 +388,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
     await new Promise((resolve) => setTimeout(resolve, 0));
     app.unmount();
     await app.waitUntilExit();
+    status?.stop();
     restoreTerminal?.();
     sessionLog?.end();
   }

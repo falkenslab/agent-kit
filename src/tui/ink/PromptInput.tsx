@@ -5,6 +5,7 @@ import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import { liveWidth } from "./sessionModel.js";
 import { isMouseReport } from "./fullscreen.js";
 import { CursorContext } from "./terminalCursor.js";
+import { isFocusReport } from "./terminalStatus.js";
 import {
   continueLine,
   createPasteRegistry,
@@ -169,7 +170,8 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
 
   useInput((input, key) => {
     // In full screen the mouse is reported as input (wheel, selection): never type it.
-    if (isMouseReport(input)) return;
+    // Nor the terminal's focus reports (see terminalStatus.ts).
+    if (isMouseReport(input) || isFocusReport(input)) return;
     const current = state.current;
     if (current.search) {
       handleSearch(current.search, input, key);
