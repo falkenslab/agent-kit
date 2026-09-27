@@ -183,6 +183,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
   async function runTurn(line: string): Promise<void> {
     queue.push(line);
     turnInterrupted = false;
+    model.separate();
     model.startTurn();
     await drainTurn(events, model.render);
     model.endTurn();
@@ -214,12 +215,16 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
     }
 
     while (true) {
+      // The blank line before the prompt is in place while typing, so Enter doesn't push
+      // everything down a line: promptLabel's own leading newlines only reach the log.
+      model.separate();
       const raw = await input.next(historyEntries.map((entry) => entry.text));
       if (raw === null) break;
       const line = raw.trim();
       if (!line) continue;
 
-      model.writeLine(`${promptLabel}${line}`);
+      mirror(`${promptLabel}${line}\n`);
+      model.note(`${promptLabel.replace(/^\n+/, "")}${line}`);
       if (tuiOptions.historyPath) {
         historyEntries = capHistory([...historyEntries, { text: line, timestamp: new Date().toISOString() }], historyLimit);
         await saveHistory(tuiOptions.historyPath, historyEntries);

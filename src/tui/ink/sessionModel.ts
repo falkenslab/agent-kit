@@ -1,7 +1,7 @@
 import type { AgentEvent, SessionUsage } from "../../core/runner.js";
 import { createFriendlyToolLabel } from "../../core/toolLabels.js";
 import { createConsoleRenderer, type ConsoleRenderer } from "../consoleRenderer.js";
-import { createLineBuffer } from "./lineBuffer.js";
+import { createLineBuffer, stripAnsi } from "./lineBuffer.js";
 
 export interface HistoryItem {
   id: number;
@@ -48,6 +48,8 @@ export interface SessionModel {
   writeLine(text: string): void;
   /** Lines shown in the history but not passed to `onWrite` (checkpoints, the header). */
   note(text: string): void;
+  /** One blank line in the history (not logged), unless the history is empty or already ends on one. */
+  separate(): void;
   startTurn(): void;
   endTurn(): void;
   subscribe(listener: () => void): () => void;
@@ -56,8 +58,10 @@ export interface SessionModel {
 
 /**
  * The state behind the Ink views. Every event goes through `createConsoleRenderer()`, so
- * the history reads, and `onWrite` logs, exactly what the plain console shows; Ink only
- * adds what a console can't redraw (the line in progress, a spinner, the status bar).
+ * `onWrite` logs exactly what the plain console shows, and the history reads the same
+ * text, spaced for reading: blank lines between turns (`separate()`), none between the
+ * agent's words and its actions. Ink only adds what a console can't redraw (the line in
+ * progress, a spinner, the status bar).
  */
 export function createSessionModel(options: SessionModelOptions = {}): SessionModel {
   const formatAction = options.formatAction ?? createFriendlyToolLabel();
@@ -83,13 +87,30 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     return [...snapshot.items, ...lines.map((text) => ({ id: nextId++, text }))];
   }
 
+  // Blank lines the reply ended on, held back until something follows them: an action
+  // goes right under what the agent said, and a turn ends without trailing blanks, so they
+  // are only shown before more text. Display only: `onWrite` still gets them.
+  let heldBlanks = 0;
+  let droppingBlanks = false;
+
+  function releaseBlanks(): string[] {
+    const blanks = droppingBlanks ? [] : Array.from({ length: heldBlanks }, () => "");
+    heldBlanks = 0;
+    return blanks;
+  }
+
   const renderer = createConsoleRenderer({
     formatAction,
     agentLabel: options.agentLabel,
     output: (text) => {
       const lines = buffer.push(text);
       if (options.width) lines.push(...buffer.wrap(options.width()));
-      update({ items: lines.length > 0 ? addLines(lines) : snapshot.items, live: buffer.partial });
+      const shown: string[] = [];
+      for (const line of lines) {
+        if (stripAnsi(line).trim() === "") heldBlanks++;
+        else shown.push(...releaseBlanks(), line);
+      }
+      update({ items: shown.length > 0 ? addLines(shown) : snapshot.items, live: buffer.partial });
     },
     onWrite: options.onWrite,
   });
@@ -97,14 +118,20 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
   return {
     renderer,
     render(event: AgentEvent): void {
+      droppingBlanks = event.type === "action";
       renderer.render(event);
+      droppingBlanks = false;
       if (event.type === "action") update({ activity: formatAction(event.toolName, event.input), subagentActivity: null });
       else if (event.type === "subagent-action") update({ subagentActivity: formatAction(event.toolName, event.input) });
       else if (event.type === "turn-end") update({ turns: snapshot.turns + 1, usage: event.usage ?? snapshot.usage });
     },
     writeLine: (text) => renderer.writeLine(text),
     note(text: string): void {
-      update({ items: addLines(text.split("\n")) });
+      update({ items: addLines([...releaseBlanks(), ...text.split("\n")]) });
+    },
+    separate(): void {
+      const last = snapshot.items.at(-1);
+      if (last && stripAnsi(last.text).trim() !== "") update({ items: addLines([""]) });
     },
     startTurn(): void {
       renderer.startTurn();
@@ -112,6 +139,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     },
     endTurn(): void {
       renderer.endLine();
+      heldBlanks = 0;
       update({ busy: false, activity: null, subagentActivity: null });
     },
     subscribe(listener: () => void): () => void {

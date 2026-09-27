@@ -91,3 +91,33 @@ test("liveWidth keeps a margin from the edge", () => {
   assert.equal(liveWidth(undefined), 76);
   assert.equal(liveWidth(10), 6);
 });
+
+test("an action goes right under the agent's words, with no blank line between them", () => {
+  let logged = "";
+  const model = createSessionModel({ formatAction, onWrite: (text) => (logged += text) });
+  model.startTurn();
+  model.render({ type: "text", text: "Let me look.\n\n" });
+  model.render({ type: "action", toolName: "Read", input: {} });
+  model.render({ type: "text", text: "Found it.\n\nMore." });
+  model.endTurn();
+
+  assert.deepEqual(model.getSnapshot().items.map((item) => stripAnsi(item.text)), [
+    "Let me look.",
+    "[action] run Read",
+    "Found it.",
+    "",
+    "More.",
+  ]);
+  assert.match(stripAnsi(logged), /Let me look\.\n\n+\[action\]/); // the log keeps them
+});
+
+test("separate() adds one blank line between turns, never two and never at the top", () => {
+  const model = createSessionModel();
+  model.separate();
+  assert.equal(model.getSnapshot().items.length, 0);
+  model.note("you> hello");
+  model.separate();
+  model.separate();
+  model.writeLine("reply");
+  assert.deepEqual(model.getSnapshot().items.map((item) => item.text), ["you> hello", "", "reply"]);
+});
