@@ -119,13 +119,15 @@ async function main(): Promise<void> {
 
   const { options } = await buildSessionOptions(config, runDir, spec);
 
-  // Interfaz Ink en un terminal; sin TTY (o con CAPTAIN_PLAIN=1) cae al chat de readline.
+  // Interfaz Ink a pantalla completa (CAPTAIN_INLINE=1: en línea, con el historial de la
+  // terminal); sin TTY, o con CAPTAIN_PLAIN=1, el chat de readline.
   await runChatInk(options, {
-    header: { title: "🏴‍☠️ Capitán Bigotes", fields: { modo: mode, sesión: path.basename(runDir) } },
+    header: { title: "Capitán Bigotes", fields: { modo: mode, sesión: path.basename(runDir) } },
     mode,
     plain: process.env.CAPTAIN_PLAIN === "1",
+    fullscreen: process.env.CAPTAIN_INLINE !== "1",
     welcomeMessage: pc.gray(
-      "🏴‍☠️🐱 El Capitán Bigotes ha subido a bordo. Escribe /exit para desembarcar, o /captain-whiskers:chiste para pedirle uno directamente. 🦜💀",
+      "El Capitán Bigotes ha subido a bordo. Escribe /exit para desembarcar, o /captain-whiskers:chiste para pedirle uno directamente.",
     ),
     promptLabel: `\n${ui.user("tú>")} `,
     agentLabel: ui.agent("Capitán Bigotes>"),
