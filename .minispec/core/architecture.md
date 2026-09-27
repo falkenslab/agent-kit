@@ -16,12 +16,12 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 ## Key pieces (`src/core/`)
 
 - `agentSpec.ts` — `AgentSpec<TConfig>`: system prompt, MCP servers, plugin roots, subagents, disallowed tools, approval/intervention texts. `BaseSessionConfig` + `Mode` (ADR-002).
-- `session.ts` — `buildSessionOptions()`: tools, hooks and MCP servers per mode; `createInputQueue()`.
-- `runner.ts` — `runQuery()`: SDK messages to `AgentEvent` (`text`, `action`, `subagent-action`, `mcp-error`, `info`, `turn-end` with cumulative `usage`, `prompt-suggestion` after its turn-end); subagent tool calls are kept apart from `action`; check `failed`, not `status`.
+- `session.ts` — `buildSessionOptions()`: tools, hooks and MCP servers per mode, plus the session's `ModeControl` (guided ↔ interactive live, ADR-016); `createInputQueue()`.
+- `runner.ts` — `runQuery()`: SDK messages to `AgentEvent` (`text`, `action`, `subagent-action`, `mcp-error`, `info`, `turn-end` with cumulative `usage`, `prompt-suggestion` after its turn-end); subagent tool calls are kept apart from `action`; check `failed`, not `status`; `contextUsage()` for the context window in use.
 - `hooks/subagentBashGate.ts`, `subagentTypeGate.ts`, `subagentForegroundGate.ts` — subagent security (ADR-003).
 - `interaction.ts` — `InteractionPort`, the UI side of checkpoints; `setInteractionPort()` (ADR-013).
 - `hooks/humanInput.ts` — `askForDecision()`, `askForManualIntervention()`: port vs response file (ADR-004).
-- `hooks/stepGate.ts` — interactive mode: pause before every tool call.
+- `hooks/stepGate.ts` — interactive mode: pause before every tool call (registered outside autonomous, active only while the mode is interactive).
 - `tools/humanApproval.ts` — `request_human_approval` (guided mode).
 - `tools/manualLogin.ts` — `request_manual_login`, only with `manualInterventionTexts` (ADR-005).
 - `mcpPermissions.ts` — `allowAnyMcpTool` as `canUseTool` (ADR-006).
