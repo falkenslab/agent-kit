@@ -14,8 +14,8 @@ export {
   type ToolDescriber,
 } from "./core/toolLabels.js";
 export type { Mode, BaseSessionConfig, AgentSpec } from "./core/agentSpec.js";
-export { buildSessionOptions, createInputQueue, createDeferred } from "./core/session.js";
-export { runQuery, type AgentEvent, type AgentRun, type SessionUsage } from "./core/runner.js";
+export { buildSessionOptions, createInputQueue, createDeferred, createModeControl, type ModeControl } from "./core/session.js";
+export { runQuery, type AgentEvent, type AgentRun, type SessionUsage, type ContextUsage } from "./core/runner.js";
 export { knowledgePluginRoot, knowledgePromptSection } from "./core/knowledge.js";
 
 // Re-exported so a concrete agent (implementing AgentSpec, wiring up buildSessionOptions())

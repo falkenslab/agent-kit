@@ -11,7 +11,7 @@ import { createManualLoginServer } from "./tools/manualLogin.js";
 import { createSaveToSourcesServer } from "./tools/saveToSources.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { knowledgePluginRoot, knowledgePromptSection } from "./knowledge.js";
-import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
+import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
 
 /**
  * Builds the `options` object passed to the Agent SDK's `query()` — everything about
@@ -33,8 +33,9 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   runDir: string,
   spec: AgentSpec<TConfig>,
   options: { autoCompactEnabled?: boolean } = {},
-): Promise<{ options: Options; transcriptLogger: TranscriptLogger; transcriptPath: string }> {
+): Promise<{ options: Options; transcriptLogger: TranscriptLogger; transcriptPath: string; modeControl: ModeControl }> {
   const { mode } = config;
+  const modeControl = createModeControl(mode);
 
   // The human approval server only exists outside autonomous mode: the point of
   // autonomous is that the agent has no channel to ask for human intervention at all.
@@ -145,7 +146,9 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
         ...(includeFileTools
           ? [{ hooks: [createFileScopeGate({ projectDir: config.projectDir, writableDirs, searchableDirs, readOnlyDirs, deniedPaths: config.deniedPaths ?? [] })] }]
           : []),
-        ...(mode === "interactive" ? [{ hooks: [createStepGate(runDir)] }] : []),
+        // Registered wherever the approval tool is, and asking only while the current mode is
+        // "interactive": a guided session can switch to interactive and back (ModeControl).
+        ...(includeApprovalTool ? [{ hooks: [createStepGate(runDir, () => modeControl.mode === "interactive")] }] : []),
         ...(includeSubagentTools
           ? [
               { hooks: [createSubagentTypeGate(allowedSubagentTypes)] },
@@ -158,7 +161,39 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     },
   };
 
-  return { options: sdkOptions, transcriptLogger, transcriptPath };
+  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl };
+}
+
+/**
+ * The supervision mode of a running session. Only "guided" and "interactive" can switch into
+ * each other: they share the same tools (the approval tool) and the step gate is registered
+ * in both, asking only in "interactive". "autonomous" has no approval tool at all, and a tool
+ * can't appear or vanish mid-session, so a session that starts autonomous stays autonomous,
+ * and one that doesn't can't become autonomous. The system prompt keeps the mode it was
+ * built with.
+ */
+export interface ModeControl {
+  readonly mode: Mode;
+  /** The modes this session can be in; fewer than two means it can't switch. */
+  readonly switchable: readonly Mode[];
+  /** Switches to `next` if this session allows it; returns whether it did. */
+  set(next: Mode): boolean;
+}
+
+export function createModeControl(initial: Mode): ModeControl {
+  let current = initial;
+  const switchable: readonly Mode[] = initial === "autonomous" ? ["autonomous"] : ["guided", "interactive"];
+  return {
+    get mode() {
+      return current;
+    },
+    switchable,
+    set(next) {
+      if (!switchable.includes(next)) return false;
+      current = next;
+      return true;
+    },
+  };
 }
 
 /**

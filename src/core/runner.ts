@@ -63,6 +63,13 @@ export interface SessionUsage {
   costUsd: number;
 }
 
+export interface ContextUsage {
+  /** 0-100. */
+  percentage: number;
+  totalTokens: number;
+  maxTokens: number;
+}
+
 export interface AgentRun {
   /** Normalized events for this run — iterate with `for await`. */
   events: AsyncIterable<AgentEvent>;
@@ -72,6 +79,8 @@ export interface AgentRun {
   close: () => void;
   /** This session's own slash commands (skills doubling as typable commands, etc.) — only meaningful once the session has actually started (see the SDK's own `Query.supportedCommands()`). */
   supportedCommands: () => Promise<SlashCommand[]>;
+  /** How full the context window is now, or null if the session can't tell (see the SDK's `Query.getContextUsage()`). */
+  contextUsage: () => Promise<ContextUsage | null>;
 }
 
 /**
@@ -145,5 +154,13 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
     interrupt: () => result.interrupt(),
     close: () => result.close(),
     supportedCommands: () => result.supportedCommands(),
+    contextUsage: async () => {
+      try {
+        const usage = await result.getContextUsage();
+        return { percentage: usage.percentage, totalTokens: usage.totalTokens, maxTokens: usage.maxTokens };
+      } catch {
+        return null;
+      }
+    },
   };
 }
