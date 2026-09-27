@@ -117,6 +117,13 @@ export function createChatInput() {
     },
     setCommands: (commands: string[]) => update({ commands }),
     setSuggestion: (suggestion: string | null) => update({ suggestion }),
+    /** Takes the last queued line back out of the queue (to edit it in the prompt), or null. */
+    unqueueLast(): string | null {
+      const last = snapshot.queued.at(-1);
+      if (last === undefined) return null;
+      update({ queued: snapshot.queued.slice(0, -1) });
+      return last;
+    },
     close: () => update({ prompting: false, closed: true }),
   };
 }
@@ -178,6 +185,7 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
             inset={PROMPT_FRAME_COLUMNS}
             suggestion={chat.suggestion}
             onSubmit={(line) => input.submit(line)}
+            onRecallQueued={() => input.unqueueLast()}
             onExit={() => input.submit(null)}
           />
         </Box>
