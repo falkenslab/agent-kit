@@ -38,7 +38,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `terminalInteraction.ts` — `terminalInteractionPort`, the default port installed by `index.ts`; `setSharedReadline()` for the chat's interface.
 - `claudeAuth.ts` — `ensureClaudeAuth()`: offers `claude setup-token`, returns a new token for the caller to persist.
 - `ui.ts` — the picocolors palette (`ui` namespace).
-- `ink/` — the Ink UI (ADR-014): `runChatInk()`, `createProgressView()`, `runWizard()`; `sessionModel.ts` (state, through the console renderer), `inkInteraction.ts` (the Ink port), `SessionView.tsx` (history, live line, spinner, approval panel, status bar), `PromptInput.tsx`.
+- `ink/` — the Ink UI (ADR-014): `runChatInk()`, `createProgressView()`, `runWizard()`; `sessionModel.ts` (state, through the console renderer), `inkInteraction.ts` (the Ink port), `SessionView.tsx` (history, live line, spinner, approval panel, status bar; inline or full screen), `PromptInput.tsx`, `fullscreen.ts` (alternate screen, mouse, scroll view; ADR-015).
 
 ## Modes
 
