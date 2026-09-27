@@ -1,7 +1,7 @@
 import { createWriteStream, type WriteStream } from "node:fs";
 import { stdin, stdout } from "node:process";
 import { useSyncExternalStore } from "react";
-import { render, useInput } from "ink";
+import { Box, render, Text, useInput } from "ink";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import type { Mode } from "../../core/agentSpec.js";
 import { getInteractionPort, setInteractionPort } from "../../core/interaction.js";
@@ -44,17 +44,24 @@ const DEFAULT_PROMPT_LABEL = "\n> ";
 const DEFAULT_EXIT_COMMANDS: readonly string[] = ["/exit", "/quit"];
 const DEFAULT_HISTORY_LIMIT = 100;
 
-interface ChatInputSnapshot {
+export interface ChatInputSnapshot {
+  /** The chat loop is waiting for a line (no turn in flight). */
   prompting: boolean;
   history: string[];
   commands: string[];
+  /** Lines submitted during a turn, sent in order once the loop asks for the next one. */
+  queued: string[];
   closed: boolean;
 }
 
-/** Hands the next typed line from the React prompt to the chat loop. */
-function createChatInput() {
+/**
+ * Hands typed lines from the React prompt to the chat loop. The prompt stays on screen
+ * during a turn, as in Claude Code: a line submitted then waits in `queued` and is the
+ * next one the loop gets.
+ */
+export function createChatInput() {
   const listeners = new Set<() => void>();
-  let snapshot: ChatInputSnapshot = { prompting: false, history: [], commands: [], closed: false };
+  let snapshot: ChatInputSnapshot = { prompting: false, history: [], commands: [], queued: [], closed: false };
   let pending: ((line: string | null) => void) | null = null;
   let exited = false;
 
@@ -69,18 +76,28 @@ function createChatInput() {
       return () => listeners.delete(listener);
     },
     getSnapshot: () => snapshot,
-    /** Resolves with the submitted line, or null once the human asked to leave. */
+    /** Resolves with the next line (a queued one first), or null once the human asked to leave. */
     next(history: string[]): Promise<string | null> {
       if (exited) return Promise.resolve(null);
+      const [first, ...rest] = snapshot.queued;
+      if (first !== undefined) {
+        update({ queued: rest, history });
+        return Promise.resolve(first);
+      }
       update({ prompting: true, history });
       return new Promise((resolve) => (pending = resolve));
     },
     submit(line: string | null): void {
       if (line === null) exited = true;
       const resolve = pending;
+      if (!resolve) {
+        // A turn is in flight: keep the line for later (an empty one means nothing).
+        if (line !== null && line.trim()) update({ queued: [...snapshot.queued, line] });
+        return;
+      }
       pending = null;
       update({ prompting: false });
-      resolve?.(line);
+      resolve(line);
     },
     setCommands: (commands: string[]) => update({ commands }),
     close: () => update({ prompting: false, closed: true }),
@@ -126,7 +143,13 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
       closed={chat.closed}
       fullscreen={fullscreen}
     >
-      {chat.prompting ? (
+      {/* Always there, even during a turn (lines submitted then are queued), as in Claude Code. */}
+      <Box flexDirection="column">
+        {chat.queued.map((line, index) => (
+          <Text key={index} wrap="truncate-end">
+            {ui.dim(`  queued: ${line}`)}
+          </Text>
+        ))}
         <PromptInput
           label={promptLabel.replace(/^\n+/, "")}
           history={chat.history}
@@ -134,7 +157,7 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
           onSubmit={(line) => input.submit(line)}
           onExit={() => input.submit(null)}
         />
-      ) : null}
+      </Box>
     </SessionView>
   );
 }
