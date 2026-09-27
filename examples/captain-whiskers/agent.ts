@@ -7,6 +7,7 @@ import {
   runChatInk,
   ensureClaudeAuth,
   ui,
+  type AgentDefinition,
   type AgentSpec,
   type BaseSessionConfig,
   type Mode,
@@ -14,19 +15,66 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// El grumete del reloj usa Bash: como todo lo que da Bash, solo si se pide (CAPTAIN_BASH=1).
+const withBash = process.env.CAPTAIN_BASH === "1";
+
 const SYSTEM_PROMPT = `Eres el Capitán Bigotes, un gato pirata retirado que ahora "dirige" esta
 terminal como si fuera el puente de mando de un barco. Hablas siempre con jerga marinera y
 dramatismo absurdo, tratas cualquier petición del usuario como una "misión" y cualquier
 búsqueda en la web como "consultar el mapa del tesoro".
 
+Tu tripulación (subagentes, lánzalos con la herramienta Agent):
+- minino-buscachistes: si te piden un chiste nuevo, fresco o que no conozcas, mándalo a buscar
+  candidatos a la web. Para los chistes de siempre usa tu propia skill pirate-joke.
+- loro-critico: antes de contar un chiste que haya traído el minino, pásale el que más te guste.
+  Si le pone menos de un 6, pide al minino otra tanda, solo una vez.
+${withBash ? `- grumete-del-reloj: si preguntan la hora, la fecha o cuánto falta para algo, pregúntale a él.
+` : ""}
 Sé breve: 3-4 frases por respuesta como máximo, siempre en español y en personaje.`;
+
+const SUBAGENTS: Record<string, AgentDefinition> = {
+  "minino-buscachistes": {
+    description: "Grumete gatuno que busca en la web chistes cortos de piratas, gatos o marineros y devuelve candidatos con su fuente.",
+    prompt: `Eres Minino, el grumete más joven del barco del Capitán Bigotes. Tu misión: encontrar
+en la web 2 o 3 chistes cortos y blancos (de piratas, gatos o marineros), preferiblemente en
+español. Usa WebSearch (como mucho 3 búsquedas) y WebFetch solo si hace falta abrir una página.
+Devuelve únicamente una lista numerada con cada chiste tal cual y la URL de donde sale.
+Nada ofensivo; si no encuentras nada decente, dilo.`,
+    tools: ["WebSearch", "WebFetch"],
+    model: "haiku",
+    maxTurns: 8,
+  },
+  "loro-critico": {
+    description: "Loro gruñón que puntúa del 1 al 10 un chiste y propone cómo mejorarlo. No usa herramientas.",
+    prompt: `Eres Perico, el loro gruñón del Capitán Bigotes. Te pasan un chiste: ponle una nota del
+1 al 10 con una frase de justificación y, si baja de 8, una mejora concreta en una línea.
+Responde en español, con tono de loro cascarrabias, en 3 líneas como máximo.`,
+    tools: [],
+    model: "haiku",
+    maxTurns: 1,
+  },
+  ...(withBash
+    ? {
+        "grumete-del-reloj": {
+          description: "Grumete que consulta la hora y la fecha del sistema con Bash y hace cuentas de tiempo.",
+          prompt: `Eres el grumete del reloj. Para responder usa Bash solo con comandos de lectura
+de fecha y hora (date, o node -e con Date). Nunca crees, cambies ni borres nada. Devuelve la
+respuesta en una línea, sin adornos.`,
+          tools: ["Bash"],
+          model: "haiku",
+          maxTurns: 4,
+        },
+      }
+    : {}),
+};
 
 const spec: AgentSpec<BaseSessionConfig> = {
   buildSystemPrompt: () => SYSTEM_PROMPT,
   buildMcpServers: () => ({}),
-  // La skill pirate-joke y el comando /captain-whiskers:chiste (con el nombre del plugin).
+  // Las skills pirate-joke y miau y los comandos /captain-whiskers:chiste y
+  // /captain-whiskers:chiste-fresco (con el nombre del plugin).
   pluginRoots: () => [path.join(__dirname, "plugin")],
-  buildSubagents: () => undefined,
+  buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
   disallowedTools: ["Read", "Write", "Glob"],
 };
 

@@ -24,7 +24,7 @@ Keep every agent's generic plumbing and guardrails in one versioned place, so ea
 
 Extracted from a concrete agent (moodle-agent). Design decisions were validated against real consuming agents; source comments marked "confirmed empirically" encode real SDK behavior or production bugs.
 
-- `examples/captain-whiskers/` — standalone toy agent (`file:../..`, imports only from the package root, needs `npm run build` here first), autonomous by default (`CAPTAIN_MODE` switches it); exercises the kit end to end, Ink chat included.
+- `examples/captain-whiskers/` — standalone toy agent (`file:../..`, imports only from the package root, needs `npm run build` here first), autonomous by default (`CAPTAIN_MODE` switches it); exercises the kit end to end, Ink chat and subagents included.
 - `student-agent`, `teacher-agent` — real-size consumers, where gaps in the kit are discovered.
 
 Version 0.x: the API is not yet stable.

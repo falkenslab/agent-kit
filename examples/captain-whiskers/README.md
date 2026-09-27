@@ -34,3 +34,11 @@ chat de readline de siempre. Por defecto corre en modo `autonomous`; con `CAPTAI
 pide aprobación antes de cada herramienta (el panel admite `y`/`n`/`q`, y también se puede
 responder escribiendo en `.run/<fecha-hora>/approval-response.txt`), y con `CAPTAIN_MODE=guided`
 solo antes de publicar algo.
+
+## Tripulación (subagentes)
+
+- `minino-buscachistes` — busca chistes nuevos en la web (`WebSearch`, `WebFetch`) y trae 2 o 3 candidatos con su fuente. Lo lanza el capitán cuando pides un chiste nuevo, o `/captain-whiskers:chiste-fresco`.
+- `loro-critico` — puntúa el chiste elegido del 1 al 10, sin herramientas; si lo suspende, el capitán pide otra tanda una vez.
+- `grumete-del-reloj` — solo con `CAPTAIN_BASH=1`: responde la hora, la fecha o cuánto falta para algo usando `Bash` (solo comandos de lectura de fecha). Como todo lo que da `Bash`, es opcional.
+
+Todos usan `haiku`. Mientras trabajan, la interfaz muestra su actividad bajo el spinner (`↳ …`), y en `CAPTAIN_MODE=interactive` también sus herramientas pasan por el panel de aprobación.

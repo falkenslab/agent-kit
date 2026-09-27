@@ -123,7 +123,7 @@ Todo lo demás (qué herramientas están disponibles, qué hooks se registran, q
 
 ## Ejemplos
 
-[`examples/captain-whiskers/`](./examples/captain-whiskers) es un agente mínimo y funcional construido sobre este kit: un gato pirata con el chat Ink, en modo `autonomous` salvo que `CAPTAIN_MODE` diga otro. Es un proyecto autónomo (propio `package.json`, consume el kit vía `file:../..`): `npm install && npm start` desde su carpeta, con el kit ya compilado — ver su propio README.
+[`examples/captain-whiskers/`](./examples/captain-whiskers) es un agente mínimo y funcional construido sobre este kit: un gato pirata con el chat Ink y una tripulación de subagentes, en modo `autonomous` salvo que `CAPTAIN_MODE` diga otro. Es un proyecto autónomo (propio `package.json`, consume el kit vía `file:../..`): `npm install && npm start` desde su carpeta, con el kit ya compilado — ver su propio README.
 
 [`student-agent`](../student-agent) (repo hermano, antes en `examples/`) es mucho más sustancial: un agente completo que hace un curso de Moodle real como estudiante, navegando con el navegador de verdad, con sus 20 skills + 7 comandos, subagentes opcionales, y un workspace propio con credenciales. Consume este kit vía dependencia `file:`; ver su propio README.
 
