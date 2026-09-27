@@ -18,9 +18,10 @@ npm install
 npm start
 ```
 
-Necesita autenticación con Claude: exporta `CLAUDE_CODE_OAUTH_TOKEN` (o `ANTHROPIC_API_KEY`)
-para no tener que repetirlo. Si no, te ofrece generar un token con `claude setup-token`, pero
-solo vale para esa ejecución.
+Necesita autenticación con Claude: `CLAUDE_CODE_OAUTH_TOKEN` (o `ANTHROPIC_API_KEY`) en el entorno
+o en un fichero `.env` de esta carpeta (ignorado por git), que se carga al arrancar; lo que ya
+esté en el entorno manda sobre el fichero. Si no hay token, te ofrece generar uno con
+`claude setup-token` y lo guarda en `.env` para las siguientes veces.
 
 ## Uso
 

@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pc from "picocolors";
@@ -14,6 +14,15 @@ import {
 } from "@falkenslab/agent-kit";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Node no carga .env por su cuenta. Se lee antes que nada (CAPTAIN_* incluidas); lo que ya
+// esté en el entorno manda sobre el fichero, y sin .env todo sigue igual.
+const envPath = path.join(__dirname, ".env");
+try {
+  process.loadEnvFile(envPath);
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+}
 
 // El grumete del reloj usa Bash: como todo lo que da Bash, solo si se pide (CAPTAIN_BASH=1).
 const withBash = process.env.CAPTAIN_BASH === "1";
@@ -84,9 +93,15 @@ function friendlyTimestamp(): string {
 }
 
 async function main(): Promise<void> {
-  // Sin CLAUDE_CODE_OAUTH_TOKEN/ANTHROPIC_API_KEY en el entorno ofrece generar un token,
-  // pero solo vale para esta ejecución: el kit no lo guarda.
-  await ensureClaudeAuth();
+  // Sin CLAUDE_CODE_OAUTH_TOKEN/ANTHROPIC_API_KEY (en el entorno o en .env) ofrece generar
+  // un token. El kit no lo guarda: lo devuelve, y aquí se añade a .env para la próxima vez.
+  const newToken = await ensureClaudeAuth();
+  if (newToken) {
+    const previous = await readFile(envPath, "utf8").catch(() => "");
+    const separator = previous && !previous.endsWith("\n") ? "\n" : "";
+    await appendFile(envPath, `${separator}CLAUDE_CODE_OAUTH_TOKEN=${newToken}\n`);
+    console.log(ui.dim(`Token guardado en ${envPath} (ignorado por git).`));
+  }
 
   const runsDir = path.join(__dirname, ".run");
   const runDir = path.join(runsDir, friendlyTimestamp());
