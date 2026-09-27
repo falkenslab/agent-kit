@@ -101,6 +101,14 @@ Se encarga de todo: leer líneas por teclado, enviarlas a la sesión multi-turno
 
 Si escribes algo que empieza por `/` y no coincide con ningún comando registrado (propio, de un plugin, o de los propios de Claude Code), se avisa con `Unknown command: /lo-que-sea` y no llega a enviarse al agente — sin esto, una línea así habría llegado al modelo como texto literal sin ningún manejo especial, indistinguible de no haber escrito nada.
 
+### Interfaz Ink: `runChatInk`, `createProgressView`, `runWizard`
+
+`runChatInk(options, tuiOptions)` acepta las mismas opciones que `runChatTui()` (y escribe el mismo `sessionLogPath` y el mismo `historyPath`), pero dibuja el chat con Ink: el histórico queda en el scroll, la respuesta se va escribiendo en su sitio, un spinner muestra la acción en curso (y la de un subagente) y una barra de estado enseña el modo, los turnos, los tokens y el coste. Los checkpoints humanos aparecen como un panel con Aprobar / Rechazar / Parar (o las teclas `y`/`n`/`q`), y el archivo de respuesta sigue funcionando igual. Tab completa los `/comandos` de los plugins cargados. Opciones propias: `header` (título y campos que se imprimen arriba), `mode` (para la barra de estado), `renderApproval` (sustituye la vista previa del panel) y `plain` (fuerza `runChatTui()`). Sin TTY cae solo a `runChatTui()`, sin cambios.
+
+`createProgressView(options)` es lo mismo para una ejecución de una sola pasada: tiene la interfaz de `createConsoleRenderer()` más `close()`, que hay que esperar antes de imprimir nada más. Sin TTY es `createConsoleRenderer()` tal cual.
+
+`runWizard(steps)` pregunta una lista de pasos (`select`, `input`, `password`, `confirm`) y devuelve las respuestas por nombre. El mensaje, las opciones o el valor por defecto de un paso pueden depender de respuestas anteriores, y `when` lo salta. Ctrl+C lanza el mismo error que `@inquirer/prompts`, así que `isExitPromptError()` sigue valiendo. Sin TTY pregunta los mismos pasos con `@inquirer/prompts`.
+
 ### Modos de ejecución (`BaseSessionConfig.mode`)
 
 | Modo | Comportamiento |
@@ -115,7 +123,7 @@ Todo lo demás (qué herramientas están disponibles, qué hooks se registran, q
 
 ## Ejemplos
 
-[`examples/captain-whiskers/`](./examples/captain-whiskers) es un agente mínimo y funcional construido sobre este kit: un gato pirata que corre siempre en modo `autonomous`. Es un proyecto autónomo (propio `package.json`, consume el kit vía `file:../..`): `npm install && npm start` desde su carpeta, con el kit ya compilado — ver su propio README.
+[`examples/captain-whiskers/`](./examples/captain-whiskers) es un agente mínimo y funcional construido sobre este kit: un gato pirata con el chat Ink, en modo `autonomous` salvo que `CAPTAIN_MODE` diga otro. Es un proyecto autónomo (propio `package.json`, consume el kit vía `file:../..`): `npm install && npm start` desde su carpeta, con el kit ya compilado — ver su propio README.
 
 [`student-agent`](../student-agent) (repo hermano, antes en `examples/`) es mucho más sustancial: un agente completo que hace un curso de Moodle real como estudiante, navegando con el navegador de verdad, con sus 20 skills + 7 comandos, subagentes opcionales, y un workspace propio con credenciales. Consume este kit vía dependencia `file:`; ver su propio README.
 
@@ -133,10 +141,11 @@ Todo lo de abajo salvo lo marcado "TUI" vive en `src/core/` — sin ninguna depe
 - **Herramienta `save_to_sources`** (`core/tools/saveToSources.ts`) — cuando configuras `sourcesDir`, es la única forma de añadirle ficheros al agente: copia un archivo generado durante la ejecución (ej. algo recién descargado) a `sources/`, sin sobrescribir nunca un original que ya exista, para que quede legible en sesiones futuras.
 - **Base de conocimiento (LLM wiki)** (`core/knowledge.ts`, `assets/knowledge-plugin/`) — cuando configuras `knowledgeDir`, el kit añade al system prompt las reglas de un wiki que el agente mantiene él mismo (`index.md`, `log.md`, `overview.md`, `summaries/`, `concepts/`, `entities/`, `syntheses/`; los originales de `sourcesDir` nunca se tocan) y carga un plugin propio con las skills `knowledge-pages` (plantillas), `knowledge-ingest`, `knowledge-query` y `knowledge-lint`, y los comandos `/knowledge:ingest`, `/knowledge:query` y `/knowledge:lint`. Está activado por defecto; un agente con sus propias reglas para `knowledgeDir` lo desactiva con `knowledgeBase: false` en su `AgentSpec` y puede reutilizar las piezas con `knowledgePromptSection()` y `knowledgePluginRoot()`.
 - **TUI de chat en terminal** (`tui/chatTui.ts`) — `runChatTui()`, ver arriba.
+- **Interfaz Ink** (`tui/ink/`) — `runChatInk()`, `createProgressView()` y `runWizard()`, ver arriba.
 - **Renderizador de consola** (`tui/consoleRenderer.ts`) — `createConsoleRenderer()` pinta los eventos de `runQuery()` (texto en streaming, `[action]`, avisos, errores) igual que el chat, sin líneas en blanco entre acciones seguidas. Úsalo para mostrar una ejecución de una sola pasada con el mismo aspecto.
 - **Autenticación con Claude** — `resolveClaudeAuth(config?)` (`core/claudeAuth.ts`) resuelve el token en orden `ANTHROPIC_API_KEY` → `CLAUDE_CODE_OAUTH_TOKEN` → `config.claudeCodeOAuthToken` si se lo pasas, sin ningún I/O (segura de llamar desde un proceso sin terminal, ej. Electron) — el kit no guarda ningún token por su cuenta, de dónde lo saques entre ejecuciones es cosa tuya. `ensureClaudeAuth(config?)` (`tui/claudeAuth.ts`) la envuelve para terminales: si no encuentra token, ofrece generarlo con `claude setup-token` y te devuelve el nuevo token para que lo guardes tú donde quieras.
 - **Formateo de etiquetas de herramientas** (`core/toolLabels.ts`) — traduce nombres técnicos de herramientas (ej. `mcp__playwright__browser_click`) a descripciones legibles en consola, extensible por el agente concreto para sus propias herramientas de dominio. No es exclusivo del TUI: cualquier presentación (incluida una app de escritorio) puede reutilizarlo, ya que devuelve texto plano sin colores.
-- **Utilidades de consola** (`tui/ui.ts`) — paleta de colores consistente (`agent`, `action`, `heading`, `success`, `warn`, `error`, `dim`), usada por el TUI y por `ensureClaudeAuth()`.
+- **Utilidades de consola** (`tui/ui.ts`) — paleta de colores consistente (`agent`, `action`, `heading`, `success`, `warn`, `error`, `dim`), usada por el TUI y por `ensureClaudeAuth()` (que pregunta con `runWizard()`).
 - **Carga de prompts con plantillas** (`core/promptTemplate.ts`) — sustitución `{{variable}}` sobre archivos de prompt, con fallo explícito si falta una variable.
 
 Consulta [`.minispec/`](./.minispec/README.md) para la arquitectura de cada pieza y las decisiones de diseño (incluyendo comportamientos del SDK confirmados empíricamente que motivan varios de estos guardarraíles).

@@ -10,7 +10,7 @@
 - Human-in-the-loop: step gate, approval tool, manual-intervention tool, answered from a terminal or a response file.
 - Security hooks: file scope, subagent gates, MCP permissions, transcript logging with secret redaction.
 - A built-in knowledge base (LLM-wiki pattern) with its own plugin of skills and commands.
-- A normalized event stream (`runQuery()`), tool-label formatting, a terminal chat TUI and Claude auth.
+- A normalized event stream (`runQuery()`), tool-label formatting, a terminal UI (Ink, with a readline fallback) and Claude auth.
 
 ## For whom
 
@@ -24,7 +24,7 @@ Keep every agent's generic plumbing and guardrails in one versioned place, so ea
 
 Extracted from a concrete agent (moodle-agent). Design decisions were validated against real consuming agents; source comments marked "confirmed empirically" encode real SDK behavior or production bugs.
 
-- `examples/captain-whiskers/` — standalone toy agent (`file:../..`, imports only from the package root, needs `npm run build` here first), autonomous mode only; exercises the kit end to end.
+- `examples/captain-whiskers/` — standalone toy agent (`file:../..`, imports only from the package root, needs `npm run build` here first), autonomous by default (`CAPTAIN_MODE` switches it); exercises the kit end to end, Ink chat included.
 - `student-agent`, `teacher-agent` — real-size consumers, where gaps in the kit are discovered.
 
 Version 0.x: the API is not yet stable.
