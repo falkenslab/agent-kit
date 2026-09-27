@@ -5,7 +5,20 @@ import type { ApprovalPrompt } from "../../core/interaction.js";
 import type { Mode } from "../../core/agentSpec.js";
 import type { SessionUsage } from "../../core/runner.js";
 import { liveWidth, type SessionModel, type SessionSnapshot } from "./sessionModel.js";
-import { createRowCache, isMouseReport, rowsBelow, scrollBy, visibleRows, wheelSteps, type ScrollAnchor } from "./fullscreen.js";
+import {
+  createRowCache,
+  highlightRow,
+  isMouseReport,
+  mouseEvents,
+  rowsBelow,
+  scrollBy,
+  selectedText,
+  visibleRows,
+  type Cell,
+  type ScrollAnchor,
+  type Selection,
+} from "./fullscreen.js";
+import { framePosition } from "./terminalCursor.js";
 import type { Checkpoint, InkInteraction } from "./inkInteraction.js";
 import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import * as ui from "../ui.js";
@@ -92,6 +105,8 @@ export interface SessionViewProps {
   fullscreen?: boolean;
   /** Full screen only: lines pinned above the history (see header.ts's headerLines()). */
   header?: string[];
+  /** Full screen only: receives the text selected with the mouse (e.g. to set the clipboard). */
+  onCopy?: (text: string) => void;
   /** Shown under the live area when no checkpoint is waiting (the chat's input). */
   children?: ReactNode;
 }
@@ -150,12 +165,20 @@ const WHEEL_ROWS = 3;
  * wheel move it, Ctrl+End or typing brings it back to the bottom, and output arriving while
  * scrolled up doesn't move it.
  */
-function FullscreenSession({ session, checkpoint, renderApproval, mode, header, children }: Omit<LiveAreaProps, "width" | "statusExtra"> & { header?: string[] }) {
+function FullscreenSession({
+  session,
+  checkpoint,
+  renderApproval,
+  mode,
+  header,
+  onCopy,
+  children,
+}: Omit<LiveAreaProps, "width" | "statusExtra"> & { header?: string[]; onCopy?: (text: string) => void }) {
   const { columns, rows } = useTerminalSize();
   const width = liveWidth(columns);
   const rowCache = useRef(createRowCache()).current;
-  const allRows = rowCache(session.items, width);
-  const total = allRows.length;
+  const wrapped = rowCache(session.items, width);
+  const total = wrapped.rows.length;
 
   const historyRef = useRef<DOMElement>(null);
   const [historyHeight, setHistoryHeight] = useState(rows);
@@ -166,23 +189,86 @@ function FullscreenSession({ session, checkpoint, renderApproval, mode, header, 
   });
 
   const [anchor, setAnchor] = useState<ScrollAnchor>(null);
+  // Mirrored in a ref: mouse reports can arrive faster than React re-renders.
+  const [selection, setSelectionState] = useState<Selection | null>(null);
+  const selectionRef = useRef<Selection | null>(null);
+  function setSelection(next: Selection | null): void {
+    selectionRef.current = next;
+    setSelectionState(next);
+  }
+  const dragging = useRef(false);
+  const [copied, setCopied] = useState<string | null>(null);
   // Rows are re-wrapped when the width changes, so a row index no longer means the same
-  // place: go back to the bottom.
-  useEffect(() => setAnchor(null), [width]);
+  // place: go back to the bottom, and drop the selection.
+  useEffect(() => {
+    setAnchor(null);
+    setSelection(null);
+  }, [width]);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(null), 3000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  const [start, end] = visibleRows(total, historyHeight, anchor);
+
+  /** The history cell under a screen cell (clamped to the rows shown), or null outside the history. */
+  function cellAt(x: number, y: number, clamp: boolean): Cell | null {
+    if (!historyRef.current || end === start) return null;
+    const box = framePosition(historyRef.current);
+    const firstY = box.y + historyHeight - (end - start); // the rows are bottom-aligned
+    let offset = y - firstY;
+    if (offset < 0 || offset >= end - start) {
+      if (!clamp) return null;
+      offset = Math.min(end - start - 1, Math.max(0, offset));
+    }
+    return { row: start + offset, col: Math.max(0, x - box.x) };
+  }
+
+  function handleMouse(text: string): void {
+    for (const event of mouseEvents(text)) {
+      if (event.kind === "wheel-up" || event.kind === "wheel-down") {
+        const steps = event.kind === "wheel-up" ? -WHEEL_ROWS : WHEEL_ROWS;
+        setAnchor((a) => scrollBy(a, steps, total, historyHeight));
+      } else if (event.kind === "press") {
+        const cell = cellAt(event.x, event.y, false);
+        dragging.current = cell !== null;
+        setSelection(cell ? { anchor: cell, focus: cell } : null);
+      } else if (event.kind === "drag" && dragging.current && selectionRef.current) {
+        const cell = cellAt(event.x, event.y, true);
+        if (cell) setSelection({ anchor: selectionRef.current.anchor, focus: cell });
+      } else if (event.kind === "release" && dragging.current && selectionRef.current) {
+        dragging.current = false;
+        const cell = cellAt(event.x, event.y, true);
+        const final = cell ? { anchor: selectionRef.current.anchor, focus: cell } : selectionRef.current;
+        // A click without a drag clears the selection instead of copying one cell.
+        if (final.anchor.row === final.focus.row && final.anchor.col === final.focus.col) {
+          setSelection(null);
+          continue;
+        }
+        setSelection(final);
+        const text = selectedText(wrapped, final);
+        if (text && onCopy) {
+          onCopy(text);
+          setCopied(`copied ${text.length} ${text.length === 1 ? "character" : "characters"}`);
+        }
+      }
+    }
+  }
 
   useInput((text, key) => {
     const page = Math.max(1, historyHeight - 1);
-    const steps = wheelSteps(text);
-    if (steps !== 0) setAnchor((a) => scrollBy(a, steps * WHEEL_ROWS, total, historyHeight));
-    else if (isMouseReport(text)) return;
+    if (isMouseReport(text)) handleMouse(text);
     else if (key.pageUp) setAnchor((a) => scrollBy(a, -page, total, historyHeight));
     else if (key.pageDown) setAnchor((a) => scrollBy(a, page, total, historyHeight));
     else if (key.ctrl && key.end) setAnchor(null);
     else if (text && !key.ctrl && !key.meta && !key.escape) setAnchor(null); // typing
   });
 
-  const [start, end] = visibleRows(total, historyHeight, anchor);
   const below = rowsBelow(anchor, total);
+  const statusExtra = [anchor === null ? null : `↓ ${below} more ${below === 1 ? "line" : "lines"} (Ctrl+End)`, copied]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <Box flexDirection="column" width={columns - 1} height={rows}>
       {header && header.length > 0 ? (
@@ -195,9 +281,9 @@ function FullscreenSession({ session, checkpoint, renderApproval, mode, header, 
         </Box>
       ) : null}
       <Box ref={historyRef} flexDirection="column" flexGrow={1} flexShrink={1} overflow="hidden" justifyContent="flex-end">
-        {allRows.slice(start, end).map((row, i) => (
+        {wrapped.rows.slice(start, end).map((row, i) => (
           <Text key={start + i} wrap="truncate-end">
-            {row || " "}
+            {highlightRow(row, selection, start + i) || " "}
           </Text>
         ))}
       </Box>
@@ -207,7 +293,7 @@ function FullscreenSession({ session, checkpoint, renderApproval, mode, header, 
         renderApproval={renderApproval}
         mode={mode}
         width={width}
-        statusExtra={anchor === null ? undefined : `↓ ${below} more ${below === 1 ? "line" : "lines"} (Ctrl+End)`}
+        statusExtra={statusExtra || undefined}
       >
         {children}
       </LiveArea>
@@ -216,7 +302,7 @@ function FullscreenSession({ session, checkpoint, renderApproval, mode, header, 
 }
 
 /** History, line in progress, current action, checkpoint panel and status bar. */
-export function SessionView({ model, interaction, renderApproval, mode, closed, fullscreen, header, children }: SessionViewProps) {
+export function SessionView({ model, interaction, renderApproval, mode, closed, fullscreen, header, onCopy, children }: SessionViewProps) {
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
   // Nothing in the live area may reach the terminal's edge (see lineBuffer.ts).
@@ -224,7 +310,7 @@ export function SessionView({ model, interaction, renderApproval, mode, closed, 
 
   if (fullscreen) {
     return closed ? null : (
-      <FullscreenSession session={session} checkpoint={checkpoint} renderApproval={renderApproval} mode={mode} header={header}>
+      <FullscreenSession session={session} checkpoint={checkpoint} renderApproval={renderApproval} mode={mode} header={header} onCopy={onCopy}>
         {children}
       </FullscreenSession>
     );

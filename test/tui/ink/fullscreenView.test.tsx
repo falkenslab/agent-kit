@@ -115,6 +115,45 @@ test("the header stays pinned at the top while the history scrolls under it", as
   assert.notEqual(rows.at(-3), "line 100");
 });
 
+test("dragging over the history highlights and copies it, also while the agent works", async () => {
+  const copies: string[] = [];
+  const model = createSessionModel();
+  const interaction = createInkInteraction((text) => model.note(text));
+  for (let i = 1; i <= 30; i++) model.note(`line ${i}`);
+  model.startTurn(); // the spinner is on screen
+  const view = render(
+    <SessionView model={model} interaction={interaction} fullscreen onCopy={(text) => copies.push(text)}>
+      <Text>PROMPT</Text>
+    </SessionView>,
+  );
+  await settle();
+  const rows = screen(view);
+  const y28 = rows.indexOf("line 28");
+  assert.ok(y28 > 0);
+
+  // Press on "line 28" at column 5, drag to "line 29" column 3, release there (1-based cells).
+  view.stdin.write(`\x1b[<0;6;${y28 + 1}M`);
+  await settle();
+  view.stdin.write(`\x1b[<32;4;${y28 + 2}M`);
+  await settle();
+  view.stdin.write(`\x1b[<0;4;${y28 + 2}m`);
+  await settle();
+  assert.deepEqual(copies, ["28\nline"]);
+  assert.match(screen(view).at(-1) ?? "", /copied 7 characters/);
+
+  // New output doesn't move the highlight off its text: it's still on "line 28".
+  model.note("line 31");
+  await settle();
+  const frame = view.lastFrame() ?? "";
+  assert.ok(frame.includes("\x1b[7m28"), "the highlight still starts on line 28's number");
+
+  // A click without a drag clears the selection and copies nothing more.
+  view.stdin.write(`\x1b[<0;2;${y28 + 1}M`);
+  view.stdin.write(`\x1b[<0;2;${y28 + 1}m`);
+  await settle();
+  assert.equal(copies.length, 1);
+});
+
 test("the prompt never types a mouse report", async () => {
   const submitted: string[] = [];
   const view = render(<PromptInput label="> " history={[]} commands={[]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />);

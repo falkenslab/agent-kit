@@ -14,7 +14,7 @@ import { PromptInput } from "./PromptInput.js";
 import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel.js";
 import { SessionView, type RenderApproval } from "./SessionView.js";
 import { stripAnsi } from "./lineBuffer.js";
-import { enterFullscreen } from "./fullscreen.js";
+import { clipboardSequence, enterFullscreen } from "./fullscreen.js";
 import { createCursorController, CursorContext } from "./terminalCursor.js";
 import { headerLines, type HeaderInfo } from "./header.js";
 
@@ -35,8 +35,8 @@ export interface InkChatOptions extends ChatTuiOptions {
   /**
    * Take the whole terminal (its alternate screen): the history scrolls in its own view
    * above a prompt pinned at the bottom (PageUp/PageDown and the wheel scroll, Ctrl+End or
-   * typing goes back to the bottom), and the terminal is left cleared on exit. Selecting
-   * text with the mouse needs Shift, since the wheel is captured. Off by default.
+   * typing goes back to the bottom), dragging over the history copies it to the clipboard,
+   * and the terminal is left cleared on exit. Off by default.
    */
   fullscreen?: boolean;
   /**
@@ -161,6 +161,7 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
       closed={chat.closed}
       fullscreen={fullscreen}
       header={header}
+      onCopy={fullscreen ? (text) => void stdout.write(clipboardSequence(text)) : undefined}
     >
       {/* Always there, even during a turn (lines submitted then are queued), as in Claude Code. */}
       <Box flexDirection="column">
