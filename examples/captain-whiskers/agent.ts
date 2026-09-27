@@ -87,14 +87,15 @@ const spec: AgentSpec<BaseSessionConfig> = {
   disallowedTools: ["Read", "Write", "Glob"],
 };
 
-// El logo de la cabecera: un gato con sombrero pirata y parche. Solo caracteres de una
-// columna (ASCII y bloques): un emoji descuadraría el título que va a su derecha.
+// El logo de la cabecera: un gato pirata muerto (un ojo en x, el otro con parche) entre dos
+// calaveras. Solo caracteres de una columna (ASCII y bloques): un emoji descuadraría el
+// título que va a su derecha.
 const LOGO = [
-  pc.gray("   ▄▄███▄▄"),
-  pc.gray("  ▀▀▀▀▀▀▀▀▀"),
-  pc.yellow("    /\\_/\\"),
-  `${pc.yellow("   ( o.")}${pc.gray("█")}${pc.yellow(" )")}`,
-  pc.yellow("    > ^ <"),
+  pc.white(" .-.     .-."),
+  pc.white("(x_x)   (x_x)"),
+  pc.yellow("   /\\_/\\"),
+  `${pc.yellow("  ( ")}${pc.red("x")}${pc.yellow(".")}${pc.gray("█")}${pc.yellow(" )")}`,
+  pc.yellow("   > ^ <"),
 ];
 
 /** Formato apto para nombres de carpeta, p. ej. "2026-09-09T16-50-12-345Z". */
