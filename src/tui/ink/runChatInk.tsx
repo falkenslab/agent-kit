@@ -15,15 +15,15 @@ import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel
 import { SessionView, type RenderApproval } from "./SessionView.js";
 import { stripAnsi } from "./lineBuffer.js";
 import { enterFullscreen } from "./fullscreen.js";
+import { headerLines, type HeaderInfo } from "./header.js";
 
-export interface HeaderInfo {
-  title: string;
-  /** Shown under the title as "name value" pairs, e.g. the workspace or the model. */
-  fields?: Record<string, string>;
-}
+export type { HeaderInfo } from "./header.js";
 
 export interface InkChatOptions extends ChatTuiOptions {
-  /** Printed once at the top of the chat; not written to the session log. */
+  /**
+   * Title, fields and an optional logo for the top of the chat: fixed at the top in full
+   * screen, printed once at the start otherwise. Not written to the session log.
+   */
   header?: HeaderInfo;
   /** Replaces the default preview in the approval and manual-intervention panels. */
   renderApproval?: RenderApproval;
@@ -43,6 +43,8 @@ export interface InkChatOptions extends ChatTuiOptions {
 const DEFAULT_PROMPT_LABEL = "\n> ";
 const DEFAULT_EXIT_COMMANDS: readonly string[] = ["/exit", "/quit"];
 const DEFAULT_HISTORY_LIMIT = 100;
+// The prompt's frame: a border and one column of padding on each side.
+const PROMPT_FRAME_COLUMNS = 4;
 
 export interface ChatInputSnapshot {
   /** The chat loop is waiting for a line (no turn in flight). */
@@ -114,10 +116,11 @@ interface ChatAppProps {
   renderApproval?: RenderApproval;
   mode?: Mode;
   fullscreen?: boolean;
+  header?: string[];
   onInterrupt(): void;
 }
 
-function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, onInterrupt }: ChatAppProps) {
+function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, onInterrupt }: ChatAppProps) {
   const chat = useSyncExternalStore(input.subscribe, input.getSnapshot);
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
@@ -142,6 +145,7 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
       mode={mode}
       closed={chat.closed}
       fullscreen={fullscreen}
+      header={header}
     >
       {/* Always there, even during a turn (lines submitted then are queued), as in Claude Code. */}
       <Box flexDirection="column">
@@ -150,21 +154,19 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
             {ui.dim(`  queued: ${line}`)}
           </Text>
         ))}
-        <PromptInput
-          label={promptLabel.replace(/^\n+/, "")}
-          history={chat.history}
-          commands={chat.commands}
-          onSubmit={(line) => input.submit(line)}
-          onExit={() => input.submit(null)}
-        />
+        <Box borderStyle="round" borderColor="gray" paddingX={1}>
+          <PromptInput
+            label={promptLabel.replace(/^\n+/, "")}
+            history={chat.history}
+            commands={chat.commands}
+            inset={PROMPT_FRAME_COLUMNS}
+            onSubmit={(line) => input.submit(line)}
+            onExit={() => input.submit(null)}
+          />
+        </Box>
       </Box>
     </SessionView>
   );
-}
-
-function headerText(header: HeaderInfo): string {
-  const fields = Object.entries(header.fields ?? {}).map(([name, value]) => `${ui.dim(name)} ${value}`);
-  return [ui.heading(header.title), ...(fields.length > 0 ? [fields.join("   ")] : [])].join("\n");
 }
 
 /**
@@ -242,13 +244,15 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       renderApproval={tuiOptions.renderApproval}
       mode={tuiOptions.mode}
       fullscreen={tuiOptions.fullscreen}
+      header={tuiOptions.header && tuiOptions.fullscreen ? headerLines(tuiOptions.header) : undefined}
       onInterrupt={interruptTurn}
     />,
     { exitOnCtrlC: false },
   );
 
   try {
-    if (tuiOptions.header) model.note(headerText(tuiOptions.header));
+    // In full screen the header is pinned above the history (see SessionView) instead.
+    if (tuiOptions.header && !tuiOptions.fullscreen) model.note(headerLines(tuiOptions.header).join("\n"));
     if (tuiOptions.welcomeMessage) model.writeLine(tuiOptions.welcomeMessage);
 
     if (tuiOptions.initialPrompt) {

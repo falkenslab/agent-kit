@@ -92,6 +92,29 @@ test("output arriving while scrolled up doesn't move the view", async () => {
   assert.match(rows.at(-1) ?? "", /↓ \d+ more lines/);
 });
 
+test("the header stays pinned at the top while the history scrolls under it", async () => {
+  const model = createSessionModel();
+  const interaction = createInkInteraction((text) => model.note(text));
+  for (let i = 1; i <= 100; i++) model.note(`line ${i}`);
+  const view = render(
+    <SessionView model={model} interaction={interaction} fullscreen header={["LOGO  Captain", "      mode guided"]}>
+      <Text>PROMPT</Text>
+    </SessionView>,
+  );
+  await settle();
+  let rows = screen(view);
+  assert.equal(rows.length, 24);
+  assert.deepEqual(rows.slice(0, 2), ["LOGO  Captain", "      mode guided"]);
+  assert.equal(rows[2].trim(), ""); // a blank row under it
+  assert.equal(rows.at(-3), "line 100");
+
+  view.stdin.write(PAGE_UP);
+  await settle();
+  rows = screen(view);
+  assert.deepEqual(rows.slice(0, 2), ["LOGO  Captain", "      mode guided"]);
+  assert.notEqual(rows.at(-3), "line 100");
+});
+
 test("the prompt never types a mouse report", async () => {
   const submitted: string[] = [];
   const view = render(<PromptInput label="> " history={[]} commands={[]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />);

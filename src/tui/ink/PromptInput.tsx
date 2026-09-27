@@ -41,6 +41,8 @@ export function visibleWindow(length: number, cursor: number, room: number): [nu
 
 export interface PromptInputProps {
   label: string;
+  /** Columns taken around the prompt (a frame), so a long line scrolls before reaching the edge. */
+  inset?: number;
   /** Earlier lines, oldest first, for ↑/↓. */
   history: readonly string[];
   /** Slash command names (without "/") for suggestions and Tab completion. */
@@ -55,7 +57,7 @@ export interface PromptInputProps {
  * taken from @inkjs/ui because its TextInput is uncontrolled: history needs to replace the
  * value. Backspace also arrives as `delete` on Windows terminals, so both erase backwards.
  */
-export function PromptInput({ label, history, commands, onSubmit, onExit }: PromptInputProps) {
+export function PromptInput({ label, inset = 0, history, commands, onSubmit, onExit }: PromptInputProps) {
   // Kept in a ref, not in state: two keystrokes can arrive before React re-renders, and a
   // handler reading state would apply the second one to a stale value.
   const state = useRef({ value: "", cursor: 0, historyIndex: null as number | null, draft: "" });
@@ -125,7 +127,7 @@ export function PromptInput({ label, history, commands, onSubmit, onExit }: Prom
   const { stdout } = useStdout();
   // Suggestions give way on a short terminal: the live area must stay shorter than it.
   const suggestions = matchingCommands(value, commands).slice(0, Math.min(MAX_SUGGESTIONS, Math.max(0, (stdout.rows || 24) - 10)));
-  const width = liveWidth(stdout.columns);
+  const width = liveWidth(stdout.columns) - inset;
   const [start, end] = visibleWindow(value.length, cursor, width - stringWidth(stripAnsi(label)));
   const atCursor = value[cursor] ?? " ";
   return (

@@ -90,6 +90,8 @@ export interface SessionViewProps {
    * screen (see fullscreen.ts's enterFullscreen()).
    */
   fullscreen?: boolean;
+  /** Full screen only: lines pinned above the history (see header.ts's headerLines()). */
+  header?: string[];
   /** Shown under the live area when no checkpoint is waiting (the chat's input). */
   children?: ReactNode;
 }
@@ -146,7 +148,7 @@ const WHEEL_ROWS = 3;
  * wheel move it, Ctrl+End or typing brings it back to the bottom, and output arriving while
  * scrolled up doesn't move it.
  */
-function FullscreenSession({ session, checkpoint, renderApproval, mode, children }: Omit<LiveAreaProps, "width" | "statusExtra">) {
+function FullscreenSession({ session, checkpoint, renderApproval, mode, header, children }: Omit<LiveAreaProps, "width" | "statusExtra"> & { header?: string[] }) {
   const { columns, rows } = useTerminalSize();
   const width = liveWidth(columns);
   const rowCache = useRef(createRowCache()).current;
@@ -181,6 +183,15 @@ function FullscreenSession({ session, checkpoint, renderApproval, mode, children
   const below = rowsBelow(anchor, total);
   return (
     <Box flexDirection="column" width={columns - 1} height={rows}>
+      {header && header.length > 0 ? (
+        <Box flexDirection="column" flexShrink={0} marginBottom={1}>
+          {header.map((line, i) => (
+            <Text key={i} wrap="truncate-end">
+              {line || " "}
+            </Text>
+          ))}
+        </Box>
+      ) : null}
       <Box ref={historyRef} flexDirection="column" flexGrow={1} flexShrink={1} overflow="hidden" justifyContent="flex-end">
         {allRows.slice(start, end).map((row, i) => (
           <Text key={start + i} wrap="truncate-end">
@@ -203,7 +214,7 @@ function FullscreenSession({ session, checkpoint, renderApproval, mode, children
 }
 
 /** History, line in progress, current action, checkpoint panel and status bar. */
-export function SessionView({ model, interaction, renderApproval, mode, closed, fullscreen, children }: SessionViewProps) {
+export function SessionView({ model, interaction, renderApproval, mode, closed, fullscreen, header, children }: SessionViewProps) {
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
   // Nothing in the live area may reach the terminal's edge (see lineBuffer.ts).
@@ -211,7 +222,7 @@ export function SessionView({ model, interaction, renderApproval, mode, closed, 
 
   if (fullscreen) {
     return closed ? null : (
-      <FullscreenSession session={session} checkpoint={checkpoint} renderApproval={renderApproval} mode={mode}>
+      <FullscreenSession session={session} checkpoint={checkpoint} renderApproval={renderApproval} mode={mode} header={header}>
         {children}
       </FullscreenSession>
     );
