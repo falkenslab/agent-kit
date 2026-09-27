@@ -8,15 +8,16 @@ An opt-in full-screen mode for `runChatInk()`: the conversation fills the termin
 
 - Today the history goes to Ink's `<Static>`, i.e. into the terminal's own scrollback; Ink only redraws the live area (reply in progress, spinner, panel, prompt, status bar). Scrolling, the mouse wheel, text selection and what stays on screen after exit are the terminal's.
 - `sessionModel.ts` already keeps the history as lines and `lineBuffer.ts` already wraps them to a width, which a viewport can build on.
-- Ink 6.8 has `overflow="hidden"`, reports PageUp/PageDown, and has `incrementalRendering`. When its output is as tall as the terminal, it clears the whole screen on every frame (`ink.js`), so the frame must stay one row shorter.
+- Ink 6.8 has `overflow="hidden"` and reports PageUp/PageDown. When its output is as tall as the terminal it redraws the whole frame from the top (clear + write inside synchronized output, `ink.js`). A frame one row shorter with `incrementalRendering` left a stale copy of the prompt on every keystroke in the first spike run (Windows Terminal), so the frame is exactly the terminal's height and incremental rendering stays off.
 - The edge-width and blank-line bugs (ADR-014) came from Ink's accounting of what it drew; a full-screen frame that draws every row itself removes that class of bug.
+- Builds on `ink-claude-style`: same look, inside the full screen.
 - Decisions taken: mouse wheel captured (scrolls; selecting text needs Shift), Ctrl+End returns to the bottom (typing does too), on exit the last screenful plus the `session.log` path stay in the normal buffer, opt-in `fullscreen` option (off by default).
 
 ## Changes
 
 - Phase 0 — spike, outside the kit: a standalone script in the alternate screen with a fake conversation and fake streaming, PageUp/PageDown, Ctrl+End and the wheel. Run on Windows Terminal to judge flicker and key detection before building the rest.
 - Viewport model (no UI): history wrapped to rows (re-wrapped on resize), offset from the bottom, page up/down by the history area's height, new output while scrolled up keeps the offset and counts new lines.
-- Layout: a root of `rows - 1` rows; history area `flexGrow` + `overflow="hidden"`, bottom-aligned; pinned below it the reply in progress, spinner, approval panel, prompt and status bar. The panel takes height from the history instead of pushing it.
+- Layout: a root exactly `rows` high and one column narrower than the terminal; history area `flexGrow` + `overflow="hidden"`, bottom-aligned; pinned below it the reply in progress, spinner, approval panel, prompt and status bar. The panel takes height from the history instead of pushing it.
 - Keys: PageUp/PageDown and the wheel scroll; Ctrl+End or any typed character goes back to the bottom; the status bar shows "↓ N new lines" while scrolled up with new output.
 - Terminal lifecycle: enter the alternate screen and mouse reporting on mount; always restore both on exit, Ctrl+C, an error or process exit; then print the last screenful and the `session.log` path.
 - `fullscreen?: boolean` in `InkChatOptions`, off by default; captain-whiskers turns it on. `createProgressView()` and `runWizard()` stay inline.
