@@ -127,7 +127,7 @@ async function main(): Promise<void> {
     projectDir: __dirname,
   };
 
-  const { options } = await buildSessionOptions(config, runDir, spec);
+  const { options, modeControl } = await buildSessionOptions(config, runDir, spec);
 
   // Interfaz Ink a pantalla completa (CAPTAIN_INLINE=1: en línea, con el historial de la
   // terminal); sin TTY, o con CAPTAIN_PLAIN=1, el chat de readline.
@@ -136,6 +136,8 @@ async function main(): Promise<void> {
     mode,
     plain: process.env.CAPTAIN_PLAIN === "1",
     fullscreen: process.env.CAPTAIN_INLINE !== "1",
+    // Shift+Tab alterna guided e interactive (una sesión autónoma no puede cambiar).
+    modeControl,
     // La primera sugerencia (Tab la acepta): el modelo solo sugiere a partir del segundo turno.
     firstPromptSuggestion: "cuéntame un chiste fresco",
     welcomeMessage: pc.gray(
