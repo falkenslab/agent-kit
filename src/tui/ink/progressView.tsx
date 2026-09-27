@@ -5,7 +5,7 @@ import type { Mode } from "../../core/agentSpec.js";
 import { getInteractionPort, setInteractionPort } from "../../core/interaction.js";
 import { createConsoleRenderer, type ConsoleRenderer, type ConsoleRendererOptions } from "../consoleRenderer.js";
 import { createInkInteraction, type InkInteraction } from "./inkInteraction.js";
-import { createSessionModel, type SessionModel } from "./sessionModel.js";
+import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel.js";
 import { SessionView, type RenderApproval } from "./SessionView.js";
 
 export interface ProgressViewOptions extends Omit<ConsoleRendererOptions, "output"> {
@@ -58,7 +58,7 @@ export function createProgressView(options: ProgressViewOptions = {}): ProgressV
     return Object.assign(renderer, { close: async () => {} });
   }
 
-  const model = createSessionModel(options);
+  const model = createSessionModel({ ...options, width: () => liveWidth(stdout.columns) });
   const interaction = createInkInteraction((text) => model.note(text));
   const previousPort = getInteractionPort();
   setInteractionPort(interaction.port);

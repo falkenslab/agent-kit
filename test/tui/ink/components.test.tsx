@@ -6,8 +6,8 @@ import { render, cleanup } from "ink-testing-library";
 import { Text } from "ink";
 import { createSessionModel } from "../../../src/tui/ink/sessionModel.js";
 import { createInkInteraction } from "../../../src/tui/ink/inkInteraction.js";
-import { SessionView, statusText } from "../../../src/tui/ink/SessionView.js";
-import { PromptInput, completeCommand, matchingCommands } from "../../../src/tui/ink/PromptInput.js";
+import { SessionView, previewLines, statusText } from "../../../src/tui/ink/SessionView.js";
+import { PromptInput, completeCommand, matchingCommands, visibleWindow } from "../../../src/tui/ink/PromptInput.js";
 import { Wizard, type WizardAnswers, type WizardStep } from "../../../src/tui/ink/wizard.js";
 
 const ENTER = "\r";
@@ -202,4 +202,21 @@ test("a wizard step's validation keeps the step until the answer is valid, and C
   view.stdin.write("\u0003");
   await settle();
   assert.equal(result, null);
+});
+
+test("a long prompt line scrolls sideways around the cursor", () => {
+  assert.deepEqual(visibleWindow(10, 10, 40), [0, 10]);
+  const [start, end] = visibleWindow(100, 100, 40);
+  assert.equal(end, 100);
+  assert.ok(end - start <= 38);
+  const [s2, e2] = visibleWindow(100, 5, 40);
+  assert.equal(s2, 0);
+  assert.ok(e2 - s2 <= 38 && e2 > 5);
+});
+
+test("a huge approval preview is capped below the terminal's height", () => {
+  const lines = previewLines(["Tool: Write", `Parameters: ${"x\n".repeat(200)}`], 30);
+  assert.equal(lines.length, 18);
+  assert.match(lines.at(-1) ?? "", /more lines/);
+  assert.deepEqual(previewLines(["a", "b"], 30), ["a", "b"]);
 });

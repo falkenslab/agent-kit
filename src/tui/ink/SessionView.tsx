@@ -1,12 +1,12 @@
 import { useSyncExternalStore, type ReactNode } from "react";
-import { Box, Static, Text, useInput } from "ink";
+import { Box, Static, Text, useInput, useStdout } from "ink";
 import { Select, Spinner } from "@inkjs/ui";
 import type { ApprovalPrompt } from "../../core/interaction.js";
 import type { Mode } from "../../core/agentSpec.js";
 import type { SessionUsage } from "../../core/runner.js";
-import type { SessionModel } from "./sessionModel.js";
+import { liveWidth, type SessionModel } from "./sessionModel.js";
 import type { Checkpoint, InkInteraction } from "./inkInteraction.js";
-import { stripAnsi } from "./lineBuffer.js";
+import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import * as ui from "../ui.js";
 
 /** Replaces the default preview (title and lines) of an approval panel; the choices stay. */
@@ -19,6 +19,17 @@ const DECISION_OPTIONS = [
 ];
 const MANUAL_OPTIONS = [{ label: "Done, continue", value: "continue" }];
 
+/**
+ * The preview's lines, capped so the whole live area stays shorter than the terminal: Ink
+ * clears the entire screen (scrollback included) to redraw anything taller, and a step-gate
+ * preview carries the tool's parameters, which can be a whole file.
+ */
+export function previewLines(lines: readonly string[], terminalRows: number | undefined): string[] {
+  const all = lines.flatMap((line) => line.split("\n"));
+  const max = Math.max(3, (terminalRows || 24) - 12);
+  return all.length <= max ? all : [...all.slice(0, max - 1), ui.dim(`… (${all.length - max + 1} more lines)`)];
+}
+
 function CheckpointPanel({ checkpoint, renderApproval }: { checkpoint: Checkpoint; renderApproval?: RenderApproval }) {
   const decision = checkpoint.kind === "decision";
   useInput((input) => {
@@ -27,6 +38,7 @@ function CheckpointPanel({ checkpoint, renderApproval }: { checkpoint: Checkpoin
   });
 
   const { prompt } = checkpoint;
+  const { stdout } = useStdout();
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
       {renderApproval ? (
@@ -34,7 +46,7 @@ function CheckpointPanel({ checkpoint, renderApproval }: { checkpoint: Checkpoin
       ) : (
         <>
           <Text bold>{prompt.title}</Text>
-          {prompt.lines.map((line, index) => (
+          {previewLines(prompt.lines, stdout.rows).map((line, index) => (
             <Text key={index}>{line}</Text>
           ))}
           {!decision && prompt.question ? <Text dimColor>{prompt.question}</Text> : null}
@@ -81,23 +93,25 @@ export interface SessionViewProps {
 export function SessionView({ model, interaction, renderApproval, mode, closed, children }: SessionViewProps) {
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
+  // Nothing in the live area may reach the terminal's edge (see lineBuffer.ts).
+  const width = liveWidth(useStdout().stdout.columns);
 
   return (
     <>
       <Static items={session.items}>{(item) => <Text key={item.id}>{item.text || " "}</Text>}</Static>
       {closed ? null : (
-        <Box flexDirection="column">
+        <Box flexDirection="column" width={width}>
           {stripAnsi(session.live) ? <Text>{session.live}</Text> : null}
           {checkpoint ? (
             <CheckpointPanel checkpoint={checkpoint} renderApproval={renderApproval} />
           ) : session.busy ? (
             <Box flexDirection="column">
-              <Spinner label={session.activity ?? "Thinking…"} />
-              {session.subagentActivity ? <Text dimColor>{`  ↳ ${session.subagentActivity}`}</Text> : null}
+              <Spinner label={fitWidth(session.activity ?? "Thinking…", width - 2)} />
+              {session.subagentActivity ? <Text dimColor>{fitWidth(`  ↳ ${session.subagentActivity}`, width)}</Text> : null}
             </Box>
           ) : null}
           {checkpoint ? null : children}
-          <Text>{ui.dim(statusText(mode, session.turns, session.usage))}</Text>
+          <Text>{ui.dim(fitWidth(statusText(mode, session.turns, session.usage), width))}</Text>
         </Box>
       )}
     </>

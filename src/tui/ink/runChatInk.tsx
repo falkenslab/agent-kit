@@ -11,7 +11,7 @@ import { capHistory, drainTurn, loadHistory, runChatTui, saveHistory, slashComma
 import * as ui from "../ui.js";
 import { createInkInteraction, type InkInteraction } from "./inkInteraction.js";
 import { PromptInput } from "./PromptInput.js";
-import { createSessionModel, type SessionModel } from "./sessionModel.js";
+import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel.js";
 import { SessionView, type RenderApproval } from "./SessionView.js";
 import { stripAnsi } from "./lineBuffer.js";
 
@@ -152,7 +152,12 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
   const sessionLog: WriteStream | null = tuiOptions.sessionLogPath ? createWriteStream(tuiOptions.sessionLogPath, { flags: "a" }) : null;
   const mirror = (text: string): void => void sessionLog?.write(stripAnsi(text));
 
-  const model = createSessionModel({ formatAction: tuiOptions.formatAction, agentLabel: tuiOptions.agentLabel, onWrite: mirror });
+  const model = createSessionModel({
+    formatAction: tuiOptions.formatAction,
+    agentLabel: tuiOptions.agentLabel,
+    onWrite: mirror,
+    width: () => liveWidth(stdout.columns),
+  });
   const interaction = createInkInteraction((text) => model.note(text));
   const input = createChatInput();
 

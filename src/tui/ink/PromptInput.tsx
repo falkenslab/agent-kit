@@ -1,5 +1,8 @@
 import { useReducer, useRef } from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, Text, useInput, useStdout } from "ink";
+import stringWidth from "string-width";
+import { fitWidth, stripAnsi } from "./lineBuffer.js";
+import { liveWidth } from "./sessionModel.js";
 import * as ui from "../ui.js";
 
 const MAX_SUGGESTIONS = 6;
@@ -21,6 +24,18 @@ export function completeCommand(value: string, commands: readonly string[]): str
     while (!name.startsWith(prefix)) prefix = prefix.slice(0, -1);
   }
   return `/${prefix}`;
+}
+
+/**
+ * The slice [start, end) of a `length`-character line shown in `room` columns, keeping the
+ * cursor in view: like the live area, the prompt must never reach the terminal's edge (see
+ * lineBuffer.ts), so a long line scrolls sideways, with "…" on each cut side.
+ */
+export function visibleWindow(length: number, cursor: number, room: number): [number, number] {
+  if (length + 1 <= room) return [0, length];
+  const span = Math.max(1, room - 2); // one column for each possible "…"
+  const start = Math.min(Math.max(0, cursor + 1 - span), Math.max(0, length + 1 - span));
+  return [start, Math.min(length, start + span)];
 }
 
 export interface PromptInputProps {
@@ -105,17 +120,21 @@ export function PromptInput({ label, history, commands, onSubmit, onExit }: Prom
 
   const { value, cursor } = state.current;
   const suggestions = matchingCommands(value, commands).slice(0, MAX_SUGGESTIONS);
+  const width = liveWidth(useStdout().stdout.columns);
+  const [start, end] = visibleWindow(value.length, cursor, width - stringWidth(stripAnsi(label)));
   const atCursor = value[cursor] ?? " ";
   return (
     <Box flexDirection="column">
       <Text>
         {label}
-        {value.slice(0, cursor)}
+        {start > 0 ? "…" : ""}
+        {value.slice(start, cursor)}
         <Text inverse>{atCursor}</Text>
-        {value.slice(cursor + 1)}
+        {value.slice(cursor + 1, end)}
+        {end < value.length ? "…" : ""}
       </Text>
       {suggestions.map((name) => (
-        <Text key={name}>{ui.dim(`  /${name}`)}</Text>
+        <Text key={name}>{ui.dim(fitWidth(`  /${name}`, width))}</Text>
       ))}
     </Box>
   );

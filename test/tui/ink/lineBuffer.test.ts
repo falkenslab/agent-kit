@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import pc from "picocolors";
-import { createLineBuffer, stripAnsi } from "../../../src/tui/ink/lineBuffer.js";
+import stringWidth from "string-width";
+import { createLineBuffer, fitWidth, stripAnsi } from "../../../src/tui/ink/lineBuffer.js";
 
 test("keeps the unfinished line apart until its newline arrives", () => {
   const buffer = createLineBuffer();
@@ -27,4 +28,33 @@ test("the line in progress carries the color still open", () => {
   buffer.push(`${pc.bold("\x1b[35mdone\n")}going`);
   assert.equal(stripAnsi(buffer.partial), "going");
   assert.ok(buffer.partial.startsWith("\x1b["));
+});
+
+test("wrap() moves full rows out of the line in progress, at word boundaries, losing nothing", () => {
+  const buffer = createLineBuffer();
+  const reply = "Capitán Bigotes> ¡Arrr, marinero! 🐱☠️ El Capitán Bigotes reporta a bordo, listo pa' zarpar ";
+  buffer.push(pc.cyan(reply));
+  const rows = buffer.wrap(30);
+
+  assert.ok(rows.length >= 2);
+  for (const row of [...rows, buffer.partial]) assert.ok(stringWidth(stripAnsi(row)) <= 30, row);
+  assert.equal([...rows, buffer.partial].map(stripAnsi).join(""), reply);
+
+  // The next streamed word joins the row still in progress, with its space kept.
+  buffer.push("hacia");
+  assert.match(stripAnsi(buffer.partial), / hacia$/);
+});
+
+test("wrap() leaves a line that fits alone", () => {
+  const buffer = createLineBuffer();
+  buffer.push("short");
+  assert.deepEqual(buffer.wrap(30), []);
+  assert.equal(buffer.partial, "short");
+});
+
+test("fitWidth() cuts a label to one row with an ellipsis", () => {
+  assert.equal(fitWidth("short", 10), "short");
+  const cut = fitWidth("[action] Read C:/a/very/long/path/to/a/file.ts", 20);
+  assert.equal(stringWidth(stripAnsi(cut)), 20);
+  assert.ok(cut.endsWith("…"));
 });

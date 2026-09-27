@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AgentEvent } from "../../../src/core/runner.js";
 import { createConsoleRenderer } from "../../../src/tui/consoleRenderer.js";
-import { createSessionModel } from "../../../src/tui/ink/sessionModel.js";
+import { createSessionModel, liveWidth } from "../../../src/tui/ink/sessionModel.js";
 import { stripAnsi } from "../../../src/tui/ink/lineBuffer.js";
 
 const formatAction = (toolName: string) => `run ${toolName}`;
@@ -69,4 +69,25 @@ test("notes reach the history but not the log", () => {
   model.writeLine("logged");
   assert.deepEqual(model.getSnapshot().items.map((item) => item.text), ["Checkpoint", "Approved", "logged"]);
   assert.equal(logged, "logged\n");
+});
+
+test("with a width, a long reply streams into history rows and the live line stays short of the edge", async () => {
+  const { default: stringWidth } = await import("string-width");
+  const model = createSessionModel({ agentLabel: "Capitán Bigotes>", width: () => 40 });
+  model.startTurn();
+  const words = "¡Arrr, marinero! 🐱☠️ El Capitán Bigotes reporta a bordo, listo pa' zarpar hacia la misión que sea menester.".split(" ");
+  for (const word of words) {
+    model.render({ type: "text", text: `${word} ` });
+    assert.ok(stringWidth(stripAnsi(model.getSnapshot().live)) <= 40);
+  }
+  assert.ok(model.getSnapshot().items.length >= 2);
+  model.endTurn();
+  const shown = model.getSnapshot().items.map((item) => stripAnsi(item.text)).join("");
+  assert.equal(shown, `Capitán Bigotes> ${words.join(" ")} `);
+});
+
+test("liveWidth keeps a margin from the edge", () => {
+  assert.equal(liveWidth(120), 116);
+  assert.equal(liveWidth(undefined), 76);
+  assert.equal(liveWidth(10), 20);
 });

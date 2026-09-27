@@ -28,6 +28,16 @@ export interface SessionModelOptions {
   agentLabel?: string;
   /** Called with everything the console renderer writes, e.g. to mirror a session log. */
   onWrite?: (text: string) => void;
+  /** Columns the line in progress may take before its full rows move to the history (see lineBuffer.ts). */
+  width?: () => number;
+}
+
+/**
+ * Columns the live area may use: short of the edge, where the Windows console wraps early
+ * (see lineBuffer.ts). Read on every use, so a resized terminal is picked up.
+ */
+export function liveWidth(columns: number | undefined): number {
+  return Math.max(20, (columns || 80) - 4);
 }
 
 export interface SessionModel {
@@ -78,6 +88,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     agentLabel: options.agentLabel,
     output: (text) => {
       const lines = buffer.push(text);
+      if (options.width) lines.push(...buffer.wrap(options.width()));
       update({ items: lines.length > 0 ? addLines(lines) : snapshot.items, live: buffer.partial });
     },
     onWrite: options.onWrite,

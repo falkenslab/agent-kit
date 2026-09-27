@@ -1,3 +1,5 @@
+import wrapAnsi from "wrap-ansi";
+
 // eslint-disable-next-line no-control-regex -- \x1b is the ESC byte SGR sequences start with, not an accident
 const SGR = /\x1b\[([0-9;]*)m/g;
 
@@ -39,6 +41,11 @@ export interface LineBuffer {
   push(text: string): string[];
   /** The line still being written (e.g. a reply mid-stream), with its colors reopened. */
   readonly partial: string;
+  /**
+   * Cuts the line in progress into rows of at most `width` columns, at word boundaries,
+   * and returns every full row, leaving only the last one in progress.
+   */
+  wrap(width: number): string[];
 }
 
 /**
@@ -47,6 +54,12 @@ export interface LineBuffer {
  * often spans a newline, so a split line would leave its color open on one side and lost
  * on the other: each completed line is closed with a reset and the next one reopens
  * whatever was still active.
+ *
+ * `wrap()` exists because Ink redraws the live area by erasing as many rows as it believes
+ * it drew. A line in progress that reaches the terminal's edge can take one row more than
+ * Ink computed, and every redraw then leaves a stale copy of it behind (seen on Windows: a
+ * streamed reply repeated once per spinner frame; likely the console wrapping as soon as the
+ * last column is written, or drawing some emoji wider). Rows cut short of the edge don't.
  */
 export function createLineBuffer(): LineBuffer {
   let partial = "";
@@ -68,5 +81,18 @@ export function createLineBuffer(): LineBuffer {
     get partial() {
       return partial;
     },
+    wrap(width: number): string[] {
+      // trim: false keeps the space a row ends on, which the next streamed word needs.
+      const rows = wrapAnsi(partial, width, { hard: true, trim: false }).split("\n");
+      if (rows.length <= 1) return [];
+      partial = rows.pop() ?? "";
+      return rows;
+    },
   };
+}
+
+/** `text` on one row of at most `width` columns, cut with "…" when it doesn't fit. */
+export function fitWidth(text: string, width: number): string {
+  const rows = wrapAnsi(text, Math.max(1, width - 1), { wordWrap: false, trim: false }).split("\n");
+  return rows.length > 1 ? `${rows[0]}…` : rows[0];
 }
