@@ -31,8 +31,8 @@ la respuesta en curso. Cada sesión guarda su transcripción en `.run/<fecha-hor
 git); el historial de ↑/↓ vive en `.run/history.jsonl`.
 
 En un terminal usa la interfaz Ink del kit (`runChatInk`) a pantalla completa: el prompt queda
-abajo, RePág/AvPág y la rueda recorren la conversación y Ctrl+Fin (o escribir) vuelve abajo; para
-seleccionar texto con el ratón, mantén Mayús. Con `CAPTAIN_INLINE=1` usa el modo en línea (con el
+abajo, RePág/AvPág y la rueda recorren la conversación y Ctrl+Fin (o escribir) vuelve abajo; arrastra con el
+ratón sobre la conversación para copiarla al portapapeles. Con `CAPTAIN_INLINE=1` usa el modo en línea (con el
 historial de la terminal), y sin TTY, o con `CAPTAIN_PLAIN=1`, el chat de readline de siempre. Por defecto corre en modo `autonomous`; con `CAPTAIN_MODE=interactive`
 pide aprobación antes de cada herramienta (el panel admite `y`/`n`/`q`, y también se puede
 responder escribiendo en `.run/<fecha-hora>/approval-response.txt`), y con `CAPTAIN_MODE=guided`
