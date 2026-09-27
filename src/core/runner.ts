@@ -25,6 +25,9 @@ export type AgentEvent =
    * main agent. This filtering is the one piece of interpretation this module always
    * applies, since it's correct for every caller, not a presentation choice. */
   | { type: "action"; toolName: string; input: unknown }
+  /** A tool call made inside a subagent's own turn (see `action` above for why those are
+   * kept apart). Only for showing that a subagent is busy: a console log ignores it. */
+  | { type: "subagent-action"; toolName: string; input: unknown }
   /** One or more MCP servers failed to connect at session startup. */
   | { type: "mcp-error"; failedServers: string[] }
   /** A turn (one full `query()` response cycle) has finished. `failed` is the real
@@ -33,7 +36,7 @@ export type AgentEvent =
    * in `resultText` instead of `errorText` in that specific case (confirmed empirically:
    * an org-level access error came back as subtype "success", is_error: true, with the
    * real message in `result`) — check `failed`, not `status === "success"`. */
-  | { type: "turn-end"; status: string; failed: boolean; resultText: string | null; errorText: string }
+  | { type: "turn-end"; status: string; failed: boolean; resultText: string | null; errorText: string; usage?: SessionUsage }
   /** Out-of-band text from the CLI loop itself, not from the model: local-command output
    * (e.g. built-in `/usage`) or an informational banner (hook feedback, an unrecognized
    * `/slash-command` notice, ...). Without this, those `system` messages fell through
@@ -42,6 +45,19 @@ export type AgentEvent =
    * because the SDK's own response to it arrives as exactly this message shape and this
    * module simply dropped it. */
   | { type: "info"; text: string; level: "info" | "notice" | "suggestion" | "warning" | "local-command" };
+
+/**
+ * Running totals for the whole `query()` session so far, not for one turn: the SDK's own
+ * `total_cost_usd` and `modelUsage` are cumulative across turns in a streaming-input
+ * session, so the latest `turn-end` carries the session total (never sum them).
+ */
+export interface SessionUsage {
+  /** Input tokens, cache reads and writes included, across every model the session used. */
+  inputTokens: number;
+  outputTokens: number;
+  /** An estimate, not a billing statement. */
+  costUsd: number;
+}
 
 export interface AgentRun {
   /** Normalized events for this run — iterate with `for await`. */
@@ -91,10 +107,10 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
       }
 
       if (message.type === "assistant") {
-        if (message.parent_tool_use_id !== null) continue;
+        const type = message.parent_tool_use_id === null ? "action" : "subagent-action";
         for (const block of message.message.content) {
           if (block.type === "tool_use") {
-            yield { type: "action", toolName: block.name, input: block.input };
+            yield { type, toolName: block.name, input: block.input };
           }
         }
         continue;
@@ -104,7 +120,13 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
         const failed = message.is_error;
         const resultText = message.subtype === "success" ? message.result : null;
         const errorText = message.subtype === "success" ? message.result : message.errors.join("; ");
-        yield { type: "turn-end", status: message.subtype, failed, resultText, errorText };
+        const models = Object.values(message.modelUsage ?? {});
+        const usage: SessionUsage = {
+          inputTokens: models.reduce((sum, m) => sum + m.inputTokens + m.cacheReadInputTokens + m.cacheCreationInputTokens, 0),
+          outputTokens: models.reduce((sum, m) => sum + m.outputTokens, 0),
+          costUsd: message.total_cost_usd,
+        };
+        yield { type: "turn-end", status: message.subtype, failed, resultText, errorText, usage };
       }
     }
   }
