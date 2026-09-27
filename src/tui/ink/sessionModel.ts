@@ -112,6 +112,12 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
   // whether the run goes on (kept) or another kind follows (replaced by one separator).
   // Display only: `onWrite` still gets them.
   let heldBlanks = 0;
+  // A blank line asked for by `separate()`, not yet in the history. Ink's <Static> drops a
+  // render whose only new item is a blank line (confirmed with ink-testing-library: the
+  // separator before a turn never reached the screen), so a separator always goes into the
+  // history together with the line after it, and until then is drawn as a margin above
+  // the live area (the prompt, the spinner or the reply in progress).
+  let gapPending = false;
 
   function lastIsBlank(items: HistoryItem[]): boolean {
     const last = items.at(-1);
@@ -126,11 +132,12 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
         heldBlanks++;
         continue;
       }
-      if (lastKind !== null && kind !== lastKind) {
+      if (gapPending || (lastKind !== null && kind !== lastKind)) {
         if (!lastIsBlank(next)) push("");
       } else {
         for (let i = 0; i < heldBlanks; i++) push("");
       }
+      gapPending = false;
       heldBlanks = 0;
       push(text);
       lastKind = kind;
@@ -138,7 +145,9 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     return next;
   }
 
+  /** A blank line is due above the live area: a pending separator, or a reply starting another kind. */
   function liveGap(): boolean {
+    if (gapPending) return true;
     return !isBlank(buffer.partial) && lastKind !== null && partialKind !== lastKind && !lastIsBlank(snapshot.items);
   }
 
@@ -183,7 +192,8 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     },
     separate(): void {
       heldBlanks = 0;
-      if (!lastIsBlank(snapshot.items)) update({ items: [...snapshot.items, { id: nextId++, text: "" }] });
+      if (!lastIsBlank(snapshot.items)) gapPending = true;
+      update({ liveGap: liveGap() });
     },
     startTurn(): void {
       renderer.startTurn();
