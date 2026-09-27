@@ -4,11 +4,12 @@ import { fileURLToPath } from "node:url";
 import pc from "picocolors";
 import {
   buildSessionOptions,
-  runChatTui,
+  runChatInk,
   ensureClaudeAuth,
   ui,
   type AgentSpec,
   type BaseSessionConfig,
+  type Mode,
 } from "@falkenslab/agent-kit";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -43,14 +44,23 @@ async function main(): Promise<void> {
   const runDir = path.join(runsDir, friendlyTimestamp());
   await mkdir(runDir, { recursive: true });
 
+  // Autónomo por defecto; CAPTAIN_MODE=interactive pide permiso antes de cada herramienta
+  // (útil para ver los paneles de aprobación) y CAPTAIN_MODE=guided solo antes de publicar.
+  const modes: Mode[] = ["autonomous", "guided", "interactive"];
+  const mode = modes.find((m) => m === process.env.CAPTAIN_MODE) ?? "autonomous";
+
   const config: BaseSessionConfig = {
-    mode: "autonomous",
+    mode,
     projectDir: __dirname,
   };
 
   const { options } = await buildSessionOptions(config, runDir, spec);
 
-  await runChatTui(options, {
+  // Interfaz Ink en un terminal; sin TTY (o con CAPTAIN_PLAIN=1) cae al chat de readline.
+  await runChatInk(options, {
+    header: { title: "🏴‍☠️ Capitán Bigotes", fields: { modo: mode, sesión: path.basename(runDir) } },
+    mode,
+    plain: process.env.CAPTAIN_PLAIN === "1",
     welcomeMessage: pc.gray(
       "🏴‍☠️🐱 El Capitán Bigotes ha subido a bordo. Escribe /exit para desembarcar, o /captain-whiskers:chiste para pedirle uno directamente. 🦜💀",
     ),

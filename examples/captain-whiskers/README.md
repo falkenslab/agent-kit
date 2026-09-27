@@ -25,5 +25,12 @@ solo vale para esa ejecución.
 ## Uso
 
 Escribe con normalidad, `/captain-whiskers:chiste` para pedir un chiste directamente, y `/exit`
-para salir. Con ↑/↓ recuperas mensajes anteriores. Cada sesión guarda su transcripción en
-`.run/<fecha-hora>/` (ignorada por git); el historial de ↑/↓ vive en `.run/history.jsonl`.
+para salir. Con ↑/↓ recuperas mensajes anteriores, Tab completa los `/comandos` y Esc interrumpe
+la respuesta en curso. Cada sesión guarda su transcripción en `.run/<fecha-hora>/` (ignorada por
+git); el historial de ↑/↓ vive en `.run/history.jsonl`.
+
+En un terminal usa la interfaz Ink del kit (`runChatInk`); sin TTY, o con `CAPTAIN_PLAIN=1`, el
+chat de readline de siempre. Por defecto corre en modo `autonomous`; con `CAPTAIN_MODE=interactive`
+pide aprobación antes de cada herramienta (el panel admite `y`/`n`/`q`, y también se puede
+responder escribiendo en `.run/<fecha-hora>/approval-response.txt`), y con `CAPTAIN_MODE=guided`
+solo antes de publicar algo.
