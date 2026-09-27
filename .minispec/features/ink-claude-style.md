@@ -2,28 +2,39 @@
 
 ## Goal
 
-Make the Ink views (`runChatInk()`, `createProgressView()`) look as close as possible to the Claude Code CLI, including a one-line result under each tool call.
+Make the Ink chat look and behave as close as possible to the Claude Code CLI (layout, glyphs, colors, markdown rendering), with the consumer's own identity instead of Claude Code's.
 
 ## Context
 
-- The Ink views render every event through `createConsoleRenderer()` (`sessionModel.ts`), so the screen and `session.log` carry the same text: `agentLabel` before the reply, `[action] label` lines, one blank line between kinds of output.
+- The Ink views render every event through `createConsoleRenderer()` (`sessionModel.ts`), so the screen and `session.log` carry the same text: `agentLabel` before the reply, `[action] label` lines, blank lines between kinds of output. The reply is shown as raw markdown.
 - `runQuery()` emits `action` and `subagent-action` but no tool results: `user` messages with `tool_result` blocks (matched by `tool_use_id`) are dropped.
-- Claude Code's look: user lines as `> text` in gray; each assistant block and each tool call behind a `⏺` bullet (`⏺ Tool(main argument)`), its result indented under `⎿`; a spinner like `✻ Thinking… (12s · ↑ 1.2k tokens · esc to interrupt)`; a full-width rounded input box with a hint line under it; permission prompts as a bordered box with numbered choices; a blank line between blocks.
-- `ink-fullscreen` (the other feature in flight) builds on this look.
+- Reference (Claude Code 2.1, full screen, Windows Terminal), top to bottom:
+  - Header: small pixel art, name + version, model · plan, cwd; a tip line under it.
+  - User turn: full-width gray-background bar, `❯ ` + text. A slash command the same, its output under it after `⎿`.
+  - Tool calls collapsed into one dim summary line ("Read 1 file, ran 2 shell commands").
+  - Reply: `●` bullet, text indented two columns, markdown rendered: bold, inline code in blue, bullet and numbered lists.
+  - After the turn: `✻ Crunched for 19s · done 22:58`; while running, an animated `✻`-style glyph, a verb, elapsed time, tokens and "esc to interrupt".
+  - Input pinned at the bottom between two full-width gray rules: `❯ ` + dim placeholder.
+  - Footer: the mode in orange with a cycling hint, plus shortcuts, in dim.
+- Typography is the terminal's font; the UI only controls glyphs, colors, bold/dim and backgrounds.
+- `ink-fullscreen` provides the full-screen layout this look assumes.
 
 ## Changes
 
-- Core: a `tool-result` `AgentEvent` (`toolUseId`, `toolName`, `isError`, `content` summarized as text), with `action` gaining its `toolUseId` to pair them; subagent results stay out, as their actions do. `createConsoleRenderer()` ignores it, so the console and `session.log` don't change.
-- Screen formatting apart from the log: the Ink model keeps rendering through `createConsoleRenderer()` only for `onWrite`, and builds the screen from events with its own formatter (bullets, `⎿` result lines, colors).
-- Tool labels: `⏺ Tool(argument)` from `createFriendlyToolLabel()`'s description, or a consumer's `formatAction`; result summary from a default (first line, line count, error in red) or a consumer's `formatResult`.
-- Spinner with elapsed seconds, tokens and the Esc hint; input as a rounded full-width box with a hint line (mode, turns, tokens) under it.
-- Approval panel as Claude Code's permission box: bordered, numbered choices, `y`/`n`/`q` still accepted.
-- `agentLabel` no longer shown in the Ink views (the `⏺` bullet replaces it); still used by the console and the log.
-- Update captain-whiskers, ADR-014 (screen text no longer equals the log text), `architecture.md`, README.
+- Core: a `tool-result` `AgentEvent` (`toolUseId`, `toolName`, `isError`, text content), and `action` gains `toolUseId` to pair them; subagent results stay out, as their actions do. `createConsoleRenderer()` ignores it, so the console and `session.log` don't change.
+- Screen apart from the log: the Ink model keeps `createConsoleRenderer()` only for `onWrite` and builds the screen from events with its own blocks (user bar, reply, tool group, turn summary, notice, error).
+- Markdown: `marked`'s lexer (no dependencies) plus our own renderer to ANSI in the reference's style (bold, italic, inline code, fenced code blocks, headings, lists, quotes, links, rules; tables as aligned text). While streaming, finished blocks are rendered and the block in progress is shown with inline styles only.
+- Tool group: consecutive tool calls fold into one summary line per group ("Read 2 files, searched the web 3 times"); per-tool verbs for the built-in tools, a generic "used N tools" otherwise, and a consumer hook for its own tools. A key expands the group into `⏺ Tool(argument)` lines with `⎿` result summaries.
+- Spinner and turn summary as in the reference; a palette module with the reference's colors (orange accent, blue code, gray user bar), in `ui.ts` style.
+- Input between two rules with `❯` and a placeholder; footer with mode and shortcuts; approval panel as a bordered box with numbered choices (`y`/`n`/`q` still work).
+- Header slot: the consumer's own art (lines), name, version and fields, plus an optional tip; nothing of Claude Code's branding (mascot, name) is shipped.
+- `agentLabel` no longer shown in the Ink views (the `●` bullet replaces it); still used by the console and the log.
+- Update captain-whiskers (its own pixel-art cat), ADR-014 (screen text no longer equals the log text), `architecture.md`, README.
 
 ## Acceptance
 
-- A captain-whiskers session reads like Claude Code: gray `>` user lines, `⏺` replies and tool calls with `⎿` results under them, the spinner line, the rounded input box and the numbered permission box.
+- Side by side with the reference screenshot, a captain-whiskers session matches it block for block: header, user bars, folded tool lines, `●` replies with rendered markdown, turn summary, ruled input, footer.
+- Markdown renders correctly both finished and while streaming (no raw `**`, backticks or list markers left on screen).
 - `session.log` and the plain `runChatTui()` output are unchanged.
-- Tests: the new event (paired with its action), result summaries, and screen frames of a turn with `ink-testing-library`.
+- Tests: the new event (paired with its action), the markdown renderer (each element, streaming), tool-group summaries, and screen frames with `ink-testing-library`.
 - typecheck, lint, tests and captain-whiskers pass.
