@@ -87,6 +87,16 @@ const spec: AgentSpec<BaseSessionConfig> = {
   disallowedTools: ["Read", "Write", "Glob"],
 };
 
+// El logo de la cabecera: un gato con sombrero pirata y parche. Solo caracteres de una
+// columna (ASCII y bloques): un emoji descuadraría el título que va a su derecha.
+const LOGO = [
+  pc.gray("   ▄▄███▄▄"),
+  pc.gray("  ▀▀▀▀▀▀▀▀▀"),
+  pc.yellow("    /\\_/\\"),
+  `${pc.yellow("   ( o.")}${pc.gray("█")}${pc.yellow(" )")}`,
+  pc.yellow("    > ^ <"),
+];
+
 /** Formato apto para nombres de carpeta, p. ej. "2026-09-09T16-50-12-345Z". */
 function friendlyTimestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, "-");
@@ -122,7 +132,7 @@ async function main(): Promise<void> {
   // Interfaz Ink a pantalla completa (CAPTAIN_INLINE=1: en línea, con el historial de la
   // terminal); sin TTY, o con CAPTAIN_PLAIN=1, el chat de readline.
   await runChatInk(options, {
-    header: { title: "Capitán Bigotes", fields: { modo: mode, sesión: path.basename(runDir) } },
+    header: { title: "Capitán Bigotes", fields: { modo: mode, sesión: path.basename(runDir) }, art: LOGO },
     mode,
     plain: process.env.CAPTAIN_PLAIN === "1",
     fullscreen: process.env.CAPTAIN_INLINE !== "1",
