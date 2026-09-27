@@ -1,3 +1,6 @@
+import { setInteractionPort } from "./core/interaction.js";
+import { terminalInteractionPort } from "./tui/terminalInteraction.js";
+
 export * as ui from "./tui/ui.js";
 export { isExitPromptError } from "./tui/promptErrors.js";
 export { allowAnyMcpTool } from "./core/mcpPermissions.js";
@@ -30,8 +33,13 @@ export { createSubagentBashGate } from "./core/hooks/subagentBashGate.js";
 export { createSubagentTypeGate } from "./core/hooks/subagentTypeGate.js";
 export { createSubagentForegroundGate } from "./core/hooks/subagentForegroundGate.js";
 export { createFileScopeGate, checkFileScope, type FileScope } from "./core/hooks/fileScopeGate.js";
-export { askForDecision, type ApprovalPrompt } from "./core/hooks/humanInput.js";
-export { setSharedReadline, getSharedReadline } from "./core/hooks/sharedReadline.js";
+export { askForDecision, askForManualIntervention } from "./core/hooks/humanInput.js";
+export { setInteractionPort, getInteractionPort, type InteractionPort, type ApprovalPrompt } from "./core/interaction.js";
+export { terminalInteractionPort, setSharedReadline, getSharedReadline } from "./tui/terminalInteraction.js";
+
+// The checkpoints answer on the terminal by default, as they always have; a non-terminal
+// host replaces the port with its own (or null, to answer through the response file only).
+setInteractionPort(terminalInteractionPort);
 
 export { createHumanApprovalServer, DEFAULT_HUMAN_APPROVAL_TEXTS, type HumanApprovalTexts } from "./core/tools/humanApproval.js";
 export { createManualLoginServer, type ManualInterventionTexts } from "./core/tools/manualLogin.js";

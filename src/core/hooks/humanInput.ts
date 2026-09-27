@@ -1,62 +1,45 @@
 import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
-import readline from "node:readline/promises";
-import { stdin, stdout } from "node:process";
-import { askOnSharedReadline, getSharedReadline } from "./sharedReadline.js";
+import { getInteractionPort, type ApprovalPrompt, type InteractionPort } from "../interaction.js";
 
-export interface ApprovalPrompt {
-  title: string;
-  lines: string[];
-  /** Terminal question text; defaults to the approve/reject one. */
-  question?: string;
-}
+export type { ApprovalPrompt } from "../interaction.js";
 
 /**
  * Asks the human for a decision through two channels in parallel, whichever answers
- * first wins: (1) keyboard, for when a person is running the process in their own
- * terminal, and (2) a response file, for when something else (e.g. Claude Code, or a
- * non-terminal host driving its own UI — an Electron main process, a Tauri sidecar) is
- * piloting the run and has no interactive stdin to write to.
- *
- * Whether the keyboard channel (and any console output at all) is even attempted is
- * decided once, from `stdin.isTTY` — confirmed empirically that a non-TTY `rl.question()`
- * still writes its query text to `stdout` even though it can never resolve from real
- * keystrokes, so skipping the whole readline.Interface (not just not reading from it) is
- * what actually keeps a non-interactive host's stdout silent. A non-interactive host
- * depends entirely on the response file and its own UI to ask the question — nothing
- * here prints anything for it to accidentally surface.
+ * first wins: (1) the installed `InteractionPort` (the keyboard, for a person running the
+ * process in their own terminal, see tui/terminalInteraction.ts), and (2) a response file,
+ * for when something else (e.g. Claude Code, or a non-terminal host driving its own UI —
+ * an Electron main process, a Tauri sidecar) is piloting the run and has no interactive
+ * stdin to write to.
  *
  * Returns the answer lowercased and trimmed ("", "y", "n", "q"...).
  */
 export async function askForDecision(runDir: string, prompt: ApprovalPrompt): Promise<string> {
-  const interactive = Boolean(stdin.isTTY);
+  return await raceWithResponseFile(runDir, (port, signal) => port.askDecision(prompt, signal));
+}
 
-  if (interactive) {
-    console.log(`\n=== ${prompt.title} ===`);
-    for (const line of prompt.lines) console.log(line);
-  }
+/** Like `askForDecision()`, for a manual-intervention checkpoint (see tools/manualLogin.ts). */
+export async function askForManualIntervention(runDir: string, prompt: ApprovalPrompt): Promise<string> {
+  return await raceWithResponseFile(runDir, (port, signal) => port.askManualIntervention(prompt, signal));
+}
 
+function never(): Promise<string> {
+  return new Promise<string>(() => {});
+}
+
+async function raceWithResponseFile(
+  runDir: string,
+  ask: (port: InteractionPort, signal: AbortSignal) => Promise<string>,
+): Promise<string> {
   const responseFile = path.join(runDir, "approval-response.txt");
   await rm(responseFile, { force: true });
 
   let settled = false;
-  // Reuses a chat REPL's readline.Interface if one exists (see sharedReadline.ts):
-  // creating (and closing) our own here while that other one is still open leaves the
-  // terminal stuck afterward, by stepping on the shared stdin's raw mode.
-  const sharedRl = interactive ? getSharedReadline() : null;
-  const rl = interactive ? (sharedRl ?? readline.createInterface({ input: stdin, output: stdout })) : null;
-
-  const fromKeyboard = (async (): Promise<string> => {
-    if (!rl) return await new Promise<string>(() => {}); // non-interactive: let the file channel win
-    try {
-      const question = prompt.question ?? "Allow this to continue? [Y/n/q] ";
-      return await (sharedRl ? askOnSharedReadline(sharedRl, question) : rl.question(question));
-    } catch {
-      // Non-interactive stdin (e.g. process piloted in the background): don't race,
-      // let the response file win.
-      return await new Promise<string>(() => {});
-    }
-  })();
+  const controller = new AbortController();
+  const port = getInteractionPort();
+  // A port that fails to ask (e.g. a non-interactive stdin) must not win the race: let
+  // the response file answer instead.
+  const fromPort = port ? ask(port, controller.signal).catch(never) : never();
 
   const fromFile = (async (): Promise<string> => {
     while (!settled) {
@@ -71,9 +54,9 @@ export async function askForDecision(runDir: string, prompt: ApprovalPrompt): Pr
     return "";
   })();
 
-  const raw = await Promise.race([fromKeyboard, fromFile]);
+  const raw = await Promise.race([fromPort, fromFile]);
   settled = true;
-  if (rl && !sharedRl) rl.close();
+  controller.abort();
   await rm(responseFile, { force: true });
 
   return raw.trim().toLowerCase();

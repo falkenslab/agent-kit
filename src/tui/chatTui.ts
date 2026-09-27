@@ -6,7 +6,7 @@ import path from "node:path";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import { createInputQueue } from "../core/session.js";
 import { runQuery, type AgentEvent } from "../core/runner.js";
-import { isSharedQuestionActive, setSharedReadline } from "../core/hooks/sharedReadline.js";
+import { isSharedQuestionActive, setSharedReadline } from "./terminalInteraction.js";
 import * as ui from "./ui.js";
 import { createConsoleRenderer } from "./consoleRenderer.js";
 
@@ -147,7 +147,7 @@ export async function drainTurn(events: AsyncIterator<AgentEvent>, onEvent: (eve
  * friendly action labels via `createFriendlyToolLabel()`, turn failures), and this loop's
  * own `readline.Interface` is registered via `setSharedReadline()` so any human-in-the-loop
  * checkpoint the session hits (the interactive-mode step gate, or the guided-mode approval/
- * manual-login tools — see hooks/humanInput.ts) prompts on the same interface instead of a
+ * manual-login tools — see terminalInteraction.ts) prompts on the same interface instead of a
  * second one fighting it for stdin's raw mode.
  *
  * Takes the SDK `Options` produced by `buildSessionOptions()` rather than an `AgentSpec`

@@ -1,5 +1,5 @@
 import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
-import { askForDecision } from "../hooks/humanInput.js";
+import { askForManualIntervention } from "../hooks/humanInput.js";
 
 export interface ManualInterventionTexts {
   toolDescription: string;
@@ -23,7 +23,7 @@ export function createManualLoginServer(runDir: string, texts: ManualInterventio
     texts.toolDescription,
     {},
     async () => {
-      await askForDecision(runDir, {
+      await askForManualIntervention(runDir, {
         title: texts.checkpointTitle,
         lines: texts.checkpointLines,
         question: texts.checkpointQuestion,

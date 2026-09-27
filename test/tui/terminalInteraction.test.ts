@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PassThrough } from "node:stream";
 import readline from "node:readline/promises";
-import { askOnSharedReadline, isSharedQuestionActive } from "../../../src/core/hooks/sharedReadline.js";
+import { askOnSharedReadline, isSharedQuestionActive } from "../../src/tui/terminalInteraction.js";
 
 test("askOnSharedReadline flags a question as active only while it waits for an answer", async () => {
   const input = new PassThrough();
