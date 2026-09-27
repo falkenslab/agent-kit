@@ -44,8 +44,11 @@ export interface InkChatOptions extends ChatTuiOptions {
    * On by default; `false` turns it off.
    */
   promptSuggestions?: boolean;
-  /** Shown in the empty prompt while there is no suggestion (e.g. before the first turn). */
-  promptPlaceholder?: string;
+  /**
+   * The suggestion shown (and taken with Tab) until the first turn starts: the SDK never
+   * suggests after the first turn, so without it the prompt is empty until the second reply.
+   */
+  firstPromptSuggestion?: string;
 }
 
 const DEFAULT_PROMPT_LABEL = "\n> ";
@@ -128,11 +131,10 @@ interface ChatAppProps {
   mode?: Mode;
   fullscreen?: boolean;
   header?: string[];
-  placeholder?: string;
   onInterrupt(): void;
 }
 
-function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, placeholder, onInterrupt }: ChatAppProps) {
+function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, onInterrupt }: ChatAppProps) {
   const chat = useSyncExternalStore(input.subscribe, input.getSnapshot);
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
@@ -173,7 +175,6 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
             commands={chat.commands}
             inset={PROMPT_FRAME_COLUMNS}
             suggestion={chat.suggestion}
-            placeholder={placeholder}
             onSubmit={(line) => input.submit(line)}
             onExit={() => input.submit(null)}
           />
@@ -217,6 +218,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
   });
   const interaction = createInkInteraction((text) => model.note(text));
   const input = createChatInput();
+  if (tuiOptions.firstPromptSuggestion) input.setSuggestion(tuiOptions.firstPromptSuggestion);
 
   // Every registered command name and alias, built-ins included, for completion and for
   // catching an unknown "/command" before it reaches the model as plain text (see chatTui.ts).
@@ -291,7 +293,6 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       mode={tuiOptions.mode}
       fullscreen={tuiOptions.fullscreen}
       header={tuiOptions.header && tuiOptions.fullscreen ? headerLines(tuiOptions.header) : undefined}
-      placeholder={tuiOptions.promptPlaceholder}
       onInterrupt={interruptTurn}
     />,
     { exitOnCtrlC: false },

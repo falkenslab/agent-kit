@@ -43,10 +43,8 @@ export interface PromptInputProps {
   label: string;
   /** Columns taken around the prompt (a frame), so a long line scrolls before reaching the edge. */
   inset?: number;
-  /** A predicted next prompt, shown dim in the empty prompt; Tab takes it. */
+  /** A suggested prompt, shown dim in the empty prompt; Tab takes it. */
   suggestion?: string | null;
-  /** Shown dim in the empty prompt when there is no suggestion; never taken. */
-  placeholder?: string;
   /** Earlier lines, oldest first, for ↑/↓. */
   history: readonly string[];
   /** Slash command names (without "/") for suggestions and Tab completion. */
@@ -61,7 +59,7 @@ export interface PromptInputProps {
  * taken from @inkjs/ui because its TextInput is uncontrolled: history needs to replace the
  * value. Backspace also arrives as `delete` on Windows terminals, so both erase backwards.
  */
-export function PromptInput({ label, inset = 0, suggestion, placeholder, history, commands, onSubmit, onExit }: PromptInputProps) {
+export function PromptInput({ label, inset = 0, suggestion, history, commands, onSubmit, onExit }: PromptInputProps) {
   // Kept in a ref, not in state: two keystrokes can arrive before React re-renders, and a
   // handler reading state would apply the second one to a stale value.
   const state = useRef({ value: "", cursor: 0, historyIndex: null as number | null, draft: "" });
@@ -136,7 +134,7 @@ export function PromptInput({ label, inset = 0, suggestion, placeholder, history
   const [start, end] = visibleWindow(value.length, cursor, width - stringWidth(stripAnsi(label)));
   const atCursor = value[cursor] ?? " ";
   const room = width - stringWidth(stripAnsi(label));
-  const ghost = suggestion ? `${suggestion}  (tab)` : placeholder;
+  const ghost = suggestion ? `${suggestion}  (tab)` : null;
   return (
     <Box flexDirection="column">
       <Text>

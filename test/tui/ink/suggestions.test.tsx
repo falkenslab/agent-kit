@@ -68,18 +68,15 @@ test("the empty prompt shows the suggestion and Tab takes it", async () => {
   assert.deepEqual(submitted, ["cuéntame otro"]);
 });
 
-test("a placeholder is only shown, and Tab still completes a command once something is typed", async () => {
+test("once something is typed the suggestion hides and Tab completes a command instead", async () => {
   const submitted: string[] = [];
   const view = render(
-    <PromptInput label="> " placeholder="pide un chiste…" history={[]} commands={["compact"]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />,
+    <PromptInput label="> " suggestion="cuéntame otro" history={[]} commands={["compact"]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />,
   );
-  await settle();
-  assert.match(lines(view)[0], /pide un chiste…/);
-  view.stdin.write("\t"); // nothing to take
   await settle();
   view.stdin.write("/com");
   await settle();
-  assert.doesNotMatch(lines(view)[0], /pide un chiste/);
+  assert.doesNotMatch(lines(view)[0], /cuéntame otro/);
   view.stdin.write("\t");
   await settle();
   view.stdin.write("\r");

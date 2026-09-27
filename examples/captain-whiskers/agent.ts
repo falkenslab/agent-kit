@@ -136,8 +136,8 @@ async function main(): Promise<void> {
     mode,
     plain: process.env.CAPTAIN_PLAIN === "1",
     fullscreen: process.env.CAPTAIN_INLINE !== "1",
-    // Hasta que el modelo sugiera el siguiente prompt (a partir del segundo turno).
-    promptPlaceholder: "pídele un chiste fresco, o lo que quieras…",
+    // La primera sugerencia (Tab la acepta): el modelo solo sugiere a partir del segundo turno.
+    firstPromptSuggestion: "cuéntame un chiste fresco",
     welcomeMessage: pc.gray(
       "El Capitán Bigotes ha subido a bordo. Escribe /exit para desembarcar, o /captain-whiskers:chiste para pedirle uno directamente.",
     ),
