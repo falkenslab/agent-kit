@@ -15,7 +15,7 @@ An opt-in full-screen mode for `runChatInk()`: the conversation fills the termin
 
 ## Changes
 
-- Phase 0 — spike, outside the kit: a standalone script in the alternate screen with a fake conversation and fake streaming, PageUp/PageDown, Ctrl+End and the wheel. Run on Windows Terminal to judge flicker and key detection before building the rest.
+- Phase 0 — spike, outside the kit (`spikes/ink-fullscreen.tsx`, not committed): done and accepted on Windows Terminal. No stale copies or noticeable flicker with a frame exactly the terminal's height and no incremental rendering; PageUp/PageDown, the wheel (SGR mouse reports, buttons 64/65) and Ctrl+End all reach Ink; user bars padded in columns stay aligned; resizing re-wraps cleanly; exit leaves the terminal cleared.
 - Viewport model (no UI): history wrapped to rows (re-wrapped on resize), offset from the bottom, page up/down by the history area's height, new output while scrolled up keeps the offset and counts new lines.
 - Layout: a root exactly `rows` high and one column narrower than the terminal; history area `flexGrow` + `overflow="hidden"`, bottom-aligned; pinned below it the reply in progress, spinner, approval panel, prompt and status bar. The panel takes height from the history instead of pushing it.
 - Keys: PageUp/PageDown and the wheel scroll; Ctrl+End or any typed character goes back to the bottom; the status bar shows "↓ N new lines" while scrolled up with new output.
