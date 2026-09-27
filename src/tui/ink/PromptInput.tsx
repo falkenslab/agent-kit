@@ -1,9 +1,10 @@
-import { useReducer, useRef } from "react";
-import { Box, Text, useInput, useStdout } from "ink";
+import { useContext, useLayoutEffect, useReducer, useRef } from "react";
+import { Box, Text, useInput, useStdout, type DOMElement } from "ink";
 import stringWidth from "string-width";
 import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import { liveWidth } from "./sessionModel.js";
 import { isMouseReport } from "./fullscreen.js";
+import { CursorContext } from "./terminalCursor.js";
 import * as ui from "../ui.js";
 
 const MAX_SUGGESTIONS = 6;
@@ -86,6 +87,13 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
       if (value === "") onExit();
       return;
     }
+    if (key.ctrl && input === "u") {
+      // Clears the whole prompt.
+      replace("");
+      current.historyIndex = null;
+      rerender();
+      return;
+    }
     if (key.upArrow) {
       if (history.length === 0) return;
       if (current.historyIndex === null) current.draft = value;
@@ -135,17 +143,30 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
   const atCursor = value[cursor] ?? " ";
   const room = width - stringWidth(stripAnsi(label));
   const ghost = suggestion ? `${suggestion}  (tab)` : null;
+
+  // With a cursor controller (full screen) the terminal's own cursor sits in the line;
+  // without one, the character under the cursor is drawn inverted.
+  const cursorController = useContext(CursorContext);
+  const lineRef = useRef<DOMElement>(null);
+  const cursorColumn = stringWidth(stripAnsi(label)) + (start > 0 ? 1 : 0) + stringWidth(value.slice(start, cursor));
+  useLayoutEffect(() => {
+    if (cursorController && lineRef.current) cursorController.setTarget({ node: lineRef.current, column: cursorColumn });
+  });
+  useLayoutEffect(() => () => cursorController?.setTarget(null), [cursorController]);
+
   return (
     <Box flexDirection="column">
-      <Text>
-        {label}
-        {start > 0 ? "…" : ""}
-        {value.slice(start, cursor)}
-        <Text inverse>{atCursor}</Text>
-        {value.slice(cursor + 1, end)}
-        {end < value.length ? "…" : ""}
-        {value === "" && ghost ? ui.dim(fitWidth(ghost, Math.max(1, room - 1))) : ""}
-      </Text>
+      <Box ref={lineRef}>
+        <Text>
+          {label}
+          {start > 0 ? "…" : ""}
+          {value.slice(start, cursor)}
+          {cursorController ? value.slice(cursor, cursor + 1) : <Text inverse>{atCursor}</Text>}
+          {value.slice(cursor + 1, end)}
+          {end < value.length ? "…" : ""}
+          {value === "" && ghost ? ui.dim(fitWidth(ghost, Math.max(1, room - 1))) : ""}
+        </Text>
+      </Box>
       {suggestions.map((name) => (
         <Text key={name}>{ui.dim(fitWidth(`  /${name}`, width))}</Text>
       ))}

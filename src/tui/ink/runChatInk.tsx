@@ -15,6 +15,7 @@ import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel
 import { SessionView, type RenderApproval } from "./SessionView.js";
 import { stripAnsi } from "./lineBuffer.js";
 import { enterFullscreen } from "./fullscreen.js";
+import { createCursorController, CursorContext } from "./terminalCursor.js";
 import { headerLines, type HeaderInfo } from "./header.js";
 
 export type { HeaderInfo } from "./header.js";
@@ -283,7 +284,9 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
   const previousPort = getInteractionPort();
   setInteractionPort(interaction.port);
   const restoreTerminal = tuiOptions.fullscreen ? enterFullscreen(stdout) : null;
+  const cursor = tuiOptions.fullscreen ? createCursorController(stdout) : null;
   const app = render(
+    <CursorContext.Provider value={cursor}>
     <ChatApp
       model={model}
       interaction={interaction}
@@ -294,8 +297,10 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       fullscreen={tuiOptions.fullscreen}
       header={tuiOptions.header && tuiOptions.fullscreen ? headerLines(tuiOptions.header) : undefined}
       onInterrupt={interruptTurn}
-    />,
-    { exitOnCtrlC: false },
+    />
+    </CursorContext.Provider>,
+    // Ink writes the frame synchronously right after onRender; the cursor goes in after it.
+    { exitOnCtrlC: false, onRender: cursor ? () => queueMicrotask(cursor.place) : undefined },
   );
 
   try {

@@ -14,5 +14,6 @@ A prompt that is always at the bottom and a conversation that grows upward, with
 - The history is not in `<Static>` but rendered from the session model's lines, wrapped to rows with a cache that only wraps what was added (`fullscreen.ts`). The view is anchored to a row, not to a distance from the bottom, so output arriving while scrolled up doesn't move it; a width change re-wraps and goes back to the bottom.
 - Mouse reporting is on so the wheel scrolls: selecting text needs Shift, and mouse reports must never reach an input as text (`isMouseReport()`).
 - Keys: PageUp/PageDown and the wheel scroll, Ctrl+End or typing returns to the bottom. On exit the terminal leaves the alternate screen and is cleared (screen only, scrollback kept), always: `enterFullscreen()` also restores on process exit.
+- The prompt shows the terminal's own cursor (`terminalCursor.ts`), placed at its absolute position after every frame: Ink's `useCursor` only moves it when its position changes, and one row off, on this redraw path. The inline mode keeps a drawn block cursor.
 - The header (`header.ts`: title, fields and an optional one-column-glyph logo) is pinned above the history in full screen, printed once into the history otherwise.
 - `createProgressView()` and `runWizard()` stay inline. `session.log` is the same in both modes.
