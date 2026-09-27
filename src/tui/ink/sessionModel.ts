@@ -29,6 +29,8 @@ export interface SessionSnapshot {
   subagentActivity: string | null;
   turns: number;
   usage: SessionUsage | null;
+  /** How full the context window is (0-100), after the latest turn; null until known. */
+  contextPercent: number | null;
 }
 
 export interface SessionModelOptions {
@@ -64,6 +66,7 @@ export interface SessionModel {
   getSnapshot(): SessionSnapshot;
   /** The agent's text in the latest turn, plain (for /copy). */
   lastReply(): string;
+  setContextPercent(percent: number | null): void;
 }
 
 const EVENT_KINDS: Record<AgentEvent["type"], OutputKind> = {
@@ -99,6 +102,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     subagentActivity: null,
     turns: 0,
     usage: null,
+    contextPercent: null,
   };
 
   function update(changes: Partial<SessionSnapshot>): void {
@@ -216,5 +220,6 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     },
     getSnapshot: () => snapshot,
     lastReply: () => reply.trim(),
+    setContextPercent: (percent) => update({ contextPercent: percent }),
   };
 }

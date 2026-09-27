@@ -6,6 +6,7 @@ import { liveWidth } from "./sessionModel.js";
 import { isMouseReport } from "./fullscreen.js";
 import { CursorContext } from "./terminalCursor.js";
 import { isFocusReport } from "./terminalStatus.js";
+import { matchingFiles, mentionAt } from "./fileMentions.js";
 import {
   continueLine,
   createPasteRegistry,
@@ -75,7 +76,19 @@ export interface PromptInputProps {
   onExit(): void;
   /** ↑ on an empty prompt: takes the last queued line back (see runChatInk.tsx), or null if none. */
   onRecallQueued?: () => string | null;
+  /** Project files for `@` mentions (paths relative to the session's folder). */
+  files?: readonly string[];
 }
+
+/** The shortcuts panel, opened with "?" on an empty prompt. */
+export const SHORTCUTS = [
+  "Enter send  ·  \\ + Enter or Ctrl+J new line  ·  Tab complete or take the suggestion",
+  "↑/↓ history  ·  Ctrl+R search history  ·  ↑ on an empty prompt edits the last queued message",
+  "Ctrl+W delete word  ·  Ctrl+K to line end  ·  Ctrl+U clear  ·  Ctrl+←/→ move by word",
+  "@ mention a file  ·  /copy copy the last reply  ·  Shift+Tab switch mode",
+  "Esc interrupt  ·  Ctrl+C interrupt or exit  ·  PgUp/PgDn or wheel scroll  ·  Ctrl+End bottom",
+  "Drag over the conversation to copy it (full screen)",
+];
 
 interface SearchState {
   query: string;
@@ -97,7 +110,7 @@ const PASTE_TOKEN_BEFORE = /\[Pasted text #\d+ \+\d+ lines?\]$/;
  * @inkjs/ui because its TextInput is uncontrolled. Backspace also arrives as `delete` on
  * Windows terminals, so both erase backwards.
  */
-export function PromptInput({ label, inset = 0, suggestion, history, commands, onSubmit, onExit, onRecallQueued }: PromptInputProps) {
+export function PromptInput({ label, inset = 0, suggestion, history, commands, onSubmit, onExit, onRecallQueued, files = [] }: PromptInputProps) {
   // Kept in a ref, not in state: two keystrokes can arrive before React re-renders, and a
   // handler reading state would apply the second one to a stale value.
   const state = useRef({
@@ -107,6 +120,7 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
     draft: "",
     search: null as SearchState | null,
     lastPaste: null as { token: string; at: number } | null,
+    showHelp: false,
   });
   const pastes = useRef(createPasteRegistry()).current;
   const [, rerender] = useReducer((n: number) => n + 1, 0);
@@ -173,6 +187,11 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
     // Nor the terminal's focus reports (see terminalStatus.ts).
     if (isMouseReport(input) || isFocusReport(input)) return;
     const current = state.current;
+    if (current.showHelp) {
+      current.showHelp = false; // any key closes the shortcuts panel
+      rerender();
+      return;
+    }
     if (current.search) {
       handleSearch(current.search, input, key);
       rerender();
@@ -222,8 +241,17 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
       if (moved) apply(moved);
       else return downHistory();
     } else if (key.tab) {
-      // An empty prompt takes the suggestion; otherwise Tab completes a "/command".
-      replace(value === "" && suggestion ? suggestion : completeCommand(value, commands));
+      if (key.shift) return; // Shift+Tab switches the mode (see runChatInk.tsx)
+      // An @mention completes to a file; an empty prompt takes the suggestion; otherwise
+      // Tab completes a "/command".
+      const mention = mentionAt(value, cursor);
+      const file = mention ? matchingFiles(files, mention.query, 1)[0] : undefined;
+      if (mention && file) {
+        const completed = `@${file} `;
+        apply({ value: value.slice(0, mention.start) + completed + value.slice(cursor), cursor: mention.start + completed.length });
+      } else {
+        replace(value === "" && suggestion ? suggestion : completeCommand(value, commands));
+      }
     } else if (key.leftArrow) {
       apply(key.ctrl ? wordLeft(current) : { value, cursor: Math.max(0, cursor - 1) });
     } else if (key.rightArrow) {
@@ -238,6 +266,8 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
       apply(token ? { value: value.slice(0, cursor - token.length) + value.slice(cursor), cursor: cursor - token.length } : deleteBack(current));
     } else if (key.ctrl || key.meta || key.escape || !input) {
       return;
+    } else if (value === "" && input === "?") {
+      current.showHelp = true;
     } else {
       handlePaste(input);
     }
@@ -266,16 +296,20 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
     rerender();
   }
 
-  const { value, cursor, search } = state.current;
+  const { value, cursor, search, showHelp } = state.current;
   const { stdout } = useStdout();
   const width = liveWidth(stdout.columns) - inset;
   const labelWidth = stringWidth(stripAnsi(label));
   const room = width - labelWidth;
   const ghost = suggestion ? `${suggestion}  (tab)` : null;
   // Suggestions give way on a short terminal: the live area must stay shorter than it.
-  const suggestions = value.includes("\n")
-    ? []
-    : matchingCommands(value, commands).slice(0, Math.min(MAX_SUGGESTIONS, Math.max(0, (stdout.rows || 24) - 10)));
+  const maxSuggestions = Math.min(MAX_SUGGESTIONS, Math.max(0, (stdout.rows || 24) - 10));
+  const mention = mentionAt(value, cursor);
+  const suggestions = mention
+    ? matchingFiles(files, mention.query, maxSuggestions).map((file) => `@${file}`)
+    : value.includes("\n")
+      ? []
+      : matchingCommands(value, commands).slice(0, maxSuggestions).map((name) => `/${name}`);
 
   // With a cursor controller (full screen) the terminal's own cursor sits in the line;
   // without one, the character under the cursor is drawn inverted.
@@ -327,9 +361,10 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
   return (
     <Box flexDirection="column">
       {rows}
-      {suggestions.map((name) => (
-        <Text key={name}>{ui.dim(fitWidth(`  /${name}`, width))}</Text>
+      {suggestions.map((item) => (
+        <Text key={item}>{ui.dim(fitWidth(`  ${item}`, width))}</Text>
       ))}
+      {showHelp ? SHORTCUTS.map((line) => <Text key={line}>{ui.dim(fitWidth(`  ${line}`, width))}</Text>) : null}
     </Box>
   );
 }

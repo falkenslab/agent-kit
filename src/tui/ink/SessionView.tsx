@@ -82,11 +82,17 @@ function formatTokens(count: number): string {
   return count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
 }
 
-export function statusText(mode: Mode | undefined, turns: number, usage: SessionUsage | null): string {
+export function statusText(
+  mode: Mode | undefined,
+  turns: number,
+  usage: SessionUsage | null,
+  extra: { contextPercent?: number | null; modeSwitchable?: boolean } = {},
+): string {
   const parts = [
-    ...(mode ? [mode] : []),
+    ...(mode ? [extra.modeSwitchable ? `${mode} (shift+tab)` : mode] : []),
     `${turns} ${turns === 1 ? "turn" : "turns"}`,
     ...(usage ? [`${formatTokens(usage.inputTokens)} in / ${formatTokens(usage.outputTokens)} out`] : []),
+    ...(extra.contextPercent != null ? [`context ${Math.round(extra.contextPercent)}%`] : []),
   ];
   return parts.join(" · ");
 }
@@ -108,6 +114,8 @@ export interface SessionViewProps {
   header?: string[];
   /** Full screen only: receives the text selected with the mouse (e.g. to set the clipboard). */
   onCopy?: (text: string) => void;
+  /** The mode can be switched (Shift+Tab): the status bar says so. */
+  modeSwitchable?: boolean;
   /** Shown under the live area when no checkpoint is waiting (the chat's input). */
   children?: ReactNode;
 }
@@ -120,12 +128,16 @@ interface LiveAreaProps {
   width: number;
   /** Appended to the status bar, e.g. the scroll position in full screen. */
   statusExtra?: string;
+  /** The mode can be switched (Shift+Tab): the status bar says so. */
+  modeSwitchable?: boolean;
   children?: ReactNode;
 }
 
 /** Line in progress, checkpoint panel or spinner, the input, and the status bar. */
-function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtra, children }: LiveAreaProps) {
-  const status = statusText(mode, session.turns, session.usage) + (statusExtra ? ` · ${statusExtra}` : "");
+function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtra, modeSwitchable, children }: LiveAreaProps) {
+  const status =
+    statusText(mode, session.turns, session.usage, { contextPercent: session.contextPercent, modeSwitchable }) +
+    (statusExtra ? ` · ${statusExtra}` : "");
   return (
     <Box flexDirection="column" flexShrink={0} width={width} marginTop={session.liveGap ? 1 : 0}>
       {stripAnsi(session.live) ? <Text>{session.live}</Text> : null}
@@ -173,6 +185,7 @@ function FullscreenSession({
   mode,
   header,
   onCopy,
+  modeSwitchable,
   children,
 }: Omit<LiveAreaProps, "width" | "statusExtra"> & { header?: string[]; onCopy?: (text: string) => void }) {
   const { columns, rows } = useTerminalSize();
@@ -296,6 +309,7 @@ function FullscreenSession({
         mode={mode}
         width={width}
         statusExtra={statusExtra || undefined}
+        modeSwitchable={modeSwitchable}
       >
         {children}
       </LiveArea>
@@ -304,7 +318,7 @@ function FullscreenSession({
 }
 
 /** History, line in progress, current action, checkpoint panel and status bar. */
-export function SessionView({ model, interaction, renderApproval, mode, closed, fullscreen, header, onCopy, children }: SessionViewProps) {
+export function SessionView({ model, interaction, renderApproval, mode, closed, fullscreen, header, onCopy, modeSwitchable, children }: SessionViewProps) {
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
   // Nothing in the live area may reach the terminal's edge (see lineBuffer.ts).
@@ -312,7 +326,15 @@ export function SessionView({ model, interaction, renderApproval, mode, closed, 
 
   if (fullscreen) {
     return closed ? null : (
-      <FullscreenSession session={session} checkpoint={checkpoint} renderApproval={renderApproval} mode={mode} header={header} onCopy={onCopy}>
+      <FullscreenSession
+        session={session}
+        checkpoint={checkpoint}
+        renderApproval={renderApproval}
+        mode={mode}
+        header={header}
+        onCopy={onCopy}
+        modeSwitchable={modeSwitchable}
+      >
         {children}
       </FullscreenSession>
     );
@@ -321,7 +343,7 @@ export function SessionView({ model, interaction, renderApproval, mode, closed, 
     <>
       <Static items={session.items}>{(item) => <Text key={item.id}>{item.text || " "}</Text>}</Static>
       {closed ? null : (
-        <LiveArea session={session} checkpoint={checkpoint} renderApproval={renderApproval} mode={mode} width={width}>
+        <LiveArea session={session} checkpoint={checkpoint} renderApproval={renderApproval} mode={mode} width={width} modeSwitchable={modeSwitchable}>
           {children}
         </LiveArea>
       )}

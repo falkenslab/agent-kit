@@ -5,7 +5,7 @@ import { Box, render, Text, useInput } from "ink";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import type { Mode } from "../../core/agentSpec.js";
 import { getInteractionPort, setInteractionPort } from "../../core/interaction.js";
-import { createInputQueue } from "../../core/session.js";
+import { createInputQueue, type ModeControl } from "../../core/session.js";
 import { runQuery } from "../../core/runner.js";
 import { capHistory, loadHistory, runChatTui, saveHistory, slashCommandToken, type ChatTuiOptions } from "../chatTui.js";
 import * as ui from "../ui.js";
@@ -17,6 +17,7 @@ import { stripAnsi } from "./lineBuffer.js";
 import { clipboardSequence, enterFullscreen } from "./fullscreen.js";
 import { createCursorController, CursorContext } from "./terminalCursor.js";
 import { createTerminalStatus, focusFromReport } from "./terminalStatus.js";
+import { listProjectFiles } from "./fileMentions.js";
 import { headerLines, type HeaderInfo } from "./header.js";
 
 export type { HeaderInfo } from "./header.js";
@@ -53,6 +54,12 @@ export interface InkChatOptions extends ChatTuiOptions {
    */
   terminalIntegration?: boolean;
   /**
+   * The session's mode control (`buildSessionOptions()` returns it): the status bar shows the
+   * current mode, and Shift+Tab switches between the modes it allows ("guided" and
+   * "interactive"; an autonomous session can't switch).
+   */
+  modeControl?: ModeControl;
+  /**
    * The suggestion shown (and taken with Tab) until the first turn starts: the SDK never
    * suggests after the first turn, so without it the prompt is empty until the second reply.
    */
@@ -74,6 +81,10 @@ export interface ChatInputSnapshot {
   queued: string[];
   /** The model's predicted next prompt, if any (see `InkChatOptions.promptSuggestions`). */
   suggestion: string | null;
+  /** Project files for `@` mentions. */
+  files: string[];
+  /** The current mode, when a mode control is given. */
+  mode: Mode | null;
   closed: boolean;
 }
 
@@ -84,7 +95,7 @@ export interface ChatInputSnapshot {
  */
 export function createChatInput() {
   const listeners = new Set<() => void>();
-  let snapshot: ChatInputSnapshot = { prompting: false, history: [], commands: [], queued: [], suggestion: null, closed: false };
+  let snapshot: ChatInputSnapshot = { prompting: false, history: [], commands: [], queued: [], suggestion: null, files: [], mode: null, closed: false };
   let pending: ((line: string | null) => void) | null = null;
   let exited = false;
 
@@ -124,6 +135,8 @@ export function createChatInput() {
     },
     setCommands: (commands: string[]) => update({ commands }),
     setSuggestion: (suggestion: string | null) => update({ suggestion }),
+    setFiles: (files: string[]) => update({ files }),
+    setMode: (mode: Mode | null) => update({ mode }),
     /** Takes the last queued line back out of the queue (to edit it in the prompt), or null. */
     unqueueLast(): string | null {
       const last = snapshot.queued.at(-1);
@@ -147,10 +160,11 @@ interface ChatAppProps {
   fullscreen?: boolean;
   header?: string[];
   onFocusChange?: (focused: boolean) => void;
+  modeControl?: ModeControl;
   onInterrupt(): void;
 }
 
-function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, onFocusChange, onInterrupt }: ChatAppProps) {
+function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, onFocusChange, modeControl, onInterrupt }: ChatAppProps) {
   const chat = useSyncExternalStore(input.subscribe, input.getSnapshot);
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
@@ -161,6 +175,17 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
     const focused = focusFromReport(text);
     if (focused !== null) {
       onFocusChange?.(focused);
+      return;
+    }
+    if (key.shift && key.tab) {
+      // Shift+Tab: the next mode this session allows.
+      if (!modeControl || modeControl.switchable.length < 2) {
+        model.note(ui.dim(`(${modeControl?.mode ?? mode ?? "this"} mode can't be switched during the session)`), "notice");
+        return;
+      }
+      const next = modeControl.switchable[(modeControl.switchable.indexOf(modeControl.mode) + 1) % modeControl.switchable.length];
+      modeControl.set(next);
+      input.setMode(next);
       return;
     }
     if (key.ctrl && text === "c") {
@@ -177,7 +202,8 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
       model={model}
       interaction={interaction}
       renderApproval={renderApproval}
-      mode={mode}
+      mode={chat.mode ?? mode}
+      modeSwitchable={(modeControl?.switchable.length ?? 0) > 1}
       closed={chat.closed}
       fullscreen={fullscreen}
       header={header}
@@ -199,6 +225,7 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
             suggestion={chat.suggestion}
             onSubmit={(line) => input.submit(line)}
             onRecallQueued={() => input.unqueueLast()}
+            files={chat.files}
             onExit={() => input.submit(null)}
           />
         </Box>
@@ -242,6 +269,8 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
   const interaction = createInkInteraction((text) => model.note(text));
   const input = createChatInput();
   if (tuiOptions.firstPromptSuggestion) input.setSuggestion(tuiOptions.firstPromptSuggestion);
+  if (tuiOptions.modeControl) input.setMode(tuiOptions.modeControl.mode);
+  void listProjectFiles(options.cwd ?? process.cwd()).then((files) => input.setFiles(files));
 
   // Every registered command name and alias, built-ins included, for completion and for
   // catching an unknown "/command" before it reaches the model as plain text (see chatTui.ts).
@@ -303,6 +332,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
     await finished;
     model.endTurn();
     status?.turnEnded();
+    void run.contextUsage().then((usage) => usage && model.setContextPercent(usage.percentage));
     if (readError) throw readError;
   }
 
@@ -325,6 +355,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       fullscreen={tuiOptions.fullscreen}
       header={tuiOptions.header && tuiOptions.fullscreen ? headerLines(tuiOptions.header) : undefined}
       onFocusChange={status ? (focused) => status.setFocused(focused) : undefined}
+      modeControl={tuiOptions.modeControl}
       onInterrupt={interruptTurn}
     />
     </CursorContext.Provider>,
