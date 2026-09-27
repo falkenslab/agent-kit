@@ -10,4 +10,4 @@
 
 ## Consequences
 
-Any new UI (a different chat loop, an Ink renderer) reuses `drainTurn()` or the same pattern. `test/tui/chatTui.test.ts` guards it.
+Any new UI (a different chat loop, an Ink renderer) reuses `drainTurn()` or the same pattern. `runChatInk()` keeps one `.next()` reader for the whole session instead, since the prompt suggestion arrives after its turn's `turn-end`. `test/tui/chatTui.test.ts` guards it.
