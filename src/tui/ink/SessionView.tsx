@@ -116,7 +116,9 @@ function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtr
       {checkpoint ? (
         <CheckpointPanel checkpoint={checkpoint} renderApproval={renderApproval} />
       ) : session.busy ? (
-        <Box flexDirection="column">
+        // Always one blank line above the spinner: from this margin, or from the live area's
+        // own when a separator is pending and nothing is written above the spinner yet.
+        <Box flexDirection="column" marginTop={stripAnsi(session.live) || !session.liveGap ? 1 : 0}>
           <Spinner label={fitWidth(session.activity ?? "Thinking…", width - 2)} />
           {session.subagentActivity ? <Text dimColor>{fitWidth(`  ↳ ${session.subagentActivity}`, width)}</Text> : null}
         </Box>

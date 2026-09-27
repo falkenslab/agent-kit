@@ -7,7 +7,7 @@ import type { Mode } from "../../core/agentSpec.js";
 import { getInteractionPort, setInteractionPort } from "../../core/interaction.js";
 import { createInputQueue } from "../../core/session.js";
 import { runQuery } from "../../core/runner.js";
-import { capHistory, drainTurn, loadHistory, runChatTui, saveHistory, slashCommandToken, type ChatTuiOptions } from "../chatTui.js";
+import { capHistory, loadHistory, runChatTui, saveHistory, slashCommandToken, type ChatTuiOptions } from "../chatTui.js";
 import * as ui from "../ui.js";
 import { createInkInteraction, type InkInteraction } from "./inkInteraction.js";
 import { PromptInput } from "./PromptInput.js";
@@ -38,6 +38,14 @@ export interface InkChatOptions extends ChatTuiOptions {
    * text with the mouse needs Shift, since the wheel is captured. Off by default.
    */
   fullscreen?: boolean;
+  /**
+   * Show the model's predicted next prompt in the empty prompt, accepted with Tab (the SDK's
+   * `promptSuggestions`: after every turn but the first, from the parent's prompt cache).
+   * On by default; `false` turns it off.
+   */
+  promptSuggestions?: boolean;
+  /** Shown in the empty prompt while there is no suggestion (e.g. before the first turn). */
+  promptPlaceholder?: string;
 }
 
 const DEFAULT_PROMPT_LABEL = "\n> ";
@@ -53,6 +61,8 @@ export interface ChatInputSnapshot {
   commands: string[];
   /** Lines submitted during a turn, sent in order once the loop asks for the next one. */
   queued: string[];
+  /** The model's predicted next prompt, if any (see `InkChatOptions.promptSuggestions`). */
+  suggestion: string | null;
   closed: boolean;
 }
 
@@ -63,7 +73,7 @@ export interface ChatInputSnapshot {
  */
 export function createChatInput() {
   const listeners = new Set<() => void>();
-  let snapshot: ChatInputSnapshot = { prompting: false, history: [], commands: [], queued: [], closed: false };
+  let snapshot: ChatInputSnapshot = { prompting: false, history: [], commands: [], queued: [], suggestion: null, closed: false };
   let pending: ((line: string | null) => void) | null = null;
   let exited = false;
 
@@ -102,6 +112,7 @@ export function createChatInput() {
       resolve(line);
     },
     setCommands: (commands: string[]) => update({ commands }),
+    setSuggestion: (suggestion: string | null) => update({ suggestion }),
     close: () => update({ prompting: false, closed: true }),
   };
 }
@@ -117,10 +128,11 @@ interface ChatAppProps {
   mode?: Mode;
   fullscreen?: boolean;
   header?: string[];
+  placeholder?: string;
   onInterrupt(): void;
 }
 
-function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, onInterrupt }: ChatAppProps) {
+function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, placeholder, onInterrupt }: ChatAppProps) {
   const chat = useSyncExternalStore(input.subscribe, input.getSnapshot);
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
@@ -160,6 +172,8 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
             history={chat.history}
             commands={chat.commands}
             inset={PROMPT_FRAME_COLUMNS}
+            suggestion={chat.suggestion}
+            placeholder={placeholder}
             onSubmit={(line) => input.submit(line)}
             onExit={() => input.submit(null)}
           />
@@ -189,7 +203,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
   let historyEntries = tuiOptions.historyPath ? capHistory(await loadHistory(tuiOptions.historyPath), historyLimit) : [];
 
   const queue = createInputQueue();
-  const run = runQuery(queue.iterable, options);
+  const run = runQuery(queue.iterable, { ...options, promptSuggestions: tuiOptions.promptSuggestions ?? true });
   const events = run.events[Symbol.asyncIterator]();
 
   const sessionLog: WriteStream | null = tuiOptions.sessionLogPath ? createWriteStream(tuiOptions.sessionLogPath, { flags: "a" }) : null;
@@ -223,13 +237,45 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
     model.writeLine(ui.warn("(interrupted)"));
   }
 
+  // One reader for the whole session instead of drainTurn()'s one per turn: the prompt
+  // suggestion arrives after its turn's turn-end, while the human is already at the prompt,
+  // and MCP errors arrive before the first turn. Still manual .next() calls, never a
+  // for-await that could be broken out of (ADR-010).
+  let turnDone: (() => void) | null = null;
+  let readError: unknown = null;
+  function finishTurn(): void {
+    const done = turnDone;
+    turnDone = null;
+    done?.();
+  }
+  void (async () => {
+    try {
+      while (true) {
+        const { value, done } = await events.next();
+        if (done) break;
+        if (value.type === "prompt-suggestion") {
+          input.setSuggestion(value.suggestion);
+          continue;
+        }
+        model.render(value);
+        if (value.type === "turn-end") finishTurn();
+      }
+    } catch (error) {
+      readError = error;
+    }
+    finishTurn();
+  })();
+
   async function runTurn(line: string): Promise<void> {
-    queue.push(line);
+    input.setSuggestion(null);
     turnInterrupted = false;
     model.separate();
     model.startTurn();
-    await drainTurn(events, model.render);
+    const finished = new Promise<void>((resolve) => (turnDone = resolve));
+    queue.push(line);
+    await finished;
     model.endTurn();
+    if (readError) throw readError;
   }
 
   const previousPort = getInteractionPort();
@@ -245,6 +291,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       mode={tuiOptions.mode}
       fullscreen={tuiOptions.fullscreen}
       header={tuiOptions.header && tuiOptions.fullscreen ? headerLines(tuiOptions.header) : undefined}
+      placeholder={tuiOptions.promptPlaceholder}
       onInterrupt={interruptTurn}
     />,
     { exitOnCtrlC: false },

@@ -43,6 +43,10 @@ export interface PromptInputProps {
   label: string;
   /** Columns taken around the prompt (a frame), so a long line scrolls before reaching the edge. */
   inset?: number;
+  /** A predicted next prompt, shown dim in the empty prompt; Tab takes it. */
+  suggestion?: string | null;
+  /** Shown dim in the empty prompt when there is no suggestion; never taken. */
+  placeholder?: string;
   /** Earlier lines, oldest first, for ↑/↓. */
   history: readonly string[];
   /** Slash command names (without "/") for suggestions and Tab completion. */
@@ -57,7 +61,7 @@ export interface PromptInputProps {
  * taken from @inkjs/ui because its TextInput is uncontrolled: history needs to replace the
  * value. Backspace also arrives as `delete` on Windows terminals, so both erase backwards.
  */
-export function PromptInput({ label, inset = 0, history, commands, onSubmit, onExit }: PromptInputProps) {
+export function PromptInput({ label, inset = 0, suggestion, placeholder, history, commands, onSubmit, onExit }: PromptInputProps) {
   // Kept in a ref, not in state: two keystrokes can arrive before React re-renders, and a
   // handler reading state would apply the second one to a stale value.
   const state = useRef({ value: "", cursor: 0, historyIndex: null as number | null, draft: "" });
@@ -99,7 +103,8 @@ export function PromptInput({ label, inset = 0, history, commands, onSubmit, onE
         replace(current.draft);
       }
     } else if (key.tab) {
-      replace(completeCommand(value, commands));
+      // An empty prompt takes the suggestion; otherwise Tab completes a "/command".
+      replace(value === "" && suggestion ? suggestion : completeCommand(value, commands));
     } else if (key.leftArrow) {
       current.cursor = Math.max(0, cursor - 1);
     } else if (key.rightArrow) {
@@ -130,6 +135,8 @@ export function PromptInput({ label, inset = 0, history, commands, onSubmit, onE
   const width = liveWidth(stdout.columns) - inset;
   const [start, end] = visibleWindow(value.length, cursor, width - stringWidth(stripAnsi(label)));
   const atCursor = value[cursor] ?? " ";
+  const room = width - stringWidth(stripAnsi(label));
+  const ghost = suggestion ? `${suggestion}  (tab)` : placeholder;
   return (
     <Box flexDirection="column">
       <Text>
@@ -139,6 +146,7 @@ export function PromptInput({ label, inset = 0, history, commands, onSubmit, onE
         <Text inverse>{atCursor}</Text>
         {value.slice(cursor + 1, end)}
         {end < value.length ? "…" : ""}
+        {value === "" && ghost ? ui.dim(fitWidth(ghost, Math.max(1, room - 1))) : ""}
       </Text>
       {suggestions.map((name) => (
         <Text key={name}>{ui.dim(fitWidth(`  /${name}`, width))}</Text>
