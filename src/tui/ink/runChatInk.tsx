@@ -299,8 +299,8 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       onInterrupt={interruptTurn}
     />
     </CursorContext.Provider>,
-    // Ink writes the frame synchronously right after onRender; the cursor goes in after it.
-    { exitOnCtrlC: false, onRender: cursor ? () => queueMicrotask(cursor.place) : undefined },
+    // In full screen Ink writes through the cursor controller, which places the terminal's cursor.
+    { exitOnCtrlC: false, ...(cursor ? { stdout: cursor.stream } : {}) },
   );
 
   try {

@@ -3,9 +3,9 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { render, cleanup } from "ink-testing-library";
-import { Box, Text } from "ink";
+import { Box, Text, type DOMElement } from "ink";
 import { PromptInput } from "../../../src/tui/ink/PromptInput.js";
-import { CursorContext, framePosition, type CursorController, type CursorTarget } from "../../../src/tui/ink/terminalCursor.js";
+import { createCursorController, CursorContext, framePosition, type CursorController, type CursorTarget } from "../../../src/tui/ink/terminalCursor.js";
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
 
@@ -13,7 +13,7 @@ afterEach(() => cleanup());
 
 function fakeController() {
   const targets: (CursorTarget | null)[] = [];
-  const controller: CursorController = { setTarget: (target) => void targets.push(target), place: () => {} };
+  const controller: CursorController = { setTarget: (target) => void targets.push(target), stream: process.stdout };
   return { controller, targets, last: () => targets.at(-1) ?? null };
 }
 
@@ -56,6 +56,32 @@ test("the prompt clears the target when it goes away, so the cursor is hidden", 
   assert.ok(last());
   view.unmount();
   assert.equal(last(), null);
+});
+
+test("the controller hides the cursor for every Ink write and shows it only once placed", async () => {
+  const written: string[] = [];
+  const fake = { write: (chunk: string) => void written.push(chunk), columns: 80, rows: 24, isTTY: true } as unknown as NodeJS.WriteStream;
+  const controller = createCursorController(fake);
+  assert.equal(controller.stream.columns, 80); // everything else reaches the real stream
+
+  // A node 2 rows down and 3 columns in (its parent at 1,1 plus its own 1,2).
+  const parent = { yogaNode: { getComputedLeft: () => 1, getComputedTop: () => 1 }, parentNode: undefined };
+  const node = { yogaNode: { getComputedLeft: () => 2, getComputedTop: () => 1 }, parentNode: parent } as unknown as DOMElement;
+  controller.setTarget({ node, column: 5 });
+  await settle();
+  written.length = 0;
+
+  controller.stream.write("frame part 1");
+  controller.stream.write("frame part 2");
+  assert.deepEqual(written, ["\x1b[?25lframe part 1", "\x1b[?25lframe part 2"]); // hidden while drawing
+  await settle();
+  assert.deepEqual(written.slice(2), ["\x1b[3;9H\x1b[?25h"]); // once, after the frame: row 2+1, column 3+5+1
+
+  controller.setTarget(null);
+  await settle();
+  controller.stream.write("frame");
+  await settle();
+  assert.equal(written.at(-1), "\x1b[?25lframe"); // no input on screen: stays hidden
 });
 
 test("Ctrl+U clears everything typed in the prompt", async () => {

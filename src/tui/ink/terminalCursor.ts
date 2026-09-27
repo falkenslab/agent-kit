@@ -10,9 +10,12 @@ export interface CursorTarget {
 export interface CursorController {
   /** The input to put the cursor in, or null to hide it (no input on screen). */
   setTarget(target: CursorTarget | null): void;
-  /** Moves the terminal's cursor to the target (after Ink wrote a frame). */
-  place(): void;
+  /** The stream Ink must write to (see createCursorController()). */
+  stream: NodeJS.WriteStream;
 }
+
+const HIDE = "\x1b[?25l";
+const SHOW = "\x1b[?25h";
 
 /** Where `node` sits in the frame, from the laid-out Yoga tree (0-based column and row). */
 export function framePosition(node: DOMElement): { x: number; y: number } {
@@ -28,25 +31,55 @@ export function framePosition(node: DOMElement): { x: number; y: number } {
 /**
  * The terminal's own cursor for the full-screen chat, so it looks like the terminal's (a
  * bar in Windows Terminal's default profile, as in Claude Code) instead of a drawn block.
+ *
  * Ink's `useCursor` doesn't fit a frame as tall as the terminal: that redraw path moves the
- * cursor only when its position changes, and one row off (it counts the frame as ending in
- * a newline it doesn't write). A full-screen frame always starts at the top-left corner, so
- * after each one the cursor is simply moved to its absolute position.
+ * cursor only when its position changes, and one row off. A full-screen frame always starts
+ * at the top-left corner, so after Ink writes, the cursor is moved to its absolute position.
+ * Ink writes through `stream`, which hides the cursor before every write: otherwise, between
+ * a frame (which leaves the cursor at its end) and the move, the terminal draws the cursor
+ * at the bottom too, and with the spinner redrawing ~12 times a second it shows in two
+ * places at once (seen on Windows Terminal).
  */
-export function createCursorController(stream: NodeJS.WriteStream): CursorController {
+export function createCursorController(output: NodeJS.WriteStream): CursorController {
   let target: CursorTarget | null = null;
+  let scheduled = false;
+
+  function place(): void {
+    scheduled = false;
+    if (!target) return; // stays hidden
+    const { x, y } = framePosition(target.node);
+    output.write(`\x1b[${y + 1};${x + target.column + 1}H${SHOW}`);
+  }
+
+  function schedule(): void {
+    if (scheduled) return;
+    scheduled = true;
+    // After the rest of Ink's writes for this frame, which are synchronous.
+    queueMicrotask(place);
+  }
+
+  const write = (chunk: string | Uint8Array, ...rest: unknown[]): boolean => {
+    const ok = (output.write as (...args: unknown[]) => boolean)(typeof chunk === "string" ? HIDE + chunk : chunk, ...rest);
+    schedule();
+    return ok;
+  };
+
+  // Everything but write goes to the real stream (columns, rows, resize events, isTTY...).
+  const stream = new Proxy(output, {
+    get(real, property) {
+      if (property === "write") return write;
+      const value = Reflect.get(real, property, real);
+      return typeof value === "function" ? value.bind(real) : value;
+    },
+  });
+
   return {
     setTarget(next) {
       target = next;
+      if (!next) output.write(HIDE);
+      schedule();
     },
-    place() {
-      if (!target) {
-        stream.write("\x1b[?25l");
-        return;
-      }
-      const { x, y } = framePosition(target.node);
-      stream.write(`\x1b[${y + 1};${x + target.column + 1}H\x1b[?25h`);
-    },
+    stream,
   };
 }
 
