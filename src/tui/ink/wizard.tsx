@@ -1,6 +1,8 @@
 import { stdin, stdout } from "node:process";
 import { useState } from "react";
-import { Box, render, Text, useApp, useInput } from "ink";
+import { Box, render, Static, Text, useApp, useInput, useStdout } from "ink";
+import wrapAnsi from "wrap-ansi";
+import { liveWidth } from "./sessionModel.js";
 import { ConfirmInput, PasswordInput, Select, TextInput } from "@inkjs/ui";
 import * as inquirer from "@inquirer/prompts";
 import * as ui from "../ui.js";
@@ -64,6 +66,9 @@ function exitPromptError(): Error {
 
 function StepInput({ step, answers, onAnswer }: { step: WizardStep; answers: WizardAnswers; onAnswer(value: unknown): void }) {
   const [error, setError] = useState<string | null>(null);
+  const { stdout } = useStdout();
+  const width = liveWidth(stdout.columns);
+  const message = `${ui.success("?")} ${ui.heading(resolve(step.message, answers))}`;
 
   function validated(value: string): void {
     const check = step.type === "input" || step.type === "password" ? (step.validate?.(value, answers) ?? true) : true;
@@ -78,6 +83,7 @@ function StepInput({ step, answers, onAnswer }: { step: WizardStep; answers: Wiz
       const preselected = step.default === undefined ? -1 : choices.findIndex((c) => c.value === resolve(step.default, answers));
       field = (
         <Select
+          visibleOptionCount={visibleOptions(choices.length, wrapAnsi(message, width, { hard: true }).split(NEWLINE).length, stdout.rows)}
           options={choices.map((choice, index) => ({ label: choice.name, value: String(index) }))}
           defaultValue={preselected >= 0 ? String(preselected) : undefined}
           onChange={(index) => onAnswer(choices[Number(index)].value)}
@@ -99,14 +105,23 @@ function StepInput({ step, answers, onAnswer }: { step: WizardStep; answers: Wiz
   }
 
   return (
-    <Box flexDirection="column">
-      <Text>
-        {ui.success("?")} {ui.heading(resolve(step.message, answers))}
-      </Text>
+    <Box flexDirection="column" width={width}>
+      <Text>{message}</Text>
       {field}
       {error ? <Text>{ui.error(error)}</Text> : null}
     </Box>
   );
+}
+
+const NEWLINE = String.fromCharCode(10);
+
+/**
+ * How many choices a select shows at once, so the question, its choices and a validation
+ * line stay shorter than the terminal: Ink clears the whole screen to redraw anything
+ * taller (see SessionView.tsx's previewLines()).
+ */
+export function visibleOptions(choices: number, messageRows: number, terminalRows: number | undefined): number {
+  return Math.max(1, Math.min(choices, (terminalRows || 24) - messageRows - 3));
 }
 
 function summary(step: WizardStep, value: unknown, answers: WizardAnswers): string {
@@ -142,17 +157,18 @@ export function Wizard({ steps, title, onDone }: { steps: WizardStep[]; title?: 
     }
   }
 
+  // The title and the answered steps go to <Static>: written once, never redrawn, so a long
+  // menu can't grow the live area past the terminal's height.
+  const history = [
+    ...(title ? [{ id: "title", text: ui.heading(title) }] : []),
+    ...done.map(({ message, text }, i) => ({ id: String(i), text: `${ui.success("✔")} ${message} ${ui.agent(text)}` })),
+  ];
   const current = steps[index];
   return (
-    <Box flexDirection="column">
-      {title ? <Text>{ui.heading(title)}</Text> : null}
-      {done.map(({ message, text }, i) => (
-        <Text key={i}>
-          {ui.success("✔")} {message} {ui.agent(text)}
-        </Text>
-      ))}
+    <>
+      <Static items={history}>{(item) => <Text key={item.id}>{item.text}</Text>}</Static>
       {current ? <StepInput key={index} step={current} answers={answers} onAnswer={answer} /> : null}
-    </Box>
+    </>
   );
 }
 

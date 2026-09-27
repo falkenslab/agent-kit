@@ -37,7 +37,7 @@ export interface SessionModelOptions {
  * (see lineBuffer.ts). Read on every use, so a resized terminal is picked up.
  */
 export function liveWidth(columns: number | undefined): number {
-  return Math.max(20, (columns || 80) - 4);
+  return Math.max(1, (columns || 80) - 4);
 }
 
 export interface SessionModel {

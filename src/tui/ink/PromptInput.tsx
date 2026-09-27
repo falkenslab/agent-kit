@@ -119,8 +119,10 @@ export function PromptInput({ label, history, commands, onSubmit, onExit }: Prom
   });
 
   const { value, cursor } = state.current;
-  const suggestions = matchingCommands(value, commands).slice(0, MAX_SUGGESTIONS);
-  const width = liveWidth(useStdout().stdout.columns);
+  const { stdout } = useStdout();
+  // Suggestions give way on a short terminal: the live area must stay shorter than it.
+  const suggestions = matchingCommands(value, commands).slice(0, Math.min(MAX_SUGGESTIONS, Math.max(0, (stdout.rows || 24) - 10)));
+  const width = liveWidth(stdout.columns);
   const [start, end] = visibleWindow(value.length, cursor, width - stringWidth(stripAnsi(label)));
   const atCursor = value[cursor] ?? " ";
   return (

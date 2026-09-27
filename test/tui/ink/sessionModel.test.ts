@@ -89,5 +89,5 @@ test("with a width, a long reply streams into history rows and the live line sta
 test("liveWidth keeps a margin from the edge", () => {
   assert.equal(liveWidth(120), 116);
   assert.equal(liveWidth(undefined), 76);
-  assert.equal(liveWidth(10), 20);
+  assert.equal(liveWidth(10), 6);
 });

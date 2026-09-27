@@ -8,7 +8,7 @@ import { createSessionModel } from "../../../src/tui/ink/sessionModel.js";
 import { createInkInteraction } from "../../../src/tui/ink/inkInteraction.js";
 import { SessionView, previewLines, statusText } from "../../../src/tui/ink/SessionView.js";
 import { PromptInput, completeCommand, matchingCommands, visibleWindow } from "../../../src/tui/ink/PromptInput.js";
-import { Wizard, type WizardAnswers, type WizardStep } from "../../../src/tui/ink/wizard.js";
+import { Wizard, visibleOptions, type WizardAnswers, type WizardStep } from "../../../src/tui/ink/wizard.js";
 
 const ENTER = "\r";
 const UP = "\u001B[A";
@@ -96,9 +96,9 @@ test("a manual-intervention panel continues with Enter", async () => {
   assert.equal(await answer, "");
 });
 
-test("statusText shows mode, turns, tokens and cost", () => {
+test("statusText shows mode, turns and tokens, never the cost", () => {
   assert.equal(statusText(undefined, 1, null), "1 turn");
-  assert.equal(statusText("autonomous", 3, { inputTokens: 12345, outputTokens: 678, costUsd: 0.04567 }), "autonomous · 3 turns · 12.3k in / 678 out · $0.0457");
+  assert.equal(statusText("autonomous", 3, { inputTokens: 12345, outputTokens: 678, costUsd: 0.04567 }), "autonomous · 3 turns · 12.3k in / 678 out");
 });
 
 test("command completion", () => {
@@ -219,4 +219,10 @@ test("a huge approval preview is capped below the terminal's height", () => {
   assert.equal(lines.length, 18);
   assert.match(lines.at(-1) ?? "", /more lines/);
   assert.deepEqual(previewLines(["a", "b"], 30), ["a", "b"]);
+});
+
+test("a select shows only the choices that fit in the terminal's height", () => {
+  assert.equal(visibleOptions(7, 1, 40), 7);
+  assert.equal(visibleOptions(7, 2, 10), 5);
+  assert.equal(visibleOptions(7, 20, 10), 1);
 });

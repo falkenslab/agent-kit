@@ -71,9 +71,7 @@ export function statusText(mode: Mode | undefined, turns: number, usage: Session
   const parts = [
     ...(mode ? [mode] : []),
     `${turns} ${turns === 1 ? "turn" : "turns"}`,
-    ...(usage
-      ? [`${formatTokens(usage.inputTokens)} in / ${formatTokens(usage.outputTokens)} out`, `$${usage.costUsd.toFixed(4)}`]
-      : []),
+    ...(usage ? [`${formatTokens(usage.inputTokens)} in / ${formatTokens(usage.outputTokens)} out`] : []),
   ];
   return parts.join(" · ");
 }
