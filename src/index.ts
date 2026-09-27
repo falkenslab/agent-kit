@@ -15,7 +15,7 @@ export {
 } from "./core/toolLabels.js";
 export type { Mode, BaseSessionConfig, AgentSpec } from "./core/agentSpec.js";
 export { buildSessionOptions, createInputQueue, createDeferred } from "./core/session.js";
-export { runQuery, type AgentEvent, type AgentRun } from "./core/runner.js";
+export { runQuery, type AgentEvent, type AgentRun, type SessionUsage } from "./core/runner.js";
 export { knowledgePluginRoot, knowledgePromptSection } from "./core/knowledge.js";
 
 // Re-exported so a concrete agent (implementing AgentSpec, wiring up buildSessionOptions())
@@ -47,3 +47,16 @@ export { createSaveToSourcesServer } from "./core/tools/saveToSources.js";
 
 export { runChatTui, type ChatTuiOptions } from "./tui/chatTui.js";
 export { createConsoleRenderer, type ConsoleRenderer, type ConsoleRendererOptions } from "./tui/consoleRenderer.js";
+export { runChatInk, type InkChatOptions, type HeaderInfo } from "./tui/ink/runChatInk.js";
+export type { RenderApproval } from "./tui/ink/SessionView.js";
+export { createProgressView, type ProgressView, type ProgressViewOptions } from "./tui/ink/progressView.js";
+export {
+  runWizard,
+  type WizardStep,
+  type SelectStep,
+  type InputStep,
+  type PasswordStep,
+  type ConfirmStep,
+  type WizardAnswers,
+  type WizardOptions,
+} from "./tui/ink/wizard.js";

@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
-import { confirm } from "@inquirer/prompts";
 import { resolveClaudeAuth, type ClaudeAuthConfig } from "../core/claudeAuth.js";
 import { isExitPromptError } from "./promptErrors.js";
 import * as ui from "./ui.js";
+import { runWizard } from "./ink/wizard.js";
 
 // The real format of "claude setup-token" tokens ("sk-ant-oat01-...", seen in the
 // installed @anthropic-ai/claude-code binary) — used to extract the token from its output.
@@ -65,7 +65,7 @@ function runSetupToken(): Promise<string> {
  * next time; returns `undefined` when auth was already resolved (an env var, or the `config`
  * passed in) and nothing new was generated.
  *
- * Only makes sense with a real terminal in front of a human (confirm prompt, colored console
+ * Only makes sense with a real terminal in front of a human (a `runWizard()` confirm, colored console
  * output), which is why it lives here rather than in the non-interactive core.
  */
 export async function ensureClaudeAuth(config: ClaudeAuthConfig = {}): Promise<string | undefined> {
@@ -75,10 +75,14 @@ export async function ensureClaudeAuth(config: ClaudeAuthConfig = {}): Promise<s
   console.log(ui.dim("(neither the CLAUDE_CODE_OAUTH_TOKEN environment variable, nor one passed in)."));
 
   try {
-    const generate = await confirm({
-      message: 'Generate one now with "claude setup-token" (requires a Claude Pro/Max subscription)?',
-      default: true,
-    });
+    const { generate } = await runWizard([
+      {
+        type: "confirm",
+        name: "generate",
+        message: 'Generate one now with "claude setup-token" (requires a Claude Pro/Max subscription)?',
+        default: true,
+      },
+    ]);
 
     if (!generate) {
       console.log(ui.error(
