@@ -14,6 +14,7 @@ import { PromptInput } from "./PromptInput.js";
 import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel.js";
 import { SessionView, type RenderApproval } from "./SessionView.js";
 import { stripAnsi } from "./lineBuffer.js";
+import { enterFullscreen } from "./fullscreen.js";
 
 export interface HeaderInfo {
   title: string;
@@ -30,6 +31,13 @@ export interface InkChatOptions extends ChatTuiOptions {
   mode?: Mode;
   /** Use the plain readline chat (`runChatTui()`) even on a TTY. */
   plain?: boolean;
+  /**
+   * Take the whole terminal (its alternate screen): the history scrolls in its own view
+   * above a prompt pinned at the bottom (PageUp/PageDown and the wheel scroll, Ctrl+End or
+   * typing goes back to the bottom), and the terminal is left cleared on exit. Selecting
+   * text with the mouse needs Shift, since the wheel is captured. Off by default.
+   */
+  fullscreen?: boolean;
 }
 
 const DEFAULT_PROMPT_LABEL = "\n> ";
@@ -88,10 +96,11 @@ interface ChatAppProps {
   promptLabel: string;
   renderApproval?: RenderApproval;
   mode?: Mode;
+  fullscreen?: boolean;
   onInterrupt(): void;
 }
 
-function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, onInterrupt }: ChatAppProps) {
+function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, onInterrupt }: ChatAppProps) {
   const chat = useSyncExternalStore(input.subscribe, input.getSnapshot);
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
@@ -109,7 +118,14 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
   });
 
   return (
-    <SessionView model={model} interaction={interaction} renderApproval={renderApproval} mode={mode} closed={chat.closed}>
+    <SessionView
+      model={model}
+      interaction={interaction}
+      renderApproval={renderApproval}
+      mode={mode}
+      closed={chat.closed}
+      fullscreen={fullscreen}
+    >
       {chat.prompting ? (
         <PromptInput
           label={promptLabel.replace(/^\n+/, "")}
@@ -134,6 +150,8 @@ function headerText(header: HeaderInfo): string {
  * current action (and a subagent's), approval panels, "/command" completion and a status
  * bar. Checkpoints go through an Ink `InteractionPort` while the chat runs, so no second
  * stdin reader ever competes with Ink's; the response file keeps working as always.
+ *
+ * With `fullscreen` it takes the whole terminal instead (see `InkChatOptions.fullscreen`).
  *
  * Without a TTY (piped, background) or with `plain`, it is `runChatTui()` unchanged.
  */
@@ -191,6 +209,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
 
   const previousPort = getInteractionPort();
   setInteractionPort(interaction.port);
+  const restoreTerminal = tuiOptions.fullscreen ? enterFullscreen(stdout) : null;
   const app = render(
     <ChatApp
       model={model}
@@ -199,6 +218,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       promptLabel={promptLabel}
       renderApproval={tuiOptions.renderApproval}
       mode={tuiOptions.mode}
+      fullscreen={tuiOptions.fullscreen}
       onInterrupt={interruptTurn}
     />,
     { exitOnCtrlC: false },
@@ -251,6 +271,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
     await new Promise((resolve) => setTimeout(resolve, 0));
     app.unmount();
     await app.waitUntilExit();
+    restoreTerminal?.();
     sessionLog?.end();
   }
 }

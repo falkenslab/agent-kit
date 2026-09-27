@@ -3,6 +3,7 @@ import { Box, Text, useInput, useStdout } from "ink";
 import stringWidth from "string-width";
 import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import { liveWidth } from "./sessionModel.js";
+import { isMouseReport } from "./fullscreen.js";
 import * as ui from "../ui.js";
 
 const MAX_SUGGESTIONS = 6;
@@ -66,6 +67,8 @@ export function PromptInput({ label, history, commands, onSubmit, onExit }: Prom
   }
 
   useInput((input, key) => {
+    // In full screen the mouse is reported as input (the wheel scrolls the history): never type it.
+    if (isMouseReport(input)) return;
     const current = state.current;
     const { value, cursor } = current;
     if (key.return) {
