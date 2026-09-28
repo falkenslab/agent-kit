@@ -10,4 +10,4 @@ A consumer that only calls `buildSessionOptions()`/`runQuery()` shouldn't need t
 
 ## Consequences
 
-Adding a symbol means adding it to `index.ts` (`add-export` skill). Internal helpers exported for tests (like `drainTurn()`) stay out of it. API changes are checked against the consumers (`check-consumers` skill) while the version is 0.x.
+Adding a symbol means adding it to `index.ts` (`add-export` skill). Internal helpers exported for tests (like `drainTurn()`) stay out of it. API changes are checked against `examples/captain-whiskers`, which imports only from the package root (`verify` skill), and stay backward-compatible where possible. Agents outside this repo (student-agent, teacher-agent, desktop apps) adopt a new version on their own: checking or adapting them is their repos' work, not the kit's.

@@ -30,10 +30,10 @@ Add or extend a test under `test/` mirroring the `src/` path (`test/core/...`, `
 
 ## 5. Docs
 
-- `README.md` (Spanish, user-facing): mention the new option/function where its area is described.
+- `README.md` (Spanish, user-facing): it describes what an agent built on the kit can do, without naming functions or options; touch it only when the change adds a capability a reader would notice at that level.
 - `.minispec/` (English, for future Claude sessions): update `core/architecture.md` if the design changed, and the ADR in `decisions/` (or a new one) if a decision or a rule changed.
 - Update stale statements you notice while there (paths, lists of event types, mode values).
 
 ## 6. Finish
 
-Run the `verify` skill, then `check-consumers`. If the change breaks existing consumers, mark the commit as breaking (`!`) and see the `commit` and `release` skills.
+Run the `verify` skill (it also typechecks captain-whiskers against the rebuilt kit). If the change breaks existing code that uses the kit, mark the commit as breaking (`!`) and see the `commit` and `release` skills.

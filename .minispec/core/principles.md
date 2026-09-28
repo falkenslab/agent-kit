@@ -12,4 +12,4 @@ Consult **before** writing code.
 - Touching subagent wiring means re-reading all three gates (ADR-003).
 - Guardrails live in hooks, not in prompts (ADR-003, ADR-007).
 - Features that grant Bash stay opt-in in consumers.
-- Public API changes are checked against the consumers (ADR-011).
+- Public API changes are checked against captain-whiskers and stay backward-compatible where possible; outside agents adopt new versions on their own (ADR-011).

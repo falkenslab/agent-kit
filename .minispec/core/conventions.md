@@ -8,4 +8,4 @@
 - Doc comments explain *why*, and mark SDK behavior verified by hand as "confirmed empirically".
 - A bug fixed or an SDK quirk found gets a regression test in `test/`, mirroring `src/`.
 - Documentation Markdown (`README.md`, `CLAUDE.md`, `.minispec/`): one line per paragraph and list item, no horizontal rules between sections. Skill and plugin Markdown keeps its own formatting.
-- Before a release, check the consumers still build (see the `check-consumers` skill).
+- Before a release, the `verify` skill must pass (it also typechecks captain-whiskers against the rebuilt kit).

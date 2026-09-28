@@ -18,7 +18,7 @@ The SDK is a direct `dependency` of the kit and its types are re-exported from `
 
 ## 2. Run the gate
 
-Run the `verify` skill, then `check-consumers`. Type errors here are usually the first sign of a changed contract.
+Run the `verify` skill (captain-whiskers included). Type errors here are usually the first sign of a changed contract.
 
 ## 3. Re-validate the behaviors the kit relies on
 
