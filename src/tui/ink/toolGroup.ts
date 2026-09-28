@@ -1,0 +1,64 @@
+import { fitWidth } from "./lineBuffer.js";
+import * as ui from "../ui.js";
+
+export interface ToolCall {
+  id?: string;
+  toolName: string;
+  /** The friendly label (see toolLabels.ts), shown when the group is unfolded. */
+  label: string;
+  result: { isError: boolean; text: string } | null;
+}
+
+/** How a tool counts in a group's summary: the phrase for one call and for several, "{n}" standing for the count. */
+export type ToolPhrase = [one: string, many: string];
+
+const BUILT_IN: Record<string, ToolPhrase> = {
+  Read: ["read {n} file", "read {n} files"],
+  Write: ["wrote {n} file", "wrote {n} files"],
+  Edit: ["edited {n} file", "edited {n} files"],
+  Glob: ["listed files", "listed files {n} times"],
+  Grep: ["searched {n} time", "searched {n} times"],
+  Bash: ["ran {n} shell command", "ran {n} shell commands"],
+  WebSearch: ["searched the web", "searched the web {n} times"],
+  WebFetch: ["fetched {n} page", "fetched {n} pages"],
+  Skill: ["used {n} skill", "used {n} skills"],
+  Agent: ["ran {n} subagent", "ran {n} subagents"],
+  Task: ["ran {n} subagent", "ran {n} subagents"],
+};
+const OTHER: ToolPhrase = ["used {n} tool", "used {n} tools"];
+
+/**
+ * A folded group's one line, as in the Claude Code CLI: "Read 2 files, ran 1 shell
+ * command". Calls to the same kind of tool are counted together, in the order they first
+ * appear; tools with no phrase of their own (MCP tools, the consumer's) count as "tools",
+ * unless `phraseFor` gives one.
+ */
+export function toolGroupSummary(calls: readonly ToolCall[], phraseFor?: (toolName: string) => ToolPhrase | undefined): string {
+  // Counted by the phrase's text: a consumer's phraseFor() may return a new array each call.
+  const counts = new Map<string, { phrase: ToolPhrase; n: number }>();
+  for (const call of calls) {
+    const phrase = phraseFor?.(call.toolName) ?? BUILT_IN[call.toolName] ?? OTHER;
+    const key = phrase.join("|");
+    const entry = counts.get(key) ?? { phrase, n: 0 };
+    entry.n++;
+    counts.set(key, entry);
+  }
+  const text = [...counts.values()].map(({ phrase: [one, many], n }) => (n === 1 ? one : many).replace("{n}", String(n))).join(", ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** One line for a tool's result: its error, its only line, or how many lines it had. */
+export function resultSummary(result: { isError: boolean; text: string }): string {
+  const lines = result.text.split("\n").filter((line) => line.trim() !== "");
+  if (result.isError) return ui.error(lines[0] ?? "error");
+  if (lines.length === 0) return ui.dim("(no output)");
+  return ui.dim(lines.length === 1 ? lines[0] : `${lines.length} lines`);
+}
+
+/** The group unfolded (Ctrl+O): each call behind a `●`, its result under it after `⎿`. */
+export function toolGroupExpanded(calls: readonly ToolCall[], width: number): string[] {
+  return calls.flatMap((call) => [
+    `${ui.toolBullet("●")} ${fitWidth(call.label, width - 2)}`,
+    `  ${ui.dim("⎿")}  ${call.result ? fitWidth(resultSummary(call.result), width - 5) : ui.dim("…")}`,
+  ]);
+}

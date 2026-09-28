@@ -2,6 +2,7 @@ import sliceAnsi from "slice-ansi";
 import stringWidth from "string-width";
 import wrapAnsi from "wrap-ansi";
 import { stripAnsi } from "./lineBuffer.js";
+import * as ui from "../ui.js";
 
 // Alternate screen plus mouse reporting in SGR form: button events with drags (?1002h), so
 // the wheel scrolls and dragging selects text (see the feature ink-selection).
@@ -80,31 +81,59 @@ export interface WrappedRows {
   continued: boolean[];
 }
 
+/** A history line as the row cache needs it (see sessionModel.ts's HistoryItem). */
+export interface RowSource {
+  text: string;
+  kind?: string;
+  expanded?: string[];
+}
+
+/**
+ * The human's line as a full-width gray bar, bold, as in the Claude Code CLI: wrapped to
+ * `width` and each row padded in columns, so the bar is even whatever the text holds.
+ */
+export function userBarRows(text: string, width: number): string[] {
+  return wrapAnsi(text, Math.max(1, width - 1), { hard: true, trim: false })
+    .split("\n")
+    .map((row) => ui.userBar(ui.bold(` ${row}${" ".repeat(Math.max(0, width - 1 - stringWidth(stripAnsi(row))))}`)));
+}
+
 /**
  * The history's rows, wrapped to `width`, with a cache that only wraps the lines added
  * since the last call: the history only grows, and re-wrapping every line on every frame
  * (up to 30 a second while a reply streams) would get slow in a long session. A different
- * width, or a history that didn't just grow, wraps everything again.
+ * width, a change of `expand` (Ctrl+O), or a history that didn't just grow, wraps
+ * everything again. Tool groups show their unfolded lines when `expand` is on, and the
+ * human's lines are drawn as bars.
  */
 export function createRowCache() {
   let cachedWidth = -1;
-  let cachedLines: readonly { text: string }[] = [];
+  let cachedExpand = false;
+  let cachedLines: readonly RowSource[] = [];
   let result: WrappedRows = { rows: [], continued: [] };
 
-  return (lines: readonly { text: string }[], width: number): WrappedRows => {
-    const grew = width === cachedWidth && lines.length >= cachedLines.length && lines[cachedLines.length - 1] === cachedLines.at(-1);
+  return (lines: readonly RowSource[], width: number, expand = false): WrappedRows => {
+    const grew =
+      width === cachedWidth &&
+      expand === cachedExpand &&
+      lines.length >= cachedLines.length &&
+      lines[cachedLines.length - 1] === cachedLines.at(-1);
     const fresh = grew ? lines.slice(cachedLines.length) : lines;
     const rows: string[] = [];
     const continued: boolean[] = [];
     for (const line of fresh) {
-      const wrapped = wrapAnsi(line.text, width, { hard: true, trim: false }).split("\n");
-      wrapped.forEach((row, i) => {
-        rows.push(row);
-        continued.push(i > 0);
-      });
+      const texts = expand && line.expanded ? line.expanded : [line.text];
+      for (const text of texts) {
+        const wrapped = line.kind === "user" ? userBarRows(text, width) : wrapAnsi(text, width, { hard: true, trim: false }).split("\n");
+        wrapped.forEach((row, i) => {
+          rows.push(row);
+          continued.push(i > 0);
+        });
+      }
     }
     result = grew ? { rows: result.rows.concat(rows), continued: result.continued.concat(continued) } : { rows, continued };
     cachedWidth = width;
+    cachedExpand = expand;
     cachedLines = lines;
     return result;
   };

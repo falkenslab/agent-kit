@@ -1,10 +1,10 @@
 import { useEffect, useReducer, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, measureElement, Static, Text, useInput, useStdout, type DOMElement } from "ink";
-import { Select, Spinner } from "@inkjs/ui";
+import { Select } from "@inkjs/ui";
 import type { ApprovalPrompt } from "../../core/interaction.js";
 import type { Mode } from "../../core/agentSpec.js";
 import type { SessionUsage } from "../../core/runner.js";
-import { liveWidth, type SessionModel, type SessionSnapshot } from "./sessionModel.js";
+import { liveWidth, type HistoryItem, type SessionModel, type SessionSnapshot } from "./sessionModel.js";
 import {
   createRowCache,
   highlightRow,
@@ -17,6 +17,7 @@ import {
   type Cell,
   type ScrollAnchor,
   type Selection,
+  userBarRows,
 } from "./fullscreen.js";
 import { framePosition } from "./terminalCursor.js";
 import { isFocusReport } from "./terminalStatus.js";
@@ -27,12 +28,15 @@ import * as ui from "../ui.js";
 /** Replaces the default preview (title and lines) of an approval panel; the choices stay. */
 export type RenderApproval = (prompt: ApprovalPrompt) => ReactNode;
 
+// Numbered as in the Claude Code CLI's permission prompt; the digits and y/n/q answer too.
 const DECISION_OPTIONS = [
-  { label: "Approve (y)", value: "y" },
-  { label: "Reject (n)", value: "n" },
-  { label: "Stop (q)", value: "q" },
+  { label: "1. Yes", value: "y" },
+  { label: "2. No", value: "n" },
+  { label: "3. Stop", value: "q" },
 ];
-const MANUAL_OPTIONS = [{ label: "Done, continue", value: "continue" }];
+const MANUAL_OPTIONS = [{ label: "1. Done, continue", value: "continue" }];
+const DECISION_KEYS: Record<string, string> = { "1": "y", "2": "n", "3": "q", y: "y", n: "n", q: "q" };
+const ACCENT_HEX = "#d77757";
 
 /**
  * The preview's lines, capped so the whole live area stays shorter than the terminal: Ink
@@ -49,13 +53,14 @@ function CheckpointPanel({ checkpoint, renderApproval }: { checkpoint: Checkpoin
   const decision = checkpoint.kind === "decision";
   useInput((input) => {
     const key = input.toLowerCase();
-    if (decision && (key === "y" || key === "n" || key === "q")) checkpoint.answer(key);
+    if (decision && DECISION_KEYS[key]) checkpoint.answer(DECISION_KEYS[key]);
+    else if (!decision && key === "1") checkpoint.answer("");
   });
 
   const { prompt } = checkpoint;
   const { stdout } = useStdout();
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
+    <Box flexDirection="column" borderStyle="round" borderColor={ACCENT_HEX} paddingX={1}>
       {renderApproval ? (
         renderApproval(prompt)
       ) : (
@@ -67,7 +72,12 @@ function CheckpointPanel({ checkpoint, renderApproval }: { checkpoint: Checkpoin
           {!decision && prompt.question ? <Text dimColor>{prompt.question}</Text> : null}
         </>
       )}
-      <Box marginTop={1}>
+      {decision ? (
+        <Box marginTop={1}>
+          <Text>Do you want to proceed?</Text>
+        </Box>
+      ) : null}
+      <Box marginTop={decision ? 0 : 1}>
         <Select
           key={checkpoint.id}
           options={decision ? DECISION_OPTIONS : MANUAL_OPTIONS}
@@ -89,7 +99,7 @@ export function statusText(
   extra: { contextPercent?: number | null; modeSwitchable?: boolean } = {},
 ): string {
   const parts = [
-    ...(mode ? [extra.modeSwitchable ? `${mode} (shift+tab)` : mode] : []),
+    ...(mode ? [`⏵⏵ ${mode}${extra.modeSwitchable ? " (shift+tab)" : ""}`] : []),
     `${turns} ${turns === 1 ? "turn" : "turns"}`,
     ...(usage ? [`${formatTokens(usage.inputTokens)} in / ${formatTokens(usage.outputTokens)} out`] : []),
     ...(extra.contextPercent != null ? [`context ${Math.round(extra.contextPercent)}%`] : []),
@@ -133,11 +143,26 @@ interface LiveAreaProps {
   children?: ReactNode;
 }
 
+const WORKING_GLYPHS = ["·", "✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳", "✢"];
+
+/** The spinner line, as in the Claude Code CLI: an animated orange glyph, what it's doing, how long it's been at it. */
+function Working({ label, startedAt, width }: { label: string; startedAt: number | null; width: number }) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((n) => n + 1), 120);
+    return () => clearInterval(timer);
+  }, []);
+  const seconds = startedAt === null ? 0 : Math.floor((Date.now() - startedAt) / 1000);
+  const glyph = WORKING_GLYPHS[tick % WORKING_GLYPHS.length];
+  return <Text>{fitWidth(`${ui.accent(`${glyph} ${label}`)} ${ui.dim(`(${seconds}s · esc to interrupt)`)}`, width)}</Text>;
+}
+
 /** Line in progress, checkpoint panel or spinner, the input, and the status bar. */
 function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtra, modeSwitchable, children }: LiveAreaProps) {
-  const status =
-    statusText(mode, session.turns, session.usage, { contextPercent: session.contextPercent, modeSwitchable }) +
-    (statusExtra ? ` · ${statusExtra}` : "");
+  // The mode in orange, as in the Claude Code CLI's footer; the rest dim.
+  const plain = statusText(mode, session.turns, session.usage, { contextPercent: session.contextPercent, modeSwitchable }) + (statusExtra ? ` · ${statusExtra}` : "");
+  const cut = mode ? plain.indexOf(" · ") : -1;
+  const status = cut > 0 ? ui.accent(plain.slice(0, cut)) + ui.dim(plain.slice(cut)) : ui.dim(plain);
   return (
     <Box flexDirection="column" flexShrink={0} width={width} marginTop={session.liveGap ? 1 : 0}>
       {stripAnsi(session.live) ? <Text>{session.live}</Text> : null}
@@ -147,14 +172,21 @@ function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtr
         // Always one blank line above the spinner: from this margin, or from the live area's
         // own when a separator is pending and nothing is written above the spinner yet.
         <Box flexDirection="column" marginTop={stripAnsi(session.live) || !session.liveGap ? 1 : 0}>
-          <Spinner label={fitWidth(session.activity ?? "Thinking…", width - 2)} />
+          <Working label={session.activity ?? "Thinking…"} startedAt={session.turnStartedAt} width={width} />
           {session.subagentActivity ? <Text dimColor>{fitWidth(`  ↳ ${session.subagentActivity}`, width)}</Text> : null}
         </Box>
       ) : null}
       {checkpoint ? null : children}
-      <Text>{ui.dim(fitWidth(status, width))}</Text>
+      <Text>{fitWidth(status, width)}</Text>
     </Box>
   );
+}
+
+/** A history line for the inline view: the human's line as a bar, a tool group unfolded with Ctrl+O. */
+function inlineItem(item: HistoryItem, expanded: boolean, width: number): string {
+  if (item.kind === "user") return userBarRows(item.text, width).join("\n");
+  if (expanded && item.expanded) return item.expanded.join("\n");
+  return item.text || " ";
 }
 
 /** The terminal's size, re-read on resize (Ink re-lays out on resize but doesn't re-render components). */
@@ -191,7 +223,7 @@ function FullscreenSession({
   const { columns, rows } = useTerminalSize();
   const width = liveWidth(columns);
   const rowCache = useRef(createRowCache()).current;
-  const wrapped = rowCache(session.items, width);
+  const wrapped = rowCache(session.items, width, session.expanded);
   const total = wrapped.rows.length;
 
   const historyRef = useRef<DOMElement>(null);
@@ -341,7 +373,7 @@ export function SessionView({ model, interaction, renderApproval, mode, closed, 
   }
   return (
     <>
-      <Static items={session.items}>{(item) => <Text key={item.id}>{item.text || " "}</Text>}</Static>
+      <Static items={session.items}>{(item) => <Text key={item.id}>{inlineItem(item, session.expanded, width)}</Text>}</Static>
       {closed ? null : (
         <LiveArea session={session} checkpoint={checkpoint} renderApproval={renderApproval} mode={mode} width={width} modeSwitchable={modeSwitchable}>
           {children}

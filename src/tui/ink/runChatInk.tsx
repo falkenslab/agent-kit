@@ -18,6 +18,7 @@ import { clipboardSequence, enterFullscreen } from "./fullscreen.js";
 import { createCursorController, CursorContext } from "./terminalCursor.js";
 import { createTerminalStatus, focusFromReport } from "./terminalStatus.js";
 import { listProjectFiles } from "./fileMentions.js";
+import type { ToolPhrase } from "./toolGroup.js";
 import { headerLines, type HeaderInfo } from "./header.js";
 
 export type { HeaderInfo } from "./header.js";
@@ -53,6 +54,12 @@ export interface InkChatOptions extends ChatTuiOptions {
    * focused (Windows Terminal). Also enables `/copy`, which copies the last reply.
    */
   terminalIntegration?: boolean;
+  /**
+   * How one of the agent's own tools counts in a folded group's summary, e.g.
+   * `["opened {n} page", "opened {n} pages"]`; built-in tools have their own, and any other
+   * counts as "used {n} tools".
+   */
+  toolPhrase?: (toolName: string) => ToolPhrase | undefined;
   /**
    * The session's mode control (`buildSessionOptions()` returns it): the status bar shows the
    * current mode, and Shift+Tab switches between the modes it allows ("guided" and
@@ -177,6 +184,10 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
       onFocusChange?.(focused);
       return;
     }
+    if (key.ctrl && text === "o") {
+      model.toggleExpanded(); // folds or unfolds the tool groups
+      return;
+    }
     if (key.shift && key.tab) {
       // Shift+Tab: the next mode this session allows.
       if (!modeControl || modeControl.switchable.length < 2) {
@@ -262,6 +273,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
 
   const model = createSessionModel({
     formatAction: tuiOptions.formatAction,
+    toolPhrase: tuiOptions.toolPhrase,
     agentLabel: tuiOptions.agentLabel,
     onWrite: mirror,
     width: () => liveWidth(stdout.columns),

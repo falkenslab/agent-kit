@@ -7,8 +7,11 @@ import { createConsoleRenderer, type ConsoleRenderer, type ConsoleRendererOption
 import { createInkInteraction, type InkInteraction } from "./inkInteraction.js";
 import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel.js";
 import { SessionView, type RenderApproval } from "./SessionView.js";
+import type { ToolPhrase } from "./toolGroup.js";
 
 export interface ProgressViewOptions extends Omit<ConsoleRendererOptions, "output"> {
+  /** How one of the agent's own tools counts in a folded group's summary (see `InkChatOptions.toolPhrase`). */
+  toolPhrase?: (toolName: string) => ToolPhrase | undefined;
   /** Replaces the default preview in the approval and manual-intervention panels. */
   renderApproval?: RenderApproval;
   /** Shown in the status bar. */

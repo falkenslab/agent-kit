@@ -34,7 +34,7 @@ test("the blank lines between kinds of output reach the screen, one render at a 
   await settle();
 
   const screen = stripAnsi(view.lastFrame() ?? "");
-  assert.match(screen, /tú> hola\n\nCapitán Bigotes> ¡Arrr! Mando al minino\.\n\n\[action\] run Agent\n\[action\] run Agent/);
+  assert.match(screen, /tú> hola +\n\n● ¡Arrr! Mando al minino\.\n\n {2}Ran 2 subagents/);
 });
 
 test("the blank line above the prompt is there while typing, and Enter doesn't add another", async () => {
@@ -52,7 +52,7 @@ test("the blank line above the prompt is there while typing, and Enter doesn't a
   await settle();
   model.separate(); // runChatInk(), before showing the prompt
   await settle();
-  assert.match(stripAnsi(view.lastFrame() ?? ""), /Capitán Bigotes> Arrr\.\n\ntú> typing/);
+  assert.match(stripAnsi(view.lastFrame() ?? ""), /● Arrr\.\n\n✻ Worked for \d+s\n\ntú> typing/);
 
   model.note("tú> otra", "user"); // Enter: the line moves to the history
   await settle();
@@ -61,5 +61,5 @@ test("the blank line above the prompt is there while typing, and Enter doesn't a
   model.render({ type: "text", text: "Voy.\n" });
   model.endTurn();
   await settle();
-  assert.match(stripAnsi(view.lastFrame() ?? ""), /Capitán Bigotes> Arrr\.\n\ntú> otra\n\nCapitán Bigotes> Voy\.\n/);
+  assert.match(stripAnsi(view.lastFrame() ?? ""), /✻ Worked for \d+s\n\n tú> otra +\n\n● Voy\.\n/);
 });

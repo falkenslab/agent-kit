@@ -27,6 +27,7 @@
     "@inquirer/prompts": "^8.5.2",
     "@types/react": "^19.3.0",
     "ink": "^6.8.0",
+    "marked": "^18.0.14",
     "picocolors": "^1.1.1",
     "react": "^19.3.0",
     "slice-ansi": "^8.0.0",

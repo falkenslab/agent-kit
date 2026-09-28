@@ -31,7 +31,7 @@ test("there is always one blank line between the spinner and the text above it",
   await settle();
   let rows = lines(view);
   assert.equal(aboveSpinner(rows).trim(), "");
-  assert.equal(rows[rows.findIndex((row) => row.includes("Thinking")) - 2], "you> hi"); // one blank, not two
+  assert.equal(rows[rows.findIndex((row) => row.includes("Thinking")) - 2].trim(), "you> hi"); // one blank, not two (the line is a padded bar)
   cleanup();
 
   // A reply in progress above the spinner.

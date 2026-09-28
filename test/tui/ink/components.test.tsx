@@ -7,6 +7,7 @@ import { Text } from "ink";
 import { createSessionModel } from "../../../src/tui/ink/sessionModel.js";
 import { createInkInteraction } from "../../../src/tui/ink/inkInteraction.js";
 import { SessionView, previewLines, statusText } from "../../../src/tui/ink/SessionView.js";
+import { stripAnsi } from "../../../src/tui/ink/lineBuffer.js";
 import { PromptInput, completeCommand, matchingCommands, visibleWindow } from "../../../src/tui/ink/PromptInput.js";
 import { Wizard, visibleOptions, type WizardAnswers, type WizardStep } from "../../../src/tui/ink/wizard.js";
 
@@ -38,10 +39,11 @@ test("the session view shows history, the reply in progress, the current action 
 
   const frame = view.lastFrame() ?? "";
   assert.match(frame, /Welcome aboard/);
-  assert.match(frame, /\[action\] run Read/);
+  assert.match(frame, /Read 1 file/); // the tool group, folded
   assert.match(frame, /Half a sent/);
   assert.match(frame, /↳ run Grep/);
-  assert.match(frame, /guided · 0 turns/);
+  assert.match(stripAnsi(frame), /⏵⏵ guided · 0 turns/);
+  assert.match(stripAnsi(frame), /run Read \(\d+s · esc to interrupt\)/);
 });
 
 test("the approval panel answers with y, n or q, and returns to the session", async () => {
@@ -57,7 +59,9 @@ test("the approval panel answers with y, n or q, and returns to the session", as
   let frame = view.lastFrame() ?? "";
   assert.match(frame, /Publish the post/);
   assert.match(frame, /Summary: hello/);
-  assert.match(frame, /Approve/);
+  assert.match(frame, /Do you want to proceed\?/);
+  assert.match(frame, /1\. Yes/);
+  assert.match(frame, /3\. Stop/);
   assert.doesNotMatch(frame, /PROMPT/); // the input is hidden while a checkpoint waits
 
   view.stdin.write("n");
@@ -98,7 +102,7 @@ test("a manual-intervention panel continues with Enter", async () => {
 
 test("statusText shows mode, turns and tokens, never the cost", () => {
   assert.equal(statusText(undefined, 1, null), "1 turn");
-  assert.equal(statusText("autonomous", 3, { inputTokens: 12345, outputTokens: 678, costUsd: 0.04567 }), "autonomous · 3 turns · 12.3k in / 678 out");
+  assert.equal(statusText("autonomous", 3, { inputTokens: 12345, outputTokens: 678, costUsd: 0.04567 }), "⏵⏵ autonomous · 3 turns · 12.3k in / 678 out");
 });
 
 test("command completion", () => {

@@ -48,6 +48,7 @@ export { createSaveToSourcesServer } from "./core/tools/saveToSources.js";
 export { runChatTui, type ChatTuiOptions } from "./tui/chatTui.js";
 export { createConsoleRenderer, type ConsoleRenderer, type ConsoleRendererOptions } from "./tui/consoleRenderer.js";
 export { runChatInk, type InkChatOptions, type HeaderInfo } from "./tui/ink/runChatInk.js";
+export type { ToolPhrase } from "./tui/ink/toolGroup.js";
 export type { RenderApproval } from "./tui/ink/SessionView.js";
 export { createProgressView, type ProgressView, type ProgressViewOptions } from "./tui/ink/progressView.js";
 export {

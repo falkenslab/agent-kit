@@ -78,7 +78,7 @@ test("? on an empty prompt shows the shortcuts; any key closes them without typi
 test("the status bar shows the context in use and that the mode can be switched", () => {
   assert.equal(
     statusText("guided", 2, { inputTokens: 1500, outputTokens: 20, costUsd: 0 }, { contextPercent: 12.4, modeSwitchable: true }),
-    "guided (shift+tab) · 2 turns · 1.5k in / 20 out · context 12%",
+    "⏵⏵ guided (shift+tab) · 2 turns · 1.5k in / 20 out · context 12%",
   );
-  assert.equal(statusText("autonomous", 1, null, { contextPercent: null }), "autonomous · 1 turn");
+  assert.equal(statusText("autonomous", 1, null, { contextPercent: null }), "⏵⏵ autonomous · 1 turn");
 });

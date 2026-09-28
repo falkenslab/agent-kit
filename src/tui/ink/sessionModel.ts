@@ -1,32 +1,44 @@
 import type { AgentEvent, SessionUsage } from "../../core/runner.js";
 import { createFriendlyToolLabel } from "../../core/toolLabels.js";
 import { createConsoleRenderer, type ConsoleRenderer } from "../consoleRenderer.js";
-import { createLineBuffer, stripAnsi } from "./lineBuffer.js";
+import { fitWidth, stripAnsi } from "./lineBuffer.js";
+import { finishedLength, renderMarkdown } from "./markdown.js";
+import { toolGroupExpanded, toolGroupSummary, type ToolCall, type ToolPhrase } from "./toolGroup.js";
+import * as ui from "../ui.js";
 
 export interface HistoryItem {
   id: number;
   text: string;
+  /** What it is: the view draws the human's lines as a bar, and the spacing follows it. */
+  kind?: OutputKind;
+  /** A folded group of tool calls: the lines it unfolds into with Ctrl+O. */
+  expanded?: string[];
 }
 
 /**
- * What a line of output is, which is also its color: the human's line, the agent's words,
- * its actions, a notice (welcome, info, warnings), an error, or a checkpoint/header note.
+ * What a block of output is: the human's line, the agent's words, a group of its tool
+ * calls, a notice (welcome, info, warnings), an error, or a note (header, checkpoints,
+ * the turn summary).
  */
 export type OutputKind = "user" | "agent" | "action" | "notice" | "error" | "note";
 
 export interface SessionSnapshot {
-  /** Finished lines, rendered once in Ink's `<Static>` and left in the scrollback. */
+  /** Finished lines: in Ink's `<Static>` inline, in the scrollable history in full screen. */
   items: HistoryItem[];
-  /** The line still being written, e.g. the agent's reply mid-stream. */
+  /** What is still being written, one or more lines: the reply in progress or the open tool group. */
   live: string;
-  /** The line in progress starts a new kind of output: shown with a blank line above it. */
+  /** The live block starts a new kind of output: shown with a blank line above it. */
   liveGap: boolean;
   /** A turn is in flight. */
   busy: boolean;
+  /** When the turn in flight started (ms), for the spinner's elapsed time. */
+  turnStartedAt: number | null;
   /** Label of the main agent's latest action in this turn. */
   activity: string | null;
   /** Label of the latest action taken inside a subagent in this turn. */
   subagentActivity: string | null;
+  /** Tool groups unfolded (Ctrl+O). */
+  expanded: boolean;
   turns: number;
   usage: SessionUsage | null;
   /** How full the context window is (0-100), after the latest turn; null until known. */
@@ -35,10 +47,12 @@ export interface SessionSnapshot {
 
 export interface SessionModelOptions {
   formatAction?: (toolName: string, toolInput: unknown) => string;
+  /** How a tool counts in a folded group's summary ("read 2 files"); built-in tools have their own. */
+  toolPhrase?: (toolName: string) => ToolPhrase | undefined;
   agentLabel?: string;
   /** Called with everything the console renderer writes, e.g. to mirror a session log. */
   onWrite?: (text: string) => void;
-  /** Columns the line in progress may take before its full rows move to the history (see lineBuffer.ts). */
+  /** Columns the live area may use (see liveWidth()); 80 if not given. */
   width?: () => number;
 }
 
@@ -51,17 +65,19 @@ export function liveWidth(columns: number | undefined): number {
 }
 
 export interface SessionModel {
-  /** The console renderer behind the history, for writes that aren't events. */
+  /** The console renderer behind the session log, for writes that aren't events. */
   renderer: ConsoleRenderer;
   render(event: AgentEvent): void;
-  /** A line through the console renderer: shown and passed to `onWrite`. */
+  /** A line shown and passed to `onWrite` (the log), as the console would print it. */
   writeLine(text: string, kind?: OutputKind): void;
   /** Lines shown in the history but not passed to `onWrite` (the human's line, checkpoints, the header). */
   note(text: string, kind?: OutputKind): void;
-  /** One blank line in the history (not logged), unless the history is empty or already ends on one. */
+  /** One blank line before what comes next (not logged), unless the history is empty or already ends on one. */
   separate(): void;
   startTurn(): void;
   endTurn(): void;
+  /** Ctrl+O: folds or unfolds the tool groups. */
+  toggleExpanded(): void;
   subscribe(listener: () => void): () => void;
   getSnapshot(): SessionSnapshot;
   /** The agent's text in the latest turn, plain (for /copy). */
@@ -69,28 +85,26 @@ export interface SessionModel {
   setContextPercent(percent: number | null): void;
 }
 
-const EVENT_KINDS: Record<AgentEvent["type"], OutputKind> = {
-  text: "agent",
-  action: "action",
-  "subagent-action": "action",
-  "mcp-error": "notice",
-  info: "notice",
-  "turn-end": "error",
-  "prompt-suggestion": "notice", // never printed
-};
+// The reply in progress keeps at most this many rows live; older ones go to the history.
+const LIVE_ROWS = 6;
+const BULLET = "● ";
+const INDENT = "  ";
 
 const isBlank = (line: string): boolean => stripAnsi(line).trim() === "";
 
 /**
- * The state behind the Ink views. Every event goes through `createConsoleRenderer()`, so
- * `onWrite` logs exactly what the plain console shows, and the history reads the same
- * text, spaced for reading: one blank line wherever the kind of output (its color)
- * changes, none inside a run of the same kind (consecutive actions stay together). Ink only
- * adds what a console can't redraw (the line in progress, a spinner, the status bar).
+ * The state behind the Ink views, in the look of the Claude Code CLI: the agent's words
+ * behind a `●` with their markdown rendered, consecutive tool calls folded into one summary
+ * line (unfolded with Ctrl+O into `●` calls with `⎿` results), a summary when a turn ends,
+ * and one blank line between blocks of different kinds.
+ *
+ * The screen is built from the events here; the session log still comes from
+ * `createConsoleRenderer()` through `onWrite`, so it reads exactly as the plain console
+ * (and runChatTui()) would print it.
  */
 export function createSessionModel(options: SessionModelOptions = {}): SessionModel {
   const formatAction = options.formatAction ?? createFriendlyToolLabel();
-  const buffer = createLineBuffer();
+  const width = (): number => Math.max(20, options.width?.() ?? 80);
   const listeners = new Set<() => void>();
   let nextId = 0;
   let snapshot: SessionSnapshot = {
@@ -98,8 +112,10 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     live: "",
     liveGap: false,
     busy: false,
+    turnStartedAt: null,
     activity: null,
     subagentActivity: null,
+    expanded: false,
     turns: 0,
     usage: null,
     contextPercent: null,
@@ -110,109 +126,204 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     for (const listener of listeners) listener();
   }
 
-  // The kind being written now, the kind of the line in progress (the kind it started
-  // with) and the kind of the last line shown.
-  let currentKind: OutputKind = "notice";
-  let partialKind: OutputKind = "notice";
+  // The session log: the console renderer's text, never shown here.
+  const renderer = createConsoleRenderer({ formatAction, agentLabel: options.agentLabel, output: () => {}, onWrite: options.onWrite });
+
   let lastKind: OutputKind | null = null;
-  // Blank lines inside a run (paragraphs in a reply), held until the next line shows
-  // whether the run goes on (kept) or another kind follows (replaced by one separator).
-  // Display only: `onWrite` still gets them.
-  let heldBlanks = 0;
-  let reply = "";
   // A blank line asked for by `separate()`, not yet in the history. Ink's <Static> drops a
-  // render whose only new item is a blank line (confirmed with ink-testing-library: the
-  // separator before a turn never reached the screen), so a separator always goes into the
-  // history together with the line after it, and until then is drawn as a margin above
-  // the live area (the prompt, the spinner or the reply in progress).
+  // render whose only new item is a blank line (confirmed with ink-testing-library), so a
+  // separator always goes into the history together with the line after it, and until then
+  // is drawn as a margin above the live area.
   let gapPending = false;
+  let reply = "";
+
+  // The agent's text since its last tool call: `segmentDone` characters of it already
+  // rendered as finished blocks, plus `rowsCommitted` rows of the block still growing
+  // (moved out of the live area when it grew past LIVE_ROWS).
+  let segment = "";
+  let segmentDone = 0;
+  let rowsCommitted = 0;
+  let segmentShown = false;
+  let group: ToolCall[] | null = null;
 
   function lastIsBlank(items: HistoryItem[]): boolean {
     const last = items.at(-1);
     return !last || isBlank(last.text);
   }
 
-  function append(items: HistoryItem[], lines: { text: string; kind: OutputKind }[]): HistoryItem[] {
-    const next = [...items];
-    const push = (text: string): void => void next.push({ id: nextId++, text });
-    for (const { text, kind } of lines) {
-      if (isBlank(text)) {
-        heldBlanks++;
-        continue;
-      }
-      if (gapPending || (lastKind !== null && kind !== lastKind)) {
-        if (!lastIsBlank(next)) push("");
-      } else {
-        for (let i = 0; i < heldBlanks; i++) push("");
-      }
-      gapPending = false;
-      heldBlanks = 0;
-      push(text);
-      lastKind = kind;
+  /** Adds a block's lines, with a blank line before it when the kind of output changes. */
+  function push(lines: string[], kind: OutputKind, extra: Partial<HistoryItem> = {}): void {
+    const items = [...snapshot.items];
+    if (lines.length === 0) return;
+    if ((gapPending || (lastKind !== null && kind !== lastKind)) && !lastIsBlank(items)) items.push({ id: nextId++, text: "" });
+    gapPending = false;
+    lines.forEach((text, i) => items.push({ id: nextId++, text, kind, ...(i === 0 ? extra : {}) }));
+    lastKind = kind;
+    snapshot = { ...snapshot, items };
+  }
+
+  function mdWidth(): number {
+    return width() - INDENT.length;
+  }
+
+  /** The reply's rows behind its bullet (the segment's first row) or indent (the rest). */
+  function decorate(rows: string[]): string[] {
+    return rows.map((row) => {
+      if (isBlank(row)) return "";
+      const prefix = segmentShown ? INDENT : BULLET;
+      segmentShown = true;
+      return prefix + row;
+    });
+  }
+
+  /** Renders the finished part of the reply into the history; `final` flushes it all. */
+  function flushSegment(final: boolean): string[] {
+    const done = final ? segment.length : finishedLength(segment);
+    if (done > segmentDone) {
+      const rows = renderMarkdown(segment.slice(segmentDone, done), mdWidth()).slice(rowsCommitted);
+      // A new block of the same reply is separated by a blank line; the rest of a block
+      // whose first rows are already in the history continues right under them.
+      const lead = segmentShown && rowsCommitted === 0 && rows.length > 0 ? [""] : [];
+      if (rows.some((row) => !isBlank(row))) push([...lead, ...decorate(rows)], "agent");
+      segmentDone = done;
+      rowsCommitted = 0;
     }
-    return next;
+    if (final) {
+      segment = "";
+      segmentDone = 0;
+      rowsCommitted = 0;
+      segmentShown = false;
+      return [];
+    }
+    const rest = segment.slice(segmentDone);
+    if (!rest.trim()) return [];
+    const rows = renderMarkdown(rest, mdWidth());
+    const overflow = rows.length - rowsCommitted - LIVE_ROWS;
+    if (overflow > 0) {
+      const lead = segmentShown && rowsCommitted === 0 ? [""] : [];
+      push([...lead, ...decorate(rows.slice(rowsCommitted, rowsCommitted + overflow))], "agent");
+      rowsCommitted += overflow;
+    }
+    // Live rows get their bullet/indent without marking the segment as shown yet.
+    const shown = segmentShown;
+    const live = decorate(rows.slice(rowsCommitted));
+    segmentShown = shown;
+    return live;
   }
 
-  /** A blank line is due above the live area: a pending separator, or a reply starting another kind. */
-  function liveGap(): boolean {
-    if (gapPending) return true;
-    return !isBlank(buffer.partial) && lastKind !== null && partialKind !== lastKind && !lastIsBlank(snapshot.items);
+  function closeGroup(): void {
+    if (!group) return;
+    const calls = group;
+    group = null;
+    push([groupLine(calls)], "action", { expanded: toolGroupExpanded(calls, width()) });
   }
 
-  const renderer = createConsoleRenderer({
-    formatAction,
-    agentLabel: options.agentLabel,
-    output: (text) => {
-      // A line belongs to the kind it started with: the first line this write completes
-      // may have been started by an earlier write of another kind.
-      const firstKind = isBlank(buffer.partial) ? currentKind : partialKind;
-      const lines = buffer.push(text);
-      const restKind = lines.length > 0 ? currentKind : firstKind;
-      const rows = options.width ? buffer.wrap(options.width()) : [];
-      const tagged = [
-        ...lines.map((line, i) => ({ text: line, kind: i === 0 ? firstKind : currentKind })),
-        ...rows.map((row) => ({ text: row, kind: restKind })),
-      ];
-      partialKind = restKind;
-      const items = tagged.length > 0 ? append(snapshot.items, tagged) : snapshot.items;
-      snapshot = { ...snapshot, items };
-      update({ live: buffer.partial, liveGap: liveGap() });
-    },
-    onWrite: options.onWrite,
-  });
+  function groupLine(calls: ToolCall[]): string {
+    return INDENT + ui.dim(fitWidth(toolGroupSummary(calls, options.toolPhrase), width() - INDENT.length));
+  }
+
+  /** Ends whatever is open (the reply in progress, a tool group) into the history. */
+  function closeAll(): void {
+    flushSegment(true);
+    closeGroup();
+  }
+
+  /** Recomputes the live area from what is open. */
+  function refreshLive(liveRows: string[] = []): void {
+    let rows = liveRows;
+    let kind: OutputKind | null = liveRows.length > 0 ? "agent" : null;
+    if (group) {
+      rows = snapshot.expanded ? toolGroupExpanded(group, width()) : [groupLine(group)];
+      kind = "action";
+    }
+    const live = rows.join("\n");
+    const liveGap = gapPending || (kind !== null && lastKind !== null && kind !== lastKind && !lastIsBlank(snapshot.items));
+    update({ live, liveGap });
+  }
 
   return {
     renderer,
     render(event: AgentEvent): void {
-      if (event.type === "text") reply += event.text;
-      currentKind = EVENT_KINDS[event.type];
       renderer.render(event);
-      if (event.type === "action") update({ activity: formatAction(event.toolName, event.input), subagentActivity: null });
-      else if (event.type === "subagent-action") update({ subagentActivity: formatAction(event.toolName, event.input) });
-      else if (event.type === "turn-end") update({ turns: snapshot.turns + 1, usage: event.usage ?? snapshot.usage });
+      switch (event.type) {
+        case "text": {
+          reply += event.text;
+          closeGroup();
+          segment += event.text;
+          refreshLive(flushSegment(false));
+          return;
+        }
+        case "action": {
+          flushSegment(true);
+          group ??= [];
+          group.push({ id: event.toolUseId, label: formatAction(event.toolName, event.input), toolName: event.toolName, result: null });
+          snapshot = { ...snapshot, activity: formatAction(event.toolName, event.input), subagentActivity: null };
+          refreshLive();
+          return;
+        }
+        case "tool-result": {
+          const call = group?.find((c) => c.id === event.toolUseId);
+          if (call) call.result = { isError: event.isError, text: event.text };
+          refreshLive();
+          return;
+        }
+        case "subagent-action":
+          update({ subagentActivity: formatAction(event.toolName, event.input) });
+          return;
+        case "mcp-error":
+          closeAll();
+          push([ui.warn(`Some MCP servers failed to connect: ${event.failedServers.join(", ")}`)], "notice");
+          refreshLive();
+          return;
+        case "info":
+          closeAll();
+          push([(event.level === "warning" ? ui.warn : ui.dim)(`(${event.text})`)], "notice");
+          refreshLive();
+          return;
+        case "turn-end":
+          closeAll();
+          if (event.failed) push([ui.error(event.errorText)], "error");
+          snapshot = { ...snapshot, turns: snapshot.turns + 1, usage: event.usage ?? snapshot.usage };
+          refreshLive();
+          return;
+        case "prompt-suggestion":
+          return;
+      }
     },
     writeLine(text: string, kind: OutputKind = "notice"): void {
-      currentKind = kind;
+      closeAll();
       renderer.writeLine(text);
+      push(text.split("\n"), kind);
+      refreshLive();
     },
     note(text: string, kind: OutputKind = "note"): void {
-      const items = append(snapshot.items, text.split("\n").map((line) => ({ text: line, kind })));
-      update({ items, liveGap: liveGap() });
+      closeAll();
+      push(text.split("\n"), kind);
+      refreshLive();
     },
     separate(): void {
-      heldBlanks = 0;
       if (!lastIsBlank(snapshot.items)) gapPending = true;
-      update({ liveGap: liveGap() });
+      refreshLive();
     },
     startTurn(): void {
       reply = "";
       renderer.startTurn();
-      update({ busy: true, activity: null, subagentActivity: null });
+      update({ busy: true, turnStartedAt: Date.now(), activity: null, subagentActivity: null });
     },
     endTurn(): void {
+      closeAll();
       renderer.endLine();
-      heldBlanks = 0;
-      update({ busy: false, activity: null, subagentActivity: null });
+      const started = snapshot.turnStartedAt;
+      if (started !== null) {
+        const seconds = Math.max(1, Math.round((Date.now() - started) / 1000));
+        push([`${ui.accent("✻")} ${ui.dim(`Worked for ${seconds}s`)}`], "note");
+      }
+      snapshot = { ...snapshot, busy: false, turnStartedAt: null, activity: null, subagentActivity: null };
+      refreshLive();
+    },
+    toggleExpanded(): void {
+      snapshot = { ...snapshot, expanded: !snapshot.expanded };
+      refreshLive();
     },
     subscribe(listener: () => void): () => void {
       listeners.add(listener);
