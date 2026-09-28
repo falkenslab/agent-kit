@@ -24,26 +24,26 @@ test("consecutive actions go on consecutive lines, with no blank line between th
 
 test("an action right after streamed text starts on a new line, without a blank one", () => {
   const { renderer, text: out } = capture();
-  [text("Voy a leer"), text(" el fichero."), action("Read"), text("Hecho.")].forEach(renderer.render);
-  assert.equal(out(), "Voy a leer el fichero.\n[action] Read\nHecho.");
+  [text("I'll read"), text(" the file."), action("Read"), text("Done.")].forEach(renderer.render);
+  assert.equal(out(), "I'll read the file.\n[action] Read\nDone.");
 });
 
 test("the agent label is printed once per turn, on a line of its own", () => {
   const { renderer, text: out } = capture("agent>");
-  [text("Hola."), action("Read"), text("Sigo.")].forEach(renderer.render);
+  [text("Hello."), action("Read"), text("Going on.")].forEach(renderer.render);
   renderer.endLine();
   renderer.startTurn();
-  renderer.render(text("Otro turno."));
-  assert.equal(out(), "agent> Hola.\n[action] Read\nSigo.\nagent> Otro turno.");
+  renderer.render(text("Another turn."));
+  assert.equal(out(), "agent> Hello.\n[action] Read\nGoing on.\nagent> Another turn.");
 });
 
 test("notices and failures end the current line first, and endLine is a no-op at a line start", () => {
   const { renderer, text: out } = capture();
-  renderer.render(text("a medias"));
-  renderer.render({ type: "info", level: "info", text: "aviso" } as AgentEvent);
+  renderer.render(text("half done"));
+  renderer.render({ type: "info", level: "info", text: "notice" } as AgentEvent);
   renderer.endLine();
-  renderer.render({ type: "turn-end", status: "error", failed: true, resultText: null, errorText: "falló" });
-  assert.equal(out(), "a medias\n(aviso)\nfalló\n");
+  renderer.render({ type: "turn-end", status: "error", failed: true, resultText: null, errorText: "failed" });
+  assert.equal(out(), "half done\n(notice)\nfailed\n");
   assert.equal(renderer.atLineStart, true);
 });
 

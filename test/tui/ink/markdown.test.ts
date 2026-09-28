@@ -8,20 +8,20 @@ import { toolResultText, visibleErrors } from "../../../src/core/runner.js";
 const md = (source: string, width = 60) => renderMarkdown(source, width).map(stripAnsi);
 
 test("inline styles leave no markdown marks behind", () => {
-  assert.deepEqual(md("Con **negrita**, *cursiva*, ~~tachado~~ y `código`."), ["Con negrita, cursiva, tachado y código."]);
-  assert.deepEqual(md("Mira [la guía](https://ejemplo.es) y <https://x.es>."), ["Mira la guía (https://ejemplo.es) y https://x.es."]);
+  assert.deepEqual(md("With **bold**, *italic*, ~~strikethrough~~ and `code`."), ["With bold, italic, strikethrough and code."]);
+  assert.deepEqual(md("See [the guide](https://example.com) and <https://x.com>."), ["See the guide (https://example.com) and https://x.com."]);
   assert.deepEqual(md("5 &lt; 6 &amp; 7"), ["5 < 6 & 7"]);
 });
 
 test("blocks: headings, lists, quotes, rules, code, tables, with a blank line between them", () => {
-  assert.deepEqual(md("# Título\n\nTexto."), ["Título", "", "Texto."]);
-  assert.deepEqual(md("- uno\n- dos\n  - anidado\n\n1. primero\n2. segundo"), ["- uno", "- dos", "  - anidado", "", "1. primero", "2. segundo"]);
-  assert.deepEqual(md("- [x] hecho\n- [ ] pendiente"), ["- [x] hecho", "- [ ] pendiente"]);
-  assert.deepEqual(md("> una cita"), ["│ una cita"]);
+  assert.deepEqual(md("# Title\n\nText."), ["Title", "", "Text."]);
+  assert.deepEqual(md("- one\n- two\n  - nested\n\n1. first\n2. second"), ["- one", "- two", "  - nested", "", "1. first", "2. second"]);
+  assert.deepEqual(md("- [x] done\n- [ ] pending"), ["- [x] done", "- [ ] pending"]);
+  assert.deepEqual(md("> a quote"), ["│ a quote"]);
   assert.deepEqual(md("---", 10), ["──────────"]);
   assert.deepEqual(md("```ts\nconst a = 1;\n```"), ["  const a = 1;"]);
-  assert.deepEqual(md("| Nombre | Nota |\n| --- | --- |\n| Ana | 9 |\n| Bernardo | 10 |"), [
-    "Nombre    Nota",
+  assert.deepEqual(md("| Name | Mark |\n| --- | --- |\n| Ana | 9 |\n| Bernardo | 10 |"), [
+    "Name      Mark",
     "────────  ────",
     "Ana       9",
     "Bernardo  10",
@@ -29,14 +29,14 @@ test("blocks: headings, lists, quotes, rules, code, tables, with a blank line be
 });
 
 test("paragraphs wrap to the width; list items indent their continuation", () => {
-  assert.deepEqual(md("uno dos tres cuatro cinco", 10), ["uno dos ", "tres ", "cuatro ", "cinco"]);
-  assert.deepEqual(md("- uno dos tres cuatro", 10), ["- uno dos ", "  tres ", "  cuatro"]);
+  assert.deepEqual(md("red fox runs across grass", 10), ["red fox ", "runs ", "across ", "grass"]);
+  assert.deepEqual(md("- red fox runs across", 10), ["- red fox ", "  runs ", "  across"]);
 });
 
 test("while streaming, only what ends at a blank line outside a code fence is finished", () => {
-  assert.equal(finishedLength("Párrafo a medias"), 0);
-  assert.equal(finishedLength("Uno.\n\nDos a medi"), "Uno.\n\n".length);
-  assert.equal(finishedLength("Uno.\n\n```\ncódigo\n\nmás\n"), "Uno.\n\n".length); // the blank line is inside the fence
+  assert.equal(finishedLength("Half a paragraph"), 0);
+  assert.equal(finishedLength("One.\n\nTwo half wri"), "One.\n\n".length);
+  assert.equal(finishedLength("One.\n\n```\ncode\n\nmore\n"), "One.\n\n".length); // the blank line is inside the fence
   assert.equal(finishedLength("```\nx\n```\n\nY"), "```\nx\n```\n\n".length);
 });
 
@@ -59,15 +59,15 @@ test("results: the first line, in red if it failed, and how many more", () => {
 });
 
 test("a subagent's answer shows in one line under its calls, its markdown rendered", () => {
-  const answer = "Tres **chistes** con `salsa`:\n\n1. El loro que hablaba de más\n2. El ancla perezosa\n3. El pirata del parche";
+  const answer = "Three **jokes** with `salt`:\n\n1. The parrot that talked too much\n2. The lazy anchor\n3. The pirate's eye patch";
   const lines = toolGroupExpanded(
-    [{ toolName: "Agent", label: "Delegating to minino", result: { isError: false, text: answer }, children: ["Searching the web"] }],
+    [{ toolName: "Agent", label: "Delegating to kitty", result: { isError: false, text: answer }, children: ["Searching the web"] }],
     60,
   ).map(stripAnsi);
   assert.deepEqual(lines, [
-    "● Delegating to minino",
+    "● Delegating to kitty",
     "  ⎿  · Searching the web",
-    "     Tres chistes con salsa: (+3 lines)",
+    "     Three jokes with salt: (+3 lines)",
   ]);
 });
 

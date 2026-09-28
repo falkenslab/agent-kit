@@ -39,7 +39,7 @@ test("mouse reports: the wheel is read and never mistaken for typed text", () =>
   assert.equal(wheelSteps("\x1b[<65;10;5M[<65;10;5M"), 2);
   assert.equal(wheelSteps("[<0;10;5M"), 0); // a click
   assert.equal(isMouseReport("[<0;10;5M[<0;10;5m"), true);
-  assert.equal(isMouseReport("hola"), false);
+  assert.equal(isMouseReport("hello"), false);
   assert.equal(isMouseReport(""), false);
 });
 
@@ -85,5 +85,5 @@ test("the highlight covers the selected columns of each row, colors kept outside
 });
 
 test("the clipboard sequence is OSC 52 with the text in base64", () => {
-  assert.equal(clipboardSequence("hola"), `\x1b]52;c;${Buffer.from("hola").toString("base64")}\x07`);
+  assert.equal(clipboardSequence("hello"), `\x1b]52;c;${Buffer.from("hello").toString("base64")}\x07`);
 });

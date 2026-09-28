@@ -57,26 +57,26 @@ test("there is always one blank line between the spinner and the text above it",
 test("the empty prompt shows the suggestion and Tab takes it", async () => {
   const submitted: string[] = [];
   const view = render(
-    <PromptInput label="> " suggestion="cuéntame otro" history={[]} commands={["compact"]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />,
+    <PromptInput label="> " suggestion="tell me another" history={[]} commands={["compact"]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />,
   );
   await settle();
-  assert.match(lines(view)[0], /cuéntame otro {2}\(tab\)/);
+  assert.match(lines(view)[0], /tell me another {2}\(tab\)/);
   view.stdin.write("\t");
   await settle();
   view.stdin.write("\r");
   await settle();
-  assert.deepEqual(submitted, ["cuéntame otro"]);
+  assert.deepEqual(submitted, ["tell me another"]);
 });
 
 test("once something is typed the suggestion hides and Tab completes a command instead", async () => {
   const submitted: string[] = [];
   const view = render(
-    <PromptInput label="> " suggestion="cuéntame otro" history={[]} commands={["compact"]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />,
+    <PromptInput label="> " suggestion="tell me another" history={[]} commands={["compact"]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />,
   );
   await settle();
   view.stdin.write("/com");
   await settle();
-  assert.doesNotMatch(lines(view)[0], /cuéntame otro/);
+  assert.doesNotMatch(lines(view)[0], /tell me another/);
   view.stdin.write("\t");
   await settle();
   view.stdin.write("\r");

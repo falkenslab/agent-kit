@@ -6,8 +6,8 @@ test("a line submitted while the loop waits goes straight to it", async () => {
   const input = createChatInput();
   const next = input.next([]);
   assert.equal(input.getSnapshot().prompting, true);
-  input.submit("hola");
-  assert.equal(await next, "hola");
+  input.submit("hello");
+  assert.equal(await next, "hello");
   assert.equal(input.getSnapshot().prompting, false);
 });
 

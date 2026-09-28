@@ -31,8 +31,8 @@ test("saveHistory then loadHistory round-trips entries, oldest-first, one JSON o
   try {
     const filePath = path.join(dir, "sub", "history.jsonl"); // saveHistory must mkdir -p the parent
     const entries = [
-      { text: "hola", timestamp: "2026-01-01T00:00:00.000Z" },
-      { text: "/chiste", timestamp: "2026-01-01T00:00:01.000Z" },
+      { text: "hello", timestamp: "2026-01-01T00:00:00.000Z" },
+      { text: "/joke", timestamp: "2026-01-01T00:00:01.000Z" },
     ];
 
     await saveHistory(filePath, entries);

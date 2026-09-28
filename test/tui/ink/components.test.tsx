@@ -106,11 +106,11 @@ test("statusText shows mode, turns and tokens, never the cost", () => {
 });
 
 test("command completion", () => {
-  const commands = ["compact", "captain-whiskers:chiste", "clear", "exit"];
-  assert.deepEqual(matchingCommands("/c", commands), ["compact", "captain-whiskers:chiste", "clear"]);
+  const commands = ["compact", "captain-whiskers:joke", "clear", "exit"];
+  assert.deepEqual(matchingCommands("/c", commands), ["compact", "captain-whiskers:joke", "clear"]);
   assert.deepEqual(matchingCommands("/compact now", commands), []);
   assert.deepEqual(matchingCommands("hello", commands), []);
-  assert.equal(completeCommand("/cap", commands), "/captain-whiskers:chiste ");
+  assert.equal(completeCommand("/cap", commands), "/captain-whiskers:joke ");
   assert.equal(completeCommand("/co", ["compact", "config"]), "/co");
   assert.equal(completeCommand("/c", ["compact", "compare"]), "/compa");
   assert.equal(completeCommand("/zzz", commands), "/zzz");
@@ -119,7 +119,7 @@ test("command completion", () => {
 test("the prompt edits, walks the history with ↑/↓, completes with Tab and submits with Enter", async () => {
   const submitted: string[] = [];
   const view = render(
-    <PromptInput label="you> " history={["first", "second"]} commands={["compact", "captain-whiskers:chiste"]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />,
+    <PromptInput label="you> " history={["first", "second"]} commands={["compact", "captain-whiskers:joke"]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />,
   );
   await settle();
 
@@ -141,7 +141,7 @@ test("the prompt edits, walks the history with ↑/↓, completes with Tab and s
 
   view.stdin.write("/cap");
   await settle();
-  assert.match(view.lastFrame() ?? "", /\/captain-whiskers:chiste/);
+  assert.match(view.lastFrame() ?? "", /\/captain-whiskers:joke/);
   view.stdin.write(TAB);
   await settle();
   view.stdin.write("x");
@@ -149,7 +149,7 @@ test("the prompt edits, walks the history with ↑/↓, completes with Tab and s
   view.stdin.write(ENTER);
   await settle();
 
-  assert.deepEqual(submitted, ["draft", "/captain-whiskers:chiste x"]);
+  assert.deepEqual(submitted, ["draft", "/captain-whiskers:joke x"]);
 });
 
 test("the wizard skips steps with `when`, uses earlier answers and returns every answer", async () => {

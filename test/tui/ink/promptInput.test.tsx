@@ -37,12 +37,12 @@ function setup(options: { history?: string[]; queued?: string[] } = {}) {
 test("a multi-line paste shows as one token and is sent whole", async () => {
   const { submitted, type, screen } = setup();
   await settle();
-  await type("mira: ", "uno\r\ndos\r\ntres");
+  await type("look: ", "one\r\ntwo\r\nthree");
   await new Promise((resolve) => setTimeout(resolve, 150)); // a human pause after pasting
-  await type(" ¿vale?");
-  assert.match(screen(), /> mira: \[Pasted text #1 \+2 lines\] ¿vale\?/);
+  await type(" ok?");
+  assert.match(screen(), /> look: \[Pasted text #1 \+2 lines\] ok\?/);
   await type(ENTER);
-  assert.deepEqual(submitted, ["mira: uno\ndos\ntres ¿vale?"]);
+  assert.deepEqual(submitted, ["look: one\ntwo\nthree ok?"]);
 });
 
 test("Backspace right after a pasted block removes it whole", async () => {
@@ -55,43 +55,43 @@ test("Backspace right after a pasted block removes it whole", async () => {
 test("backslash + Enter and Ctrl+J write a multi-line prompt", async () => {
   const { submitted, type, screen } = setup();
   await settle();
-  await type("primera\\", ENTER, "segunda", "\n", "tercera");
-  assert.deepEqual(screen().split("\n").slice(0, 3), ["> primera", "  segunda", "  tercera"]);
+  await type("first\\", ENTER, "second", "\n", "third");
+  assert.deepEqual(screen().split("\n").slice(0, 3), ["> first", "  second", "  third"]);
   await type(ENTER);
-  assert.deepEqual(submitted, ["primera\nsegunda\ntercera"]);
+  assert.deepEqual(submitted, ["first\nsecond\nthird"]);
 });
 
 test("Ctrl+W, Ctrl+K and Ctrl+← edit by words and to the line end", async () => {
   const { submitted, type } = setup();
   await settle();
-  await type("uno dos tres", "\x17"); // Ctrl+W: "uno dos "
-  await type("\x1b[1;5D", "\x0b"); // Ctrl+←, Ctrl+K: "uno "
-  await type("cuatro", ENTER);
-  assert.deepEqual(submitted, ["uno cuatro"]);
+  await type("one two three", "\x17"); // Ctrl+W: "one two "
+  await type("\x1b[1;5D", "\x0b"); // Ctrl+←, Ctrl+K: "one "
+  await type("four", ENTER);
+  assert.deepEqual(submitted, ["one four"]);
 });
 
 test("Ctrl+R finds older matches; Enter takes one without sending, Esc restores", async () => {
-  const { submitted, type, screen } = setup({ history: ["un chiste", "hola", "otro chiste"] });
+  const { submitted, type, screen } = setup({ history: ["a joke", "hello", "another joke"] });
   await settle();
-  await type("\x12", "chis");
-  assert.match(screen(), /\(reverse-i-search\)'chis': otro chiste/);
+  await type("\x12", "jok");
+  assert.match(screen(), /\(reverse-i-search\)'jok': another joke/);
   await type("\x12");
-  assert.match(screen(), /'chis': un chiste/);
+  assert.match(screen(), /'jok': a joke/);
   await type(ENTER);
   assert.deepEqual(submitted, []); // taken into the prompt, not sent
   await type(ENTER);
-  assert.deepEqual(submitted, ["un chiste"]);
+  assert.deepEqual(submitted, ["a joke"]);
 
-  await type("borrador", "\x12", "hola", "\x1b");
+  await type("draft", "\x12", "hello", "\x1b");
   await type(ENTER);
-  assert.deepEqual(submitted, ["un chiste", "borrador"]);
+  assert.deepEqual(submitted, ["a joke", "draft"]);
 });
 
 test("↑ on an empty prompt takes the last queued line back to edit it", async () => {
-  const { submitted, queued, type } = setup({ history: ["old"], queued: ["primero", "segundo"] });
+  const { submitted, queued, type } = setup({ history: ["old"], queued: ["first", "second"] });
   await settle();
   await type("\x1b[A");
-  assert.deepEqual(queued, ["primero"]);
-  await type(" editado", ENTER);
-  assert.deepEqual(submitted, ["segundo editado"]);
+  assert.deepEqual(queued, ["first"]);
+  await type(" edited", ENTER);
+  assert.deepEqual(submitted, ["second edited"]);
 });

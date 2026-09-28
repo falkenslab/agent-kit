@@ -29,10 +29,10 @@ test("project files for @ mentions skip node_modules and dot folders", async () 
 });
 
 test("the @mention before the cursor, and the files that match it", () => {
-  assert.deepEqual(mentionAt("mira @src/ag", 12), { start: 5, query: "src/ag" });
+  assert.deepEqual(mentionAt("look @src/ag", 12), { start: 5, query: "src/ag" });
   assert.deepEqual(mentionAt("@", 1), { start: 0, query: "" });
-  assert.equal(mentionAt("correo@dominio", 14), null); // not after a space
-  assert.equal(mentionAt("mira @src ", 10), null); // already closed
+  assert.equal(mentionAt("mail@domain.io", 14), null); // not after a space
+  assert.equal(mentionAt("look @src ", 10), null); // already closed
   const files = ["docs/agent-notes.md", "src/agent.ts", "src/tui/agentView.tsx", "README.md"];
   assert.deepEqual(matchingFiles(files, "agent"), ["src/agent.ts", "docs/agent-notes.md", "src/tui/agentView.tsx"]);
   assert.deepEqual(matchingFiles(files, "READ"), ["README.md"]);
@@ -44,18 +44,18 @@ test("@ lists matching files under the prompt and Tab completes the path", async
     <PromptInput label="> " history={[]} commands={[]} files={["src/agent.ts", "README.md"]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />,
   );
   await settle();
-  for (const chunk of ["lee @", "ag"]) {
+  for (const chunk of ["read @", "ag"]) {
     view.stdin.write(chunk);
     await settle();
   }
   assert.match(stripAnsi(view.lastFrame() ?? ""), /@src\/agent\.ts/);
   view.stdin.write("\t");
   await settle();
-  view.stdin.write("y resume");
+  view.stdin.write("and summarize");
   await settle();
   view.stdin.write("\r");
   await settle();
-  assert.deepEqual(submitted, ["lee @src/agent.ts y resume"]);
+  assert.deepEqual(submitted, ["read @src/agent.ts and summarize"]);
 });
 
 test("? on an empty prompt shows the shortcuts; any key closes them without typing", async () => {

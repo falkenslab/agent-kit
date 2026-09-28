@@ -15,26 +15,26 @@ test("focus reports are recognized and never taken as text", () => {
   assert.equal(isFocusReport("[Iba"), false);
   assert.equal(focusFromReport("[O"), false);
   assert.equal(focusFromReport("[O[I"), true);
-  assert.equal(focusFromReport("hola"), null);
+  assert.equal(focusFromReport("hello"), null);
 });
 
 test("title and taskbar follow the turn; a turn ending unfocused marks the taskbar until focus", () => {
   const written: string[] = [];
-  const status = createTerminalStatus((text) => void written.push(text), "Capitán");
+  const status = createTerminalStatus((text) => void written.push(text), "Captain");
 
   status.start();
-  assert.deepEqual(written, [`\x1b[?1004h${TITLE("Capitán")}`]);
+  assert.deepEqual(written, [`\x1b[?1004h${TITLE("Captain")}`]);
 
   written.length = 0;
   status.turnStarted();
   status.turnEnded();
-  assert.deepEqual(written, [TITLE("✻ Capitán — working…") + BUSY, TITLE("Capitán") + CLEAR]);
+  assert.deepEqual(written, [TITLE("✻ Captain — working…") + BUSY, TITLE("Captain") + CLEAR]);
 
   written.length = 0;
   status.setFocused(false);
   status.turnStarted();
   status.turnEnded();
-  assert.equal(written.at(-1), TITLE("Capitán") + ATTENTION);
+  assert.equal(written.at(-1), TITLE("Captain") + ATTENTION);
   status.setFocused(true);
   assert.equal(written.at(-1), CLEAR);
 
@@ -46,12 +46,12 @@ test("title and taskbar follow the turn; a turn ending unfocused marks the taskb
 test("the model keeps the agent's text of the latest turn for /copy", () => {
   const model = createSessionModel();
   model.startTurn();
-  model.render({ type: "text", text: "Primera " });
+  model.render({ type: "text", text: "First " });
   model.render({ type: "action", toolName: "Read", input: {} });
-  model.render({ type: "text", text: "respuesta.\n" });
+  model.render({ type: "text", text: "answer.\n" });
   model.endTurn();
-  assert.equal(model.lastReply(), "Primera respuesta.");
+  assert.equal(model.lastReply(), "First answer.");
   model.startTurn();
-  model.render({ type: "text", text: "Segunda." });
-  assert.equal(model.lastReply(), "Segunda.");
+  model.render({ type: "text", text: "Second." });
+  assert.equal(model.lastReply(), "Second.");
 });

@@ -68,22 +68,22 @@ test("tracks the current action, the subagent's, the turn's start and the sessio
 test("markdown renders as it streams: finished blocks go to the history, the growing one stays live", () => {
   const model = createSessionModel();
   model.startTurn();
-  model.render({ type: "text", text: "Primero un **párrafo**.\n\n- uno\n" });
-  assert.deepEqual(screen(model), ["● Primero un párrafo."]);
-  assert.equal(stripAnsi(model.getSnapshot().live), "  - uno");
+  model.render({ type: "text", text: "First a **paragraph**.\n\n- one\n" });
+  assert.deepEqual(screen(model), ["● First a paragraph."]);
+  assert.equal(stripAnsi(model.getSnapshot().live), "  - one");
 
-  model.render({ type: "text", text: "- dos con `código`\n\nFin." });
-  assert.deepEqual(screen(model), ["● Primero un párrafo.", "", "  - uno", "  - dos con código"]);
+  model.render({ type: "text", text: "- two with `code`\n\nEnd." });
+  assert.deepEqual(screen(model), ["● First a paragraph.", "", "  - one", "  - two with code"]);
   model.endTurn();
   const lines = screen(model);
-  assert.deepEqual(lines.slice(4, 6), ["", "  Fin."]);
+  assert.deepEqual(lines.slice(4, 6), ["", "  End."]);
   assert.ok(lines.every((line) => !line.includes("**") && !line.includes("`")), "no raw markdown left");
 });
 
 test("a long reply keeps only a few rows live, and no text is lost", () => {
   const model = createSessionModel({ width: () => 30 });
   model.startTurn();
-  const words = Array.from({ length: 80 }, (_, i) => `palabra${i}`);
+  const words = Array.from({ length: 80 }, (_, i) => `word${i}`);
   for (const word of words) {
     model.render({ type: "text", text: `${word} ` });
     assert.ok(model.getSnapshot().live.split("\n").length <= 6);
@@ -123,7 +123,7 @@ test("tool calls show one by one with their results (and a subagent's calls); Ct
   assert.equal(stripAnsi(model.getSnapshot().live), "  Read 2 files, ran 1 shell command, ran 1 subagent");
   model.toggleExpanded();
 
-  model.render({ type: "text", text: "Hecho." });
+  model.render({ type: "text", text: "Done." });
   const group = model.getSnapshot().items.find((item) => item.kind === "action");
   assert.equal(stripAnsi(group?.text ?? ""), "  Read 2 files, ran 1 shell command, ran 1 subagent");
   assert.equal(group?.expanded?.length, 9);

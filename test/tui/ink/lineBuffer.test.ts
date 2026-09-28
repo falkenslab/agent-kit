@@ -32,7 +32,7 @@ test("the line in progress carries the color still open", () => {
 
 test("wrap() moves full rows out of the line in progress, at word boundaries, losing nothing", () => {
   const buffer = createLineBuffer();
-  const reply = "Capitán Bigotes> ¡Arrr, marinero! 🐱☠️ El Capitán Bigotes reporta a bordo, listo pa' zarpar ";
+  const reply = "Captain Whiskers> Arrr, sailor! 🐱☠️ Captain Whiskers reportin' aboard, ready to set sail ";
   buffer.push(pc.cyan(reply));
   const rows = buffer.wrap(30);
 
@@ -41,8 +41,8 @@ test("wrap() moves full rows out of the line in progress, at word boundaries, lo
   assert.equal([...rows, buffer.partial].map(stripAnsi).join(""), reply);
 
   // The next streamed word joins the row still in progress, with its space kept.
-  buffer.push("hacia");
-  assert.match(stripAnsi(buffer.partial), / hacia$/);
+  buffer.push("towards");
+  assert.match(stripAnsi(buffer.partial), / towards$/);
 });
 
 test("wrap() leaves a line that fits alone", () => {

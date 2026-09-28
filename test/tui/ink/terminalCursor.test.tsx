@@ -24,7 +24,7 @@ test("with a cursor controller the prompt draws no block and reports where the c
       <Box flexDirection="column">
         <Text>header</Text>
         <Box borderStyle="round" paddingX={1}>
-          <PromptInput label="tú> " history={[]} commands={[]} onSubmit={() => {}} onExit={() => {}} />
+          <PromptInput label="you> " history={[]} commands={[]} onSubmit={() => {}} onExit={() => {}} />
         </Box>
       </Box>
     </CursorContext.Provider>,
@@ -32,17 +32,17 @@ test("with a cursor controller the prompt draws no block and reports where the c
   await settle();
   assert.ok(!(view.lastFrame() ?? "").includes("\x1b[7m")); // no inverse video
 
-  view.stdin.write("hola");
+  view.stdin.write("hello");
   await settle();
   const target = last();
   assert.ok(target);
   // Row: header (1) + the frame's top border (1); column: border (1) + padding (1) from the line's left.
   assert.deepEqual(framePosition(target.node), { x: 2, y: 2 });
-  assert.equal(target.column, "tú> hola".length);
+  assert.equal(target.column, "you> hello".length);
 
   view.stdin.write("\x1b[D\x1b[D"); // two left arrows
   await settle();
-  assert.equal(last()?.column, "tú> ho".length);
+  assert.equal(last()?.column, "you> hel".length);
 });
 
 test("the prompt clears the target when it goes away, so the cursor is hidden", async () => {
@@ -88,7 +88,7 @@ test("Ctrl+U clears everything typed in the prompt", async () => {
   const submitted: string[] = [];
   const view = render(<PromptInput label="> " history={[]} commands={[]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />);
   await settle();
-  view.stdin.write("algo que sobra");
+  view.stdin.write("something extra");
   await settle();
   view.stdin.write("\x15"); // Ctrl+U
   await settle();
