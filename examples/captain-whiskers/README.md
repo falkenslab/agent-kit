@@ -1,47 +1,36 @@
 # Captain Whiskers
 
-Ejemplo mínimo de un agente construido sobre agent-kit: un gato pirata que cuenta chistes en
-un chat de terminal. Es un proyecto autónomo que consume el kit vía `file:../..`.
+A minimal agent built on agent-kit: a retired pirate cat who tells jokes in a terminal chat. He speaks Spanish, and so do his prompt, skills and commands, since the example is also a test of a non-English agent. It's a standalone project that uses the kit through `file:../..`.
 
-## Puesta en marcha
+## Getting started
 
-Con el kit compilado (en la raíz del repo, una vez y tras cada cambio en el kit):
+With the kit built (at the repo root, once and after each change to the kit):
 
 ```
 npm install && npm run build
 ```
 
-Y desde esta carpeta:
+And from this folder:
 
 ```
 npm install
 npm start
 ```
 
-Necesita autenticación con Claude: `CLAUDE_CODE_OAUTH_TOKEN` (o `ANTHROPIC_API_KEY`) en el entorno
-o en un fichero `.env` de esta carpeta (ignorado por git), que se carga al arrancar; lo que ya
-esté en el entorno manda sobre el fichero. Si no hay token, te ofrece generar uno con
-`claude setup-token` y lo guarda en `.env` para las siguientes veces.
+It needs Claude authentication: `CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY`) in the environment or in a `.env` file in this folder (ignored by git), loaded at startup; what's already in the environment wins over the file. If there's no token, it offers to create one with `claude setup-token` and saves it to `.env` for next time.
 
-## Uso
+## Usage
 
-Escribe con normalidad, `/captain-whiskers:chiste` para pedir un chiste directamente, y `/exit`
-para salir. Con ↑/↓ recuperas mensajes anteriores, Tab completa los `/comandos` y Esc interrumpe
-la respuesta en curso. Cada sesión guarda su transcripción en `.run/<fecha-hora>/` (ignorada por
-git); el historial de ↑/↓ vive en `.run/history.jsonl`.
+Type as usual, `/captain-whiskers:chiste` to ask for a joke right away, and `/exit` to leave. ↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each session keeps its transcript in `.run/<date-time>/` (ignored by git); the ↑/↓ history lives in `.run/history.jsonl`.
 
-En un terminal usa la interfaz Ink del kit (`runChatInk`) a pantalla completa: el prompt queda
-abajo, RePág/AvPág y la rueda recorren la conversación y Ctrl+Fin (o escribir) vuelve abajo; arrastra con el
-ratón para seleccionar y haz clic derecho para copiarlo al portapapeles. Con `CAPTAIN_INLINE=1` usa el modo en línea (con el
-historial de la terminal), y sin TTY, o con `CAPTAIN_PLAIN=1`, el chat de readline de siempre. Por defecto corre en modo `autonomous`; con `CAPTAIN_MODE=interactive`
-pide aprobación antes de cada herramienta (el panel admite `y`/`n`/`q`, y también se puede
-responder escribiendo en `.run/<fecha-hora>/approval-response.txt`), y con `CAPTAIN_MODE=guided`
-solo antes de publicar algo.
+In a terminal it uses the kit's Ink interface (`runChatInk`) full screen: the prompt stays at the bottom, PageUp/PageDown and the mouse wheel scroll through the conversation and Ctrl+End (or typing) goes back to the bottom; drag with the mouse to select and right-click to copy to the clipboard. With `CAPTAIN_INLINE=1` it uses the inline mode (with the terminal's own scrollback), and without a TTY, or with `CAPTAIN_PLAIN=1`, the plain readline chat.
 
-## Tripulación (subagentes)
+It runs in `autonomous` mode by default. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=guided` only before publishing something. Started in `guided` or `interactive`, Shift+Tab switches between the two.
 
-- `minino-buscachistes` — busca chistes nuevos en la web (`WebSearch`, `WebFetch`) y trae 2 o 3 candidatos con su fuente. Lo lanza el capitán cuando pides un chiste nuevo, o `/captain-whiskers:chiste-fresco`.
-- `loro-critico` — puntúa el chiste elegido del 1 al 10, sin herramientas; si lo suspende, el capitán pide otra tanda una vez.
-- `grumete-del-reloj` — solo con `CAPTAIN_BASH=1`: responde la hora, la fecha o cuánto falta para algo usando `Bash` (solo comandos de lectura de fecha). Como todo lo que da `Bash`, es opcional.
+## Crew (subagents)
 
-Todos usan `haiku`. Mientras trabajan, la interfaz muestra su actividad bajo el spinner (`↳ …`), y en `CAPTAIN_MODE=interactive` también sus herramientas pasan por el panel de aprobación.
+- `minino-buscachistes` — looks for new jokes on the web (`WebSearch`, `WebFetch`) and brings back 2 or 3 candidates with their source. The captain sends it when you ask for a new joke, or with `/captain-whiskers:chiste-fresco`.
+- `loro-critico` — rates the chosen joke from 1 to 10, with no tools; if it fails, the captain asks for another batch, once.
+- `grumete-del-reloj` — only with `CAPTAIN_BASH=1`: tells the time, the date or how long until something, using `Bash` (date-reading commands only). Like everything that grants `Bash`, it's opt-in.
+
+All of them use `haiku`. While they work, the interface shows their tool calls under the call that started them, and with `CAPTAIN_MODE=interactive` their tools also go through the approval panel.
