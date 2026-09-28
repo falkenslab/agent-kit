@@ -67,6 +67,15 @@ export interface SessionUsage {
   costUsd: number;
 }
 
+/**
+ * A turn's errors without the CLI's internal diagnostics: an interrupted turn ends with
+ * one like "[ede_diagnostic] result_type=user ... stop_reason=tool_use" (seen on Esc),
+ * which says nothing to a person.
+ */
+export function visibleErrors(errors: readonly string[]): string[] {
+  return errors.filter((error) => !error.startsWith("[ede_diagnostic]"));
+}
+
 /** A tool result's content as plain text: its text parts joined, anything else skipped. */
 export function toolResultText(content: unknown): string {
   if (typeof content === "string") return content;
@@ -170,7 +179,7 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
       if (message.type === "result") {
         const failed = message.is_error;
         const resultText = message.subtype === "success" ? message.result : null;
-        const errorText = message.subtype === "success" ? message.result : message.errors.join("; ");
+        const errorText = message.subtype === "success" ? message.result : visibleErrors(message.errors).join("; ");
         const models = Object.values(message.modelUsage ?? {});
         const usage: SessionUsage = {
           inputTokens: models.reduce((sum, m) => sum + m.inputTokens + m.cacheReadInputTokens + m.cacheCreationInputTokens, 0),

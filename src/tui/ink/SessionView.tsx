@@ -146,7 +146,7 @@ interface LiveAreaProps {
 // No emoji-capable characters: Windows Terminal draws ✳ (U+2733) as a green emoji.
 const WORKING_GLYPHS = ["·", "✢", "✱", "✶", "✻", "✽", "✻", "✶", "✱", "✢"];
 
-/** The spinner line, as in the Claude Code CLI: an animated orange glyph, what it's doing, how long it's been at it. */
+/** The spinner line, as in the Claude Code CLI: an animated glyph, what it's doing, how long it's been at it. */
 function Working({ label, startedAt, width }: { label: string; startedAt: number | null; width: number }) {
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -155,7 +155,7 @@ function Working({ label, startedAt, width }: { label: string; startedAt: number
   }, []);
   const seconds = startedAt === null ? 0 : Math.floor((Date.now() - startedAt) / 1000);
   const glyph = WORKING_GLYPHS[tick % WORKING_GLYPHS.length];
-  return <Text>{fitWidth(`${ui.accent(`${glyph} ${label}`)} ${ui.dim(`(${seconds}s · esc to interrupt)`)}`, width)}</Text>;
+  return <Text>{fitWidth(`${ui.working(`${glyph} ${label}`)} ${ui.dim(`(${seconds}s · esc to interrupt)`)}`, width)}</Text>;
 }
 
 /** Line in progress, checkpoint panel or spinner, the input, and the status bar. */

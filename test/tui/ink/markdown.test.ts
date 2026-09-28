@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { finishedLength, renderMarkdown } from "../../../src/tui/ink/markdown.js";
 import { stripAnsi } from "../../../src/tui/ink/lineBuffer.js";
 import { resultSummary, toolGroupExpanded, toolGroupSummary } from "../../../src/tui/ink/toolGroup.js";
-import { toolResultText } from "../../../src/core/runner.js";
+import { toolResultText, visibleErrors } from "../../../src/core/runner.js";
 
 const md = (source: string, width = 60) => renderMarkdown(source, width).map(stripAnsi);
 
@@ -56,6 +56,28 @@ test("results: the first line, in red if it failed, and how many more", () => {
   assert.equal(stripAnsi(resultSummary({ isError: false, text: "" })), "(no output)");
   const lines = toolGroupExpanded([{ toolName: "Read", label: "Read a.ts", result: { isError: false, text: "x" } }], 40).map(stripAnsi);
   assert.deepEqual(lines, ["● Read a.ts", "  ⎿  x"]);
+});
+
+test("a subagent's answer shows whole under its call, its markdown rendered, never cut", () => {
+  const answer = "Tres chistes:\n\n1. **El loro** que hablaba de más\n2. El `ancla` perezosa\n3. El pirata del parche";
+  const lines = toolGroupExpanded(
+    [{ toolName: "Agent", label: "Delegating to minino", result: { isError: false, text: answer }, children: ["Searching the web"] }],
+    60,
+  ).map(stripAnsi);
+  assert.deepEqual(lines, [
+    "● Delegating to minino",
+    "  ⎿  · Searching the web",
+    "     Tres chistes:",
+    "",
+    "     1. El loro que hablaba de más",
+    "     2. El ancla perezosa",
+    "     3. El pirata del parche",
+  ]);
+});
+
+test("an interrupted turn's internal diagnostics never reach the error text", () => {
+  assert.deepEqual(visibleErrors(["[ede_diagnostic] result_type=user last_content_type=n/a stop_reason=tool_use"]), []);
+  assert.deepEqual(visibleErrors(["API error", "[ede_diagnostic] x"]), ["API error"]);
 });
 
 test("a tool result's content as plain text, whatever form the SDK gives it", () => {

@@ -287,7 +287,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
           return;
         case "turn-end":
           closeAll();
-          if (event.failed) push([ui.error(event.errorText)], "error");
+          if (event.failed && event.errorText) push([ui.error(event.errorText)], "error");
           snapshot = { ...snapshot, turns: snapshot.turns + 1, usage: event.usage ?? snapshot.usage };
           refreshLive();
           return;

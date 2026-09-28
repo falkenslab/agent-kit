@@ -16,6 +16,8 @@ const rgb = (r: number, g: number, b: number) => (s: string): string =>
   pc.isColorSupported ? `\x1b[38;2;${r};${g};${b}m${s}\x1b[39m` : s;
 /** The orange accent: spinner, turn summary, mode. */
 export const accent = rgb(215, 119, 87);
+/** The spinner and what the agent is doing. */
+export const working = rgb(137, 180, 250);
 /** Inline code and code blocks. */
 export const code = rgb(177, 185, 249);
 /** The background of the human's lines. */

@@ -1,4 +1,5 @@
 import { fitWidth } from "./lineBuffer.js";
+import { renderMarkdown } from "./markdown.js";
 import * as ui from "../ui.js";
 
 export interface ToolCall {
@@ -13,6 +14,8 @@ export interface ToolCall {
 
 // A subagent can make many calls; the latest ones are shown, the rest counted.
 const MAX_CHILDREN = 5;
+// Tools whose result is a subagent's answer: shown whole, its markdown rendered.
+const SUBAGENT_TOOLS = new Set(["Agent", "Task"]);
 
 /** How a tool counts in a group's summary: the phrase for one call and for several, "{n}" standing for the count. */
 export type ToolPhrase = [one: string, many: string];
@@ -62,21 +65,25 @@ export function resultSummary(result: { isError: boolean; text: string }): strin
 
 /**
  * The calls one by one: each behind a `●`, then after `⎿` the calls a subagent made (the
- * latest few, dim) and the result, or "…" while it runs. The line with the result is cut
- * so its "(+N lines)" stays in view.
+ * latest few, dim) and the result, or "…" while it runs: a subagent's answer whole, with its
+ * markdown rendered; any other result in one line, cut so its "(+N lines)" stays in view.
  */
 export function toolGroupExpanded(calls: readonly ToolCall[], width: number): string[] {
   return calls.flatMap((call) => {
     const children = call.children ?? [];
     const shown = children.slice(-MAX_CHILDREN);
+    const answer =
+      call.result && !call.result.isError && SUBAGENT_TOOLS.has(call.toolName) && call.result.text.trim()
+        ? renderMarkdown(call.result.text, width - 5)
+        : null;
     const under = [
       ...(children.length > shown.length ? [ui.dim(`… ${children.length - shown.length} earlier`)] : []),
-      ...shown.map((label) => ui.dim(`· ${label}`)),
-      call.result ? resultSummary(call.result) : ui.dim("…"),
+      ...shown.map((label) => fitWidth(ui.dim(`· ${label}`), width - 5)),
+      ...(answer ?? [call.result ? fitWidth(resultSummary(call.result), width - 5) : ui.dim("…")]),
     ];
     return [
       `${ui.toolBullet("●")} ${fitWidth(call.label, width - 2)}`,
-      ...under.map((line, i) => `  ${i === 0 ? ui.dim("⎿") : " "}  ${fitWidth(line, width - 5)}`),
+      ...under.map((line, i) => (line === "" ? "" : `  ${i === 0 ? ui.dim("⎿") : " "}  ${line}`)),
     ];
   });
 }

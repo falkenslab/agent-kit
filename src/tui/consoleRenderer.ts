@@ -81,7 +81,7 @@ export function createConsoleRenderer(options: ConsoleRendererOptions = {}): Con
         writeLine((event.level === "warning" ? ui.warn : ui.dim)(`(${event.text})`));
         return;
       case "turn-end":
-        if (event.failed) writeLine(ui.error(event.errorText));
+        if (event.failed && event.errorText) writeLine(ui.error(event.errorText));
         return;
     }
   }
