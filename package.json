@@ -1,6 +1,6 @@
 {
   "name": "@falkenslab/agent-kit",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "Library for building an agent on top of the Claude Agent SDK",
   "author": "Francisco Vargas Ruiz",
   "license": "MIT",
