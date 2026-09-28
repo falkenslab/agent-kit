@@ -14,10 +14,6 @@
 - Tests: `node:test` + `node:assert/strict`, run with `tsx --test` against the source; Ink components with `ink-testing-library`.
 - ESLint with `typescript-eslint` (ignores `examples/`).
 
-## Distribution (ADR-012)
+## Distribution (ADR-017)
 
-Not on npm. Consumers today:
-
-- `student-agent` — git dependency on a tag (`git+https://github.com/falkenslab/agent-kit.git#vX.Y.Z`).
-- `teacher-agent` — `npm pack` tarball of a tag, attached to a teacher-agent release.
-- `examples/captain-whiskers` — `file:../..`.
+Published to npm as `@falkenslab/agent-kit` (MIT); versions up to 0.10.0 exist only as git tags. `examples/captain-whiskers` depends on it with `file:../..`.

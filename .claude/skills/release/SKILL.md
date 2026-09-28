@@ -1,18 +1,19 @@
 ---
 name: release
-description: Cut a new agent-kit release - decide the semver bump (patch vs minor) from the commits since the last tag, bump version files, commit, tag, push and create the GitHub release. Only when the user explicitly asks to release or publish.
+description: Cut a new agent-kit release - decide the semver bump (patch vs minor) from the commits since the last tag, bump version files, commit, tag, push, create the GitHub release and publish to npm. Only when the user explicitly asks to release or publish.
 disable-model-invocation: true
 ---
 
 # Release agent-kit
 
-The package is `private` and not on npm: a "release" is a version commit, a `vX.Y.Z` git tag on `main`, and a GitHub release. Consumers install it with `git+https://github.com/falkenslab/agent-kit.git#vX.Y.Z` (npm runs the `prepare` script and builds `dist/`).
+A release is a version commit, a `vX.Y.Z` git tag on `main`, a GitHub release and the same version published to npm as `@falkenslab/agent-kit` (ADR-017). Users install it with `npm install @falkenslab/agent-kit`.
 
 ## 1. Preconditions
 
 - On branch `main`, working tree clean (`git status --short` empty), up to date with `origin/main` (`git fetch && git status -sb`). If there are uncommitted changes, stop and ask (or use the `commit` skill first if the user wants them included).
 - Run the `verify` skill; a release must be green.
 - `gh auth status` works.
+- `npm whoami` works (logged in to npm with an account in the `falkenslab` organization). If it doesn't, stop and ask the user to run `npm login` themselves: it's interactive.
 
 ## 2. Decide the bump
 
@@ -31,7 +32,7 @@ If nothing but `docs`/`chore` changed since the last tag, tell the user a releas
 npm version <patch|minor|major> --no-git-tag-version
 ```
 
-This updates `package.json` and `package-lock.json`. Then update every user-facing occurrence of the old version in `README.md` (the install snippet `#vX.Y.Z` and the `allowScripts` entry `@falkenslab/agent-kit@X.Y.Z`): `grep -n "<old version>" README.md`. On a **minor** bump also update the `#semver:^0.N.0` range example so it still covers the new version (`^0.1.0` does not match `0.2.x`).
+This updates `package.json` and `package-lock.json`. The README installs with a plain `npm install @falkenslab/agent-kit` and names no version; still, `grep -n "<old version>" README.md` in case one slipped in.
 
 ## 3b. Notes
 
@@ -46,7 +47,10 @@ git tag vX.Y.Z
 git push origin main
 git push origin vX.Y.Z
 gh release create vX.Y.Z --verify-tag --title "vX.Y.Z" --notes "<notes>"
+npm publish
 ```
+
+`npm publish` runs `prepublishOnly` (typecheck, lint, tests, build) first and publishes with public access (`publishConfig`). If the account has two-factor authentication, it asks for a one-time code: ask the user for it and run `npm publish --otp=<code>`. A published version can't be reused; if something is wrong after publishing, fix it with a new patch release.
 
 Tags in this repo are lightweight (`git tag vX.Y.Z`). Never move or delete an existing tag, and never force-push. If a step fails half-way, report the exact state (what is pushed, what is not) instead of retrying blindly.
 
@@ -54,6 +58,7 @@ Tags in this repo are lightweight (`git tag vX.Y.Z`). Never move or delete an ex
 
 - `git ls-remote --tags origin` shows the tag on the release commit.
 - `gh release view vX.Y.Z` works.
-- Optionally prove the install path in a scratch directory (use the session scratchpad, not the repo): `npm install "git+https://github.com/falkenslab/agent-kit.git#vX.Y.Z"` and check `node_modules/@falkenslab/agent-kit/dist/index.js` exists.
+- `npm view @falkenslab/agent-kit version` shows the new version.
+- Optionally prove the install path in a scratch directory (use the session scratchpad, not the repo): `npm install @falkenslab/agent-kit@X.Y.Z` and check `node_modules/@falkenslab/agent-kit/dist/index.js` exists.
 
-Report the version, the tag, the release URL and the notes you published. Mention that consumers pinned to an older tag must bump their dependency themselves.
+Report the version, the tag, the release URL, the npm package page and the notes you published. Mention that consumers pinned to an older tag must bump their dependency themselves.

@@ -2,7 +2,7 @@
 
 Una base para construir agentes de IA sobre el [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk). No es un agente en sí: resuelve una sola vez lo que cualquier agente necesita (supervisión humana, seguridad, memoria y una buena interfaz de terminal) para que cada agente concreto solo tenga que escribir lo que es propio de su dominio: qué sabe hacer, con qué herramientas y cómo habla.
 
-> **Estado:** versión `0.x`, todavía en evolución. No está publicado en npm; se instala desde GitHub.
+> **Estado:** versión `0.x`, todavía en evolución. Licencia MIT.
 
 ## Qué puede hacer un agente construido con él
 
@@ -32,19 +32,11 @@ La supervisión, la memoria, la seguridad y el chat le vienen del kit; teacher-a
 
 ## Instalación
 
-Se instala desde GitHub fijando una versión; al instalarlo, npm lo compila:
-
-```json
-{
-  "dependencies": {
-    "@falkenslab/agent-kit": "git+https://github.com/falkenslab/agent-kit.git#v0.10.0"
-  }
-}
+```
+npm install @falkenslab/agent-kit
 ```
 
-- Sin `#<versión>` instala la rama principal; mejor fijar siempre una versión, o un rango con `#semver:^0.10.0`.
-- Si tu configuración de npm restringe los scripts de instalación, permite el de este paquete con `"allowScripts": { "@falkenslab/agent-kit@0.10.0": true }` en tu `package.json`.
-- Para probar cambios del kit sin publicarlos, apunta a un clon local con `"file:../agent-kit"` y compílalo con `npm run build` tras cada cambio.
+Para probar cambios del kit sin publicarlos, apunta a un clon local con `"file:../agent-kit"` en tu `package.json` y compílalo con `npm run build` tras cada cambio.
 
 Requiere Node.js 20 o posterior.
 
