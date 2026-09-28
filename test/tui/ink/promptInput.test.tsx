@@ -56,7 +56,15 @@ test("backslash + Enter and Ctrl+J write a multi-line prompt", async () => {
   const { submitted, type, screen } = setup();
   await settle();
   await type("first\\", ENTER, "second", "\n", "third");
-  assert.deepEqual(screen().split("\n").slice(0, 3), ["> first", "  second", "  third"]);
+  // trimEnd: the cursor after "third" is a space drawn in inverse video, which Ink only
+  // trims from the line when colors are off (as in CI); in a real terminal it stays.
+  assert.deepEqual(
+    screen()
+      .split("\n")
+      .slice(0, 3)
+      .map((line) => line.trimEnd()),
+    ["> first", "  second", "  third"],
+  );
   await type(ENTER);
   assert.deepEqual(submitted, ["first\nsecond\nthird"]);
 });
