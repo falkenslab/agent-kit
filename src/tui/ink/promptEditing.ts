@@ -17,6 +17,25 @@ export function deleteBack({ value, cursor }: EditState): EditState {
   return { value: value.slice(0, cursor - 1) + value.slice(cursor), cursor: cursor - 1 };
 }
 
+/** Delete (Supr): removes the character after the cursor, which stays where it is. */
+export function deleteForward({ value, cursor }: EditState): EditState {
+  if (cursor >= value.length) return { value, cursor };
+  return { value: value.slice(0, cursor) + value.slice(cursor + 1), cursor };
+}
+
+// eslint-disable-next-line no-control-regex -- \x1b is the ESC byte the Delete key's sequence starts with
+const FORWARD_DELETE = /^\x1b\[3(;[\d:]*)?[~$^]$/;
+
+/**
+ * Whether a raw input chunk is the Delete key: `ESC [ 3 ~`, with modifiers `ESC [ 3 ; 5 ~`,
+ * rxvt's `ESC [ 3 $` / `ESC [ 3 ^`, or the kitty protocol's `ESC [ 3 ; …~`. Ink reports it and
+ * Backspace (`DEL`, 0x7f, which Windows terminals send too) both as `key.delete`, so only the
+ * raw sequence tells them apart.
+ */
+export function isForwardDelete(data: string): boolean {
+  return FORWARD_DELETE.test(data);
+}
+
 const isSpace = (char: string | undefined): boolean => char !== undefined && /\s/.test(char);
 
 /** Where the word before the cursor starts (spaces right before it skipped). */

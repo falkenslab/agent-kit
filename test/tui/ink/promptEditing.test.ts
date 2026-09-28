@@ -4,8 +4,11 @@ import {
   continueLine,
   createPasteRegistry,
   cursorLine,
+  deleteBack,
+  deleteForward,
   deleteWordBack,
   isBlockPaste,
+  isForwardDelete,
   killToLineEnd,
   moveLine,
   normalizePaste,
@@ -66,4 +69,15 @@ test("Ctrl+R searches back from the newest, case-insensitively", () => {
   assert.equal(searchHistory(history, "joke", 2), 1);
   assert.equal(searchHistory(history, "joke", 1), -1);
   assert.equal(searchHistory(history, ""), -1);
+});
+
+test("Delete erases the character after the cursor; Backspace the one before", () => {
+  assert.equal(show(deleteForward(at("ab|cd"))), "ab|d");
+  assert.equal(show(deleteForward(at("abcd|"))), "abcd|");
+  assert.equal(show(deleteBack(at("ab|cd"))), "a|cd");
+});
+
+test("only the Delete key's raw sequences count as forward delete", () => {
+  for (const seq of ["\x1b[3~", "\x1b[3;5~", "\x1b[3$", "\x1b[3^", "\x1b[3;1:1~"]) assert.equal(isForwardDelete(seq), true, JSON.stringify(seq));
+  for (const seq of ["\x7f", "\x1b\x7f", "\b", "\x1b[33~", "\x1b[3~x", "3~"]) assert.equal(isForwardDelete(seq), false, JSON.stringify(seq));
 });

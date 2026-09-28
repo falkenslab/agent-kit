@@ -45,6 +45,34 @@ test("a multi-line paste shows as one token and is sent whole", async () => {
   assert.deepEqual(submitted, ["look: one\ntwo\nthree ok?"]);
 });
 
+const LEFT = "\x1b[D";
+const DELETE = "\x1b[3~";
+const BACKSPACE = "\x7f";
+
+test("Delete erases the character after the cursor, Backspace the one before", async () => {
+  const { submitted, type } = setup();
+  await settle();
+  await type("abcd", LEFT, LEFT, DELETE, ENTER);
+  await type("abcd", LEFT, LEFT, BACKSPACE, ENTER);
+  assert.deepEqual(submitted, ["abd", "acd"]);
+});
+
+test("Delete at the end of the line leaves it as it is", async () => {
+  const { submitted, type } = setup();
+  await settle();
+  await type("abc", DELETE, ENTER);
+  assert.deepEqual(submitted, ["abc"]);
+});
+
+test("Delete right before a pasted block removes it whole", async () => {
+  const { submitted, type } = setup();
+  await settle();
+  await type("x", LEFT, "a\rb");
+  await new Promise((resolve) => setTimeout(resolve, 150)); // end of the paste
+  await type("\x01", DELETE, ENTER); // Ctrl+A: the cursor right before the block
+  assert.deepEqual(submitted, ["x"]);
+});
+
 test("Backspace right after a pasted block removes it whole", async () => {
   const { submitted, type } = setup();
   await settle();

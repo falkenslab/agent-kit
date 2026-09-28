@@ -1,5 +1,5 @@
 import { useContext, useLayoutEffect, useReducer, useRef, type ReactNode } from "react";
-import { Box, Text, useInput, useStdout, type DOMElement, type Key } from "ink";
+import { Box, Text, useInput, useStdin, useStdout, type DOMElement, type Key } from "ink";
 import stringWidth from "string-width";
 import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import { liveWidth } from "./sessionModel.js";
@@ -12,9 +12,11 @@ import {
   createPasteRegistry,
   cursorLine,
   deleteBack,
+  deleteForward,
   deleteWordBack,
   insert,
   isBlockPaste,
+  isForwardDelete,
   killToLineEnd,
   moveLine,
   normalizePaste,
@@ -101,14 +103,16 @@ interface SearchState {
 // A paste can reach us in several chunks; pieces this close together extend the same one.
 const PASTE_CHUNK_MS = 100;
 const PASTE_TOKEN_BEFORE = /\[Pasted text #\d+ \+\d+ lines?\]$/;
+const PASTE_TOKEN_AFTER = /^\[Pasted text #\d+ \+\d+ lines?\]/;
 
 /**
  * The chat's prompt: history (↑/↓), "/command" completion and suggestions (Tab), pasted
  * blocks folded into a token, multi-line input (`\` + Enter or Ctrl+J), word and line
  * shortcuts (Ctrl+W/K/U, Ctrl+←/→, Home/End, Ctrl+A/E), reverse history search (Ctrl+R)
  * and taking a queued line back (↑ on an empty prompt). Written here rather than taken from
- * @inkjs/ui because its TextInput is uncontrolled. Backspace also arrives as `delete` on
- * Windows terminals, so both erase backwards.
+ * @inkjs/ui because its TextInput is uncontrolled. Ink reports Backspace and Delete both as
+ * `key.delete`: the raw input chunk (read before Ink parses it) tells Delete apart, which
+ * erases forwards; anything else reported as delete erases backwards.
  */
 export function PromptInput({ label, inset = 0, suggestion, history, commands, onSubmit, onExit, onRecallQueued, files = [] }: PromptInputProps) {
   // Kept in a ref, not in state: two keystrokes can arrive before React re-renders, and a
@@ -124,6 +128,20 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
   });
   const pastes = useRef(createPasteRegistry()).current;
   const [, rerender] = useReducer((n: number) => n + 1, 0);
+
+  // Whether the chunk being handled is the Delete key. Prepended, so it runs before the
+  // useInput listener below, which reads it (both listen to the same chunk on Ink's emitter).
+  const forwardDelete = useRef(false);
+  const { internal_eventEmitter: stdinEvents } = useStdin();
+  useLayoutEffect(() => {
+    const onInput = (data: string | Buffer) => {
+      forwardDelete.current = isForwardDelete(String(data));
+    };
+    stdinEvents.prependListener("input", onInput);
+    return () => {
+      stdinEvents.removeListener("input", onInput);
+    };
+  }, [stdinEvents]);
 
   function apply(next: EditState): void {
     state.current.value = next.value;
@@ -149,6 +167,8 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
       finish(false);
     } else if (key.return) {
       finish(true);
+    } else if (key.delete && forwardDelete.current) {
+      // The search query has no cursor inside it: Delete has nothing after it to erase.
     } else if (key.backspace || key.delete) {
       search.query = search.query.slice(0, -1);
       search.index = searchHistory(history, search.query);
@@ -260,6 +280,10 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
       apply(toLineStart(current));
     } else if (key.end || (key.ctrl && input === "e")) {
       apply(toLineEnd(current));
+    } else if (key.delete && forwardDelete.current) {
+      // A pasted block goes away whole, as with Backspace.
+      const token = PASTE_TOKEN_AFTER.exec(value.slice(cursor))?.[0];
+      apply(token ? { value: value.slice(0, cursor) + value.slice(cursor + token.length), cursor } : deleteForward(current));
     } else if (key.backspace || key.delete) {
       // A pasted block goes away whole.
       const token = PASTE_TOKEN_BEFORE.exec(value.slice(0, cursor))?.[0];
