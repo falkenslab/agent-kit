@@ -13,7 +13,7 @@ Una base para construir agentes de IA sobre el [Claude Agent SDK](https://www.np
 - **Moverse dentro de unos límites.** Solo lee y escribe en las carpetas que le corresponden, y nunca en los ficheros protegidos, como uno con contraseñas.
 - **Usar herramientas externas.** Servidores MCP propios del agente o del proyecto, y skills y comandos organizados en plugins.
 - **Dejar rastro.** Registra cada acción y la conversación completa, con los secretos ocultos.
-- **Conversar en una terminal al estilo de Claude Code.** A pantalla completa, con la respuesta escribiéndose en directo, paneles para las aprobaciones, historial y búsqueda, sugerencia del siguiente mensaje, bloques pegados, menciones a ficheros con `@`, copia con el ratón y el estado del agente en la pestaña y en la barra de tareas de Windows.
+- **Conversar en una terminal al estilo de Claude Code.** A pantalla completa, con la respuesta escribiéndose en directo y su markdown ya formateado, las herramientas que usa resumidas en una línea (que se despliega con Ctrl+O), paneles para las aprobaciones, historial y búsqueda, sugerencia del siguiente mensaje, bloques pegados, menciones a ficheros con `@`, copia con el ratón y el estado del agente en la pestaña y en la barra de tareas de Windows.
 - **Funcionar también sin terminal.** La misma base sirve dentro de una aplicación de escritorio o de un servidor, que ponen su propia interfaz.
 
 ## Ejemplos

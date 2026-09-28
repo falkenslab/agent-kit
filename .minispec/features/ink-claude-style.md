@@ -27,15 +27,15 @@ Make the Ink chat look and behave as close as possible to the Claude Code CLI (l
 - Markdown: `marked`'s lexer (no dependencies) plus our own renderer to ANSI in the reference's style (bold, italic, inline code, fenced code blocks (framed, one color: syntax highlighting is left for later, it would add highlight.js), headings, lists, quotes, links, rules; tables as aligned text). While streaming, finished blocks are rendered and the block in progress is shown with inline styles only.
 - Tool group: consecutive tool calls fold into one summary line per group ("Read 2 files, searched the web 3 times"); per-tool verbs for the built-in tools, a generic "used N tools" otherwise, and a consumer hook for its own tools. Ctrl+O (as in Claude Code) toggles the groups into `⏺ Tool(argument)` lines with `⎿` result summaries.
 - Spinner and turn summary as in the reference; a palette module with the reference's colors (orange accent, blue code, gray user bar), in `ui.ts` style.
-- Input between two rules with `❯` and a placeholder; footer with mode and shortcuts; approval panel as a bordered box with numbered choices (`y`/`n`/`q` still work).
-- Header slot: the consumer's own art (lines), name, version and fields, plus an optional tip; nothing of Claude Code's branding (mascot, name) is shipped.
-- Alignment rules: the kit's chrome (header, bars, rules, prompt, footer, spinner, panel) uses one-column glyphs only, never emoji; every pad, cut and wrap is computed in columns (`string-width`), never in string length; emoji are left to free text (replies, the human's lines), where alignment isn't promised.
+- Input: stays in its rounded frame (the user's choice over the reference's two rules). Footer with the mode (`⏵⏵`, orange) and shortcuts; approval panel as a bordered box with numbered choices (`1`-`3` and `y`/`n`/`q`).
+- Header: done (`header.art`, fields). Nothing of Claude Code's branding (mascot, name) is shipped.
+- Alignment rules (done, keep them): the kit's chrome (header, bars, rules, prompt, footer, spinner, panel) uses one-column glyphs only, never emoji; every pad, cut and wrap is computed in columns (`string-width`), never in string length; emoji are left to free text (replies, the human's lines), where alignment isn't promised.
 - `agentLabel` no longer shown in the Ink views (the `●` bullet replaces it); still used by the console and the log.
-- Update captain-whiskers (its own pixel-art cat in one-column block characters `▄ ▀ █`, no emoji in its header or welcome), ADR-014 (screen text no longer equals the log text), `architecture.md`, README.
+- Update ADR-014 (screen text no longer equals the log text), `architecture.md`, README.
 
 ## Acceptance
 
-- Side by side with the reference screenshot, a captain-whiskers session matches it block for block: header, user bars, folded tool lines, `●` replies with rendered markdown, turn summary, ruled input, footer.
+- Side by side with the reference screenshot, a captain-whiskers session matches it block for block: header, user bars, folded tool lines, `●` replies with rendered markdown, turn summary, framed input, footer.
 - Markdown renders correctly both finished and while streaming (no raw `**`, backticks or list markers left on screen).
 - `session.log` and the plain `runChatTui()` output are unchanged.
 - Tests: the new event (paired with its action), the markdown renderer (each element, streaming), tool-group summaries, and screen frames with `ink-testing-library`.

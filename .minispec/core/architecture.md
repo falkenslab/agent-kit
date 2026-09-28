@@ -17,7 +17,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 
 - `agentSpec.ts` — `AgentSpec<TConfig>`: system prompt, MCP servers, plugin roots, subagents, disallowed tools, approval/intervention texts. `BaseSessionConfig` + `Mode` (ADR-002).
 - `session.ts` — `buildSessionOptions()`: tools, hooks and MCP servers per mode, plus the session's `ModeControl` (guided ↔ interactive live, ADR-016); `createInputQueue()`.
-- `runner.ts` — `runQuery()`: SDK messages to `AgentEvent` (`text`, `action`, `subagent-action`, `mcp-error`, `info`, `turn-end` with cumulative `usage`, `prompt-suggestion` after its turn-end); subagent tool calls are kept apart from `action`; check `failed`, not `status`; `contextUsage()` for the context window in use.
+- `runner.ts` — `runQuery()`: SDK messages to `AgentEvent` (`text`, `action`, `subagent-action`, `mcp-error`, `info`, `turn-end` with cumulative `usage`, `prompt-suggestion` after its turn-end, `tool-result` paired with its action); subagent tool calls are kept apart from `action`; check `failed`, not `status`; `contextUsage()` for the context window in use.
 - `hooks/subagentBashGate.ts`, `subagentTypeGate.ts`, `subagentForegroundGate.ts` — subagent security (ADR-003).
 - `interaction.ts` — `InteractionPort`, the UI side of checkpoints; `setInteractionPort()` (ADR-013).
 - `hooks/humanInput.ts` — `askForDecision()`, `askForManualIntervention()`: port vs response file (ADR-004).
@@ -38,7 +38,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `terminalInteraction.ts` — `terminalInteractionPort`, the default port installed by `index.ts`; `setSharedReadline()` for the chat's interface.
 - `claudeAuth.ts` — `ensureClaudeAuth()`: offers `claude setup-token`, returns a new token for the caller to persist.
 - `ui.ts` — the picocolors palette (`ui` namespace).
-- `ink/` — the Ink UI (ADR-014): `runChatInk()`, `createProgressView()`, `runWizard()`; `sessionModel.ts` (state, through the console renderer), `inkInteraction.ts` (the Ink port), `SessionView.tsx` (history, live line, spinner, approval panel, status bar; inline or full screen), `PromptInput.tsx`, `fullscreen.ts` (alternate screen, mouse, scroll view; ADR-015), `header.ts` (title, fields and logo).
+- `ink/` — the Ink UI (ADR-014): `runChatInk()`, `createProgressView()`, `runWizard()`; `sessionModel.ts` (the screen built from events, the log through the console renderer), `markdown.ts` (markdown to terminal lines), `toolGroup.ts` (folded tool calls), `inkInteraction.ts` (the Ink port), `SessionView.tsx` (history, live line, spinner, approval panel, status bar; inline or full screen), `PromptInput.tsx`, `fullscreen.ts` (alternate screen, mouse, scroll view; ADR-015), `header.ts` (title, fields and logo).
 
 ## Modes
 
