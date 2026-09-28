@@ -39,7 +39,7 @@ test("the session view shows history, the reply in progress, the current action 
 
   const frame = view.lastFrame() ?? "";
   assert.match(frame, /Welcome aboard/);
-  assert.match(frame, /Read 1 file/); // the tool group, folded
+  assert.match(stripAnsi(frame), /● run Read\n {2}⎿ {2}…/); // the call, shown with its result pending
   assert.match(frame, /Half a sent/);
   assert.match(frame, /↳ run Grep/);
   assert.match(stripAnsi(frame), /⏵⏵ guided · 0 turns/);

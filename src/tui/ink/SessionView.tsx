@@ -143,7 +143,8 @@ interface LiveAreaProps {
   children?: ReactNode;
 }
 
-const WORKING_GLYPHS = ["·", "✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳", "✢"];
+// No emoji-capable characters: Windows Terminal draws ✳ (U+2733) as a green emoji.
+const WORKING_GLYPHS = ["·", "✢", "✱", "✶", "✻", "✽", "✻", "✶", "✱", "✢"];
 
 /** The spinner line, as in the Claude Code CLI: an animated orange glyph, what it's doing, how long it's been at it. */
 function Working({ label, startedAt, width }: { label: string; startedAt: number | null; width: number }) {
@@ -287,13 +288,12 @@ function FullscreenSession({
         dragging.current = false;
         const cell = cellAt(event.x, event.y, true);
         const final = cell ? { anchor: selectionRef.current.anchor, focus: cell } : selectionRef.current;
-        // A click without a drag clears the selection instead of copying one cell.
-        if (final.anchor.row === final.focus.row && final.anchor.col === final.focus.col) {
-          setSelection(null);
-          continue;
-        }
-        setSelection(final);
-        const text = selectedText(wrapped, final);
+        // A click without a drag clears the selection; a drag leaves it selected.
+        setSelection(final.anchor.row === final.focus.row && final.anchor.col === final.focus.col ? null : final);
+      } else if (event.kind === "right" && selectionRef.current) {
+        // As in Windows Terminal: a right-click copies the selection and clears it.
+        const text = selectedText(wrapped, selectionRef.current);
+        setSelection(null);
         if (text && onCopy) {
           onCopy(text);
           setCopied(`copied ${text.length} ${text.length === 1 ? "character" : "characters"}`);

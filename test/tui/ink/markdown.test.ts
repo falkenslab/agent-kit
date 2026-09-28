@@ -49,10 +49,10 @@ test("a folded group counts its calls by kind; the agent can name its own tools"
   assert.equal(toolGroupSummary([call("mcp__playwright__go"), call("mcp__playwright__go"), call("Read")], phrase), "Opened 2 pages, read 1 file");
 });
 
-test("results: an error, a single line, or how many lines", () => {
-  assert.equal(stripAnsi(resultSummary({ isError: true, text: "not found\nstack" })), "not found");
+test("results: the first line, in red if it failed, and how many more", () => {
+  assert.equal(stripAnsi(resultSummary({ isError: true, text: "not found\nstack" })), "not found (+1 line)");
   assert.equal(stripAnsi(resultSummary({ isError: false, text: "ok" })), "ok");
-  assert.equal(stripAnsi(resultSummary({ isError: false, text: "a\n\nb\nc" })), "3 lines");
+  assert.equal(stripAnsi(resultSummary({ isError: false, text: "a\n\nb\nc" })), "a (+2 lines)");
   assert.equal(stripAnsi(resultSummary({ isError: false, text: "" })), "(no output)");
   const lines = toolGroupExpanded([{ toolName: "Read", label: "Read a.ts", result: { isError: false, text: "x" } }], 40).map(stripAnsi);
   assert.deepEqual(lines, ["● Read a.ts", "  ⎿  x"]);

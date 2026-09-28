@@ -87,7 +87,7 @@ export const SHORTCUTS = [
   "Ctrl+W delete word  ·  Ctrl+K to line end  ·  Ctrl+U clear  ·  Ctrl+←/→ move by word",
   "@ mention a file  ·  /copy copy the last reply  ·  Shift+Tab switch mode  ·  Ctrl+O unfold tool calls",
   "Esc interrupt  ·  Ctrl+C interrupt or exit  ·  PgUp/PgDn or wheel scroll  ·  Ctrl+End bottom",
-  "Drag over the conversation to copy it (full screen)",
+  "Drag to select, right-click to copy (full screen)",
 ];
 
 interface SearchState {

@@ -32,18 +32,18 @@ export function enterFullscreen(stream: NodeJS.WriteStream): () => void {
 
 // An SGR mouse report as Ink hands it to useInput: "[<button;x;yM" (press, or drag) or
 // "...m" (release), with or without the leading ESC; x and y are 1-based cells. Wheel up is
-// button 64, wheel down 65; the left button is 0, and 32 is added while it drags.
+// button 64, wheel down 65; the left button is 0 (32 is added while it drags), the right one 2.
 // eslint-disable-next-line no-control-regex -- \x1b is the ESC byte the report may start with
 const MOUSE_REPORT = /\x1b?\[<(\d+);(\d+);(\d+)([Mm])/g;
 
 export interface MouseEvent {
-  kind: "press" | "drag" | "release" | "wheel-up" | "wheel-down" | "other";
+  kind: "press" | "drag" | "release" | "right" | "wheel-up" | "wheel-down" | "other";
   /** 0-based column and row of the cell. */
   x: number;
   y: number;
 }
 
-/** The left-button presses, drags and releases and the wheel steps in `input`, in order. */
+/** The left-button presses, drags and releases, right-button presses and wheel steps in `input`, in order. */
 export function mouseEvents(input: string): MouseEvent[] {
   return [...input.matchAll(MOUSE_REPORT)].map((match) => {
     const button = Number(match[1]);
@@ -55,6 +55,7 @@ export function mouseEvents(input: string): MouseEvent[] {
       : button === 0 && match[4] === "m" ? "release"
       : button === 0 ? "press"
       : button === 32 ? "drag"
+      : button === 2 && match[4] === "M" ? "right"
       : "other";
     return { kind, x, y };
   });

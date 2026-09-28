@@ -38,7 +38,7 @@ export interface InkChatOptions extends ChatTuiOptions {
   /**
    * Take the whole terminal (its alternate screen): the history scrolls in its own view
    * above a prompt pinned at the bottom (PageUp/PageDown and the wheel scroll, Ctrl+End or
-   * typing goes back to the bottom), dragging over the history copies it to the clipboard,
+   * typing goes back to the bottom), dragging selects text and a right-click copies it,
    * and the terminal is left cleared on exit. Off by default.
    */
   fullscreen?: boolean;

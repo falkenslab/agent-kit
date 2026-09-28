@@ -96,30 +96,37 @@ test("a long reply keeps only a few rows live, and no text is lost", () => {
   assert.equal(text.replace(/\s+/g, " ").trim(), words.join(" "));
 });
 
-test("consecutive tool calls fold into one summary line, unfolded with Ctrl+O with their results", () => {
+test("tool calls show one by one with their results (and a subagent's calls); Ctrl+O folds them into one line", () => {
   const model = createSessionModel({ formatAction });
   model.startTurn();
   model.render({ type: "action", toolName: "Read", input: {}, toolUseId: "a" });
   model.render({ type: "action", toolName: "Read", input: {}, toolUseId: "b" });
   model.render({ type: "action", toolName: "Bash", input: {}, toolUseId: "c" });
-  assert.equal(stripAnsi(model.getSnapshot().live), "  Read 2 files, ran 1 shell command");
-
+  model.render({ type: "action", toolName: "Agent", input: {}, toolUseId: "d" });
+  model.render({ type: "subagent-action", toolName: "WebSearch", input: {}, parentToolUseId: "d" });
   model.render({ type: "tool-result", toolUseId: "a", toolName: "Read", isError: false, text: "one\ntwo" });
   model.render({ type: "tool-result", toolUseId: "c", toolName: "Bash", isError: true, text: "command not found" });
-  model.toggleExpanded();
+  model.render({ type: "tool-result", toolUseId: "d", toolName: "Agent", isError: false, text: "Three jokes found" });
   assert.deepEqual(stripAnsi(model.getSnapshot().live).split("\n"), [
     "● run Read",
-    "  ⎿  2 lines",
+    "  ⎿  one (+1 line)",
     "● run Read",
     "  ⎿  …",
     "● run Bash",
     "  ⎿  command not found",
+    "● run Agent",
+    "  ⎿  · run WebSearch",
+    "     Three jokes found",
   ]);
+
+  model.toggleExpanded();
+  assert.equal(stripAnsi(model.getSnapshot().live), "  Read 2 files, ran 1 shell command, ran 1 subagent");
+  model.toggleExpanded();
 
   model.render({ type: "text", text: "Hecho." });
   const group = model.getSnapshot().items.find((item) => item.kind === "action");
-  assert.equal(stripAnsi(group?.text ?? ""), "  Read 2 files, ran 1 shell command");
-  assert.equal(group?.expanded?.length, 6);
+  assert.equal(stripAnsi(group?.text ?? ""), "  Read 2 files, ran 1 shell command, ran 1 subagent");
+  assert.equal(group?.expanded?.length, 9);
 });
 
 test("notes reach the history but not the log; writeLine reaches both", () => {

@@ -34,7 +34,7 @@ test("the blank lines between kinds of output reach the screen, one render at a 
   await settle();
 
   const screen = stripAnsi(view.lastFrame() ?? "");
-  assert.match(screen, /tú> hola +\n\n● ¡Arrr! Mando al minino\.\n\n {2}Ran 2 subagents/);
+  assert.match(screen, /tú> hola +\n\n● ¡Arrr! Mando al minino\.\n\n● run Agent\n {2}⎿ {2}…\n● run Agent/);
 });
 
 test("the blank line above the prompt is there while typing, and Enter doesn't add another", async () => {

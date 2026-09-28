@@ -7,7 +7,12 @@ export interface ToolCall {
   /** The friendly label (see toolLabels.ts), shown when the group is unfolded. */
   label: string;
   result: { isError: boolean; text: string } | null;
+  /** For a call that runs a subagent: the labels of the tool calls it made, in order. */
+  children?: string[];
 }
+
+// A subagent can make many calls; the latest ones are shown, the rest counted.
+const MAX_CHILDREN = 5;
 
 /** How a tool counts in a group's summary: the phrase for one call and for several, "{n}" standing for the count. */
 export type ToolPhrase = [one: string, many: string];
@@ -47,18 +52,31 @@ export function toolGroupSummary(calls: readonly ToolCall[], phraseFor?: (toolNa
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** One line for a tool's result: its error, its only line, or how many lines it had. */
+/** One line for a tool's result: its first line (in red if it failed) and how many more it had. */
 export function resultSummary(result: { isError: boolean; text: string }): string {
   const lines = result.text.split("\n").filter((line) => line.trim() !== "");
-  if (result.isError) return ui.error(lines[0] ?? "error");
-  if (lines.length === 0) return ui.dim("(no output)");
-  return ui.dim(lines.length === 1 ? lines[0] : `${lines.length} lines`);
+  if (lines.length === 0) return result.isError ? ui.error("error") : ui.dim("(no output)");
+  const more = lines.length > 1 ? ui.dim(` (+${lines.length - 1} ${lines.length === 2 ? "line" : "lines"})`) : "";
+  return (result.isError ? ui.error(lines[0].trim()) : lines[0].trim()) + more;
 }
 
-/** The group unfolded (Ctrl+O): each call behind a `●`, its result under it after `⎿`. */
+/**
+ * The calls one by one: each behind a `●`, then after `⎿` the calls a subagent made (the
+ * latest few, dim) and the result, or "…" while it runs. The line with the result is cut
+ * so its "(+N lines)" stays in view.
+ */
 export function toolGroupExpanded(calls: readonly ToolCall[], width: number): string[] {
-  return calls.flatMap((call) => [
-    `${ui.toolBullet("●")} ${fitWidth(call.label, width - 2)}`,
-    `  ${ui.dim("⎿")}  ${call.result ? fitWidth(resultSummary(call.result), width - 5) : ui.dim("…")}`,
-  ]);
+  return calls.flatMap((call) => {
+    const children = call.children ?? [];
+    const shown = children.slice(-MAX_CHILDREN);
+    const under = [
+      ...(children.length > shown.length ? [ui.dim(`… ${children.length - shown.length} earlier`)] : []),
+      ...shown.map((label) => ui.dim(`· ${label}`)),
+      call.result ? resultSummary(call.result) : ui.dim("…"),
+    ];
+    return [
+      `${ui.toolBullet("●")} ${fitWidth(call.label, width - 2)}`,
+      ...under.map((line, i) => `  ${i === 0 ? ui.dim("⎿") : " "}  ${fitWidth(line, width - 5)}`),
+    ];
+  });
 }

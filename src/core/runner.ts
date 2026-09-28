@@ -27,7 +27,7 @@ export type AgentEvent =
   | { type: "action"; toolName: string; input: unknown; toolUseId?: string }
   /** A tool call made inside a subagent's own turn (see `action` above for why those are
    * kept apart). Only for showing that a subagent is busy: a console log ignores it. */
-  | { type: "subagent-action"; toolName: string; input: unknown; toolUseId?: string }
+  | { type: "subagent-action"; toolName: string; input: unknown; toolUseId?: string; parentToolUseId?: string }
   /** What one of the main agent's tool calls returned, paired with its `action` by
    * `toolUseId`, as plain text (images and other non-text parts left out). Subagents'
    * results stay out, as their actions do. A console log ignores it. */
@@ -141,7 +141,13 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
         for (const block of message.message.content) {
           if (block.type === "tool_use") {
             if (type === "action") toolNames.set(block.id, block.name);
-            yield { type, toolName: block.name, input: block.input, toolUseId: block.id };
+            yield {
+              type,
+              toolName: block.name,
+              input: block.input,
+              toolUseId: block.id,
+              ...(message.parent_tool_use_id === null ? {} : { parentToolUseId: message.parent_tool_use_id }),
+            };
           }
         }
         continue;

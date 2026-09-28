@@ -115,7 +115,7 @@ test("the header stays pinned at the top while the history scrolls under it", as
   assert.notEqual(rows.at(-3), "line 100");
 });
 
-test("dragging over the history highlights and copies it, also while the agent works", async () => {
+test("dragging over the history selects it (also while the agent works) and a right-click copies and clears it", async () => {
   const copies: string[] = [];
   const model = createSessionModel();
   const interaction = createInkInteraction((text) => model.note(text));
@@ -138,18 +138,22 @@ test("dragging over the history highlights and copies it, also while the agent w
   await settle();
   view.stdin.write(`\x1b[<0;4;${y28 + 2}m`);
   await settle();
-  assert.deepEqual(copies, ["28\nline"]);
-  assert.match(screen(view).at(-1) ?? "", /copied 7 characters/);
+  assert.deepEqual(copies, []); // releasing only selects
 
   // New output doesn't move the highlight off its text: it's still on "line 28".
   model.note("line 31");
   await settle();
-  const frame = view.lastFrame() ?? "";
-  assert.ok(frame.includes("\x1b[7m28"), "the highlight still starts on line 28's number");
+  assert.ok((view.lastFrame() ?? "").includes("\x1b[7m28"), "the highlight still starts on line 28's number");
 
-  // A click without a drag clears the selection and copies nothing more.
-  view.stdin.write(`\x1b[<0;2;${y28 + 1}M`);
-  view.stdin.write(`\x1b[<0;2;${y28 + 1}m`);
+  // A right-click copies the selection and clears it.
+  view.stdin.write(`\x1b[<2;10;3M`);
+  await settle();
+  assert.deepEqual(copies, ["28\nline"]);
+  assert.match(screen(view).at(-1) ?? "", /copied 7 characters/);
+  assert.ok(!(view.lastFrame() ?? "").includes("\x1b[7m"), "no highlight left");
+
+  // With nothing selected, a right-click copies nothing.
+  view.stdin.write(`\x1b[<2;10;3M`);
   await settle();
   assert.equal(copies.length, 1);
 });

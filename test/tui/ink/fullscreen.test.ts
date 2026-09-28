@@ -56,12 +56,13 @@ test("the row cache wraps only what was added, and everything again on a new wid
 });
 
 test("mouse events: press, drag, release and wheel, with 0-based cells", () => {
-  assert.deepEqual(mouseEvents("\x1b[<0;5;3M[<32;9;3M[<0;12;4m[<64;1;1M[<65;1;1M[<2;1;1M"), [
+  assert.deepEqual(mouseEvents("\x1b[<0;5;3M[<32;9;3M[<0;12;4m[<64;1;1M[<65;1;1M[<2;1;1M[<2;1;1m"), [
     { kind: "press", x: 4, y: 2 },
     { kind: "drag", x: 8, y: 2 },
     { kind: "release", x: 11, y: 3 },
     { kind: "wheel-up", x: 0, y: 0 },
     { kind: "wheel-down", x: 0, y: 0 },
+    { kind: "right", x: 0, y: 0 },
     { kind: "other", x: 0, y: 0 },
   ]);
 });

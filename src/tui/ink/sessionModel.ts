@@ -37,7 +37,7 @@ export interface SessionSnapshot {
   activity: string | null;
   /** Label of the latest action taken inside a subagent in this turn. */
   subagentActivity: string | null;
-  /** Tool groups unfolded (Ctrl+O). */
+  /** Tool calls shown one by one with their results (the default); Ctrl+O folds them into a summary line. */
   expanded: boolean;
   turns: number;
   usage: SessionUsage | null;
@@ -115,7 +115,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     turnStartedAt: null,
     activity: null,
     subagentActivity: null,
-    expanded: false,
+    expanded: true,
     turns: 0,
     usage: null,
     contextPercent: null,
@@ -267,9 +267,14 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
           refreshLive();
           return;
         }
-        case "subagent-action":
-          update({ subagentActivity: formatAction(event.toolName, event.input) });
+        case "subagent-action": {
+          const label = formatAction(event.toolName, event.input);
+          const parent = group?.find((c) => c.id !== undefined && c.id === event.parentToolUseId);
+          if (parent) parent.children = [...(parent.children ?? []), label];
+          snapshot = { ...snapshot, subagentActivity: label };
+          refreshLive();
           return;
+        }
         case "mcp-error":
           closeAll();
           push([ui.warn(`Some MCP servers failed to connect: ${event.failedServers.join(", ")}`)], "notice");
@@ -316,7 +321,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
       const started = snapshot.turnStartedAt;
       if (started !== null) {
         const seconds = Math.max(1, Math.round((Date.now() - started) / 1000));
-        push([`${ui.accent("✻")} ${ui.dim(`Worked for ${seconds}s`)}`], "note");
+        push([ui.dim(`✻ Worked for ${seconds}s`)], "note");
       }
       snapshot = { ...snapshot, busy: false, turnStartedAt: null, activity: null, subagentActivity: null };
       refreshLive();

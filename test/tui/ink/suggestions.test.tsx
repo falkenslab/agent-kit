@@ -50,7 +50,7 @@ test("there is always one blank line between the spinner and the text above it",
   model.render({ type: "action", toolName: "Read", input: {} });
   await settle();
   rows = lines(view);
-  const spinnerAt = rows.findIndex((row) => /run Read/.test(row) && !row.includes("[action]"));
+  const spinnerAt = rows.findIndex((row) => row.includes("esc to interrupt"));
   assert.equal(rows[spinnerAt - 1].trim(), "");
 });
 
