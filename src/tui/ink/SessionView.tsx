@@ -160,10 +160,10 @@ function Working({ label, startedAt, width }: { label: string; startedAt: number
 
 /** Line in progress, checkpoint panel or spinner, the input, and the status bar. */
 function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtra, modeSwitchable, children }: LiveAreaProps) {
-  // The mode in orange, as in the Claude Code CLI's footer; the rest dim.
+  // The mode in the spinner's color; the rest dim.
   const plain = statusText(mode, session.turns, session.usage, { contextPercent: session.contextPercent, modeSwitchable }) + (statusExtra ? ` · ${statusExtra}` : "");
   const cut = mode ? plain.indexOf(" · ") : -1;
-  const status = cut > 0 ? ui.accent(plain.slice(0, cut)) + ui.dim(plain.slice(cut)) : ui.dim(plain);
+  const status = cut > 0 ? ui.working(plain.slice(0, cut)) + ui.dim(plain.slice(cut)) : ui.dim(plain);
   return (
     <Box flexDirection="column" flexShrink={0} width={width} marginTop={session.liveGap ? 1 : 0}>
       {stripAnsi(session.live) ? <Text>{session.live}</Text> : null}

@@ -14,7 +14,7 @@ export interface ToolCall {
 
 // A subagent can make many calls; the latest ones are shown, the rest counted.
 const MAX_CHILDREN = 5;
-// Tools whose result is a subagent's answer: shown whole, its markdown rendered.
+// Tools whose result is a subagent's answer, in markdown: its first line is rendered.
 const SUBAGENT_TOOLS = new Set(["Agent", "Task"]);
 
 /** How a tool counts in a group's summary: the phrase for one call and for several, "{n}" standing for the count. */
@@ -55,31 +55,35 @@ export function toolGroupSummary(calls: readonly ToolCall[], phraseFor?: (toolNa
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** One line for a tool's result: its first line (in red if it failed) and how many more it had. */
-export function resultSummary(result: { isError: boolean; text: string }): string {
+/**
+ * One line for a tool's result: its first line (in red if it failed) and how many more it
+ * had. `markdown`: the first line is rendered (a subagent's answer), so no "**" or
+ * backticks show.
+ */
+export function resultSummary(result: { isError: boolean; text: string }, markdown = false): string {
   const lines = result.text.split("\n").filter((line) => line.trim() !== "");
   if (lines.length === 0) return result.isError ? ui.error("error") : ui.dim("(no output)");
   const more = lines.length > 1 ? ui.dim(` (+${lines.length - 1} ${lines.length === 2 ? "line" : "lines"})`) : "";
-  return (result.isError ? ui.error(lines[0].trim()) : lines[0].trim()) + more;
+  const first = lines[0].trim();
+  if (result.isError) return ui.error(first) + more;
+  // Rendered wide, as one row: the summary line is cut to the room left afterwards.
+  return (markdown ? (renderMarkdown(first, 1000)[0] ?? first) : first) + more;
 }
 
 /**
  * The calls one by one: each behind a `●`, then after `⎿` the calls a subagent made (the
- * latest few, dim) and the result, or "…" while it runs: a subagent's answer whole, with its
- * markdown rendered; any other result in one line, cut so its "(+N lines)" stays in view.
+ * latest few, dim) and the result in one line (a subagent's answer with its markdown
+ * rendered), or "…" while it runs.
  */
 export function toolGroupExpanded(calls: readonly ToolCall[], width: number): string[] {
   return calls.flatMap((call) => {
     const children = call.children ?? [];
     const shown = children.slice(-MAX_CHILDREN);
-    const answer =
-      call.result && !call.result.isError && SUBAGENT_TOOLS.has(call.toolName) && call.result.text.trim()
-        ? renderMarkdown(call.result.text, width - 5)
-        : null;
+    const result = call.result ? fitWidth(resultSummary(call.result, SUBAGENT_TOOLS.has(call.toolName)), width - 5) : ui.dim("…");
     const under = [
       ...(children.length > shown.length ? [ui.dim(`… ${children.length - shown.length} earlier`)] : []),
       ...shown.map((label) => fitWidth(ui.dim(`· ${label}`), width - 5)),
-      ...(answer ?? [call.result ? fitWidth(resultSummary(call.result), width - 5) : ui.dim("…")]),
+      result,
     ];
     return [
       `${ui.toolBullet("●")} ${fitWidth(call.label, width - 2)}`,

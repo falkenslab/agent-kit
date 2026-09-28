@@ -58,8 +58,8 @@ test("results: the first line, in red if it failed, and how many more", () => {
   assert.deepEqual(lines, ["● Read a.ts", "  ⎿  x"]);
 });
 
-test("a subagent's answer shows whole under its call, its markdown rendered, never cut", () => {
-  const answer = "Tres chistes:\n\n1. **El loro** que hablaba de más\n2. El `ancla` perezosa\n3. El pirata del parche";
+test("a subagent's answer shows in one line under its calls, its markdown rendered", () => {
+  const answer = "Tres **chistes** con `salsa`:\n\n1. El loro que hablaba de más\n2. El ancla perezosa\n3. El pirata del parche";
   const lines = toolGroupExpanded(
     [{ toolName: "Agent", label: "Delegating to minino", result: { isError: false, text: answer }, children: ["Searching the web"] }],
     60,
@@ -67,11 +67,7 @@ test("a subagent's answer shows whole under its call, its markdown rendered, nev
   assert.deepEqual(lines, [
     "● Delegating to minino",
     "  ⎿  · Searching the web",
-    "     Tres chistes:",
-    "",
-    "     1. El loro que hablaba de más",
-    "     2. El ancla perezosa",
-    "     3. El pirata del parche",
+    "     Tres chistes con salsa: (+3 lines)",
   ]);
 });
 
