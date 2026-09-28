@@ -71,6 +71,7 @@ export function createConsoleRenderer(options: ConsoleRendererOptions = {}): Con
         writeLine(ui.action(`[action] ${formatAction(event.toolName, event.input)}`));
         return;
       case "subagent-action":
+      case "tool-result":
       case "prompt-suggestion":
         return;
       case "mcp-error":

@@ -24,10 +24,14 @@ export type AgentEvent =
    * look like a subagent had taken over the session, not just handed a result back to the
    * main agent. This filtering is the one piece of interpretation this module always
    * applies, since it's correct for every caller, not a presentation choice. */
-  | { type: "action"; toolName: string; input: unknown }
+  | { type: "action"; toolName: string; input: unknown; toolUseId?: string }
   /** A tool call made inside a subagent's own turn (see `action` above for why those are
    * kept apart). Only for showing that a subagent is busy: a console log ignores it. */
-  | { type: "subagent-action"; toolName: string; input: unknown }
+  | { type: "subagent-action"; toolName: string; input: unknown; toolUseId?: string }
+  /** What one of the main agent's tool calls returned, paired with its `action` by
+   * `toolUseId`, as plain text (images and other non-text parts left out). Subagents'
+   * results stay out, as their actions do. A console log ignores it. */
+  | { type: "tool-result"; toolUseId: string; toolName: string; isError: boolean; text: string }
   /** One or more MCP servers failed to connect at session startup. */
   | { type: "mcp-error"; failedServers: string[] }
   /** A turn (one full `query()` response cycle) has finished. `failed` is the real
@@ -63,6 +67,16 @@ export interface SessionUsage {
   costUsd: number;
 }
 
+/** A tool result's content as plain text: its text parts joined, anything else skipped. */
+export function toolResultText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter((part): part is { type: "text"; text: string } => typeof part === "object" && part !== null && part.type === "text")
+    .map((part) => part.text)
+    .join("\n");
+}
+
 export interface ContextUsage {
   /** 0-100. */
   percentage: number;
@@ -92,6 +106,9 @@ export interface AgentRun {
  */
 export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options: Options): AgentRun {
   const result = query({ prompt, options });
+
+  // The main agent's tool calls by id, to name the results that come back for them.
+  const toolNames = new Map<string, string>();
 
   async function* generateEvents(): AsyncGenerator<AgentEvent> {
     for await (const message of result) {
@@ -123,10 +140,20 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
         const type = message.parent_tool_use_id === null ? "action" : "subagent-action";
         for (const block of message.message.content) {
           if (block.type === "tool_use") {
-            yield { type, toolName: block.name, input: block.input };
+            if (type === "action") toolNames.set(block.id, block.name);
+            yield { type, toolName: block.name, input: block.input, toolUseId: block.id };
           }
         }
         continue;
+      }
+
+      if (message.type === "user" && message.parent_tool_use_id === null && Array.isArray(message.message.content)) {
+        for (const block of message.message.content) {
+          if (block.type !== "tool_result") continue;
+          const toolName = toolNames.get(block.tool_use_id);
+          if (!toolName) continue;
+          yield { type: "tool-result", toolUseId: block.tool_use_id, toolName, isError: block.is_error === true, text: toolResultText(block.content) };
+        }
       }
 
       if (message.type === "prompt_suggestion") {
