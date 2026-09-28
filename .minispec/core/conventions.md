@@ -1,6 +1,6 @@
 # Conventions
 
-- Code, comments, skills, CLAUDE.md and `.minispec/` in English; commit messages and `README.md` in Spanish.
+- Everything in English: code, comments, documentation (`README.md`, `CLAUDE.md`, `.minispec/`), skills, commit messages and release notes. The one exception is captain-whiskers' own content (its prompts, skills, commands and on-screen text), which stays in Spanish: it's also the example of a non-English agent.
 - Commits follow Conventional Commits, one logical change each (see the `commit` skill).
 - Relative imports inside `src/` use explicit `.js` extensions (NodeNext).
 - Nothing under `src/core/` imports from `src/tui/`.

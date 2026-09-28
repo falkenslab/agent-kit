@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Create smart, atomic commits for agent-kit following the repo's conventions (Conventional Commits, Spanish messages, grouped by logical change). Use whenever the user asks to commit, or when finishing a piece of work that should be committed.
+description: Create smart, atomic commits for agent-kit following the repo's conventions (Conventional Commits, English messages, grouped by logical change). Use whenever the user asks to commit, or when finishing a piece of work that should be committed.
 ---
 
 # Smart commits for agent-kit
@@ -27,7 +27,7 @@ One logical change per commit, ordered so each commit builds on the previous one
 
 Format: `type(scope): description`, lowercase type, no trailing period. Types used here: `feat`, `fix`, `refactor`, `docs`, `chore`, `build`, `test`. Scopes seen in history: `tui`, `core`, `auth`, `mode`, `session`, `examples`, `readme`, `deps`, `release`.
 
-- **Language: Spanish** for the subject and body (this is the repo's history convention). Code, identifiers and skills stay in English.
+- **Language: English** for the subject and body (the repo's convention since v0.10.1; older history is in Spanish).
 - Breaking API change: add `!` after the type/scope (`refactor(auth)!: ...`) and say what breaks and what to use instead.
 - The body explains *why* (the problem, the constraint, the empirically confirmed behavior), not a line-by-line list of what changed. Wrap at ~80 columns.
 - End the message with the attribution trailer that the session's instructions require for commits (do not invent your own).

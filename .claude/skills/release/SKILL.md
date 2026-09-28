@@ -36,7 +36,7 @@ This updates `package.json` and `package-lock.json`. The README installs with a 
 
 ## 3b. Notes
 
-Draft the release notes in Spanish from the commits since the last tag, grouped as: new features, fixes, breaking changes (with migration hints), internal. Only include what matters to a consumer of the kit.
+Draft the release notes in English from the commits since the last tag, grouped as: new features, fixes, breaking changes (with migration hints), internal. Only include what matters to a consumer of the kit.
 
 ## 4. Commit, tag, push
 
