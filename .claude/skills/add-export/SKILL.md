@@ -30,6 +30,7 @@ Add or extend a test under `test/` mirroring the `src/` path (`test/core/...`, `
 
 ## 5. Docs
 
+- **The documentation site** (`docs/content/`, English, for developers building agents): document the new function, option or type in the guide it belongs to (see `docs/sidebars.ts`), with an example, in the same change. The API reference is generated from the doc comment, so write one for every export. Run `npm run docs:build` (part of `verify`).
 - `README.md` (English, user-facing): it describes what an agent built on the kit can do, without naming functions or options; touch it only when the change adds a capability a reader would notice at that level.
 - `.minispec/` (English, for future Claude sessions): update `core/architecture.md` if the design changed, and the ADR in `decisions/` (or a new one) if a decision or a rule changed.
 - Update stale statements you notice while there (paths, lists of event types, mode values).

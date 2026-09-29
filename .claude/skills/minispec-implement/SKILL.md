@@ -39,6 +39,10 @@ Do not read the whole `.minispec/` — only what the task needs.
 - Write code that satisfies the feature's **Changes**, respecting
   `conventions.md` and `principles.md`.
 - Stay within scope: no refactors outside the feature (a principle).
+- Update the documentation site in the same change: the guides under `docs/content/`
+  that describe what changed (see `docs/sidebars.ts`), with examples, and a doc comment
+  on every new export (the API reference is generated from them). A release publishes
+  only what's documented.
 
 ### 4. Verify
 

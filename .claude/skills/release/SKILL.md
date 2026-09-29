@@ -14,6 +14,7 @@ A release is a version commit, a `vX.Y.Z` git tag on `main`, a GitHub release an
 - Run the `verify` skill; a release must be green.
 - `gh auth status` works.
 - `npm whoami` works (logged in to npm with an account in the `falkenslab` organization). If it doesn't, stop and ask the user to run `npm login` themselves: it's interactive.
+- **The documentation is up to date.** Every change since the last tag that an agent built on the kit would notice (a new option, export, behavior, default, breaking change) must be reflected in the guides under `docs/content/`, not only in the release notes. Read `git log <last tag>..HEAD` and `git diff <last tag>..HEAD -- src/index.ts src/core src/tui`, check the matching pages (see `docs/sidebars.ts` for the map), and update them before going on; commit them with the `commit` skill (`docs(site): ...`). The API reference regenerates itself from the doc comments; make sure new exports have one.
 
 ## 2. Decide the bump
 
@@ -34,6 +35,15 @@ npm version <patch|minor|major> --no-git-tag-version
 
 This updates `package.json` and `package-lock.json`. The README installs with a plain `npm install @falkenslab/agent-kit` and names no version; still, `grep -n "<old version>" README.md` in case one slipped in.
 
+Then snapshot the documentation for this version (the site shows the latest version by default, and keeps each release's documentation):
+
+```
+npm run docs:version -- X.Y.Z
+npm run docs:build
+```
+
+This copies `docs/content/` (the generated API reference included) to `docs/versioned_docs/version-X.Y.Z/` and adds the version to `docs/versions.json`; it becomes the default at `/docs`, and `main` moves to `/docs/next`. The build must pass.
+
 ## 3b. Notes
 
 Draft the release notes in English from the commits since the last tag, grouped as: new features, fixes, breaking changes (with migration hints), internal. Only include what matters to a consumer of the kit.
@@ -41,7 +51,7 @@ Draft the release notes in English from the commits since the last tag, grouped 
 ## 4. Commit, tag, push
 
 ```
-git add package.json package-lock.json README.md
+git add package.json package-lock.json README.md docs/versioned_docs docs/versioned_sidebars docs/versions.json
 git commit -m "chore(release): vX.Y.Z"   # plus the attribution trailer required by the session
 git tag vX.Y.Z
 git push origin main
@@ -59,6 +69,7 @@ Tags in this repo are lightweight (`git tag vX.Y.Z`). Never move or delete an ex
 - `git ls-remote --tags origin` shows the tag on the release commit.
 - `gh release view vX.Y.Z` works.
 - `npm view @falkenslab/agent-kit version` shows the new version.
+- The documentation workflow ran for the release commit (`gh run list --workflow docs.yml --limit 1`) and https://falkenslab.github.io/agent-kit/docs shows the new version in the version selector.
 - Optionally prove the install path in a scratch directory (use the session scratchpad, not the repo): `npm install @falkenslab/agent-kit@X.Y.Z` and check `node_modules/@falkenslab/agent-kit/dist/index.js` exists.
 
 Report the version, the tag, the release URL, the npm package page and the notes you published. Mention that consumers pinned to an older tag must bump their dependency themselves.
