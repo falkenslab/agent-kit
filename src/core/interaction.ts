@@ -1,3 +1,4 @@
+/** What a checkpoint shows the person: a title, detail lines and, in a plain terminal, the question. */
 export interface ApprovalPrompt {
   title: string;
   lines: string[];
@@ -29,10 +30,12 @@ export interface InteractionPort {
 
 let current: InteractionPort | null = null;
 
+/** Installs the port every checkpoint asks through (`null`: answer through the response file only). One per process. */
 export function setInteractionPort(port: InteractionPort | null): void {
   current = port;
 }
 
+/** The port checkpoints ask through right now, or `null`. */
 export function getInteractionPort(): InteractionPort | null {
   return current;
 }

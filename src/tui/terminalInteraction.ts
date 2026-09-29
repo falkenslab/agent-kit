@@ -18,10 +18,12 @@ import { t } from "../core/messages/index.js";
  */
 let sharedReadline: readline.Interface | null = null;
 
+/** Registers the chat's `readline` interface, so checkpoints ask on it instead of opening a second one (`null` to unregister). */
 export function setSharedReadline(rl: readline.Interface | null): void {
   sharedReadline = rl;
 }
 
+/** The registered `readline` interface, or `null`. */
 export function getSharedReadline(): readline.Interface | null {
   return sharedReadline;
 }

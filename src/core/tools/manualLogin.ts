@@ -1,6 +1,7 @@
 import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import { askForManualIntervention } from "../hooks/humanInput.js";
 
+/** The manual-intervention tool's texts: for the model (`toolDescription`, `confirmedMessage`) and for the person (the checkpoint). */
 export interface ManualInterventionTexts {
   toolDescription: string;
   confirmedMessage: string;

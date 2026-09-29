@@ -4,6 +4,7 @@ import { createFriendlyToolLabel } from "../core/toolLabels.js";
 import * as ui from "./ui.js";
 import { t } from "../core/messages/index.js";
 
+/** Options of `createConsoleRenderer()`. */
 export interface ConsoleRendererOptions {
   /** Turns a tool call into its console label; defaults to `createFriendlyToolLabel()`. */
   formatAction?: (toolName: string, toolInput: unknown) => string;
@@ -15,6 +16,7 @@ export interface ConsoleRendererOptions {
   onWrite?: (text: string) => void;
 }
 
+/** Prints `runQuery()`'s events as plain console lines (see `createConsoleRenderer()`). */
 export interface ConsoleRenderer {
   /** Prints one normalized event from `runQuery()`. */
   render(event: AgentEvent): void;

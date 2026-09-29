@@ -5,6 +5,7 @@ import { t } from "../messages/index.js";
 
 const APPROVED_ANSWERS = new Set(["", "y", "yes"]);
 
+/** The approval tool's texts: its description (when the model should call it) and what it returns when approved or rejected. */
 export interface HumanApprovalTexts {
   description: string;
   approved: string;

@@ -14,6 +14,7 @@ export interface RunFolder {
   sessionId: string | null;
 }
 
+/** A run that kept a conversation, as `listRuns()` lists it for a person to pick (see `/resume`). */
 export interface RunSummary extends RunFolder {
   sessionId: string;
   /** When the run's conversation last changed. */
@@ -22,6 +23,7 @@ export interface RunSummary extends RunFolder {
   lastMessage: string;
 }
 
+/** One message of a kept conversation: something the person wrote, or the agent's text reply. */
 export interface ConversationMessage {
   role: "user" | "assistant";
   text: string;

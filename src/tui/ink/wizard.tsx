@@ -11,6 +11,7 @@ import { applyLanguage } from "../language.js";
 import { applyTheme, type Theme } from "../theme.js";
 import { KitTheme } from "./inkTheme.js";
 
+/** The wizard's answers, by step name. */
 export type WizardAnswers = Record<string, unknown>;
 
 /** A value, or one computed from the answers given so far. */
@@ -24,6 +25,7 @@ interface BaseStep {
   when?: (answers: WizardAnswers) => boolean;
 }
 
+/** A choice among `choices`; the answer is the chosen `value`. */
 export interface SelectStep<T = unknown> extends BaseStep {
   type: "select";
   choices: FromAnswers<{ name: string; value: T }[]>;
@@ -31,6 +33,7 @@ export interface SelectStep<T = unknown> extends BaseStep {
   default?: FromAnswers<T>;
 }
 
+/** A line of text. */
 export interface InputStep extends BaseStep {
   type: "input";
   default?: FromAnswers<string>;
@@ -38,18 +41,22 @@ export interface InputStep extends BaseStep {
   validate?: (value: string, answers: WizardAnswers) => true | string;
 }
 
+/** A line of text, masked while typed and in the summary. */
 export interface PasswordStep extends BaseStep {
   type: "password";
   validate?: (value: string, answers: WizardAnswers) => true | string;
 }
 
+/** A yes/no question; the answer is a boolean. */
 export interface ConfirmStep extends BaseStep {
   type: "confirm";
   default?: FromAnswers<boolean>;
 }
 
+/** One question of `runWizard()`. */
 export type WizardStep = SelectStep | InputStep | PasswordStep | ConfirmStep;
 
+/** Options of `runWizard()`. */
 export interface WizardOptions {
   /** Printed above the first question. */
   title?: string;

@@ -218,6 +218,7 @@ export interface ModeControl {
   set(next: Mode): boolean;
 }
 
+/** A `ModeControl` starting at `initial` (`buildSessionOptions()` returns one for its session). */
 export function createModeControl(initial: Mode): ModeControl {
   let current = initial;
   const switchable: readonly Mode[] = initial === "autonomous" ? ["autonomous"] : ["guided", "interactive"];

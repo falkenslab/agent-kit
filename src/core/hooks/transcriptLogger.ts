@@ -5,6 +5,7 @@ import type {
   PostToolUseHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 
+/** The two hooks that write `transcript.jsonl`: register `preToolUse` as a `PreToolUse` hook and `postToolUse` as a `PostToolUse` one. */
 export interface TranscriptLogger {
   preToolUse: HookCallback;
   postToolUse: HookCallback;

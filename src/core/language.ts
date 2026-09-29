@@ -1,6 +1,7 @@
 /** The languages the kit's own texts come in. */
 export type Language = "en" | "es" | "fr" | "de";
 
+/** The language codes the kit's texts come in. */
 export const SUPPORTED_LANGUAGES: readonly Language[] = ["en", "es", "fr", "de"];
 
 /** Each language's name in English, as the model is told it (the kit's text for the model stays in English). */
@@ -18,6 +19,7 @@ export interface LanguageSources {
   env?: Readonly<Record<string, string | undefined>>;
 }
 
+/** The result of `resolveLanguage()`: the language to use and why any asked-for code was skipped. */
 export interface ResolvedLanguage {
   language: Language;
   /** One line per code that was asked for and isn't supported (English text, for the caller to show). */

@@ -11,13 +11,15 @@ import { t } from "./messages/index.js";
  * the current language (see messages/).
  */
 
+/** Cuts `text` to `max` characters, with "…" at the end. */
 export function truncate(text: string, max = 60): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
-// Unlike truncate() above (which cuts the tail off long freeform text), a path's most
-// useful part — the filename — is at the *end*, so this keeps the tail and cuts the
-// front instead.
+/**
+ * Cuts a path to `max` characters from the front, with "…": unlike `truncate()` (which cuts
+ * the tail off long freeform text), a path's most useful part, the file name, is at the end.
+ */
 export function truncatePath(text: string, max = 60): string {
   return text.length > max ? `…${text.slice(text.length - max + 1)}` : text;
 }
@@ -66,6 +68,7 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
   }
 }
 
+/** An agent's labels for its own tools: the tool's short name and input, to a label, or `undefined` for the kit's default. */
 export type ToolDescriber = (shortName: string, input: Record<string, unknown>) => string | undefined;
 
 /**

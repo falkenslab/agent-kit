@@ -1,3 +1,4 @@
+/** What `resolveClaudeAuth()` and `ensureClaudeAuth()` accept besides the environment. */
 export interface ClaudeAuthConfig {
   /** A previously-resolved token the caller already has (from wherever it stores one, if
    * anywhere) — this module owns no persistence of its own, unlike an earlier version

@@ -72,6 +72,7 @@ export function setTheme(overrides: Partial<Theme> = {}): void {
   current = { ...DEFAULT_THEME, ...overrides };
 }
 
+/** The theme in use right now. */
 export function getTheme(): Readonly<Theme> {
   return current;
 }

@@ -31,6 +31,7 @@ import { headerLines, type HeaderInfo } from "./header.js";
 
 export type { HeaderInfo } from "./header.js";
 
+/** Options of `runChatInk()`: the chat's options plus the Ink-only ones. */
 export interface InkChatOptions extends ChatTuiOptions {
   /**
    * Title, fields and an optional logo for the top of the chat: fixed at the top in full

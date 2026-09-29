@@ -24,6 +24,7 @@ function stripAnsi(text: string): string {
   return text.replace(ANSI_SGR, "");
 }
 
+/** Options of the chats (`runChatTui()`, and `runChatInk()` through `InkChatOptions`). */
 export interface ChatTuiOptions {
   /**
    * Turns a tool call into a one-line console label. Defaults to `createFriendlyToolLabel()`

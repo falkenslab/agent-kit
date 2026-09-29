@@ -86,6 +86,7 @@ export function toolResultText(content: unknown): string {
     .join("\n");
 }
 
+/** How full the session's context window is (see `AgentRun.contextUsage()`). */
 export interface ContextUsage {
   /** 0-100. */
   percentage: number;
@@ -93,6 +94,7 @@ export interface ContextUsage {
   maxTokens: number;
 }
 
+/** A running session, as `runQuery()` returns it: its events and the controls of the SDK's `Query`. */
 export interface AgentRun {
   /** Normalized events for this run — iterate with `for await`. */
   events: AsyncIterable<AgentEvent>;

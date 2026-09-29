@@ -2,6 +2,7 @@ import stringWidth from "string-width";
 import { stripAnsi } from "./lineBuffer.js";
 import * as ui from "../ui.js";
 
+/** The top of the Ink chat: a title, optional fields and an optional logo. */
 export interface HeaderInfo {
   title: string;
   /** Shown under the title as "name value" pairs, e.g. the workspace or the model. */

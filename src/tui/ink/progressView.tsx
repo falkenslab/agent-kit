@@ -12,6 +12,7 @@ import { applyLanguage } from "../language.js";
 import { applyTheme, type Theme } from "../theme.js";
 import { KitTheme } from "./inkTheme.js";
 
+/** Options of `createProgressView()`. */
 export interface ProgressViewOptions extends Omit<ConsoleRendererOptions, "output"> {
   /** How one of the agent's own tools counts in a folded group's summary (see `InkChatOptions.toolPhrase`). */
   toolPhrase?: (toolName: string) => ToolPhrase | undefined;
@@ -35,6 +36,7 @@ export interface ProgressViewOptions extends Omit<ConsoleRendererOptions, "outpu
   language?: string;
 }
 
+/** A one-shot run's live view: a console renderer drawn with Ink, plus `close()`. */
 export interface ProgressView extends ConsoleRenderer {
   /** Removes the live area and restores the previous interaction port; await it before printing anything else. */
   close(): Promise<void>;
