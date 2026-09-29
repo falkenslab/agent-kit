@@ -1,6 +1,6 @@
 # Captain Whiskers
 
-A minimal agent built on agent-kit: a retired pirate cat who tells jokes in a terminal chat. He speaks Spanish, and so do his prompt, skills and commands, since the example is also a test of a non-English agent. It's a standalone project that uses the kit through `file:../..`.
+A minimal agent built on agent-kit: a retired pirate cat who tells jokes in a terminal chat. His skills, commands, crew and on-screen texts are in Spanish, since the example is also a test of a non-English agent; his prompts are in English, so he answers in the kit's language: the system's, or the one given with `npm start -- --language=fr` (`en`, `es`, `fr`, `de`), and the kit's own texts follow it. It's a standalone project that uses the kit through `file:../..`.
 
 ## Getting started
 
@@ -21,7 +21,7 @@ It needs Claude authentication: `CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY
 
 ## Usage
 
-Type as usual, `/captain-whiskers:chiste` to ask for a joke right away, and `/exit` to leave. ↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each session keeps its transcript in `.run/<date-time>/` (ignored by git); the ↑/↓ history lives in `.run/history.jsonl`.
+Type as usual, `/captain-whiskers:chiste` to ask for a joke right away, and `/exit` to leave. ↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each run keeps its session log, its transcript and the conversation in `.run/<date-time>/` (ignored by git): `npm start -- --continue` picks up the latest one, and `/resume` lists them to pick one. The ↑/↓ history lives in `.run/history.jsonl`.
 
 In a terminal it uses the kit's Ink interface (`runChatInk`) full screen: the prompt stays at the bottom, PageUp/PageDown and the mouse wheel scroll through the conversation and Ctrl+End (or typing) goes back to the bottom; drag with the mouse to select and right-click to copy to the clipboard. With `CAPTAIN_INLINE=1` it uses the inline mode (with the terminal's own scrollback), and without a TTY, or with `CAPTAIN_PLAIN=1`, the plain readline chat.
 
