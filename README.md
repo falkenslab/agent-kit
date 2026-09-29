@@ -1,6 +1,10 @@
 # agent-kit
 
 [![npm](https://img.shields.io/npm/v/@falkenslab/agent-kit?logo=npm)](https://www.npmjs.com/package/@falkenslab/agent-kit)
+[![npm downloads](https://img.shields.io/npm/dm/@falkenslab/agent-kit)](https://www.npmjs.com/package/@falkenslab/agent-kit)
+[![types](https://img.shields.io/npm/types/@falkenslab/agent-kit)](https://www.npmjs.com/package/@falkenslab/agent-kit)
+[![node](https://img.shields.io/node/v/@falkenslab/agent-kit)](https://nodejs.org/)
+[![license](https://img.shields.io/npm/l/@falkenslab/agent-kit)](LICENSE)
 
 A foundation for building AI agents on top of the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk). It isn't an agent itself: it solves once what every agent needs (human oversight, safety, memory and a good terminal interface), so each concrete agent only has to write what belongs to its own domain: what it knows how to do, with which tools, and how it talks.
 
