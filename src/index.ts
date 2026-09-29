@@ -2,6 +2,7 @@ import { setInteractionPort } from "./core/interaction.js";
 import { terminalInteractionPort } from "./tui/terminalInteraction.js";
 
 export * as ui from "./tui/ui.js";
+export { setTheme, getTheme, DEFAULT_THEME, type Theme, type ThemeColor } from "./tui/theme.js";
 export { isExitPromptError } from "./tui/promptErrors.js";
 export { allowAnyMcpTool } from "./core/mcpPermissions.js";
 export { createPromptLoader } from "./core/promptTemplate.js";

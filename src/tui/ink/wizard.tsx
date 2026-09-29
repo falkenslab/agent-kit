@@ -8,6 +8,8 @@ import * as inquirer from "@inquirer/prompts";
 import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
 import { applyLanguage } from "../language.js";
+import { applyTheme, type Theme } from "../theme.js";
+import { KitTheme } from "./inkTheme.js";
 
 export type WizardAnswers = Record<string, unknown>;
 
@@ -53,6 +55,12 @@ export interface WizardOptions {
   title?: string;
   /** Use the plain @inquirer/prompts questions even on a TTY. */
   plain?: boolean;
+  /**
+   * Colors for the kit's roles (see `Theme`), on top of the kit's defaults: only the roles
+   * given change, e.g. `{ toolResult: "yellow", selection: "#00ff00" }`. One theme per
+   * process: without this option, the one already set stays.
+   */
+  theme?: Partial<Theme>;
   /**
    * The language of the kit's texts ("en", "es", "fr", "de"). `--language=<code>` on the
    * command line wins; without either, the one `buildSessionOptions()` chose from
@@ -234,12 +242,18 @@ async function runPlainWizard(steps: WizardStep[], title?: string): Promise<Wiza
  */
 export async function runWizard(steps: WizardStep[], options: WizardOptions = {}): Promise<WizardAnswers> {
   applyLanguage(options.language);
+  applyTheme(options.theme);
   if (options.plain || !stdin.isTTY || !stdout.isTTY) return await runPlainWizard(steps, options.title);
 
   if (nextIndex(steps, -1, {}) >= steps.length) return {};
 
   let result: WizardAnswers | null = null;
-  const app = render(<Wizard steps={steps} title={options.title} onDone={(answers) => (result = answers)} />, { exitOnCtrlC: false });
+  const app = render(
+    <KitTheme>
+      <Wizard steps={steps} title={options.title} onDone={(answers) => (result = answers)} />
+    </KitTheme>,
+    { exitOnCtrlC: false },
+  );
   await app.waitUntilExit();
   if (result === null) throw exitPromptError();
   return result;

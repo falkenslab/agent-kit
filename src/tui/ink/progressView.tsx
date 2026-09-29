@@ -9,6 +9,8 @@ import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel
 import { SessionView, type RenderApproval } from "./SessionView.js";
 import type { ToolPhrase } from "./toolGroup.js";
 import { applyLanguage } from "../language.js";
+import { applyTheme, type Theme } from "../theme.js";
+import { KitTheme } from "./inkTheme.js";
 
 export interface ProgressViewOptions extends Omit<ConsoleRendererOptions, "output"> {
   /** How one of the agent's own tools counts in a folded group's summary (see `InkChatOptions.toolPhrase`). */
@@ -19,6 +21,12 @@ export interface ProgressViewOptions extends Omit<ConsoleRendererOptions, "outpu
   mode?: Mode;
   /** Use the plain console renderer even on a TTY. */
   plain?: boolean;
+  /**
+   * Colors for the kit's roles (see `Theme`), on top of the kit's defaults: only the roles
+   * given change, e.g. `{ toolResult: "yellow", selection: "#00ff00" }`. One theme per
+   * process: without this option, the one already set stays.
+   */
+  theme?: Partial<Theme>;
   /**
    * The language of the kit's texts ("en", "es", "fr", "de"). `--language=<code>` on the
    * command line wins; without either, the one `buildSessionOptions()` chose from
@@ -64,6 +72,7 @@ function ProgressApp({ model, interaction, renderApproval, mode, closed }: {
  */
 export function createProgressView(options: ProgressViewOptions = {}): ProgressView {
   applyLanguage(options.language);
+  applyTheme(options.theme);
   if (options.plain || !stdin.isTTY || !stdout.isTTY) {
     const renderer = createConsoleRenderer(options);
     return Object.assign(renderer, { close: async () => {} });
@@ -75,7 +84,9 @@ export function createProgressView(options: ProgressViewOptions = {}): ProgressV
   setInteractionPort(interaction.port);
 
   const app = (closed: boolean) => (
-    <ProgressApp model={model} interaction={interaction} renderApproval={options.renderApproval} mode={options.mode} closed={closed} />
+    <KitTheme>
+      <ProgressApp model={model} interaction={interaction} renderApproval={options.renderApproval} mode={options.mode} closed={closed} />
+    </KitTheme>
   );
   const instance = render(app(false), { exitOnCtrlC: false });
   model.startTurn();

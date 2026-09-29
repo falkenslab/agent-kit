@@ -1,28 +1,34 @@
 import pc from "picocolors";
+import { getTheme, paint } from "./theme.js";
 
-/** Color palette for a consistent console look across whatever CLI is built on this kit. */
-export const agent = (s: string): string => pc.cyanBright(s);
-export const user = (s: string): string => pc.white(s);
-export const action = (s: string): string => pc.magenta(s);
-export const heading = (s: string): string => pc.bold(s);
-export const success = (s: string): string => pc.green(s);
-export const warn = (s: string): string => pc.yellow(s);
-export const error = (s: string): string => pc.red(s);
-export const dim = (s: string): string => pc.dim(s);
+/**
+ * Color palette for a consistent console look across whatever CLI is built on this kit.
+ * Each function draws its role in the current theme (see theme.ts), so an agent's theme
+ * reaches everything that uses them, its own texts included.
+ */
+export const agent = (s: string): string => paint(getTheme().agent, s);
+export const user = (s: string): string => paint(getTheme().user, s);
+export const action = (s: string): string => paint(getTheme().action, s);
+export const heading = (s: string): string => paint(getTheme().heading, s);
+export const success = (s: string): string => paint(getTheme().success, s);
+export const warn = (s: string): string => paint(getTheme().warn, s);
+export const error = (s: string): string => paint(getTheme().error, s);
+export const dim = (s: string): string => paint(getTheme().dim, s);
 
-// The Claude Code-like look of the Ink views (see the feature ink-claude-style), in 24-bit
-// color when the terminal supports color at all, like the rest of this palette.
-const rgb = (r: number, g: number, b: number) => (s: string): string =>
-  pc.isColorSupported ? `\x1b[38;2;${r};${g};${b}m${s}\x1b[39m` : s;
-/** The orange accent: spinner, turn summary, mode. */
-export const accent = rgb(215, 119, 87);
+// The Claude Code-like look of the Ink views (see the feature ink-claude-style).
+/** The accent (the approval panels' border). */
+export const accent = (s: string): string => paint(getTheme().accent, s);
 /** The spinner and what the agent is doing. */
-export const working = rgb(137, 180, 250);
+export const working = (s: string): string => paint(getTheme().working, s);
 /** Inline code and code blocks. */
-export const code = rgb(177, 185, 249);
+export const code = (s: string): string => paint(getTheme().code, s);
 /** The background of the human's lines. */
-export const userBar = (s: string): string => (pc.isColorSupported ? `\x1b[48;2;55;55;55m${s}\x1b[49m` : s);
+export const userBar = (s: string): string => paint(getTheme().userBar, s, { background: true });
+export const toolBullet = (s: string): string => paint(getTheme().toolBullet, s);
+/** A tool call's label. */
+export const toolLabel = (s: string): string => paint(getTheme().toolLabel, s);
+/** The one-line result under a tool call. */
+export const toolResult = (s: string): string => paint(getTheme().toolResult, s);
 export const bold = (s: string): string => pc.bold(s);
 export const italic = (s: string): string => pc.italic(s);
 export const strike = (s: string): string => pc.strikethrough(s);
-export const toolBullet = (s: string): string => pc.green(s);

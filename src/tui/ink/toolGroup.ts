@@ -1,4 +1,4 @@
-import { fitWidth } from "./lineBuffer.js";
+import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import { renderMarkdown } from "./markdown.js";
 import * as ui from "../ui.js";
 import { t, type ToolPhrase } from "../../core/messages/index.js";
@@ -53,7 +53,9 @@ export function resultSummary(result: { isError: boolean; text: string }, markdo
   const first = lines[0].trim();
   if (result.isError) return ui.error(first) + more;
   // Rendered wide, as one row: the summary line is cut to the room left afterwards.
-  return (markdown ? (renderMarkdown(first, 1000)[0] ?? first) : first) + more;
+  // Plain before the theme's color: a style the markdown opened and closed (bold's reset)
+  // would cancel a dim around it.
+  return ui.toolResult(markdown ? stripAnsi(renderMarkdown(first, 1000)[0] ?? first) : first) + more;
 }
 
 /**
@@ -72,7 +74,7 @@ export function toolGroupExpanded(calls: readonly ToolCall[], width: number): st
       result,
     ];
     return [
-      `${ui.toolBullet("●")} ${fitWidth(call.label, width - 2)}`,
+      `${ui.toolBullet("●")} ${fitWidth(ui.toolLabel(call.label), width - 2)}`,
       ...under.map((line, i) => (line === "" ? "" : `  ${i === 0 ? ui.dim("⎿") : " "}  ${line}`)),
     ];
   });

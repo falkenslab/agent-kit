@@ -25,6 +25,7 @@ import type { Checkpoint, InkInteraction } from "./inkInteraction.js";
 import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
+import { inkColor } from "../theme.js";
 
 /** Replaces the default preview (title and lines) of an approval panel; the choices stay. */
 export type RenderApproval = (prompt: ApprovalPrompt) => ReactNode;
@@ -37,7 +38,6 @@ const decisionOptions = () => [
 ];
 const manualOptions = () => [{ label: `1. ${t().doneContinue}`, value: "continue" }];
 const DECISION_KEYS: Record<string, string> = { "1": "y", "2": "n", "3": "q", y: "y", n: "n", q: "q" };
-const ACCENT_HEX = "#d77757";
 
 /**
  * The preview's lines, capped so the whole live area stays shorter than the terminal: Ink
@@ -61,7 +61,7 @@ function CheckpointPanel({ checkpoint, renderApproval }: { checkpoint: Checkpoin
   const { prompt } = checkpoint;
   const { stdout } = useStdout();
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={ACCENT_HEX} paddingX={1}>
+    <Box flexDirection="column" borderStyle="round" borderColor={inkColor("accent")} paddingX={1}>
       {renderApproval ? (
         renderApproval(prompt)
       ) : (

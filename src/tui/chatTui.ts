@@ -11,6 +11,7 @@ import { isSharedQuestionActive, setSharedReadline } from "./terminalInteraction
 import * as ui from "./ui.js";
 import { t } from "../core/messages/index.js";
 import { applyLanguage } from "./language.js";
+import { applyTheme, type Theme } from "./theme.js";
 import { createConsoleRenderer } from "./consoleRenderer.js";
 import { firstRun, openSession, runDate, runFolderOf, runLabel, type SessionOpener } from "./runs.js";
 
@@ -92,6 +93,12 @@ export interface ChatTuiOptions {
    * conversation, tool results included and not redacted: keep it out of version control.
    */
   runsDir?: string;
+  /**
+   * Colors for the kit's roles (see `Theme`), on top of the kit's defaults: only the roles
+   * given change, e.g. `{ toolResult: "yellow", selection: "#00ff00" }`. One theme per
+   * process: without this option, the one already set stays.
+   */
+  theme?: Partial<Theme>;
 }
 
 interface HistoryEntry {
@@ -186,6 +193,7 @@ export async function drainTurn(events: AsyncIterator<AgentEvent>, onEvent: (eve
  */
 export async function runChatTui(options: Options | SessionOpener, tuiOptions: ChatTuiOptions = {}): Promise<void> {
   applyLanguage(tuiOptions.language);
+  applyTheme(tuiOptions.theme);
   const exitCommands = new Set((tuiOptions.exitCommands ?? DEFAULT_EXIT_COMMANDS).map((c) => c.toLowerCase()));
   const promptLabel = tuiOptions.promptLabel ?? DEFAULT_PROMPT_LABEL;
 

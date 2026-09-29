@@ -14,6 +14,8 @@ import { capHistory, loadHistory, runChatTui, saveHistory, slashCommandToken, ty
 import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
 import { applyLanguage } from "../language.js";
+import { applyTheme, inkColor } from "../theme.js";
+import { KitTheme } from "./inkTheme.js";
 import { firstRun, openSession, runDate, runFolderOf, runLabel, type SessionOpener } from "../runs.js";
 import { createInkInteraction, type InkInteraction } from "./inkInteraction.js";
 import { PromptInput } from "./PromptInput.js";
@@ -212,7 +214,7 @@ function PickerPanel({ picker }: { picker: ChatPicker }) {
   });
   const width = liveWidth(columns) - PROMPT_FRAME_COLUMNS;
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="gray" paddingX={1}>
+    <Box flexDirection="column" borderStyle="round" borderColor={inkColor("border")} paddingX={1}>
       <Text bold>{picker.title}</Text>
       <Select
         options={picker.options.map((option) => ({ ...option, label: fitWidth(option.label, Math.max(10, width - 2)) }))}
@@ -288,7 +290,7 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
         {chat.picker ? (
           <PickerPanel picker={chat.picker} />
         ) : (
-          <Box borderStyle="round" borderColor="gray" paddingX={1}>
+          <Box borderStyle="round" borderColor={inkColor("border")} paddingX={1}>
             <PromptInput
               label={promptLabel.replace(/^\n+/, "")}
               history={chat.history}
@@ -327,6 +329,7 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
   // Warnings about an unsupported language code go into the chat, not behind the full screen.
   const languageWarnings: string[] = [];
   applyLanguage(tuiOptions.language, (line) => languageWarnings.push(line));
+  applyTheme(tuiOptions.theme);
 
   const opener = typeof options === "function" ? options : null;
   const runsDir = opener ? tuiOptions.runsDir : undefined;
@@ -486,6 +489,7 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
   status?.start();
   const app = render(
     <CursorContext.Provider value={cursor}>
+    <KitTheme>
     <ChatApp
       model={model}
       interaction={interaction}
@@ -499,6 +503,7 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
       modeControl={modeControl}
       onInterrupt={interruptTurn}
     />
+    </KitTheme>
     </CursorContext.Provider>,
     // In full screen Ink writes through the cursor controller, which places the terminal's cursor.
     { exitOnCtrlC: false, ...(cursor ? { stdout: cursor.stream } : {}) },
