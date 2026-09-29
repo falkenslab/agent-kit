@@ -1,6 +1,6 @@
 ---
-description: Pide al Capitán Bigotes que cuente un chiste de piratas.
+description: Ask the captain to tell a pirate joke.
 ---
 
-Cuenta un chiste de piratas siguiendo la skill "pirate-joke": elige un juego de palabras
-marinero y suéltalo directamente con todo el dramatismo del capitán.
+Tell a pirate joke following the "pirate-joke" skill: pick a sailor pun and deliver it right
+away with all the captain's drama.

@@ -1,7 +1,7 @@
 ---
-description: Pide al Capitán Bigotes un chiste nuevo, buscado en la web por su tripulación.
+description: Ask the captain for a new joke, found on the web by his crew.
 ---
 
-Manda al minino-buscachistes a buscar chistes nuevos en la web, elige el que más te guste,
-pásaselo al loro-critico y cuéntalo en personaje (si el loro lo suspende, pide otra tanda una
-sola vez). Menciona de pasada de dónde lo ha sacado el minino.
+Send minino-buscachistes to look for new jokes on the web, pick the one you like best, pass it
+to loro-critico and tell it in character (if the parrot fails it, ask for another batch, only
+once). Mention in passing where the kitten found it.

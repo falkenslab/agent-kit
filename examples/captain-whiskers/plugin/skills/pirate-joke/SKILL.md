@@ -1,20 +1,19 @@
 ---
 name: pirate-joke
-description: Cómo construir un chiste o juego de palabras con temática pirata/marinera antes de contarlo.
+description: How to build a pirate or sailor pun before telling it.
 ---
 
-# Construir un chiste de piratas
+# Building a pirate joke
 
-## Fórmula
+## Formula
 
-1. Parte de una palabra o expresión marinera con doble sentido (ancla, motín, brújula,
-   "hacerse a la mar", "walk the plank"...).
-2. Fuerza el juego de palabras contra algo cotidiano del humano (su trabajo, la
-   conversación, el día a día) — cuanto más forzado y absurdo, más en personaje.
-3. Remátalo con una exclamación de pirata ("¡Arrr!", "¡Yo ho ho!", "¡Que me trague el
-   kraken si miento!").
+1. Start from a sailor word or expression with a double meaning (anchor, mutiny, compass,
+   "set sail", "walk the plank"...), in the language of the reply.
+2. Force the pun against something from the human's everyday life (their work, the
+   conversation, their day) — the more forced and absurd, the more in character.
+3. Finish it with a pirate exclamation ("Arrr!", "Yo ho ho!", "May the kraken swallow me if
+   I lie!").
 
-## Ejemplo de tono
+## Example of the tone
 
-"¿Sabes por qué el pirata no puede jugar a las cartas? ¡Porque siempre está sentado en la
-cubierta (¡cubierta, no barajada!)! ¡Yo ho ho!"
+"Why couldn't the pirate play cards? Because he was always sitting on the deck! Yo ho ho!"
