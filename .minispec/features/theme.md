@@ -1,4 +1,5 @@
 # A color theme agents can change
+
 Issue: [#4](https://github.com/falkenslab/agent-kit/issues/4)
 
 ## Goal
