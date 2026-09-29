@@ -83,16 +83,57 @@ function renderList(list: Tokens.List, width: number): string[] {
   return lines;
 }
 
+const visibleWidth = (text: string): number => stringWidth(stripAnsi(text));
+
+/**
+ * The widest columns shrunk, one column at a time, until the grid (`widths` plus one border
+ * and two spaces of padding per column, plus the last border) fits `room`; a column never
+ * goes below 3.
+ */
+function fitColumns(widths: readonly number[], room: number): number[] {
+  const fitted = [...widths];
+  const total = (): number => fitted.reduce((sum, w) => sum + w, 0) + fitted.length * 3 + 1;
+  while (total() > room) {
+    const widest = fitted.indexOf(Math.max(...fitted));
+    if (fitted[widest] <= 3) break;
+    fitted[widest]--;
+  }
+  return fitted;
+}
+
+/**
+ * A table as a grid: dimmed box-drawing borders, one space of padding, the header in bold,
+ * a rule between rows and each column aligned as its markdown says. A table wider than the
+ * room shrinks its widest columns and wraps their cells onto more lines.
+ */
 function renderTable(table: Tokens.Table, width: number): string[] {
   const cell = (c: Tokens.TableCell): string => inline(c.tokens, c.text);
-  const header = table.header.map(cell);
-  const rows = table.rows.map((row) => row.map(cell));
-  const widths = header.map((h, i) => Math.max(stringWidth(stripAnsi(h)), ...rows.map((row) => stringWidth(stripAnsi(row[i] ?? "")))));
-  const pad = (text: string, i: number): string => text + " ".repeat(Math.max(0, widths[i] - stringWidth(stripAnsi(text))));
-  const line = (cells: string[]): string => cells.map(pad).join("  ").trimEnd();
-  const out = [ui.bold(line(header)), ui.dim(widths.map((w) => "─".repeat(w)).join("  ")), ...rows.map(line)];
-  // A table wider than the room is cut, not wrapped: wrapping would scramble the columns.
-  return out.map((row) => (stringWidth(stripAnsi(row)) > width ? wrapAnsi(row, width, { hard: true, wordWrap: false }).split("\n")[0] : row));
+  const header = table.header.map((c) => ui.bold(cell(c)));
+  const rows = table.rows.map((row) => table.header.map((_, i) => (row[i] ? cell(row[i]) : "")));
+  const natural = header.map((h, i) => Math.max(1, visibleWidth(h), ...rows.map((row) => visibleWidth(row[i]))));
+  const widths = fitColumns(natural, width);
+
+  const place = (text: string, i: number): string => {
+    const room = widths[i] - visibleWidth(text);
+    if (room <= 0) return text;
+    if (table.align[i] === "right") return " ".repeat(room) + text;
+    if (table.align[i] === "center") return " ".repeat(Math.floor(room / 2)) + text + " ".repeat(Math.ceil(room / 2));
+    return text + " ".repeat(room);
+  };
+  const border = (left: string, middle: string, right: string): string =>
+    ui.dim(left + widths.map((w) => "─".repeat(w + 2)).join(middle) + right);
+  const bar = ui.dim("│");
+  // A row's cells wrapped to their columns: as many lines as its tallest cell.
+  const rowLines = (cells: string[]): string[] => {
+    const wrapped = cells.map((text, i) => wrapAnsi(text, widths[i], { hard: true, trim: true }).split("\n"));
+    const height = Math.max(...wrapped.map((lines) => lines.length));
+    return Array.from({ length: height }, (_, line) => `${bar}${wrapped.map((lines, i) => ` ${place(lines[line] ?? "", i)} `).join(bar)}${bar}`);
+  };
+
+  const lines = [border("┌", "┬", "┐"), ...rowLines(header)];
+  for (const row of rows) lines.push(border("├", "┼", "┤"), ...rowLines(row));
+  lines.push(border("└", "┴", "┘"));
+  return lines;
 }
 
 /** Inline tokens (bold, italic, code, links...) as styled text. */

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { finishedLength, renderMarkdown } from "../../../src/tui/ink/markdown.js";
+import stringWidth from "string-width";
 import { stripAnsi } from "../../../src/tui/ink/lineBuffer.js";
 import { resultSummary, toolGroupExpanded, toolGroupSummary } from "../../../src/tui/ink/toolGroup.js";
 import { toolResultText, visibleErrors } from "../../../src/core/runner.js";
@@ -21,11 +22,40 @@ test("blocks: headings, lists, quotes, rules, code, tables, with a blank line be
   assert.deepEqual(md("---", 10), ["──────────"]);
   assert.deepEqual(md("```ts\nconst a = 1;\n```"), ["  const a = 1;"]);
   assert.deepEqual(md("| Name | Mark |\n| --- | --- |\n| Ana | 9 |\n| Bernardo | 10 |"), [
-    "Name      Mark",
-    "────────  ────",
-    "Ana       9",
-    "Bernardo  10",
+    "┌──────────┬──────┐",
+    "│ Name     │ Mark │",
+    "├──────────┼──────┤",
+    "│ Ana      │ 9    │",
+    "├──────────┼──────┤",
+    "│ Bernardo │ 10   │",
+    "└──────────┴──────┘",
   ]);
+});
+
+test("a table follows its markdown alignment, and a wide one wraps its cells to fit", () => {
+  assert.deepEqual(md("| Left | Right | Mid |\n| :-- | --: | :-: |\n| a | 1 | x |\n| bbbb | 22 | yyy |"), [
+    "┌──────┬───────┬─────┐",
+    "│ Left │ Right │ Mid │",
+    "├──────┼───────┼─────┤",
+    "│ a    │     1 │  x  │",
+    "├──────┼───────┼─────┤",
+    "│ bbbb │    22 │ yyy │",
+    "└──────┴───────┴─────┘",
+  ]);
+  const wide = md("| Tool | What it does |\n| --- | --- |\n| `Read` | reads **files** from the knowledge base and the sources folder |", 40);
+  assert.ok(wide.every((line) => stringWidth(line) <= 40), wide.join("\n"));
+  assert.deepEqual(wide, [
+    "┌──────┬───────────────────────────────┐",
+    "│ Tool │ What it does                  │",
+    "├──────┼───────────────────────────────┤",
+    "│ Read │ reads files from the          │",
+    "│      │ knowledge base and the        │",
+    "│      │ sources folder                │",
+    "└──────┴───────────────────────────────┘",
+  ]);
+  // Widths are in columns: accents and wide characters keep the borders aligned.
+  const accents = md("| Nombre | Ciudad |\n| --- | --- |\n| Iñaki | 東京 |");
+  assert.equal(new Set(accents.map((line) => stringWidth(line))).size, 1, accents.join("\n"));
 });
 
 test("paragraphs wrap to the width; list items indent their continuation", () => {
