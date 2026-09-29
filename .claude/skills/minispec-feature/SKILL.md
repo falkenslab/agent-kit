@@ -20,6 +20,11 @@ Create a temporal feature document under `.minispec/features/`.
    - **Changes** — short bullet list of the work.
    - **Acceptance** — observable done conditions.
 5. Base content on the real code and the user's description. Don't invent.
+6. Open its GitHub issue, always, one per feature, in the repo the feature file is in
+   (`gh issue create -R <owner>/<repo>`): title and body in Spanish, for someone who
+   uses the project (what and why, not the file's wording), label `feature` (create it
+   with `gh label create feature` if the repo lacks it), and a last line pointing to
+   `.minispec/features/<slug>.md`. Give the user the issue's URL.
 
 ## Rules
 
@@ -28,3 +33,4 @@ Create a temporal feature document under `.minispec/features/`.
 - Reminder for later: when the feature is done, promote anything permanent it
   revealed (a decision → ADR, a rule → conventions, a term → glossary) and then
   DELETE the feature file. Mention this to the user; do not delete now.
+- Its issue is closed when the feature is implemented (see `minispec-implement`).
