@@ -1,5 +1,7 @@
 # A readable highlight for the selected option
 
+Issue: [#1](https://github.com/falkenslab/agent-kit/issues/1)
+
 ## Goal
 
 Show the focused option of every choice list (approval panels, `/resume`, the wizard) in a color that reads well on a dark terminal, instead of `@inkjs/ui`'s default dark blue.

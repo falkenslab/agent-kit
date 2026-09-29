@@ -1,5 +1,7 @@
 # Technical documentation site
 
+Issue: [#3](https://github.com/falkenslab/agent-kit/issues/3)
+
 ## Goal
 
 Publish English technical documentation for building agents with `@falkenslab/agent-kit`, a Docusaurus site in `docs/` deployed to GitHub Pages.

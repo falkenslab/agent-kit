@@ -57,14 +57,16 @@ Tell the user this and offer to do it. Do not delete without confirmation.
 
 ### 6. Close its issue
 
-Every feature and bugfix note has a GitHub issue (label `feature` or `fix`; find it by
-title or by the file's path in its body, `gh issue list --search`). When the work is
-committed and pushed:
+Every feature and bugfix note has a GitHub issue (label `feature` or `fix`), linked
+from the `Issue:` line under the note's title (otherwise find it by the file's path in
+its body, `gh issue list --search`). When the work is committed and pushed:
 
-- reference it in the commit that completes it (`Closes #N`);
-- then comment on it, in Spanish, a short summary of the solution — what changed for the
-  user, how it was verified, the commits — and make sure it's closed
-  (`gh issue close N --comment "…"` if the commit didn't close it).
+- reference it in the commit that completes it (`Closes #N`), the same commit that deletes
+  the note;
+- then comment on it, in English, a short description of the solution and how it was
+  implemented — what changed for the user, the design choices, how it was verified, the
+  commits — and make sure it's closed (`gh issue close N --comment "…"` if the commit
+  didn't close it).
 
 No issue found: say so and offer to open one; don't close an issue for work that isn't
 pushed.

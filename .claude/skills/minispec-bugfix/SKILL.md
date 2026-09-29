@@ -19,10 +19,12 @@ it lives under `.minispec/features/`.
    - **Solution** — what was changed.
    - **Verification** — how the fix was confirmed.
 5. Open its GitHub issue, always, one per note, in the repo the note is in: title and
-   body in Spanish (the symptom as the user sees it, and the cause), label `fix`
-   (`gh label create fix` if the repo lacks it), and a last line pointing to
-   `.minispec/features/fix-<slug>.md`. When the fix is committed, close it as
-   `minispec-implement` says (`Closes #N` in the commit, then the summary comment).
+   body in English, like everything in this repo (the symptom as the user sees it, and
+   the cause), label `fix` (`gh label create fix` if the repo lacks it), and a last line
+   pointing to `.minispec/features/fix-<slug>.md`. Then link the note to it: a line
+   `Issue: [#N](<issue URL>)` right under the note's title. When the fix is committed,
+   close it as `minispec-implement` says (`Closes #N` in the commit, then the summary
+   comment).
 
 ## Rules
 

@@ -1,5 +1,7 @@
 # Tool results in a quieter color
 
+Issue: [#2](https://github.com/falkenslab/agent-kit/issues/2)
+
 ## Goal
 
 In the Ink chat, show the one-line result under each tool call (`⎿ …`) dimmed, so only the agent's replies and the human's messages are in the terminal's default color.
