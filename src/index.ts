@@ -44,6 +44,9 @@ export {
 // the SDK from its own package.json entirely once it no longer calls query()/tool()/
 // createSdkMcpServer() directly.
 export type { Options, McpServerConfig, AgentDefinition } from "@anthropic-ai/claude-agent-sdk";
+// And the two functions an agent needs for tools of its own (an in-process MCP server,
+// returned from AgentSpec.buildMcpServers()), so it doesn't need the SDK for those either.
+export { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 
 export { createTranscriptLogger, summarizeToolResponse, type TranscriptLogger } from "./core/hooks/transcriptLogger.js";
 export { createStepGate } from "./core/hooks/stepGate.js";
