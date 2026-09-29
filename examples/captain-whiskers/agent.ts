@@ -197,6 +197,9 @@ async function main(): Promise<void> {
     // El nombre del modo, en el idioma del kit (el mismo que en la barra de estado).
     header: { title: text.name, fields: { [text.mode]: messagesFor(language).mode(mode) }, art: LOGO },
     mode,
+    // Su tema: solo cambia estos roles; el resto sigue con los colores del kit. El borde de
+    // los paneles de aprobación y la opción elegida en las listas, en dorado de doblón.
+    theme: { accent: "#e5b53a", selection: "#e5b53a" },
     plain: process.env.CAPTAIN_PLAIN === "1",
     fullscreen: process.env.CAPTAIN_INLINE !== "1",
     // La primera sugerencia (Tab la acepta): el modelo solo sugiere a partir del segundo turno.
