@@ -19,7 +19,7 @@ A foundation for building AI agents on top of the [Claude Agent SDK](https://www
 
 ### Captain Whiskers
 
-[Captain Whiskers](./examples/captain-whiskers) is a toy agent to see the kit in action: a retired pirate cat who tells jokes in the terminal, in your language (its own texts are in Spanish). It starts full screen with its logo and has a small crew of subagents: one looks for new jokes on the web, another rates them before they're told, and a third, optional one tells the time. It lets you try the different levels of oversight and is the best starting point for an agent of your own. Its README explains how to run it.
+[Captain Whiskers](./examples/captain-whiskers) is a toy agent to see the kit in action: a retired pirate cat who tells jokes in the terminal, in your language. It starts full screen with its logo and has a small crew of subagents: one looks for new jokes on the web, another rates them before they're told, and a third tells the time with a tool of the captain's own. It lets you try the different levels of oversight and is the best starting point for an agent of your own. Its README explains how to run it.
 
 ![Captain Whiskers in Windows Terminal: its logo at the top, the conversation in the middle and the framed prompt at the bottom, with a suggestion for the next message](docs/assets/captain-whiskers.png)
 

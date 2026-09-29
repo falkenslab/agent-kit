@@ -12,7 +12,7 @@ The kit's texts come in English, Spanish, French and German, from catalogs in `s
 
 ## Consequences
 
-- The reply line is a strong hint, not a guarantee (confirmed empirically): whatever language the agent's own prompt, skills or subagent names are written in pulls the replies towards it, and so does the runner's account name (ADR-018). An agent meant to follow the language writes its prompts in English; captain-whiskers does, and keeps its skills and on-screen texts in Spanish. English messages from the human don't always switch the language: the model takes English as neutral.
+- The reply line is a strong hint, not a guarantee (confirmed empirically): whatever language the agent's own prompt, skills or commands are written in pulls the replies towards it, and so do the runner's name and e-mail the CLI puts in the context (ADR-018), most for a question about the agent itself. An agent meant to follow the language writes everything its model reads in English and picks its own on-screen texts by `detectLanguage()`; captain-whiskers does both, with its name in each language. English messages from the human don't always switch the language: the model takes English as neutral.
 - Fixed-place texts are measured in columns: the busiest status bar fits 80 columns in every language (a test), which is why the other languages abbreviate tokens and show the mode key as `⇧Tab`.
 - Pasted-text tokens are matched in any language, so a prompt written before a language change still expands.
 - Adding a language is one catalog plus its code in `SUPPORTED_LANGUAGES`; a test checks every catalog has every English key.
