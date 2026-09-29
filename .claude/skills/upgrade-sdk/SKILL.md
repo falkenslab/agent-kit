@@ -32,6 +32,8 @@ Check each against the new typings and, where possible, by running a small scrip
 - Turn results: `subtype: "success"` can still carry `is_error: true`; `runQuery()` must keep using `is_error` for `failed`.
 - Message types: `system`/`init`, `system`/`informational`, `system`/`local_command_output`, `stream_event` deltas, and `supportedCommands()` (used to flag unknown slash commands in `runChatTui()`).
 - `PreToolUse` hook input carries `agent_id` only for subagent calls (`subagentBashGate.ts`).
+- `SessionStore` (`@alpha`, ADR-020): `append(key, entries)`, `load(key)` before resuming and `listSubkeys()` for subagent transcripts keep their shape; a session resumed with `resume` + `sessionStore` keeps its id and remembers the conversation with the CLI's own copy deleted (`src/core/runs.ts`).
+- `settingSources: ["project"]` keeps the runner's `~/.claude/settings.json` out, and the runner's auto-memory still needs `settings.autoMemoryEnabled: false` to stay out (ADR-018).
 
 If a behavior changed, adapt the code and its comment (update the "confirmed empirically" note with the version it was re-confirmed on, or remove it if no longer true), and add a test when it can be tested without a live model.
 

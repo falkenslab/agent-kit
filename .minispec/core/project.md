@@ -11,6 +11,8 @@
 - Security hooks: file scope, subagent gates, MCP permissions, transcript logging with secret redaction.
 - A built-in knowledge base (LLM-wiki pattern) with its own plugin of skills and commands.
 - A normalized event stream (`runQuery()`), tool-label formatting, a terminal UI (Ink, with a readline fallback) and Claude auth.
+- The kit's texts and the agent's replies in English, Spanish, French or German (ADR-019).
+- Each run's conversation kept in its run folder, resumed with `--continue` or `/resume` (ADR-020).
 
 ## For whom
 

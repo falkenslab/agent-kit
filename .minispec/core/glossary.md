@@ -14,7 +14,11 @@ A concrete agent built on the kit (`teacher-agent`, `student-agent`, `captain-wh
 
 ## Run directory (`runDir`)
 
-Per-session folder: `transcript.jsonl`, `approval-response.txt`, files to save to sources.
+Per-run folder: `transcript.jsonl`, `approval-response.txt`, files to save to sources; with a runs folder also `session.log`, `conversation.jsonl`, `subagents/` and `session.json` (ADR-020).
+
+## Runs folder (`runsDir`)
+
+Where a chat creates each run's folder and finds the runs to resume (`--continue`, `/resume`).
 
 ## Response file
 
@@ -35,6 +39,10 @@ An `AgentDefinition` a consumer registers via `buildSubagents()`; the only place
 ## Host
 
 Whatever runs the session: a terminal CLI, an Electron main process, a sidecar.
+
+## Kit language
+
+The language of the kit's texts and the agent's replies, one per process: `--language`, the agent's option, the system's, English (ADR-019).
 
 ## Confirmed empirically
 
