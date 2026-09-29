@@ -8,4 +8,5 @@
 - Doc comments explain *why*, and mark SDK behavior verified by hand as "confirmed empirically".
 - A bug fixed or an SDK quirk found gets a regression test in `test/`, mirroring `src/`.
 - Documentation Markdown (`README.md`, `CLAUDE.md`, `.minispec/`): one line per paragraph and list item, no horizontal rules between sections. Skill and plugin Markdown keeps its own formatting.
-- Before a release, the `verify` skill must pass (it also typechecks captain-whiskers against the rebuilt kit).
+- Before a release, the `verify` skill must pass (it also typechecks captain-whiskers against the rebuilt kit and builds the documentation site).
+- A change visible to agents built on the kit updates the documentation site's guides (`docs/content/`) in the same change, and every public export has a doc comment (the API reference is generated from them); a release snapshots the documentation as a version (ADR-022).

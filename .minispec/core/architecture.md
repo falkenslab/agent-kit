@@ -65,5 +65,6 @@ With `knowledgeDir` and/or `sourcesDir`: `Read`, `Write`, `Edit`, `Glob`, `Grep`
 - `assets/knowledge-plugin/` — shipped with the package.
 - `test/` — `node:test` suites mirroring `src/`.
 - `examples/captain-whiskers/` — toy consumer.
+- `docs/` — the documentation site (Docusaurus, its own npm project): guides in `content/`, the API reference generated from `src/` (ADR-022); published to GitHub Pages by `.github/workflows/docs.yml`.
 - `.claude/skills/` — skills for developing this repo.
 - `.minispec/` — this specification.

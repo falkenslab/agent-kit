@@ -1,0 +1,28 @@
+/* The kit's own palette: the orange accent and the light blue of its terminal UI. */
+:root {
+  --ifm-color-primary: #c0603f;
+  --ifm-color-primary-dark: #ad5639;
+  --ifm-color-primary-darker: #a35136;
+  --ifm-color-primary-darkest: #86432c;
+  --ifm-color-primary-light: #c86f51;
+  --ifm-color-primary-lighter: #cb785b;
+  --ifm-color-primary-lightest: #d59179;
+  --ifm-code-font-size: 92%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #d77757;
+  --ifm-color-primary-dark: #d1633e;
+  --ifm-color-primary-darker: #cd5933;
+  --ifm-color-primary-darkest: #aa4828;
+  --ifm-color-primary-light: #dd8b70;
+  --ifm-color-primary-lighter: #e0957c;
+  --ifm-color-primary-lightest: #e9b3a1;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Terminal screenshots and screens drawn in text keep their alignment. */
+pre code {
+  font-variant-ligatures: none;
+}

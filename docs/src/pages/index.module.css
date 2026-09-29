@@ -1,0 +1,29 @@
+.hero {
+  padding: 4rem 0 3rem;
+  text-align: center;
+  background: var(--ifm-color-emphasis-100);
+}
+
+.title {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.tagline {
+  font-size: 1.25rem;
+  max-width: 46rem;
+  margin: 0 auto 2rem;
+}
+
+.buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.install {
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+}

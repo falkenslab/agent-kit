@@ -14,6 +14,7 @@
 - The kit's texts and the agent's replies in English, Spanish, French or German (ADR-019).
 - Each run's conversation kept in its run folder, resumed with `--continue` or `/resume` (ADR-020).
 - A color theme by roles an agent overrides in part (ADR-021).
+- A versioned documentation site on GitHub Pages, with a generated API reference (ADR-022).
 
 ## For whom
 

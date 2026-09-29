@@ -5,6 +5,7 @@
 [![types](https://img.shields.io/npm/types/@falkenslab/agent-kit)](https://www.npmjs.com/package/@falkenslab/agent-kit)
 [![node](https://img.shields.io/node/v/@falkenslab/agent-kit)](https://nodejs.org/)
 [![license](https://img.shields.io/npm/l/@falkenslab/agent-kit)](LICENSE)
+[![docs](https://img.shields.io/badge/docs-falkenslab.github.io%2Fagent--kit-d77757)](https://falkenslab.github.io/agent-kit/)
 
 A foundation for building AI agents on top of the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk). It isn't an agent itself: it solves once what every agent needs (human oversight, safety, memory and a good terminal interface), so each concrete agent only has to write what belongs to its own domain: what it knows how to do, with which tools, and how it talks.
 
@@ -79,9 +80,11 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 
 Save it as `agent.ts` in a project with the kit and `tsx` installed and `"type": "module"` in its `package.json`, and run it with `npx tsx agent.ts`. Captain Whiskers is this same skeleton with more pieces: skills, subagents and its logo.
 
-## More details
+## Documentation
 
-The specification in [`.minispec/`](./.minispec/README.md) explains how each part is built and why, including the SDK behaviors checked by hand that motivate several of its safeguards. Captain Whiskers' code is the quickest way to see how an agent is put together.
+The full documentation is at **[falkenslab.github.io/agent-kit](https://falkenslab.github.io/agent-kit/)**: a tutorial, guides for every part of the kit (modes, human in the loop, security, tools, subagents, the knowledge base, the terminal UI, runs, languages, themes, hosts without a terminal), recipes, and an API reference generated from the source, for each released version.
+
+For whoever works on the kit itself, the specification in [`.minispec/`](./.minispec/README.md) explains how each part is built and why, including the SDK behaviors checked by hand that motivate several of its safeguards.
 
 ## Development
 
@@ -91,6 +94,9 @@ The specification in [`.minispec/`](./.minispec/README.md) explains how each par
 | `npm run typecheck` | Checks the types without building |
 | `npm run lint` | Checks the code style |
 | `npm test` | Runs all the tests |
+| `npm run docs:install` | Installs the documentation site's dependencies (once) |
+| `npm run docs:start` | Serves the documentation site locally, reloading on changes |
+| `npm run docs:build` | Builds the documentation site (fails on broken links) |
 
 To run a single test file:
 

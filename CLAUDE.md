@@ -13,7 +13,12 @@ npm run build       # tsc — compiles src/ to dist/ (also emits .d.ts)
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint .
 npm test            # tsx --test "test/**/*.test.ts" — runs everything under test/
+npm run docs:install  # once: the documentation site's own dependencies (docs/)
+npm run docs:start    # the documentation site, live, at http://localhost:3000/agent-kit/
+npm run docs:build    # build it (fails on broken links); the API reference is generated from src/
 ```
+
+The documentation site (Docusaurus, `docs/`) is part of every change: a change visible to agents updates its guides in `docs/content/` in the same change, and the public API's doc comments feed its API reference.
 
 Run a single test file directly instead of through the npm script filter:
 ```
