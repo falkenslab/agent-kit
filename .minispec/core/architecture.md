@@ -42,7 +42,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `consoleRenderer.ts` — `createConsoleRenderer()`: prints events, shared by chat and one-shot runs.
 - `terminalInteraction.ts` — `terminalInteractionPort`, the default port installed by `index.ts`; `setSharedReadline()` for the chat's interface.
 - `claudeAuth.ts` — `ensureClaudeAuth()`: offers `claude setup-token`, returns a new token for the caller to persist.
-- `ui.ts` — the picocolors palette (`ui` namespace).
+- `theme.ts` — the color theme by roles, its defaults and `setTheme()`; `ui.ts` — the palette (`ui` namespace), each function drawing its role in the current theme (ADR-021). `ink/inkTheme.tsx` — `KitTheme`, `@inkjs/ui`'s components in the theme.
 - `ink/` — the Ink UI (ADR-014): `runChatInk()` (with `runsDir`, as `runChatTui()`; `/resume` picks in place of the prompt), `createProgressView()`, `runWizard()`; `sessionModel.ts` (the screen built from events, the log through the console renderer), `markdown.ts` (markdown to terminal lines), `toolGroup.ts` (folded tool calls), `inkInteraction.ts` (the Ink port), `SessionView.tsx` (history, live line, spinner, approval panel, status bar; inline or full screen), `PromptInput.tsx`, `fullscreen.ts` (alternate screen, mouse, scroll view; ADR-015), `header.ts` (title, fields and logo).
 
 ## Modes

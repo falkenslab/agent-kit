@@ -18,6 +18,7 @@ A foundation for building AI agents on top of the [Claude Agent SDK](https://www
 - **Stay within limits.** It only reads and writes in the folders that belong to it, and never in protected files, such as one holding passwords.
 - **Use external tools.** MCP servers of its own or of the project, and skills and commands organized in plugins.
 - **Leave a trail.** It records every action and the whole conversation, with secrets hidden.
+- **Look the way you want.** The terminal's colors come from a theme by roles (the agent's replies, tool results, the focused option, borders…): pass only the ones you want to change, as a color name, a hex or a function.
 - **Chat in a terminal the way Claude Code does.** Full screen, with the reply written live and its markdown already formatted, the tools it uses summed up in one line (Ctrl+O unfolds it), panels for approvals, history and search, a suggestion for the next message, pasted blocks, file mentions with `@`, mouse selection (right-click to copy), and the agent's status in the tab and in the Windows taskbar.
 - **Also work without a terminal.** The same foundation runs inside a desktop app or a server, which bring their own interface.
 
@@ -72,6 +73,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
   header: { title: "My agent" },
   mode: config.mode, // Shift+Tab switches between guided and step by step
   fullscreen: true,
+  theme: { toolResult: "gray", selection: "#ffb86c" }, // only the colors you want to change
 });
 ```
 
