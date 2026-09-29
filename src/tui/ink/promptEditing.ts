@@ -3,6 +3,8 @@
  * so PromptInput.tsx only maps keys to them. The value may hold line breaks ("\n"): a
  * multi-line prompt.
  */
+import { t } from "../../core/messages/index.js";
+
 export interface EditState {
   value: string;
   cursor: number;
@@ -120,11 +122,13 @@ export interface PasteRegistry {
   expand(value: string): string;
 }
 
-const PASTE_TOKEN = /\[Pasted text #(\d+) \+\d+ lines?\]/g;
+// A paste token in any language ("[Pasted text #1 +2 lines]", "[Texto pegado #1 +2 líneas]"...).
+const PASTE_TOKEN = /\[[^\]\n#]+#(\d+) \+\d+ [^\]\n]+\]/g;
+export const PASTE_TOKEN_BEFORE = /\[[^\]\n#]+#\d+ \+\d+ [^\]\n]+\]$/;
+export const PASTE_TOKEN_AFTER = /^\[[^\]\n#]+#\d+ \+\d+ [^\]\n]+\]/;
 
 function pasteToken(id: number, text: string): string {
-  const extra = text.split("\n").length - 1;
-  return `[Pasted text #${id} +${extra} ${extra === 1 ? "line" : "lines"}]`;
+  return t().pastedText(id, text.split("\n").length - 1);
 }
 
 /** Normalizes a pasted chunk's line breaks (terminals send "\r" or "\r\n"). */

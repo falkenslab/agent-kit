@@ -1,5 +1,6 @@
 import type { HookCallback, PreToolUseHookInput } from "@anthropic-ai/claude-agent-sdk";
 import { askForDecision } from "./humanInput.js";
+import { t } from "../messages/index.js";
 
 /**
  * PreToolUse hook for "interactive" mode: pauses before every action and asks for
@@ -16,8 +17,8 @@ export function createStepGate(runDir: string, isActive: () => boolean = () => t
     const pre = input as PreToolUseHookInput;
 
     const answer = await askForDecision(runDir, {
-      title: "Proposed action",
-      lines: [`Tool: ${pre.tool_name}`, `Parameters: ${JSON.stringify(pre.tool_input, null, 2)}`],
+      title: t().proposedAction,
+      lines: [t().toolLine(pre.tool_name), t().parametersLine(JSON.stringify(pre.tool_input, null, 2))],
     });
 
     if (answer === "q") {

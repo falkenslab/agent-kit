@@ -1,6 +1,7 @@
 import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { askForDecision } from "../hooks/humanInput.js";
+import { t } from "../messages/index.js";
 
 const APPROVED_ANSWERS = new Set(["", "y", "yes"]);
 
@@ -35,8 +36,8 @@ export function createHumanApprovalServer(runDir: string, texts: HumanApprovalTe
     },
     async (args) => {
       const answer = await askForDecision(runDir, {
-        title: "Human confirmation required before publishing",
-        lines: [`Summary: ${args.summary}`],
+        title: t().approvalTitle,
+        lines: [t().summaryLine(args.summary)],
       });
       const approved = APPROVED_ANSWERS.has(answer);
 

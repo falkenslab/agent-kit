@@ -1,5 +1,6 @@
 import type { ApprovalPrompt, InteractionPort } from "../../core/interaction.js";
 import * as ui from "../ui.js";
+import { t } from "../../core/messages/index.js";
 
 export type CheckpointKind = "decision" | "manual-intervention";
 
@@ -18,11 +19,8 @@ export interface InkInteraction {
   getSnapshot(): Checkpoint | null;
 }
 
-const OUTCOMES: Record<string, string> = {
-  y: ui.success("✔ Approved"),
-  n: ui.warn("✘ Rejected"),
-  q: ui.error("■ Stopped"),
-};
+const outcome = (answer: string): string | undefined =>
+  ({ y: ui.success(t().approved), n: ui.warn(t().rejected), q: ui.error(t().stopped) })[answer];
 
 /**
  * An `InteractionPort` for the Ink views: each checkpoint waits in a queue (the step gate
@@ -58,14 +56,14 @@ export function createInkInteraction(note: (text: string) => void): InkInteracti
         prompt,
         answer(value: string): void {
           if (!remove(checkpoint)) return;
-          record(prompt, kind === "decision" ? (OUTCOMES[value] ?? value) : ui.success("✔ Done"));
+          record(prompt, kind === "decision" ? (outcome(value) ?? value) : ui.success(t().done));
           resolve(value);
         },
       };
       signal.addEventListener(
         "abort",
         () => {
-          if (remove(checkpoint)) record(prompt, ui.dim("(answered through the response file)"));
+          if (remove(checkpoint)) record(prompt, ui.dim(t().answeredByFile));
         },
         { once: true },
       );

@@ -5,10 +5,14 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import { createInputQueue } from "../core/session.js";
-import { runQuery, type AgentEvent } from "../core/runner.js";
+import { runQuery, type AgentEvent, type AgentRun } from "../core/runner.js";
+import { listRuns, readConversation, type RunFolder } from "../core/runs.js";
 import { isSharedQuestionActive, setSharedReadline } from "./terminalInteraction.js";
 import * as ui from "./ui.js";
+import { t } from "../core/messages/index.js";
+import { applyLanguage } from "./language.js";
 import { createConsoleRenderer } from "./consoleRenderer.js";
+import { firstRun, openSession, runDate, runFolderOf, runLabel, type SessionOpener } from "./runs.js";
 
 // Only strips picocolors' own SGR sequences (`\x1b[<codes>m`) — the only kind this file
 // ever writes to the console — not a general-purpose ANSI stripper for arbitrary escape
@@ -56,7 +60,7 @@ export interface ChatTuiOptions {
    * so a session leaves behind an exact, always-present transcript of what the terminal
    * showed even when the agent never calls a single tool (unlike `transcriptPath` from
    * `buildSessionOptions()`, which only gets written to on the first tool call). Omit to
-   * skip session logging entirely.
+   * skip session logging entirely. With `runsDir`, the run's own `session.log` is used instead.
    */
   sessionLogPath?: string;
   /**
@@ -72,6 +76,22 @@ export interface ChatTuiOptions {
   historyPath?: string;
   /** Max entries kept in `historyPath` (and in the in-session ↑/↓ list). Defaults to 100. */
   historyLimit?: number;
+  /**
+   * The language of the kit's texts ("en", "es", "fr", "de"). `--language=<code>` on the
+   * command line wins; without either, the one `buildSessionOptions()` chose from
+   * `config.language`, or else the system's.
+   */
+  language?: string;
+  /**
+   * The agent's runs folder, with a session opener in place of the options (e.g.
+   * `(run) => buildSessionOptions(config, run.dir, spec, { run })`): each run gets its own
+   * folder (`<runsDir>/<timestamp>/`) keeping its conversation, its session log
+   * (`session.log`, instead of `sessionLogPath`) and its transcript, and can be resumed:
+   * `--continue` on the command line starts with the latest run, and `/resume` lists them
+   * (date and the human's last message) to switch to one. The runs folder holds the whole
+   * conversation, tool results included and not redacted: keep it out of version control.
+   */
+  runsDir?: string;
 }
 
 interface HistoryEntry {
@@ -156,17 +176,29 @@ export async function drainTurn(events: AsyncIterator<AgentEvent>, onEvent: (eve
  *   const { options } = await buildSessionOptions(config, runDir, spec);
  *   await runChatTui(options, { welcomeMessage: "Ready. Type /exit to quit." });
  *
+ * or, to keep each run's conversation in its folder and resume it (see `runsDir`):
+ *
+ *   await runChatTui((run) => buildSessionOptions(config, run.dir, spec, { run }), { runsDir });
+ *
  * Resolves once the chat ends (an exit command, Ctrl+C/Ctrl+D at an idle prompt) — this
  * function owns the whole session lifecycle, closing the underlying query and readline
  * interface itself before returning.
  */
-export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = {}): Promise<void> {
+export async function runChatTui(options: Options | SessionOpener, tuiOptions: ChatTuiOptions = {}): Promise<void> {
+  applyLanguage(tuiOptions.language);
   const exitCommands = new Set((tuiOptions.exitCommands ?? DEFAULT_EXIT_COMMANDS).map((c) => c.toLowerCase()));
   const promptLabel = tuiOptions.promptLabel ?? DEFAULT_PROMPT_LABEL;
 
-  const queue = createInputQueue();
-  const run = runQuery(queue.iterable, options);
-  const events = run.events[Symbol.asyncIterator]();
+  const opener = typeof options === "function" ? options : null;
+  const runsDir = opener ? tuiOptions.runsDir : undefined;
+  if (opener && !runsDir) throw new Error("runChatTui(): a session opener needs `runsDir`.");
+  // The session in use: with runs, the run's folder, rebuilt on /resume.
+  let current: { options: Options; run: RunFolder | null } =
+    opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
+
+  let queue = createInputQueue();
+  let run: AgentRun = runQuery(queue.iterable, current.options);
+  let events = run.events[Symbol.asyncIterator]();
 
   const historyLimit = tuiOptions.historyLimit ?? DEFAULT_HISTORY_LIMIT;
   let historyEntries: HistoryEntry[] = tuiOptions.historyPath ? capHistory(await loadHistory(tuiOptions.historyPath), historyLimit) : [];
@@ -181,7 +213,14 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
   });
   setSharedReadline(rl);
 
-  const sessionLog: WriteStream | null = tuiOptions.sessionLogPath ? createWriteStream(tuiOptions.sessionLogPath, { flags: "a" }) : null;
+  // With runs, the session log is the run's own; it moves with /resume.
+  let sessionLog = null as WriteStream | null;
+  function openLog(): void {
+    sessionLog?.end();
+    const file = current.run ? path.join(current.run.dir, "session.log") : tuiOptions.sessionLogPath;
+    sessionLog = file ? createWriteStream(file, { flags: "a" }) : null;
+  }
+  openLog();
   // Mirrors to the log file only — for text already visible on the terminal some other
   // way (readline's own prompt + the human's local echo), so it isn't printed twice.
   function mirror(text: string): void {
@@ -251,7 +290,7 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
     if (turnInterrupted) return;
     turnInterrupted = true;
     void run.interrupt();
-    writeLine(ui.warn("(interrupted)"));
+    writeLine(ui.warn(t().interrupted));
   }
   rl.on("SIGINT", () => {
     if (turnInFlight) {
@@ -271,10 +310,46 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
   };
   stdin.on("keypress", onKeypress);
 
+  /** Prints the run's earlier conversation (when it has one) and says it was resumed. */
+  async function showConversation(folder: RunFolder): Promise<void> {
+    if (!folder.sessionId) return;
+    for (const message of await readConversation(folder.dir)) {
+      // Printed, not logged: the run's session log already has it.
+      stdout.write(message.role === "user" ? `${promptLabel}${message.text}\n` : `\n${tuiOptions.agentLabel ? `${tuiOptions.agentLabel} ` : ""}${message.text}\n`);
+    }
+    const [summary] = (await listRuns(path.dirname(folder.dir))).filter((r) => path.resolve(r.dir) === path.resolve(folder.dir));
+    writeLine(ui.dim(`\n${t().resumed(runDate(summary?.updatedAt ?? new Date()))}`));
+  }
+
+  /** /resume: lists the runs, asks for one and switches the session to it. */
+  async function resume(): Promise<void> {
+    if (!opener || !runsDir) return;
+    const runs = await listRuns(runsDir);
+    if (runs.length === 0) {
+      writeLine(ui.dim(t().noEarlierRuns));
+      return;
+    }
+    writeLine(ui.heading(t().resumeTitle));
+    runs.forEach((summary, i) => writeLine(`  ${i + 1}. ${runLabel(summary, current.run ?? undefined)}`));
+    const answer = (await rl.question(t().resumeQuestion)).trim();
+    const summary = runs[Number(answer) - 1];
+    if (!answer || !summary || (current.run && path.resolve(summary.dir) === path.resolve(current.run.dir))) return;
+    queue.end();
+    run.close();
+    current = await openSession(opener, await runFolderOf(summary));
+    openLog();
+    queue = createInputQueue();
+    run = runQuery(queue.iterable, current.options);
+    events = run.events[Symbol.asyncIterator]();
+    knownCommandTokens = null;
+    await showConversation(current.run as RunFolder);
+  }
+
   if (tuiOptions.welcomeMessage) writeLine(tuiOptions.welcomeMessage);
 
   try {
-    if (tuiOptions.initialPrompt) {
+    if (current.run) await showConversation(current.run);
+    if (tuiOptions.initialPrompt && !current.run?.sessionId) {
       mirror(`${promptLabel}${tuiOptions.initialPrompt}\n`);
       queue.push(tuiOptions.initialPrompt);
       turnInFlight = true;
@@ -300,6 +375,10 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
         await saveHistory(tuiOptions.historyPath, historyEntries);
       }
       if (exitCommands.has(line.toLowerCase())) break;
+      if (runsDir && line.toLowerCase() === "/resume") {
+        await resume();
+        continue;
+      }
 
       // A line that *looks* like a slash command but matches nothing registered (a typo,
       // an unnamespaced plugin command, ...) would otherwise reach the model as literal
@@ -310,7 +389,7 @@ export async function runChatTui(options: Options, tuiOptions: ChatTuiOptions = 
       // silence on unrecognized input might mean.
       const commandToken = slashCommandToken(line);
       if (commandToken && !(await isKnownSlashCommand(commandToken))) {
-        writeLine(ui.warn(`Unknown command: /${commandToken}`));
+        writeLine(ui.warn(t().unknownCommand(commandToken)));
         continue;
       }
 

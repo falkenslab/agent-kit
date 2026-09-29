@@ -8,6 +8,7 @@ import { createInkInteraction, type InkInteraction } from "./inkInteraction.js";
 import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel.js";
 import { SessionView, type RenderApproval } from "./SessionView.js";
 import type { ToolPhrase } from "./toolGroup.js";
+import { applyLanguage } from "../language.js";
 
 export interface ProgressViewOptions extends Omit<ConsoleRendererOptions, "output"> {
   /** How one of the agent's own tools counts in a folded group's summary (see `InkChatOptions.toolPhrase`). */
@@ -18,6 +19,12 @@ export interface ProgressViewOptions extends Omit<ConsoleRendererOptions, "outpu
   mode?: Mode;
   /** Use the plain console renderer even on a TTY. */
   plain?: boolean;
+  /**
+   * The language of the kit's texts ("en", "es", "fr", "de"). `--language=<code>` on the
+   * command line wins; without either, the one `buildSessionOptions()` chose from
+   * `config.language`, or else the system's.
+   */
+  language?: string;
 }
 
 export interface ProgressView extends ConsoleRenderer {
@@ -56,6 +63,7 @@ function ProgressApp({ model, interaction, renderApproval, mode, closed }: {
  * Without a TTY or with `plain`, it is `createConsoleRenderer()` with a no-op `close()`.
  */
 export function createProgressView(options: ProgressViewOptions = {}): ProgressView {
+  applyLanguage(options.language);
   if (options.plain || !stdin.isTTY || !stdout.isTTY) {
     const renderer = createConsoleRenderer(options);
     return Object.assign(renderer, { close: async () => {} });

@@ -1,8 +1,8 @@
 import readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import type { ApprovalPrompt, InteractionPort } from "../core/interaction.js";
+import { t } from "../core/messages/index.js";
 
-const DEFAULT_QUESTION = "Allow this to continue? [Y/n/q] ";
 
 /**
  * A long-lived chat REPL's readline interface (if any), so that the terminal port reuses
@@ -63,7 +63,7 @@ async function askOnTerminal(prompt: ApprovalPrompt, signal: AbortSignal): Promi
 
   console.log(`\n=== ${prompt.title} ===`);
   for (const line of prompt.lines) console.log(line);
-  const question = prompt.question ?? DEFAULT_QUESTION;
+  const question = prompt.question ?? t().terminalQuestion;
 
   const shared = sharedReadline;
   if (shared) return await askOnSharedReadline(shared, question);

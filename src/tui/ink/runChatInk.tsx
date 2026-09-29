@@ -1,19 +1,25 @@
 import { createWriteStream, type WriteStream } from "node:fs";
+import path from "node:path";
 import { stdin, stdout } from "node:process";
 import { useSyncExternalStore } from "react";
 import { Box, render, Text, useInput } from "ink";
+import { Select } from "@inkjs/ui";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import type { Mode } from "../../core/agentSpec.js";
 import { getInteractionPort, setInteractionPort } from "../../core/interaction.js";
 import { createInputQueue, type ModeControl } from "../../core/session.js";
-import { runQuery } from "../../core/runner.js";
+import { runQuery, type AgentRun } from "../../core/runner.js";
+import { listRuns, readConversation, type RunFolder } from "../../core/runs.js";
 import { capHistory, loadHistory, runChatTui, saveHistory, slashCommandToken, type ChatTuiOptions } from "../chatTui.js";
 import * as ui from "../ui.js";
+import { t } from "../../core/messages/index.js";
+import { applyLanguage } from "../language.js";
+import { firstRun, openSession, runDate, runFolderOf, runLabel, type SessionOpener } from "../runs.js";
 import { createInkInteraction, type InkInteraction } from "./inkInteraction.js";
 import { PromptInput } from "./PromptInput.js";
 import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel.js";
 import { SessionView, type RenderApproval } from "./SessionView.js";
-import { stripAnsi } from "./lineBuffer.js";
+import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import { clipboardSequence, enterFullscreen } from "./fullscreen.js";
 import { createCursorController, CursorContext } from "./terminalCursor.js";
 import { createTerminalStatus, focusFromReport } from "./terminalStatus.js";
@@ -63,7 +69,8 @@ export interface InkChatOptions extends ChatTuiOptions {
   /**
    * The session's mode control (`buildSessionOptions()` returns it): the status bar shows the
    * current mode, and Shift+Tab switches between the modes it allows ("guided" and
-   * "interactive"; an autonomous session can't switch).
+   * "interactive"; an autonomous session can't switch). With a session opener, the one it
+   * returns is used instead.
    */
   modeControl?: ModeControl;
   /**
@@ -79,6 +86,14 @@ const DEFAULT_HISTORY_LIMIT = 100;
 // The prompt's frame: a border and one column of padding on each side.
 const PROMPT_FRAME_COLUMNS = 4;
 
+/** A choice asked in place of the prompt (the /resume list). */
+export interface ChatPicker {
+  title: string;
+  options: { label: string; value: string }[];
+  /** Settles it with the chosen value, or null if cancelled. */
+  resolve(value: string | null): void;
+}
+
 export interface ChatInputSnapshot {
   /** The chat loop is waiting for a line (no turn in flight). */
   prompting: boolean;
@@ -92,6 +107,8 @@ export interface ChatInputSnapshot {
   files: string[];
   /** The current mode, when a mode control is given. */
   mode: Mode | null;
+  /** A choice shown in place of the prompt, if any. */
+  picker: ChatPicker | null;
   closed: boolean;
 }
 
@@ -102,7 +119,7 @@ export interface ChatInputSnapshot {
  */
 export function createChatInput() {
   const listeners = new Set<() => void>();
-  let snapshot: ChatInputSnapshot = { prompting: false, history: [], commands: [], queued: [], suggestion: null, files: [], mode: null, closed: false };
+  let snapshot: ChatInputSnapshot = { prompting: false, history: [], commands: [], queued: [], suggestion: null, files: [], mode: null, picker: null, closed: false };
   let pending: ((line: string | null) => void) | null = null;
   let exited = false;
 
@@ -144,6 +161,21 @@ export function createChatInput() {
     setSuggestion: (suggestion: string | null) => update({ suggestion }),
     setFiles: (files: string[]) => update({ files }),
     setMode: (mode: Mode | null) => update({ mode }),
+    /** Shows a choice in place of the prompt; resolves with the value chosen, or null if cancelled. */
+    pick(title: string, options: { label: string; value: string }[]): Promise<string | null> {
+      return new Promise((resolve) => {
+        update({
+          picker: {
+            title,
+            options,
+            resolve(value) {
+              update({ picker: null });
+              resolve(value);
+            },
+          },
+        });
+      });
+    },
     /** Takes the last queued line back out of the queue (to edit it in the prompt), or null. */
     unqueueLast(): string | null {
       const last = snapshot.queued.at(-1);
@@ -167,14 +199,36 @@ interface ChatAppProps {
   fullscreen?: boolean;
   header?: string[];
   onFocusChange?: (focused: boolean) => void;
-  modeControl?: ModeControl;
+  /** The current session's mode control (a resumed session brings its own). */
+  modeControl(): ModeControl | undefined;
   onInterrupt(): void;
 }
 
-function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, onFocusChange, modeControl, onInterrupt }: ChatAppProps) {
+/** The /resume list, in place of the prompt: ↑/↓ and Enter choose, Esc cancels. */
+function PickerPanel({ picker }: { picker: ChatPicker }) {
+  const { columns } = stdout;
+  useInput((_text, key) => {
+    if (key.escape) picker.resolve(null);
+  });
+  const width = liveWidth(columns) - PROMPT_FRAME_COLUMNS;
+  return (
+    <Box flexDirection="column" borderStyle="round" borderColor="gray" paddingX={1}>
+      <Text bold>{picker.title}</Text>
+      <Select
+        options={picker.options.map((option) => ({ ...option, label: fitWidth(option.label, Math.max(10, width - 2)) }))}
+        visibleOptionCount={Math.min(8, picker.options.length)}
+        onChange={(value) => picker.resolve(value)}
+      />
+      <Text dimColor>{t().resumeHint}</Text>
+    </Box>
+  );
+}
+
+function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode, fullscreen, header, onFocusChange, modeControl: currentModeControl, onInterrupt }: ChatAppProps) {
   const chat = useSyncExternalStore(input.subscribe, input.getSnapshot);
   const session = useSyncExternalStore(model.subscribe, model.getSnapshot);
   const checkpoint = useSyncExternalStore(interaction.subscribe, interaction.getSnapshot);
+  const modeControl = currentModeControl();
 
   // Ctrl+C stops what is running (a checkpoint, then the turn) and leaves only when idle;
   // Esc interrupts the turn but never answers a checkpoint or leaves.
@@ -191,12 +245,16 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
     if (key.shift && key.tab) {
       // Shift+Tab: the next mode this session allows.
       if (!modeControl || modeControl.switchable.length < 2) {
-        model.note(ui.dim(`(${modeControl?.mode ?? mode ?? "this"} mode can't be switched during the session)`), "notice");
+        model.note(ui.dim(t().modeLocked(modeControl?.mode ?? mode)), "notice");
         return;
       }
       const next = modeControl.switchable[(modeControl.switchable.indexOf(modeControl.mode) + 1) % modeControl.switchable.length];
       modeControl.set(next);
       input.setMode(next);
+      return;
+    }
+    if (key.ctrl && text === "c" && chat.picker) {
+      chat.picker.resolve(null);
       return;
     }
     if (key.ctrl && text === "c") {
@@ -224,22 +282,26 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
       <Box flexDirection="column">
         {chat.queued.map((line, index) => (
           <Text key={index} wrap="truncate-end">
-            {ui.dim(`  queued: ${line}`)}
+            {ui.dim(`  ${t().queued(line)}`)}
           </Text>
         ))}
-        <Box borderStyle="round" borderColor="gray" paddingX={1}>
-          <PromptInput
-            label={promptLabel.replace(/^\n+/, "")}
-            history={chat.history}
-            commands={chat.commands}
-            inset={PROMPT_FRAME_COLUMNS}
-            suggestion={chat.suggestion}
-            onSubmit={(line) => input.submit(line)}
-            onRecallQueued={() => input.unqueueLast()}
-            files={chat.files}
-            onExit={() => input.submit(null)}
-          />
-        </Box>
+        {chat.picker ? (
+          <PickerPanel picker={chat.picker} />
+        ) : (
+          <Box borderStyle="round" borderColor="gray" paddingX={1}>
+            <PromptInput
+              label={promptLabel.replace(/^\n+/, "")}
+              history={chat.history}
+              commands={chat.commands}
+              inset={PROMPT_FRAME_COLUMNS}
+              suggestion={chat.suggestion}
+              onSubmit={(line) => input.submit(line)}
+              onRecallQueued={() => input.unqueueLast()}
+              files={chat.files}
+              onExit={() => input.submit(null)}
+            />
+          </Box>
+        )}
       </Box>
     </SessionView>
   );
@@ -254,21 +316,41 @@ function ChatApp({ model, interaction, input, promptLabel, renderApproval, mode,
  *
  * With `fullscreen` it takes the whole terminal instead (see `InkChatOptions.fullscreen`).
  *
+ * Given a session opener instead of options, and `runsDir`, each run keeps its conversation
+ * in its own folder and can be resumed: `--continue` on the command line starts with the
+ * latest, and `/resume` picks one (see `ChatTuiOptions.runsDir`).
+ *
  * Without a TTY (piped, background) or with `plain`, it is `runChatTui()` unchanged.
  */
-export async function runChatInk(options: Options, tuiOptions: InkChatOptions = {}): Promise<void> {
+export async function runChatInk(options: Options | SessionOpener, tuiOptions: InkChatOptions = {}): Promise<void> {
   if (tuiOptions.plain || !stdin.isTTY || !stdout.isTTY) return await runChatTui(options, tuiOptions);
+  // Warnings about an unsupported language code go into the chat, not behind the full screen.
+  const languageWarnings: string[] = [];
+  applyLanguage(tuiOptions.language, (line) => languageWarnings.push(line));
+
+  const opener = typeof options === "function" ? options : null;
+  const runsDir = opener ? tuiOptions.runsDir : undefined;
+  if (opener && !runsDir) throw new Error("runChatInk(): a session opener needs `runsDir`.");
 
   const exitCommands = new Set((tuiOptions.exitCommands ?? DEFAULT_EXIT_COMMANDS).map((c) => c.toLowerCase()));
   const promptLabel = tuiOptions.promptLabel ?? DEFAULT_PROMPT_LABEL;
+  const userLine = (text: string): string => `${promptLabel.replace(/^\n+/, "")}${text}`;
   const historyLimit = tuiOptions.historyLimit ?? DEFAULT_HISTORY_LIMIT;
   let historyEntries = tuiOptions.historyPath ? capHistory(await loadHistory(tuiOptions.historyPath), historyLimit) : [];
 
-  const queue = createInputQueue();
-  const run = runQuery(queue.iterable, { ...options, promptSuggestions: tuiOptions.promptSuggestions ?? true });
-  const events = run.events[Symbol.asyncIterator]();
+  // The session in use: with runs, the run's folder, rebuilt on /resume.
+  let current: { options: Options; modeControl?: ModeControl; run: RunFolder | null } =
+    opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
+  const modeControl = (): ModeControl | undefined => current.modeControl ?? tuiOptions.modeControl;
 
-  const sessionLog: WriteStream | null = tuiOptions.sessionLogPath ? createWriteStream(tuiOptions.sessionLogPath, { flags: "a" }) : null;
+  // With runs, the session log is the run's own; it moves with /resume.
+  let sessionLog = null as WriteStream | null;
+  function openLog(): void {
+    sessionLog?.end();
+    const file = current.run ? path.join(current.run.dir, "session.log") : tuiOptions.sessionLogPath;
+    sessionLog = file ? createWriteStream(file, { flags: "a" }) : null;
+  }
+  openLog();
   const mirror = (text: string): void => void sessionLog?.write(stripAnsi(text));
 
   const model = createSessionModel({
@@ -281,33 +363,20 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
   const interaction = createInkInteraction((text) => model.note(text));
   const input = createChatInput();
   if (tuiOptions.firstPromptSuggestion) input.setSuggestion(tuiOptions.firstPromptSuggestion);
-  if (tuiOptions.modeControl) input.setMode(tuiOptions.modeControl.mode);
-  void listProjectFiles(options.cwd ?? process.cwd()).then((files) => input.setFiles(files));
-
-  // Every registered command name and alias, built-ins included, for completion and for
-  // catching an unknown "/command" before it reaches the model as plain text (see chatTui.ts).
-  const knownCommands = run.supportedCommands().then(
-    (commands) => new Set(commands.flatMap((c) => [c.name, ...(c.aliases ?? [])])),
-    () => null,
-  );
-  void knownCommands.then((names) => {
-    const exits = [...exitCommands].filter((c) => c.startsWith("/")).map((c) => c.slice(1));
-    const local = tuiOptions.terminalIntegration === false ? [] : ["copy"];
-    input.setCommands([...new Set([...(names ?? []), ...exits, ...local])].sort());
-  });
+  void listProjectFiles(current.options.cwd ?? process.cwd()).then((files) => input.setFiles(files));
 
   let turnInterrupted = false;
   function interruptTurn(): void {
     if (turnInterrupted) return;
     turnInterrupted = true;
     void run.interrupt();
-    model.writeLine(ui.warn("(interrupted)"));
+    model.writeLine(ui.warn(t().interrupted));
   }
 
-  // One reader for the whole session instead of drainTurn()'s one per turn: the prompt
-  // suggestion arrives after its turn's turn-end, while the human is already at the prompt,
-  // and MCP errors arrive before the first turn. Still manual .next() calls, never a
-  // for-await that could be broken out of (ADR-010).
+  // One reader per session instead of drainTurn()'s one per turn: the prompt suggestion
+  // arrives after its turn's turn-end, while the human is already at the prompt, and MCP
+  // errors arrive before the first turn. Still manual .next() calls, never a for-await that
+  // could be broken out of (ADR-010). A reader left behind by /resume stops reporting.
   let turnDone: (() => void) | null = null;
   let readError: unknown = null;
   function finishTurn(): void {
@@ -315,23 +384,49 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
     turnDone = null;
     done?.();
   }
-  void (async () => {
-    try {
-      while (true) {
-        const { value, done } = await events.next();
-        if (done) break;
-        if (value.type === "prompt-suggestion") {
-          input.setSuggestion(value.suggestion);
-          continue;
+
+  let queue = createInputQueue();
+  let run!: AgentRun;
+  let knownCommands!: Promise<Set<string> | null>;
+  let generation = 0;
+  function connect(): void {
+    const own = ++generation;
+    queue = createInputQueue();
+    run = runQuery(queue.iterable, { ...current.options, promptSuggestions: tuiOptions.promptSuggestions ?? true });
+    const events = run.events[Symbol.asyncIterator]();
+    input.setMode(modeControl()?.mode ?? null);
+
+    // Every registered command name and alias, built-ins included, for completion and for
+    // catching an unknown "/command" before it reaches the model as plain text (see chatTui.ts).
+    knownCommands = run.supportedCommands().then(
+      (commands) => new Set(commands.flatMap((c) => [c.name, ...(c.aliases ?? [])])),
+      () => null,
+    );
+    void knownCommands.then((names) => {
+      const exits = [...exitCommands].filter((c) => c.startsWith("/")).map((c) => c.slice(1));
+      const local = [...(tuiOptions.terminalIntegration === false ? [] : ["copy"]), ...(runsDir ? ["resume"] : [])];
+      input.setCommands([...new Set([...(names ?? []), ...exits, ...local])].sort());
+    });
+
+    void (async () => {
+      try {
+        while (true) {
+          const { value, done } = await events.next();
+          if (own !== generation || done) break;
+          if (value.type === "prompt-suggestion") {
+            input.setSuggestion(value.suggestion);
+            continue;
+          }
+          model.render(value);
+          if (value.type === "turn-end") finishTurn();
         }
-        model.render(value);
-        if (value.type === "turn-end") finishTurn();
+      } catch (error) {
+        if (own === generation) readError = error;
       }
-    } catch (error) {
-      readError = error;
-    }
-    finishTurn();
-  })();
+      if (own === generation) finishTurn();
+    })();
+  }
+  connect();
 
   async function runTurn(line: string): Promise<void> {
     input.setSuggestion(null);
@@ -346,6 +441,40 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
     status?.turnEnded();
     void run.contextUsage().then((usage) => usage && model.setContextPercent(usage.percentage));
     if (readError) throw readError;
+  }
+
+  /** Draws the run's earlier conversation (when it has one) and says it was resumed. */
+  async function showConversation(folder: RunFolder, fromResume: boolean): Promise<void> {
+    if (!folder.sessionId) return;
+    const messages = await readConversation(folder.dir);
+    const [summary] = (await listRuns(path.dirname(folder.dir))).filter((r) => path.resolve(r.dir) === path.resolve(folder.dir));
+    // In full screen the history is redrawn from the start; inline, the terminal's
+    // scrollback can't be taken back, so the conversation follows what's already there.
+    if (fromResume && tuiOptions.fullscreen) model.reset();
+    model.replay(messages, userLine);
+    model.writeLine(ui.dim(t().resumed(runDate(summary?.updatedAt ?? new Date()))));
+  }
+
+  /** /resume: picks one of the runs and switches the session to it. */
+  async function resume(): Promise<void> {
+    if (!opener || !runsDir) return;
+    const runs = await listRuns(runsDir);
+    if (runs.length === 0) {
+      model.writeLine(ui.dim(t().noEarlierRuns));
+      return;
+    }
+    const chosen = await input.pick(
+      t().resumeTitle,
+      runs.map((summary, i) => ({ label: `${i + 1}. ${runLabel(summary, current.run ?? undefined)}`, value: summary.dir })),
+    );
+    const summary = runs.find((r) => r.dir === chosen);
+    if (!summary || (current.run && path.resolve(summary.dir) === path.resolve(current.run.dir))) return;
+    queue.end();
+    run.close();
+    current = await openSession(opener, await runFolderOf(summary));
+    openLog();
+    connect();
+    await showConversation(current.run as RunFolder, true);
   }
 
   const previousPort = getInteractionPort();
@@ -367,7 +496,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       fullscreen={tuiOptions.fullscreen}
       header={tuiOptions.header && tuiOptions.fullscreen ? headerLines(tuiOptions.header) : undefined}
       onFocusChange={status ? (focused) => status.setFocused(focused) : undefined}
-      modeControl={tuiOptions.modeControl}
+      modeControl={modeControl}
       onInterrupt={interruptTurn}
     />
     </CursorContext.Provider>,
@@ -378,9 +507,11 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
   try {
     // In full screen the header is pinned above the history (see SessionView) instead.
     if (tuiOptions.header && !tuiOptions.fullscreen) model.note(headerLines(tuiOptions.header).join("\n"));
+    for (const warning of languageWarnings) model.writeLine(ui.warn(warning));
     if (tuiOptions.welcomeMessage) model.writeLine(tuiOptions.welcomeMessage);
+    if (current.run) await showConversation(current.run, false);
 
-    if (tuiOptions.initialPrompt) {
+    if (tuiOptions.initialPrompt && !current.run?.sessionId) {
       // Logged but not shown, like runChatTui(): it is the agent's cue, not something typed.
       mirror(`${promptLabel}${tuiOptions.initialPrompt}\n`);
       await runTurn(tuiOptions.initialPrompt);
@@ -396,7 +527,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       if (!line) continue;
 
       mirror(`${promptLabel}${line}\n`);
-      model.note(`${promptLabel.replace(/^\n+/, "")}${line}`, "user");
+      model.note(userLine(line), "user");
       if (tuiOptions.historyPath) {
         historyEntries = capHistory([...historyEntries, { text: line, timestamp: new Date().toISOString() }], historyLimit);
         await saveHistory(tuiOptions.historyPath, historyEntries);
@@ -407,7 +538,11 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       if (status && line.toLowerCase() === "/copy") {
         const reply = model.lastReply();
         if (reply) stdout.write(clipboardSequence(reply));
-        model.writeLine(ui.dim(reply ? `(copied the last reply: ${reply.length} characters)` : "(nothing to copy yet)"));
+        model.writeLine(ui.dim(reply ? t().copiedReply(reply.length) : t().nothingToCopy));
+        continue;
+      }
+      if (runsDir && line.toLowerCase() === "/resume") {
+        await resume();
         continue;
       }
 
@@ -415,7 +550,7 @@ export async function runChatInk(options: Options, tuiOptions: InkChatOptions = 
       if (commandToken) {
         const names = await knownCommands;
         if (names && !names.has(commandToken)) {
-          model.writeLine(ui.warn(`Unknown command: /${commandToken}`));
+          model.writeLine(ui.warn(t().unknownCommand(commandToken)));
           continue;
         }
       }

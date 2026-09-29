@@ -15,6 +15,8 @@ function makeSpec(overrides: Partial<AgentSpec<BaseSessionConfig>> = {}): AgentS
     buildMcpServers: () => ({}),
     pluginRoots: () => [],
     buildSubagents: () => undefined,
+    // The reply language line would depend on the machine's language (see language.test.ts).
+    replyInLanguage: false,
     ...overrides,
   };
 }

@@ -24,17 +24,18 @@ import { isFocusReport } from "./terminalStatus.js";
 import type { Checkpoint, InkInteraction } from "./inkInteraction.js";
 import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import * as ui from "../ui.js";
+import { t } from "../../core/messages/index.js";
 
 /** Replaces the default preview (title and lines) of an approval panel; the choices stay. */
 export type RenderApproval = (prompt: ApprovalPrompt) => ReactNode;
 
 // Numbered as in the Claude Code CLI's permission prompt; the digits and y/n/q answer too.
-const DECISION_OPTIONS = [
-  { label: "1. Yes", value: "y" },
-  { label: "2. No", value: "n" },
-  { label: "3. Stop", value: "q" },
+const decisionOptions = () => [
+  { label: `1. ${t().yes}`, value: "y" },
+  { label: `2. ${t().no}`, value: "n" },
+  { label: `3. ${t().stop}`, value: "q" },
 ];
-const MANUAL_OPTIONS = [{ label: "1. Done, continue", value: "continue" }];
+const manualOptions = () => [{ label: `1. ${t().doneContinue}`, value: "continue" }];
 const DECISION_KEYS: Record<string, string> = { "1": "y", "2": "n", "3": "q", y: "y", n: "n", q: "q" };
 const ACCENT_HEX = "#d77757";
 
@@ -46,7 +47,7 @@ const ACCENT_HEX = "#d77757";
 export function previewLines(lines: readonly string[], terminalRows: number | undefined): string[] {
   const all = lines.flatMap((line) => line.split("\n"));
   const max = Math.max(3, (terminalRows || 24) - 12);
-  return all.length <= max ? all : [...all.slice(0, max - 1), ui.dim(`… (${all.length - max + 1} more lines)`)];
+  return all.length <= max ? all : [...all.slice(0, max - 1), ui.dim(t().moreLines(all.length - max + 1))];
 }
 
 function CheckpointPanel({ checkpoint, renderApproval }: { checkpoint: Checkpoint; renderApproval?: RenderApproval }) {
@@ -74,13 +75,13 @@ function CheckpointPanel({ checkpoint, renderApproval }: { checkpoint: Checkpoin
       )}
       {decision ? (
         <Box marginTop={1}>
-          <Text>Do you want to proceed?</Text>
+          <Text>{t().proceed}</Text>
         </Box>
       ) : null}
       <Box marginTop={decision ? 0 : 1}>
         <Select
           key={checkpoint.id}
-          options={decision ? DECISION_OPTIONS : MANUAL_OPTIONS}
+          options={decision ? decisionOptions() : manualOptions()}
           onChange={(value) => checkpoint.answer(decision ? value : "")}
         />
       </Box>
@@ -99,10 +100,10 @@ export function statusText(
   extra: { contextPercent?: number | null; modeSwitchable?: boolean } = {},
 ): string {
   const parts = [
-    ...(mode ? [`⏵⏵ ${mode}${extra.modeSwitchable ? " (shift+tab)" : ""}`] : []),
-    `${turns} ${turns === 1 ? "turn" : "turns"}`,
-    ...(usage ? [`${formatTokens(usage.inputTokens)} in / ${formatTokens(usage.outputTokens)} out`] : []),
-    ...(extra.contextPercent != null ? [`context ${Math.round(extra.contextPercent)}%`] : []),
+    ...(mode ? [`⏵⏵ ${t().mode(mode)}${extra.modeSwitchable ? ` (${t().switchModeKey})` : ""}`] : []),
+    t().turns(turns),
+    ...(usage ? [t().tokens(formatTokens(usage.inputTokens), formatTokens(usage.outputTokens))] : []),
+    ...(extra.contextPercent != null ? [t().context(Math.round(extra.contextPercent))] : []),
   ];
   return parts.join(" · ");
 }
@@ -155,7 +156,7 @@ function Working({ label, startedAt, width }: { label: string; startedAt: number
   }, []);
   const seconds = startedAt === null ? 0 : Math.floor((Date.now() - startedAt) / 1000);
   const glyph = WORKING_GLYPHS[tick % WORKING_GLYPHS.length];
-  return <Text>{fitWidth(`${ui.working(`${glyph} ${label}`)} ${ui.dim(`(${seconds}s · esc to interrupt)`)}`, width)}</Text>;
+  return <Text>{fitWidth(`${ui.working(`${glyph} ${label}`)} ${ui.dim(`(${seconds}s · ${t().escToInterrupt})`)}`, width)}</Text>;
 }
 
 /** Line in progress, checkpoint panel or spinner, the input, and the status bar. */
@@ -173,7 +174,7 @@ function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtr
         // Always one blank line above the spinner: from this margin, or from the live area's
         // own when a separator is pending and nothing is written above the spinner yet.
         <Box flexDirection="column" marginTop={stripAnsi(session.live) || !session.liveGap ? 1 : 0}>
-          <Working label={session.activity ?? "Thinking…"} startedAt={session.turnStartedAt} width={width} />
+          <Working label={session.activity ?? t().thinking} startedAt={session.turnStartedAt} width={width} />
           {session.subagentActivity ? <Text dimColor>{fitWidth(`  ↳ ${session.subagentActivity}`, width)}</Text> : null}
         </Box>
       ) : null}
@@ -296,7 +297,7 @@ function FullscreenSession({
         setSelection(null);
         if (text && onCopy) {
           onCopy(text);
-          setCopied(`copied ${text.length} ${text.length === 1 ? "character" : "characters"}`);
+          setCopied(t().copiedCharacters(text.length));
         }
       }
     }
@@ -313,7 +314,7 @@ function FullscreenSession({
   });
 
   const below = rowsBelow(anchor, total);
-  const statusExtra = [anchor === null ? null : `↓ ${below} more ${below === 1 ? "line" : "lines"} (Ctrl+End)`, copied]
+  const statusExtra = [anchor === null ? null : t().linesBelow(below), copied]
     .filter(Boolean)
     .join(" · ");
   return (

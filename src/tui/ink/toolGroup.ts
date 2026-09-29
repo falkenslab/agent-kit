@@ -1,6 +1,7 @@
 import { fitWidth } from "./lineBuffer.js";
 import { renderMarkdown } from "./markdown.js";
 import * as ui from "../ui.js";
+import { t, type ToolPhrase } from "../../core/messages/index.js";
 
 export interface ToolCall {
   id?: string;
@@ -18,22 +19,7 @@ const MAX_CHILDREN = 5;
 const SUBAGENT_TOOLS = new Set(["Agent", "Task"]);
 
 /** How a tool counts in a group's summary: the phrase for one call and for several, "{n}" standing for the count. */
-export type ToolPhrase = [one: string, many: string];
-
-const BUILT_IN: Record<string, ToolPhrase> = {
-  Read: ["read {n} file", "read {n} files"],
-  Write: ["wrote {n} file", "wrote {n} files"],
-  Edit: ["edited {n} file", "edited {n} files"],
-  Glob: ["listed files", "listed files {n} times"],
-  Grep: ["searched {n} time", "searched {n} times"],
-  Bash: ["ran {n} shell command", "ran {n} shell commands"],
-  WebSearch: ["searched the web", "searched the web {n} times"],
-  WebFetch: ["fetched {n} page", "fetched {n} pages"],
-  Skill: ["used {n} skill", "used {n} skills"],
-  Agent: ["ran {n} subagent", "ran {n} subagents"],
-  Task: ["ran {n} subagent", "ran {n} subagents"],
-};
-const OTHER: ToolPhrase = ["used {n} tool", "used {n} tools"];
+export type { ToolPhrase };
 
 /**
  * A folded group's one line, as in the Claude Code CLI: "Read 2 files, ran 1 shell
@@ -45,7 +31,7 @@ export function toolGroupSummary(calls: readonly ToolCall[], phraseFor?: (toolNa
   // Counted by the phrase's text: a consumer's phraseFor() may return a new array each call.
   const counts = new Map<string, { phrase: ToolPhrase; n: number }>();
   for (const call of calls) {
-    const phrase = phraseFor?.(call.toolName) ?? BUILT_IN[call.toolName] ?? OTHER;
+    const phrase = phraseFor?.(call.toolName) ?? t().toolPhrases[call.toolName] ?? t().otherTools;
     const key = phrase.join("|");
     const entry = counts.get(key) ?? { phrase, n: 0 };
     entry.n++;
@@ -62,8 +48,8 @@ export function toolGroupSummary(calls: readonly ToolCall[], phraseFor?: (toolNa
  */
 export function resultSummary(result: { isError: boolean; text: string }, markdown = false): string {
   const lines = result.text.split("\n").filter((line) => line.trim() !== "");
-  if (lines.length === 0) return result.isError ? ui.error("error") : ui.dim("(no output)");
-  const more = lines.length > 1 ? ui.dim(` (+${lines.length - 1} ${lines.length === 2 ? "line" : "lines"})`) : "";
+  if (lines.length === 0) return result.isError ? ui.error(t().error) : ui.dim(t().noOutput);
+  const more = lines.length > 1 ? ui.dim(` ${t().moreResultLines(lines.length - 1)}`) : "";
   const first = lines[0].trim();
   if (result.isError) return ui.error(first) + more;
   // Rendered wide, as one row: the summary line is cut to the room left afterwards.
@@ -81,7 +67,7 @@ export function toolGroupExpanded(calls: readonly ToolCall[], width: number): st
     const shown = children.slice(-MAX_CHILDREN);
     const result = call.result ? fitWidth(resultSummary(call.result, SUBAGENT_TOOLS.has(call.toolName)), width - 5) : ui.dim("…");
     const under = [
-      ...(children.length > shown.length ? [ui.dim(`… ${children.length - shown.length} earlier`)] : []),
+      ...(children.length > shown.length ? [ui.dim(t().earlierCalls(children.length - shown.length))] : []),
       ...shown.map((label) => fitWidth(ui.dim(`· ${label}`), width - 5)),
       result,
     ];

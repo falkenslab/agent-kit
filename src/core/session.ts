@@ -12,6 +12,9 @@ import { createSaveToSourcesServer } from "./tools/saveToSources.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { knowledgePluginRoot, knowledgePromptSection } from "./knowledge.js";
 import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
+import { replyLanguageInstruction, type Language } from "./language.js";
+import { chooseLanguage } from "./messages/index.js";
+import { createRunStore, type RunFolder } from "./runs.js";
 
 /**
  * Builds the `options` object passed to the Agent SDK's `query()` — everything about
@@ -27,14 +30,23 @@ import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
  * The per-mode behavioral differences (whether the approval/manual-intervention tools
  * exist, whether the interactive step gate hook runs) all fall out of `config.mode`
  * alone.
+ *
+ * `options.run` keeps the SDK's transcript of the conversation in that run folder (see
+ * runs.ts's createRunStore()) and, when it has a session already, resumes it: the chat
+ * passes it when the agent gives it a runs folder (`InkChatOptions.runsDir`).
  */
 export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   config: TConfig,
   runDir: string,
   spec: AgentSpec<TConfig>,
-  options: { autoCompactEnabled?: boolean } = {},
-): Promise<{ options: Options; transcriptLogger: TranscriptLogger; transcriptPath: string; modeControl: ModeControl }> {
+  options: { autoCompactEnabled?: boolean; run?: RunFolder } = {},
+): Promise<{ options: Options; transcriptLogger: TranscriptLogger; transcriptPath: string; modeControl: ModeControl; language: Language }> {
   const { mode } = config;
+  // The kit's language (`--language`, then config.language, then the system's), chosen here
+  // for the interface too, so the agent answers in the language its interface is in.
+  const language = chooseLanguage(config.language);
+  const replyLine = spec.replyInLanguage === false ? null : replyLanguageInstruction(language);
+  const withReplyLine = (prompt: string): string => (replyLine ? `${prompt}\n\n${replyLine}` : prompt);
   const modeControl = createModeControl(mode);
 
   // The human approval server only exists outside autonomous mode: the point of
@@ -78,6 +90,10 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // anything not already present here — which is why the hook, not just omitting "Bash"
   // from this list, is what actually confines it to subagent use).
   const subagents = spec.buildSubagents(config);
+  // Each subagent gets the reply line too: its prompt doesn't include the main one's.
+  const subagentDefinitions = subagents
+    ? Object.fromEntries(Object.entries(subagents.agents).map(([name, agent]) => [name, { ...agent, prompt: withReplyLine(agent.prompt) }]))
+    : undefined;
   const includeSubagentTools = subagents !== undefined;
   // The exact set of subagent_type values the Agent tool may spawn in this session — see
   // createSubagentTypeGate() below for why this can't just be "whatever's in `agents`
@@ -90,10 +106,19 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);
 
   const sdkOptions: Options = {
-    systemPrompt: includeKnowledgeBase && config.knowledgeDir
-      ? `${spec.buildSystemPrompt(config)}\n\n${knowledgePromptSection(config.projectDir, config.knowledgeDir, config.sourcesDir)}`
-      : spec.buildSystemPrompt(config),
-    settings: { autoCompactEnabled: options.autoCompactEnabled ?? true },
+    systemPrompt: withReplyLine(
+      includeKnowledgeBase && config.knowledgeDir
+        ? `${spec.buildSystemPrompt(config)}\n\n${knowledgePromptSection(config.projectDir, config.knowledgeDir, config.sourcesDir)}`
+        : spec.buildSystemPrompt(config),
+    ),
+    // Not the SDK's default (every source): "user" hands the agent the runner's own Claude
+    // Code configuration, and its `language` setting outranked the agent's prompt.
+    settingSources: spec.settingSources ?? ["project"],
+    // autoMemoryEnabled: false keeps out the runner's own Claude Code memory for the project
+    // (~/.claude/projects/<repository>/memory/MEMORY.md), which the CLI loads whatever
+    // settingSources says (confirmed empirically): it's notes for them, not for this agent,
+    // whose own memory is the knowledge base.
+    settings: { autoCompactEnabled: options.autoCompactEnabled ?? true, autoMemoryEnabled: false },
     // No built-in tools except, if applicable, Read/Write/Edit/Glob/Grep scoped to the
     // project's own folders (fileScopeGate below), and WebFetch/WebSearch
     // with no domain restriction (not conditioned on includeFileTools: it's read-only,
@@ -127,13 +152,15 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           additionalDirectories: searchableDirs,
           // "skills" acts as a name whitelist, not an addition: "all" enables both the
           // SDK's own official skills (pdf/docx), the project's own custom ones, and the
-          // plugin-provided built-ins below.
-          skills: "all",
+          // plugin-provided built-ins below. A spec's own list gets the knowledge base's
+          // skills added, so it only names its own.
+          skills: skillList(spec.skills, includeKnowledgeBase),
           plugins: pluginRoots.map((pluginPath) => ({ type: "local" as const, path: pluginPath, skipMcpDiscovery: true })),
         }
       : {}),
     maxTurns: 400,
-    ...(subagents ? { agents: subagents.agents } : {}),
+    ...(options.run ? { sessionStore: createRunStore(options.run.dir), ...(options.run.sessionId ? { resume: options.run.sessionId } : {}) } : {}),
+    ...(subagentDefinitions ? { agents: subagentDefinitions } : {}),
     mcpServers: {
       ...spec.buildMcpServers(config, runDir),
       ...(includeApprovalTool ? { approvals: createHumanApprovalServer(runDir, spec.humanApprovalTexts) } : {}),
@@ -161,7 +188,15 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     },
   };
 
-  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl };
+  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language };
+}
+
+/** The knowledge plugin's skills, as the SDK names a plugin's skills ("plugin:skill"). */
+const KNOWLEDGE_SKILLS = ["knowledge-pages", "knowledge-ingest", "knowledge-query", "knowledge-lint"].map((skill) => `knowledge:${skill}`);
+
+function skillList(skills: string[] | "all" | undefined, includeKnowledgeBase: boolean): string[] | "all" {
+  if (skills === undefined || skills === "all") return "all";
+  return includeKnowledgeBase ? [...new Set([...skills, ...KNOWLEDGE_SKILLS])] : skills;
 }
 
 /**

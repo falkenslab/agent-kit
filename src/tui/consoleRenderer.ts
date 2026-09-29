@@ -2,6 +2,7 @@ import { stdout } from "node:process";
 import type { AgentEvent } from "../core/runner.js";
 import { createFriendlyToolLabel } from "../core/toolLabels.js";
 import * as ui from "./ui.js";
+import { t } from "../core/messages/index.js";
 
 export interface ConsoleRendererOptions {
   /** Turns a tool call into its console label; defaults to `createFriendlyToolLabel()`. */
@@ -75,7 +76,7 @@ export function createConsoleRenderer(options: ConsoleRendererOptions = {}): Con
       case "prompt-suggestion":
         return;
       case "mcp-error":
-        writeLine(ui.warn(`Some MCP servers failed to connect: ${event.failedServers.join(", ")}`));
+        writeLine(ui.warn(t().mcpFailed(event.failedServers.join(", "))));
         return;
       case "info":
         writeLine((event.level === "warning" ? ui.warn : ui.dim)(`(${event.text})`));

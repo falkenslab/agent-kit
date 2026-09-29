@@ -1,4 +1,4 @@
-import type { AgentDefinition as SdkSubagentDefinition, McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
+import type { AgentDefinition as SdkSubagentDefinition, McpServerConfig, SettingSource } from "@anthropic-ai/claude-agent-sdk";
 
 /**
  * The human-supervision spectrum every agent built on this kit shares, independent of
@@ -44,6 +44,12 @@ export interface BaseSessionConfig {
   deniedPaths?: string[];
   /** Extra values (e.g. a password) to scrub out of the transcript log — see hooks/transcriptLogger.ts. */
   secrets?: string[];
+  /**
+   * The language ("en", "es", "fr", "de") the agent replies in and the kit's interface uses.
+   * `--language=<code>` on the command line wins over it; without either, the system's
+   * language (see language.ts). Pass the same value to the chat, wizard or progress view.
+   */
+  language?: string;
 }
 
 /**
@@ -109,6 +115,33 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    * notes) — `knowledgePromptSection()`/`knowledgePluginRoot()` are exported to reuse the pieces.
    */
   knowledgeBase?: boolean;
+
+  /**
+   * Whether the kit tells the agent (and each subagent) to reply in the resolved language
+   * (`config.language`, `--language`, the system's), following the human if they write in
+   * another one. On by default; `false` leaves the reply language to the agent's own prompt.
+   */
+  replyInLanguage?: boolean;
+
+  /**
+   * Which filesystem settings the session loads (the SDK's `settingSources`): "project" is
+   * the project's `.claude/` (settings, skills, commands) and its CLAUDE.md files, "local"
+   * its `.claude/settings.local.json`, "user" the runner's own `~/.claude/` (settings,
+   * CLAUDE.md, skills). Default `["project"]`: the runner's personal Claude Code
+   * configuration (its `language`, output style, CLAUDE.md, hooks...) never reaches the
+   * agent unless asked for with "user" — the SDK's own default loads all three, and the
+   * runner's `language` setting then outranked the agent's prompt. `[]` isolates the agent
+   * from every settings file, CLAUDE.md included.
+   */
+  settingSources?: SettingSource[];
+
+  /**
+   * The skills the agent offers (the SDK's `skills`): names, or `plugin:skill` for a
+   * plugin's. Default `"all"`, every skill found (the SDK's own, the project's, the
+   * plugins'). A list keeps the rest out of each turn's context; the knowledge base's own
+   * skills are added to it when the knowledge base is on. A context filter, not a sandbox.
+   */
+  skills?: string[] | "all";
 
   /**
    * Text for the generic human-approval checkpoint (see tools/humanApproval.ts) — what

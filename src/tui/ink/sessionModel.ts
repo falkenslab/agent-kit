@@ -5,6 +5,7 @@ import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import { finishedLength, renderMarkdown } from "./markdown.js";
 import { toolGroupExpanded, toolGroupSummary, type ToolCall, type ToolPhrase } from "./toolGroup.js";
 import * as ui from "../ui.js";
+import { t } from "../../core/messages/index.js";
 
 export interface HistoryItem {
   id: number;
@@ -83,6 +84,13 @@ export interface SessionModel {
   /** The agent's text in the latest turn, plain (for /copy). */
   lastReply(): string;
   setContextPercent(percent: number | null): void;
+  /** Empties the history and the counters, for a resumed conversation redrawn from the start. */
+  reset(): void;
+  /**
+   * Draws an earlier conversation (a resumed one): the human's lines as `userLine()` makes
+   * them and the agent's replies with their markdown, without passing them to `onWrite`.
+   */
+  replay(messages: readonly { role: "user" | "assistant"; text: string }[], userLine: (text: string) => string): void;
 }
 
 // The reply in progress keeps at most this many rows live; older ones go to the history.
@@ -277,7 +285,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
         }
         case "mcp-error":
           closeAll();
-          push([ui.warn(`Some MCP servers failed to connect: ${event.failedServers.join(", ")}`)], "notice");
+          push([ui.warn(t().mcpFailed(event.failedServers.join(", ")))], "notice");
           refreshLive();
           return;
         case "info":
@@ -321,7 +329,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
       const started = snapshot.turnStartedAt;
       if (started !== null) {
         const seconds = Math.max(1, Math.round((Date.now() - started) / 1000));
-        push([ui.dim(`✻ Worked for ${seconds}s`)], "note");
+        push([ui.dim(`✻ ${t().workedFor(seconds)}`)], "note");
       }
       snapshot = { ...snapshot, busy: false, turnStartedAt: null, activity: null, subagentActivity: null };
       refreshLive();
@@ -337,5 +345,27 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     getSnapshot: () => snapshot,
     lastReply: () => reply.trim(),
     setContextPercent: (percent) => update({ contextPercent: percent }),
+    reset(): void {
+      closeAll();
+      lastKind = null;
+      gapPending = false;
+      reply = "";
+      snapshot = { ...snapshot, items: [], live: "", liveGap: false, turns: 0, usage: null, contextPercent: null };
+      refreshLive();
+    },
+    replay(messages, userLine): void {
+      closeAll();
+      for (const message of messages) {
+        if (!lastIsBlank(snapshot.items)) gapPending = true;
+        if (message.role === "user") {
+          push(userLine(message.text).split("\n"), "user");
+        } else {
+          segment = message.text;
+          flushSegment(true);
+        }
+      }
+      snapshot = { ...snapshot, turns: snapshot.turns + messages.filter((message) => message.role === "user").length };
+      refreshLive();
+    },
   };
 }

@@ -3,6 +3,8 @@ import { resolveClaudeAuth, type ClaudeAuthConfig } from "../core/claudeAuth.js"
 import { isExitPromptError } from "./promptErrors.js";
 import * as ui from "./ui.js";
 import { runWizard } from "./ink/wizard.js";
+import { applyLanguage } from "./language.js";
+import { t } from "../core/messages/index.js";
 
 // The real format of "claude setup-token" tokens ("sk-ant-oat01-...", seen in the
 // installed @anthropic-ai/claude-code binary) — used to extract the token from its output.
@@ -68,27 +70,19 @@ function runSetupToken(): Promise<string> {
  * Only makes sense with a real terminal in front of a human (a `runWizard()` confirm, colored console
  * output), which is why it lives here rather than in the non-interactive core.
  */
-export async function ensureClaudeAuth(config: ClaudeAuthConfig = {}): Promise<string | undefined> {
+export async function ensureClaudeAuth(config: ClaudeAuthConfig = {}, options: { language?: string } = {}): Promise<string | undefined> {
   if (resolveClaudeAuth(config)) return undefined;
+  applyLanguage(options.language);
+  const texts = t().auth;
 
-  console.log(ui.warn("\nNo Claude authentication token was found"));
-  console.log(ui.dim("(neither the CLAUDE_CODE_OAUTH_TOKEN environment variable, nor one passed in)."));
+  console.log(ui.warn(`\n${texts.noToken}`));
+  console.log(ui.dim(texts.noTokenDetail));
 
   try {
-    const { generate } = await runWizard([
-      {
-        type: "confirm",
-        name: "generate",
-        message: 'Generate one now with "claude setup-token" (requires a Claude Pro/Max subscription)?',
-        default: true,
-      },
-    ]);
+    const { generate } = await runWizard([{ type: "confirm", name: "generate", message: texts.generateQuestion, default: true }]);
 
     if (!generate) {
-      console.log(ui.error(
-        "\nThe agent can't start without a token. Set CLAUDE_CODE_OAUTH_TOKEN by hand " +
-          "(or run this again and accept generating it) and try again.",
-      ));
+      console.log(ui.error(`\n${texts.cantStart}`));
       process.exit(0);
     }
   } catch (error) {
@@ -96,15 +90,12 @@ export async function ensureClaudeAuth(config: ClaudeAuthConfig = {}): Promise<s
     throw error;
   }
 
-  console.log(ui.heading("\n=== Generating a Claude authentication token ==="));
-  console.log(ui.dim(
-    "A browser will open to log in; follow the instructions the command itself prints " +
-      "below.\n",
-  ));
+  console.log(ui.heading(`\n${texts.generatingHeading}`));
+  console.log(ui.dim(`${texts.browserWillOpen}\n`));
 
   const token = await runSetupToken();
   process.env.CLAUDE_CODE_OAUTH_TOKEN = token;
-  console.log(ui.success("\nToken generated for this run. Save it yourself (e.g. CLAUDE_CODE_OAUTH_TOKEN in your shell profile) to skip this next time.\n"));
+  console.log(ui.success(`\n${texts.generated}\n`));
 
   return token;
 }

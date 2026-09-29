@@ -17,6 +17,24 @@ export type { Mode, BaseSessionConfig, AgentSpec } from "./core/agentSpec.js";
 export { buildSessionOptions, createInputQueue, createDeferred, createModeControl, type ModeControl } from "./core/session.js";
 export { runQuery, type AgentEvent, type AgentRun, type SessionUsage, type ContextUsage } from "./core/runner.js";
 export { knowledgePluginRoot, knowledgePromptSection } from "./core/knowledge.js";
+export {
+  resolveLanguage,
+  detectLanguage,
+  SUPPORTED_LANGUAGES,
+  type Language,
+  type LanguageSources,
+  type ResolvedLanguage,
+} from "./core/language.js";
+export { setLanguage, getLanguage, messagesFor, type Messages } from "./core/messages/index.js";
+export {
+  createRunStore,
+  createRunFolder,
+  listRuns,
+  readConversation,
+  type RunFolder,
+  type RunSummary,
+  type ConversationMessage,
+} from "./core/runs.js";
 
 // Re-exported so a concrete agent (implementing AgentSpec, wiring up buildSessionOptions())
 // never has to import @anthropic-ai/claude-agent-sdk itself just for these types — this
@@ -46,6 +64,7 @@ export { createManualLoginServer, type ManualInterventionTexts } from "./core/to
 export { createSaveToSourcesServer } from "./core/tools/saveToSources.js";
 
 export { runChatTui, type ChatTuiOptions } from "./tui/chatTui.js";
+export type { SessionOpener } from "./tui/runs.js";
 export { createConsoleRenderer, type ConsoleRenderer, type ConsoleRendererOptions } from "./tui/consoleRenderer.js";
 export { runChatInk, type InkChatOptions, type HeaderInfo } from "./tui/ink/runChatInk.js";
 export type { ToolPhrase } from "./tui/ink/toolGroup.js";

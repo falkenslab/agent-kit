@@ -6,6 +6,8 @@ import { liveWidth } from "./sessionModel.js";
 import { ConfirmInput, PasswordInput, Select, TextInput } from "@inkjs/ui";
 import * as inquirer from "@inquirer/prompts";
 import * as ui from "../ui.js";
+import { t } from "../../core/messages/index.js";
+import { applyLanguage } from "../language.js";
 
 export type WizardAnswers = Record<string, unknown>;
 
@@ -51,6 +53,12 @@ export interface WizardOptions {
   title?: string;
   /** Use the plain @inquirer/prompts questions even on a TTY. */
   plain?: boolean;
+  /**
+   * The language of the kit's texts ("en", "es", "fr", "de"). `--language=<code>` on the
+   * command line wins; without either, the one `buildSessionOptions()` chose from
+   * `config.language`, or else the system's.
+   */
+  language?: string;
 }
 
 function resolve<T>(value: FromAnswers<T>, answers: WizardAnswers): T {
@@ -126,7 +134,7 @@ export function visibleOptions(choices: number, messageRows: number, terminalRow
 
 function summary(step: WizardStep, value: unknown, answers: WizardAnswers): string {
   if (step.type === "password") return "*".repeat(String(value).length);
-  if (step.type === "confirm") return value ? "Yes" : "No";
+  if (step.type === "confirm") return value ? t().yes : t().no;
   if (step.type === "select") return resolve(step.choices, answers).find((c) => c.value === value)?.name ?? String(value);
   return String(value);
 }
@@ -225,6 +233,7 @@ async function runPlainWizard(steps: WizardStep[], title?: string): Promise<Wiza
  * steps through @inquirer/prompts.
  */
 export async function runWizard(steps: WizardStep[], options: WizardOptions = {}): Promise<WizardAnswers> {
+  applyLanguage(options.language);
   if (options.plain || !stdin.isTTY || !stdout.isTTY) return await runPlainWizard(steps, options.title);
 
   if (nextIndex(steps, -1, {}) >= steps.length) return {};

@@ -20,6 +20,8 @@ import {
   killToLineEnd,
   moveLine,
   normalizePaste,
+  PASTE_TOKEN_AFTER,
+  PASTE_TOKEN_BEFORE,
   searchHistory,
   toLineEnd,
   toLineStart,
@@ -28,6 +30,7 @@ import {
   type EditState,
 } from "./promptEditing.js";
 import * as ui from "../ui.js";
+import { t } from "../../core/messages/index.js";
 
 const MAX_SUGGESTIONS = 6;
 
@@ -82,16 +85,6 @@ export interface PromptInputProps {
   files?: readonly string[];
 }
 
-/** The shortcuts panel, opened with "?" on an empty prompt. */
-export const SHORTCUTS = [
-  "Enter send  ·  \\ + Enter or Ctrl+J new line  ·  Tab complete or take the suggestion",
-  "↑/↓ history  ·  Ctrl+R search history  ·  ↑ on an empty prompt edits the last queued message",
-  "Ctrl+W delete word  ·  Ctrl+K to line end  ·  Ctrl+U clear  ·  Ctrl+←/→ move by word",
-  "@ mention a file  ·  /copy copy the last reply  ·  Shift+Tab switch mode  ·  Ctrl+O unfold tool calls",
-  "Esc interrupt  ·  Ctrl+C interrupt or exit  ·  PgUp/PgDn or wheel scroll  ·  Ctrl+End bottom",
-  "Drag to select, right-click to copy (full screen)",
-];
-
 interface SearchState {
   query: string;
   /** Index in `history` of the match shown, or -1. */
@@ -102,8 +95,6 @@ interface SearchState {
 
 // A paste can reach us in several chunks; pieces this close together extend the same one.
 const PASTE_CHUNK_MS = 100;
-const PASTE_TOKEN_BEFORE = /\[Pasted text #\d+ \+\d+ lines?\]$/;
-const PASTE_TOKEN_AFTER = /^\[Pasted text #\d+ \+\d+ lines?\]/;
 
 /**
  * The chat's prompt: history (↑/↓), "/command" completion and suggestions (Tab), pasted
@@ -325,7 +316,7 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
   const width = liveWidth(stdout.columns) - inset;
   const labelWidth = stringWidth(stripAnsi(label));
   const room = width - labelWidth;
-  const ghost = suggestion ? `${suggestion}  (tab)` : null;
+  const ghost = suggestion ? `${suggestion}  (${t().suggestionKey})` : null;
   // Suggestions give way on a short terminal: the live area must stay shorter than it.
   const maxSuggestions = Math.min(MAX_SUGGESTIONS, Math.max(0, (stdout.rows || 24) - 10));
   const mention = mentionAt(value, cursor);
@@ -343,7 +334,7 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
   let rows: ReactNode[];
   let cursorColumn: number;
   if (search) {
-    const prefix = `(reverse-i-search)'${search.query}': `;
+    const prefix = t().reverseSearch(search.query);
     const match = search.index >= 0 ? history[search.index] : "";
     cursorColumn = Math.min(stringWidth(prefix) - 3, width - 1);
     rows = [
@@ -388,7 +379,7 @@ export function PromptInput({ label, inset = 0, suggestion, history, commands, o
       {suggestions.map((item) => (
         <Text key={item}>{ui.dim(fitWidth(`  ${item}`, width))}</Text>
       ))}
-      {showHelp ? SHORTCUTS.map((line) => <Text key={line}>{ui.dim(fitWidth(`  ${line}`, width))}</Text>) : null}
+      {showHelp ? t().shortcuts.map((line) => <Text key={line}>{ui.dim(fitWidth(`  ${line}`, width))}</Text>) : null}
     </Box>
   );
 }

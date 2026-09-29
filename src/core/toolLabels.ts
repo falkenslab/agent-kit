@@ -1,3 +1,5 @@
+import { t } from "./messages/index.js";
+
 /**
  * Turns a raw tool name + input into a short, readable console description, instead of
  * the tool's technical name (e.g. "mcp__playwright__browser_click"). Covers the tools
@@ -5,7 +7,8 @@
  * plus its own human-approval/manual-intervention/save-to-sources MCP tools)
  * generically; a
  * concrete agent supplies a `describe` callback for its own domain-specific tools (e.g.
- * Playwright's browser_* cases) via `createFriendlyToolLabel()`.
+ * Playwright's browser_* cases) via `createFriendlyToolLabel()`. The kit's own labels are in
+ * the current language (see messages/).
  */
 
 export function truncate(text: string, max = 60): string {
@@ -21,65 +24,43 @@ export function truncatePath(text: string, max = 60): string {
 
 /** Returns undefined for anything it doesn't specifically recognize — the caller decides the fallback. */
 function describeCore(shortName: string, input: Record<string, unknown>): string | undefined {
+  const labels = t().labels;
+  const text = (value: unknown, fallback: string): string => (typeof value === "string" ? value : fallback);
   switch (shortName) {
-    case "request_human_approval": {
-      const summary = typeof input.summary === "string" ? input.summary : "";
-      return `Asking for human approval: ${truncate(summary, 120)}`;
-    }
+    case "request_human_approval":
+      return labels.askingApproval(truncate(text(input.summary, ""), 120));
     case "request_manual_login":
-      return "Waiting for a human to intervene manually";
-    case "save_to_sources": {
-      const destination = typeof input.destination === "string" ? input.destination : "sources/";
-      return `Saving a file to sources/${truncatePath(destination, 70)}`;
-    }
-    case "Read": {
-      const file = typeof input.file_path === "string" ? input.file_path : "a file";
-      return `Reading ${truncatePath(file, 80)}`;
-    }
-    case "Write": {
-      const file = typeof input.file_path === "string" ? input.file_path : "a file";
-      return `Writing to ${truncatePath(file, 80)}`;
-    }
-    case "Edit": {
-      const file = typeof input.file_path === "string" ? input.file_path : "a file";
-      return `Editing ${truncatePath(file, 80)}`;
-    }
-    case "Glob": {
-      const pattern = typeof input.pattern === "string" ? input.pattern : "*";
-      return `Searching for files matching "${truncate(pattern, 60)}"`;
-    }
-    case "Grep": {
-      const pattern = typeof input.pattern === "string" ? input.pattern : "";
-      return `Searching file contents for "${truncate(pattern, 60)}"`;
-    }
-    case "Bash": {
-      const command = typeof input.command === "string" ? input.command : "";
-      return `Running "${truncate(command, 80)}"`;
-    }
+      return labels.waitingManual;
+    case "save_to_sources":
+      return labels.savingToSources(truncatePath(text(input.destination, ""), 70));
+    case "Read":
+      return labels.reading(truncatePath(text(input.file_path, labels.aFile), 80));
+    case "Write":
+      return labels.writing(truncatePath(text(input.file_path, labels.aFile), 80));
+    case "Edit":
+      return labels.editing(truncatePath(text(input.file_path, labels.aFile), 80));
+    case "Glob":
+      return labels.findingFiles(truncate(text(input.pattern, "*"), 60));
+    case "Grep":
+      return labels.searchingContents(truncate(text(input.pattern, ""), 60));
+    case "Bash":
+      return labels.running(truncate(text(input.command, ""), 80));
     // The SDK's built-in subagent-delegation tool. Confirmed empirically (real
     // transcript) its input is { description, prompt, subagent_type }, not
     // { subagent_type, task } as its own tool description might suggest.
     case "Agent": {
-      const subagentType = typeof input.subagent_type === "string" ? input.subagent_type : "a subagent";
-      const description = typeof input.description === "string" ? input.description : "";
-      return description
-        ? `Delegating to "${subagentType}": ${truncate(description, 80)}`
-        : `Delegating to "${subagentType}"`;
+      const subagentType = text(input.subagent_type, labels.aSubagent);
+      const description = text(input.description, "");
+      return description ? labels.delegatingTask(subagentType, truncate(description, 80)) : labels.delegating(subagentType);
     }
-    case "WebFetch": {
-      const url = typeof input.url === "string" ? input.url : "a page";
-      return `Fetching ${truncate(url, 80)}`;
-    }
-    case "WebSearch": {
-      const query = typeof input.query === "string" ? input.query : "";
-      return `Searching the web for "${truncate(query, 80)}"`;
-    }
+    case "WebFetch":
+      return labels.fetching(truncate(text(input.url, labels.aPage), 80));
+    case "WebSearch":
+      return labels.searchingWeb(truncate(text(input.query, ""), 80));
     // The SDK's own tool for invoking a skill (see session.ts for why it's listed
     // explicitly in `tools`). Confirmed empirically: its input is `{ skill: "name" }`.
-    case "Skill": {
-      const skill = typeof input.skill === "string" ? input.skill : "a skill";
-      return `Applying the "${skill}" skill`;
-    }
+    case "Skill":
+      return labels.applyingSkill(text(input.skill, labels.aSkill));
     default:
       return undefined;
   }
