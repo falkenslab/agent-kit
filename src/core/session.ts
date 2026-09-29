@@ -117,8 +117,11 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     // autoMemoryEnabled: false keeps out the runner's own Claude Code memory for the project
     // (~/.claude/projects/<repository>/memory/MEMORY.md), which the CLI loads whatever
     // settingSources says (confirmed empirically): it's notes for them, not for this agent,
-    // whose own memory is the knowledge base.
-    settings: { autoCompactEnabled: options.autoCompactEnabled ?? true, autoMemoryEnabled: false },
+    // whose own memory is the knowledge base. includeGitInstructions: false leaves out the
+    // CLI's commit workflow and git context (the runner's git user name among it), which no
+    // agent here needs and which pulled replies towards the runner's language (confirmed
+    // empirically, see ADR-018).
+    settings: { autoCompactEnabled: options.autoCompactEnabled ?? true, autoMemoryEnabled: false, includeGitInstructions: false },
     // No built-in tools except, if applicable, Read/Write/Edit/Glob/Grep scoped to the
     // project's own folders (fileScopeGate below), and WebFetch/WebSearch
     // with no domain restriction (not conditioned on includeFileTools: it's read-only,
