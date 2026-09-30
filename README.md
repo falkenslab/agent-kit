@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/static/img/logo-dark.svg">
+  <img src="docs/static/img/logo.svg" alt="agent-kit logo: three blocks in shades of indigo and a coral one fitting in" width="96">
+</picture>
+
 # agent-kit
 
 [![npm](https://img.shields.io/npm/v/@falkenslab/agent-kit?logo=npm)](https://www.npmjs.com/package/@falkenslab/agent-kit)
@@ -5,7 +10,7 @@
 [![types](https://img.shields.io/npm/types/@falkenslab/agent-kit)](https://www.npmjs.com/package/@falkenslab/agent-kit)
 [![node](https://img.shields.io/node/v/@falkenslab/agent-kit)](https://nodejs.org/)
 [![license](https://img.shields.io/npm/l/@falkenslab/agent-kit)](LICENSE)
-[![docs](https://img.shields.io/badge/docs-falkenslab.github.io%2Fagent--kit-d77757)](https://falkenslab.github.io/agent-kit/)
+[![docs](https://img.shields.io/badge/docs-falkenslab.github.io%2Fagent--kit-4453b8)](https://falkenslab.github.io/agent-kit/)
 
 A foundation for building AI agents on top of the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk). It isn't an agent itself: it solves once what every agent needs (human oversight, safety, memory and a good terminal interface), so each concrete agent only has to write what belongs to its own domain: what it knows how to do, with which tools, and how it talks.
 

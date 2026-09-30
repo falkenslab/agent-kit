@@ -95,7 +95,7 @@ const config: Config = {
     colorMode: { respectPrefersColorScheme: true },
     navbar: {
       title: "agent-kit",
-      logo: { alt: "agent-kit", src: "img/logo.svg" },
+      logo: { alt: "agent-kit", src: "img/logo.svg", srcDark: "img/logo-dark.svg" },
       items: [
         { type: "docSidebar", sidebarId: "guides", position: "left", label: "Guides" },
         { type: "docSidebar", sidebarId: "api", position: "left", label: "API reference" },

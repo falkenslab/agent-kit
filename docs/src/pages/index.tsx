@@ -3,6 +3,7 @@ import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import Layout from "@theme/Layout";
 import CodeBlock from "@theme/CodeBlock";
+import ThemedImage from "@theme/ThemedImage";
 import styles from "./index.module.css";
 
 const FEATURES: { title: string; text: string }[] = [
@@ -57,6 +58,11 @@ export default function Home(): ReactNode {
     <Layout title="Build Claude agents" description="agent-kit: scaffolding for agents on top of the Claude Agent SDK">
       <header className={styles.hero}>
         <div className="container">
+          <ThemedImage
+            className={styles.logo}
+            alt=""
+            sources={{ light: useBaseUrl("/img/logo.svg"), dark: useBaseUrl("/img/logo-dark.svg") }}
+          />
           <h1 className={styles.title}>agent-kit</h1>
           <p className={styles.tagline}>
             Everything an agent built on the Claude Agent SDK needs, solved once: human oversight, safety, memory and a terminal

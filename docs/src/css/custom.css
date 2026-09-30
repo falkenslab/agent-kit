@@ -1,24 +1,25 @@
-/* The kit's own palette: the orange accent and the light blue of its terminal UI. */
+/* The logo's palette: its indigo blocks for links and buttons (the coral block reads too faintly
+   as text on white, so it stays in the logo). */
 :root {
-  --ifm-color-primary: #c0603f;
-  --ifm-color-primary-dark: #ad5639;
-  --ifm-color-primary-darker: #a35136;
-  --ifm-color-primary-darkest: #86432c;
-  --ifm-color-primary-light: #c86f51;
-  --ifm-color-primary-lighter: #cb785b;
-  --ifm-color-primary-lightest: #d59179;
+  --ifm-color-primary: #4453b8;
+  --ifm-color-primary-dark: #3d4ba6;
+  --ifm-color-primary-darker: #3a479c;
+  --ifm-color-primary-darkest: #303a81;
+  --ifm-color-primary-light: #5563c0;
+  --ifm-color-primary-lighter: #5f6cc4;
+  --ifm-color-primary-lightest: #7b86ce;
   --ifm-code-font-size: 92%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="dark"] {
-  --ifm-color-primary: #d77757;
-  --ifm-color-primary-dark: #d1633e;
-  --ifm-color-primary-darker: #cd5933;
-  --ifm-color-primary-darkest: #aa4828;
-  --ifm-color-primary-light: #dd8b70;
-  --ifm-color-primary-lighter: #e0957c;
-  --ifm-color-primary-lightest: #e9b3a1;
+  --ifm-color-primary: #8a97f0;
+  --ifm-color-primary-dark: #6879ec;
+  --ifm-color-primary-darker: #586aea;
+  --ifm-color-primary-darkest: #253ee3;
+  --ifm-color-primary-light: #96a1f2;
+  --ifm-color-primary-lighter: #9ca7f2;
+  --ifm-color-primary-lightest: #adb6f4;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 

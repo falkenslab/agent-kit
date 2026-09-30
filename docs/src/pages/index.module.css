@@ -4,6 +4,12 @@
   background: var(--ifm-color-emphasis-100);
 }
 
+.logo {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 1rem;
+}
+
 .title {
   font-size: 3rem;
   margin-bottom: 1rem;
