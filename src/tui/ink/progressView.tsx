@@ -65,6 +65,42 @@ function ProgressApp({ model, interaction, renderApproval, mode, closed }: {
 }
 
 /**
+ * The console renderer's methods on top of a session model, so what a caller writes lands in
+ * the view (and in `onWrite`, through the model), not only in the model's inner console
+ * renderer, whose own output goes nowhere. The view draws whole lines: `write()` text waits
+ * until its line ends (a "\n" in it, `writeLine()` or `endLine()`).
+ */
+export function progressRenderer(model: SessionModel): ConsoleRenderer {
+  let partial = "";
+  const flush = (): void => {
+    if (!partial) return;
+    const line = partial;
+    partial = "";
+    model.writeLine(line);
+  };
+  return {
+    render: (event) => {
+      flush();
+      model.render(event);
+    },
+    write(text) {
+      const lines = (partial + text).split("\n");
+      partial = lines.pop() ?? "";
+      for (const line of lines) model.writeLine(line);
+    },
+    writeLine(text) {
+      flush();
+      model.writeLine(text);
+    },
+    endLine: flush,
+    startTurn: () => model.startTurn(),
+    get atLineStart() {
+      return partial === "" && model.renderer.atLineStart;
+    },
+  };
+}
+
+/**
  * The Ink counterpart of `createConsoleRenderer()` for one-shot ("run"-style) sessions: the
  * same methods and the same text (so `onWrite` logs exactly what the console version
  * would), plus a spinner with the current action, approval panels and a status bar.
@@ -95,14 +131,7 @@ export function createProgressView(options: ProgressViewOptions = {}): ProgressV
   let closing: Promise<void> | null = null;
 
   return {
-    render: model.render,
-    write: (text) => model.renderer.write(text),
-    writeLine: (text) => model.renderer.writeLine(text),
-    endLine: () => model.renderer.endLine(),
-    startTurn: () => model.startTurn(),
-    get atLineStart() {
-      return model.renderer.atLineStart;
-    },
+    ...progressRenderer(model),
     close(): Promise<void> {
       closing ??= (async () => {
         setInteractionPort(previousPort);

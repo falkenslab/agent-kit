@@ -43,17 +43,20 @@ Without a TTY, or with `plain: true`, it's `createConsoleRenderer()` (plain line
 | Method | What it does |
 | --- | --- |
 | `render(event)` | Draws one `AgentEvent`. |
-| `write(text)`, `writeLine(text)` | Writes your own text (a line of its own, for `writeLine`). |
+| `write(text)`, `writeLine(text)` | Writes your own text above the live area, and to `onWrite`. `writeLine` writes a line of its own; the view draws whole lines, so `write` text shows once its line ends (a `\n` in it, a `writeLine()`, `endLine()` or the next event). |
 | `endLine()` | Ends the current line if needed. |
 | `startTurn()` | Marks a new turn (the view starts one when created). |
 | `close()` | Ends the view. Await it before printing anything else. |
 
-Ctrl+C during a checkpoint answers Stop and raises `SIGINT`, so your own handler can stop the run:
+Ctrl+C during a checkpoint answers Stop and raises `SIGINT`, so your own handler can stop the run, and tell the person with `writeLine()`:
 
 ```ts
+let interrupting = false;
 process.on("SIGINT", () => {
+  if (interrupting) process.exit(130);
+  interrupting = true;
+  view.writeLine("Interrupting… (Ctrl+C again to exit without waiting)");
   void run.interrupt();
-  run.close();
 });
 ```
 
