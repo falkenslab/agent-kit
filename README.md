@@ -1,9 +1,9 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/static/img/logo-dark.svg">
-  <img src="docs/static/img/logo.svg" alt="agent-kit logo: three blocks in shades of indigo and a coral one fitting in" width="96">
-</picture>
-
-# agent-kit
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-readme-dark.svg">
+    <img src="docs/assets/logo-readme.svg" alt="agent-kit" height="64">
+  </picture>
+</h1>
 
 [![npm](https://img.shields.io/npm/v/@falkenslab/agent-kit?logo=npm)](https://www.npmjs.com/package/@falkenslab/agent-kit)
 [![npm downloads](https://img.shields.io/npm/dm/@falkenslab/agent-kit)](https://www.npmjs.com/package/@falkenslab/agent-kit)
