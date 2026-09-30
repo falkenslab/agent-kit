@@ -58,12 +58,13 @@ export default function Home(): ReactNode {
     <Layout title="Build Claude agents" description="agent-kit: scaffolding for agents on top of the Claude Agent SDK">
       <header className={styles.hero}>
         <div className="container">
-          <ThemedImage
-            className={styles.logo}
-            alt=""
-            sources={{ light: useBaseUrl("/img/logo.svg"), dark: useBaseUrl("/img/logo-dark.svg") }}
-          />
-          <h1 className={styles.title}>agent-kit</h1>
+          <h1 className={styles.title}>
+            <ThemedImage
+              className={styles.logo}
+              alt="agent-kit"
+              sources={{ light: useBaseUrl("/logo-readme.svg"), dark: useBaseUrl("/logo-readme-dark.svg") }}
+            />
+          </h1>
           <p className={styles.tagline}>
             Everything an agent built on the Claude Agent SDK needs, solved once: human oversight, safety, memory and a terminal
             interface. You write only your domain.
