@@ -152,6 +152,18 @@ test("the prompt edits, walks the history with ↑/↓, completes with Tab and s
   assert.deepEqual(submitted, ["draft", "/captain-whiskers:joke x"]);
 });
 
+test("the wizard's last answer is written as a ✔ line before it exits", async () => {
+  let result: WizardAnswers | null | undefined;
+  const steps: WizardStep[] = [{ type: "confirm", name: "create", message: "Create instructions.md?", default: false }];
+  const view = render(<Wizard steps={steps} onDone={(answers) => (result = answers)} />);
+  await settle();
+  view.stdin.write(ENTER);
+  await settle();
+  assert.deepEqual(result, { create: false });
+  // Written to <Static>: in the output, not only in the state.
+  assert.match(stripAnsi(view.frames.join("\n")), /✔ Create instructions\.md\? No/);
+});
+
 test("the wizard skips steps with `when`, uses earlier answers and returns every answer", async () => {
   let result: WizardAnswers | null | undefined;
   const steps: WizardStep[] = [

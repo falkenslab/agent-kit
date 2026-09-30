@@ -1,5 +1,5 @@
 import { stdin, stdout } from "node:process";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, render, Static, Text, useApp, useInput, useStdout } from "ink";
 import wrapAnsi from "wrap-ansi";
 import { liveWidth } from "./sessionModel.js";
@@ -159,6 +159,16 @@ export function Wizard({ steps, title, onDone }: { steps: WizardStep[]; title?: 
   const [answers, setAnswers] = useState<WizardAnswers>({});
   const [done, setDone] = useState<{ message: string; text: string }[]>([]);
   const [index, setIndex] = useState(() => nextIndex(steps, -1, {}));
+  const [finished, setFinished] = useState<WizardAnswers | null>(null);
+
+  // Exits after the render that writes the last answer's ✔ line: exiting in the same handler
+  // unmounted Ink before it wrote that <Static> item, leaving the last question unanswered on
+  // screen.
+  useEffect(() => {
+    if (!finished) return;
+    onDone(finished);
+    exit();
+  }, [finished]);
 
   useInput((input, key) => {
     if (key.ctrl && input === "c") {
@@ -174,10 +184,7 @@ export function Wizard({ steps, title, onDone }: { steps: WizardStep[]; title?: 
     setDone([...done, { message: resolve(step.message, answers), text: summary(step, value, answers) }]);
     const following = nextIndex(steps, index, next);
     setIndex(following);
-    if (following >= steps.length) {
-      onDone(next);
-      exit();
-    }
+    if (following >= steps.length) setFinished(next);
   }
 
   // The title and the answered steps go to <Static>: written once, never redrawn, so a long
