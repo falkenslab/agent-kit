@@ -143,6 +143,7 @@ export const en: Messages = {
     "Esc interrupt  ·  Ctrl+C interrupt or exit  ·  PgUp/PgDn or wheel scroll  ·  Ctrl+End bottom",
     "Drag to select, right-click to copy (full screen)",
     "/resume resume an earlier conversation  ·  --continue on the command line resumes the latest one",
+    "/plan plan mode on or off: the agent only reads and plans until you leave it",
   ],
 
   moreLines: (count) => `… (${count} more lines)`,

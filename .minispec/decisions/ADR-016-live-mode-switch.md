@@ -14,3 +14,4 @@ Claude Code lets the user change how much it asks mid-conversation, and the same
 - `autonomous` has no approval tool by design (no channel to ask a human at all, see `session.ts`), and a tool can't appear or vanish mid-session, hence no switching into or out of it.
 - The system prompt keeps the mode it was built with; a consumer whose prompt depends on the mode should word it so both switchable modes fit.
 - `createStepGate()` takes an optional `isActive` callback; without it, it always asks, as before.
+- Plan mode joins the switchable modes the same way (ADR-023).

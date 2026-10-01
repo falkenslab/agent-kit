@@ -116,7 +116,7 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 | `?` on an empty prompt | The shortcuts panel. |
 | Esc | Interrupt the turn. |
 | Ctrl+C | Interrupt the turn (or answer Stop to a checkpoint); at an idle prompt, leave. |
-| Shift+Tab | Next mode (guided ↔ interactive). |
+| Shift+Tab | Next mode (guided → interactive → plan). |
 | Ctrl+O | Fold or unfold tool calls. |
 
 **Pasting** a multi-line block folds it into a token, `[Pasted text #1 +12 lines]`, sent expanded. **`@`** followed by part of a path suggests the project's files (Tab completes).
@@ -128,6 +128,7 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 | `/exit`, `/quit` | Leave (configurable with `exitCommands`). |
 | `/copy` | Copy the last reply to the clipboard (OSC 52), with terminal integration on. |
 | `/resume` | Pick an earlier conversation to resume, with a runs folder. |
+| `/plan` | Switch into [plan mode](../core-concepts/modes.md#plan), or back to the mode before it; offered only when the session's mode can switch. |
 
 Any other `/command` is checked against the session's commands (skills and plugin commands included): an unknown one shows "Unknown command" instead of reaching the model as text.
 

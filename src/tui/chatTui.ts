@@ -4,7 +4,7 @@ import { createWriteStream, type WriteStream } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
-import { createInputQueue } from "../core/session.js";
+import { createInputQueue, togglePlanMode, type ModeControl } from "../core/session.js";
 import { runQuery, type AgentEvent, type AgentRun } from "../core/runner.js";
 import { listRuns, readConversation, type RunFolder } from "../core/runs.js";
 import { isSharedQuestionActive, setSharedReadline } from "./terminalInteraction.js";
@@ -94,6 +94,13 @@ export interface ChatTuiOptions {
    * conversation, tool results included and not redacted: keep it out of version control.
    */
   runsDir?: string;
+  /**
+   * The session's mode control (`buildSessionOptions()` returns it): `/plan` switches into
+   * plan mode and back (an autonomous session can't switch), and entering or leaving plan
+   * mode is told to the model with the next message. With a session opener, the one it
+   * returns is used instead.
+   */
+  modeControl?: ModeControl;
   /**
    * Colors for the kit's roles (see `Theme`), on top of the kit's defaults: only the roles
    * given change, e.g. `{ toolResult: "yellow", selection: "#00ff00" }`. One theme per
@@ -202,10 +209,11 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
   const runsDir = opener ? tuiOptions.runsDir : undefined;
   if (opener && !runsDir) throw new Error("runChatTui(): a session opener needs `runsDir`.");
   // The session in use: with runs, the run's folder, rebuilt on /resume.
-  let current: { options: Options; run: RunFolder | null } =
+  let current: { options: Options; modeControl?: ModeControl; run: RunFolder | null } =
     opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
+  const modeControl = (): ModeControl | undefined => current.modeControl ?? tuiOptions.modeControl;
 
-  let queue = createInputQueue();
+  let queue = createInputQueue({ modeControl: modeControl() });
   let run: AgentRun = runQuery(queue.iterable, current.options);
   let events = run.events[Symbol.asyncIterator]();
 
@@ -347,7 +355,7 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
     run.close();
     current = await openSession(opener, await runFolderOf(summary));
     openLog();
-    queue = createInputQueue();
+    queue = createInputQueue({ modeControl: modeControl() });
     run = runQuery(queue.iterable, current.options);
     events = run.events[Symbol.asyncIterator]();
     knownCommandTokens = null;
@@ -386,6 +394,13 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
       if (exitCommands.has(line.toLowerCase())) break;
       if (runsDir && line.toLowerCase() === "/resume") {
         await resume();
+        continue;
+      }
+      // Plan mode on and off (the Ink chat also has Shift+Tab); the line says where it is now.
+      if (line.toLowerCase() === "/plan") {
+        const control = modeControl();
+        const next = control ? togglePlanMode(control) : null;
+        writeLine(ui.dim(next ? `⏵⏵ ${t().mode(next)}` : t().modeLocked(control?.mode)));
         continue;
       }
 

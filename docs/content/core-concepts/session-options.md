@@ -65,7 +65,8 @@ Nothing else of the CLI's built-in tools is available. `Bash` is there only beca
 1. the [transcript logger](../security/transcript.md);
 2. the [file scope gate](../security/file-scope.md), with file tools;
 3. the [step gate](../human-in-the-loop/step-gate.md), outside autonomous mode, active only while the mode is `interactive`;
-4. with subagents, the three [subagent gates](../security/subagent-gates.md): type, Bash, foreground.
+4. the plan gate, likewise outside autonomous mode, active only while the mode is `plan` (see [modes](./modes.md#plan));
+5. with subagents, the three [subagent gates](../security/subagent-gates.md): type, Bash, foreground.
 
 `PostToolUse`: the transcript logger.
 

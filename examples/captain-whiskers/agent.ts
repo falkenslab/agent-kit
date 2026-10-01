@@ -151,6 +151,9 @@ const spec: AgentSpec<BaseSessionConfig> = {
   // llamada en vez de ~16k.
   skills: ["captain-whiskers:pirate-joke", "captain-whiskers:miau"],
   settingSources: [],
+  // En modo plan solo pasan las herramientas que leen: el reloj del barco es una de ellas
+  // (cualquier otra herramienta MCP se deniega mientras dure el plan).
+  planMode: { isReadOnlyTool: (toolName) => toolName === "mcp__clock__current_time" },
 };
 
 // El logo de la cabecera: un gato con sombrero pirata y parche. Solo caracteres de una
@@ -179,8 +182,9 @@ async function main(): Promise<void> {
   const runsDir = path.join(__dirname, ".run");
 
   // Autónomo por defecto; CAPTAIN_MODE=interactive pide permiso antes de cada herramienta
-  // (útil para ver los paneles de aprobación) y CAPTAIN_MODE=guided solo antes de publicar.
-  const modes: Mode[] = ["autonomous", "guided", "interactive"];
+  // (útil para ver los paneles de aprobación), CAPTAIN_MODE=guided solo antes de publicar y
+  // CAPTAIN_MODE=plan solo lee y planea hasta que se sale del modo.
+  const modes: Mode[] = ["autonomous", "guided", "interactive", "plan"];
   const mode = modes.find((m) => m === process.env.CAPTAIN_MODE) ?? "autonomous";
 
   const config: BaseSessionConfig = {
@@ -191,7 +195,7 @@ async function main(): Promise<void> {
   // Interfaz Ink a pantalla completa (CAPTAIN_INLINE=1: en línea, con el historial de la
   // terminal); sin TTY, o con CAPTAIN_PLAIN=1, el chat de readline. Recibe cómo abrir la
   // sesión de una carpeta de ejecución, porque /resume la vuelve a abrir en otra. Shift+Tab
-  // alterna guided e interactive (una sesión autónoma no puede cambiar).
+  // recorre guided, interactive y plan (una sesión autónoma no puede cambiar).
   await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
     runsDir,
     // El nombre del modo, en el idioma del kit (el mismo que en la barra de estado).

@@ -101,6 +101,7 @@ Returning something here also gives the session the `Agent` and `Bash` tools (Ba
 | `replyInLanguage?: boolean` | `true` | The line asking the agent (and each subagent) to reply in the kit's language. |
 | `settingSources?: SettingSource[]` | `["project"]` | Which Claude Code settings files the session loads. |
 | `skills?: string[] \| "all"` | `"all"` | Which skills the agent offers. |
+| `planMode?: PlanModeSpec` | none | In plan mode, the agent's plan files and its read-only MCP tools. |
 
 ### `disallowedTools`
 
@@ -195,3 +196,16 @@ export const spec: AgentSpec<Config> = {
   settingSources: [],
 };
 ```
+
+### `planMode`
+
+In [plan mode](modes.md#plan) the agent only reads and plans. Two callbacks say what else it may do there:
+
+- `isPlanFile(filePath, config)`: whether `Write`/`Edit` may touch this file (absolute path). It must also be writable under the [file scope](../security/file-scope.md).
+- `isReadOnlyTool(toolName, input)`: whether one of the agent's MCP tools only reads. Every MCP tool it doesn't vouch for is denied in plan mode.
+
+```ts
+planMode: { isReadOnlyTool: (toolName) => toolName === "mcp__clock__current_time" },
+```
+
+Without `planMode`, the agent can read, search, ask a person and delegate in plan mode, writes nothing and presents its plan in its reply.

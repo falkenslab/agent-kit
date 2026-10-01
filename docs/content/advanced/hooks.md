@@ -79,4 +79,4 @@ The kit already logs every call and result to `transcript.jsonl`, redacted; see 
 
 ## Reusing the kit's hooks
 
-Every guardrail is exported as a hook factory: `createFileScopeGate()`, `createStepGate()`, `createSubagentTypeGate()`, `createSubagentBashGate()`, `createSubagentForegroundGate()`, `createTranscriptLogger()`. Use them to assemble a session without `buildSessionOptions()`, or in tests.
+Every guardrail is exported as a hook factory: `createFileScopeGate()`, `createStepGate()`, `createSubagentTypeGate()`, `createSubagentBashGate()`, `createSubagentForegroundGate()`, `createPlanGate()`, `createTranscriptLogger()`. Use them to assemble a session without `buildSessionOptions()`, or in tests.

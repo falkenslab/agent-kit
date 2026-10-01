@@ -6,6 +6,7 @@ import { createSubagentBashGate } from "./hooks/subagentBashGate.js";
 import { createSubagentTypeGate } from "./hooks/subagentTypeGate.js";
 import { createSubagentForegroundGate } from "./hooks/subagentForegroundGate.js";
 import { createFileScopeGate } from "./hooks/fileScopeGate.js";
+import { createPlanGate } from "./hooks/planGate.js";
 import { createHumanApprovalServer } from "./tools/humanApproval.js";
 import { createManualLoginServer } from "./tools/manualLogin.js";
 import { createSaveToSourcesServer } from "./tools/saveToSources.js";
@@ -28,8 +29,8 @@ import { createRunStore, type RunFolder } from "./runs.js";
  * fields on `BaseSessionConfig`.
  *
  * The per-mode behavioral differences (whether the approval/manual-intervention tools
- * exist, whether the interactive step gate hook runs) all fall out of `config.mode`
- * alone.
+ * exist, whether the interactive step gate or the plan gate decides) all fall out of
+ * `config.mode` and the session's `ModeControl` alone.
  *
  * `options.run` keeps the SDK's transcript of the conversation in that run folder (see
  * runs.ts's createRunStore()) and, when it has a session already, resumes it: the chat
@@ -179,6 +180,24 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
         // Registered wherever the approval tool is, and asking only while the current mode is
         // "interactive": a guided session can switch to interactive and back (ModeControl).
         ...(includeApprovalTool ? [{ hooks: [createStepGate(runDir, () => modeControl.mode === "interactive")] }] : []),
+        // Likewise for "plan", which any non-autonomous session can switch into: the agent
+        // only reads and plans while it's on (hooks/planGate.ts).
+        ...(includeApprovalTool
+          ? [
+              {
+                hooks: [
+                  createPlanGate(
+                    {
+                      projectDir: config.projectDir,
+                      ...(spec.planMode?.isPlanFile ? { isPlanFile: (filePath: string) => spec.planMode!.isPlanFile!(filePath, config) } : {}),
+                      ...(spec.planMode?.isReadOnlyTool ? { isReadOnlyTool: spec.planMode.isReadOnlyTool } : {}),
+                    },
+                    () => modeControl.mode === "plan",
+                  ),
+                ],
+              },
+            ]
+          : []),
         ...(includeSubagentTools
           ? [
               { hooks: [createSubagentTypeGate(allowedSubagentTypes)] },
@@ -203,25 +222,35 @@ function skillList(skills: string[] | "all" | undefined, includeKnowledgeBase: b
 }
 
 /**
- * The supervision mode of a running session. Only "guided" and "interactive" can switch into
- * each other: they share the same tools (the approval tool) and the step gate is registered
- * in both, asking only in "interactive". "autonomous" has no approval tool at all, and a tool
- * can't appear or vanish mid-session, so a session that starts autonomous stays autonomous,
- * and one that doesn't can't become autonomous. The system prompt keeps the mode it was
- * built with.
+ * The supervision mode of a running session. "guided", "interactive" and "plan" switch into
+ * one another: they share the same tools (the approval tool), and the step gate and the plan
+ * gate are registered in all three, deciding only in their own mode. "autonomous" has no
+ * approval tool at all, and a tool can't appear or vanish mid-session, so a session that
+ * starts autonomous stays autonomous, and one that doesn't can't become autonomous. The
+ * system prompt keeps the mode it was built with, so entering or leaving plan mode is told
+ * to the model with the next message instead (`takeNotice()`).
  */
 export interface ModeControl {
   readonly mode: Mode;
-  /** The modes this session can be in; fewer than two means it can't switch. */
+  /** The modes this session can be in, in Shift+Tab's order; fewer than two means it can't switch. */
   readonly switchable: readonly Mode[];
   /** Switches to `next` if this session allows it; returns whether it did. */
   set(next: Mode): boolean;
+  /**
+   * The note telling the model it entered or left plan mode, once per change it hasn't been
+   * told about yet; `undefined` otherwise. `createInputQueue({ modeControl })` puts it before
+   * the next message; a caller with its own queue prepends it itself.
+   */
+  takeNotice?(): string | undefined;
 }
 
 /** A `ModeControl` starting at `initial` (`buildSessionOptions()` returns one for its session). */
 export function createModeControl(initial: Mode): ModeControl {
   let current = initial;
-  const switchable: readonly Mode[] = initial === "autonomous" ? ["autonomous"] : ["guided", "interactive"];
+  // The mode the model was last told about: a session starting in plan mode tells it with
+  // the first message, since the system prompt doesn't say.
+  let told: Mode | undefined = initial === "plan" ? undefined : initial;
+  const switchable: readonly Mode[] = initial === "autonomous" ? ["autonomous"] : ["guided", "interactive", "plan"];
   return {
     get mode() {
       return current;
@@ -232,8 +261,41 @@ export function createModeControl(initial: Mode): ModeControl {
       current = next;
       return true;
     },
+    takeNotice() {
+      const before = told;
+      told = current;
+      if (current === "plan" && before !== "plan") return PLAN_MODE_ENTERED;
+      if (current !== "plan" && before === "plan") return PLAN_MODE_LEFT;
+      return undefined;
+    },
   };
 }
+
+// The mode each session was in when `/plan` took it into plan mode, to go back to.
+const modeBeforePlan = new WeakMap<ModeControl, Mode>();
+
+/**
+ * What the chats' `/plan` does: switches `control` into plan mode, or, when it's already
+ * there, back to the mode it was entered from ("guided" if it started in plan mode). Returns
+ * the new mode, or `null` when this session can't be in plan mode (an autonomous one).
+ */
+export function togglePlanMode(control: ModeControl): Mode | null {
+  if (!control.switchable.includes("plan")) return null;
+  if (control.mode === "plan") {
+    const back = modeBeforePlan.get(control) ?? "guided";
+    control.set(back);
+    return back;
+  }
+  modeBeforePlan.set(control, control.mode);
+  control.set("plan");
+  return "plan";
+}
+
+// What the model reads on a plan-mode switch, in English like the rest of what it reads
+// (ADR-019); tagged so a resumed conversation doesn't show it as the human's words (runs.ts).
+const PLAN_MODE_ENTERED =
+  "<system-reminder>The user switched to plan mode. Only read, research and plan: nothing can be changed (files, tools that modify something) until they switch out of it. When the plan is ready, present it and wait for them.</system-reminder>";
+const PLAN_MODE_LEFT = "<system-reminder>The user left plan mode: you can carry out the plan now.</system-reminder>";
 
 /**
  * User message queue backed by a single long-lived generator, for any multi-turn
@@ -245,8 +307,11 @@ export function createModeControl(initial: Mode): ModeControl {
  * "ProcessTransport is not ready for writing". A real multi-turn conversation needs a
  * single generator that never finishes on its own: messages get pushed into it with
  * `push()` and it's only explicitly closed with `end()` when leaving the chat.
+ *
+ * With `modeControl`, each message goes after the note on a plan-mode switch the model
+ * hasn't been told about yet (`ModeControl.takeNotice()`).
  */
-export function createInputQueue(): {
+export function createInputQueue(options: { modeControl?: ModeControl } = {}): {
   push: (text: string) => void;
   end: () => void;
   iterable: AsyncIterable<SDKUserMessage>;
@@ -274,7 +339,8 @@ export function createInputQueue(): {
 
   return {
     push(text: string) {
-      pending.push(text);
+      const notice = options.modeControl?.takeNotice?.();
+      pending.push(notice ? `${notice}\n\n${text}` : text);
       wake?.();
       wake = null;
     },

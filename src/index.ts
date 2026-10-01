@@ -14,8 +14,8 @@ export {
   truncatePath,
   type ToolDescriber,
 } from "./core/toolLabels.js";
-export type { Mode, BaseSessionConfig, AgentSpec } from "./core/agentSpec.js";
-export { buildSessionOptions, createInputQueue, createDeferred, createModeControl, type ModeControl } from "./core/session.js";
+export type { Mode, BaseSessionConfig, AgentSpec, PlanModeSpec } from "./core/agentSpec.js";
+export { buildSessionOptions, createInputQueue, createDeferred, createModeControl, togglePlanMode, type ModeControl } from "./core/session.js";
 export { runQuery, type AgentEvent, type AgentRun, type SessionUsage, type ContextUsage } from "./core/runner.js";
 export { knowledgePluginRoot, knowledgePromptSection } from "./core/knowledge.js";
 export {
@@ -55,6 +55,7 @@ export { createSubagentBashGate } from "./core/hooks/subagentBashGate.js";
 export { createSubagentTypeGate } from "./core/hooks/subagentTypeGate.js";
 export { createSubagentForegroundGate } from "./core/hooks/subagentForegroundGate.js";
 export { createFileScopeGate, checkFileScope, type FileScope } from "./core/hooks/fileScopeGate.js";
+export { createPlanGate, checkPlanScope, type PlanScope } from "./core/hooks/planGate.js";
 export { askForDecision, askForManualIntervention } from "./core/hooks/humanInput.js";
 export { setInteractionPort, getInteractionPort, type InteractionPort, type ApprovalPrompt } from "./core/interaction.js";
 export { terminalInteractionPort, setSharedReadline, getSharedReadline } from "./tui/terminalInteraction.js";

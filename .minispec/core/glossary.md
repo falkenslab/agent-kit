@@ -10,7 +10,7 @@ A concrete agent built on the kit (`teacher-agent`, `student-agent`, `captain-wh
 
 ## Mode
 
-`interactive`, `guided` or `autonomous`: how much a human is in the loop. Not the same as chat vs one-shot run.
+`interactive`, `guided`, `autonomous` or `plan`: how much a human is in the loop. Not the same as chat vs one-shot run.
 
 ## Run directory (`runDir`)
 

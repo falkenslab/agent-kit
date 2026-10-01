@@ -16,7 +16,7 @@ A foundation for building AI agents on top of the [Claude Agent SDK](https://www
 
 ## What an agent built with it can do
 
-- **Work at different levels of oversight.** Autonomous, guided (it asks for permission before anything that can't be undone or that other people will see) or step by step (it asks before every action). Within the same conversation you can switch from guided to step by step and back.
+- **Work at different levels of oversight.** Autonomous, guided (it asks for permission before anything that can't be undone or that other people will see) or step by step (it asks before every action), and a plan mode where it only reads and plans until you let it act. Within the same conversation you can switch among guided, step by step and plan.
 - **Ask a person for help.** It asks for approvals, or stops so someone can do something by hand, such as signing in to a website. It can be answered from the keyboard or from another program driving it, for example a desktop app.
 - **Remember between sessions.** It keeps its own knowledge base, a small wiki of notes that grows with every session, and keeps the original documents you give it or that it downloads untouched. Each conversation stays in the project's folder, so you can pick it up again with `--continue` (the latest one) or `/resume` (any of them).
 - **Speak your language.** Its interface comes in English, Spanish, French or German, the system's by default or the one you ask for with `--language=fr`, and it answers in that language unless you write to it in another one.
@@ -77,7 +77,7 @@ const config: BaseSessionConfig = { mode: "guided", projectDir: process.cwd() };
 await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
   runsDir: path.resolve(".run"),
   header: { title: "My agent" },
-  mode: config.mode, // Shift+Tab switches between guided and step by step
+  mode: config.mode, // Shift+Tab cycles through guided, step by step and plan
   fullscreen: true,
   theme: { toolResult: "gray", selection: "#ffb86c" }, // only the colors you want to change
 });

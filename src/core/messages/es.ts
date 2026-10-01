@@ -2,7 +2,7 @@ import type { Mode } from "../agentSpec.js";
 import type { Messages } from "./en.js";
 
 const plural = (count: number, one: string, many: string): string => (count === 1 ? one : many);
-const MODES: Record<Mode, string> = { autonomous: "autónomo", guided: "guiado", interactive: "interactivo" };
+const MODES: Record<Mode, string> = { autonomous: "autónomo", guided: "guiado", interactive: "interactivo", plan: "plan" };
 
 export const es: Partial<Messages> = {
   thinking: "Pensando…",
@@ -42,6 +42,7 @@ export const es: Partial<Messages> = {
     "Esc interrumpir  ·  Ctrl+C interrumpir o salir  ·  RePág/AvPág o rueda desplazarse  ·  Ctrl+Fin abajo del todo",
     "Arrastrar para seleccionar, clic derecho para copiar (pantalla completa)",
     "/resume retomar una conversación anterior  ·  --continue al arrancar retoma la última",
+    "/plan activar o desactivar el modo plan: el agente solo lee y planifica hasta que salgas",
   ],
 
   moreLines: (count) => `… (${count} líneas más)`,

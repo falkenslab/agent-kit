@@ -184,6 +184,8 @@ export function entryText(entry: SessionStoreEntry): ConversationMessage | null 
       .map((part) => part.text ?? "")
       .join("");
   }
+  // The kit's own notes to the model (a plan-mode switch) go before the human's words.
+  text = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>\s*/g, "");
   // Slash commands and the CLI's own notes arrive as tagged text, not as the human's words.
   if (!text.trim() || /^\s*<[a-z-]+>/.test(text)) return null;
   return { role: entry.type, text };

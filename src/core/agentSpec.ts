@@ -4,7 +4,8 @@ import type { AgentDefinition as SdkSubagentDefinition, McpServerConfig, Setting
  * The human-supervision spectrum every agent built on this kit shares, independent of
  * domain: "interactive" pauses before every single action, "guided" only pauses before a
  * hard-to-undo/visible-to-others action, "autonomous" has no human-in-the-loop channel at
- * all. See session.ts's buildSessionOptions() for exactly what each mode changes.
+ * all, and "plan" only reads and plans: nothing is changed until the human leaves it (see
+ * hooks/planGate.ts). See session.ts's buildSessionOptions() for exactly what each mode changes.
  *
  * Deliberately orthogonal to whether the session is a one-shot run or a multi-turn chat
  * (that's a matter of which entry point the caller uses — a single `query()` call vs.
@@ -13,7 +14,7 @@ import type { AgentDefinition as SdkSubagentDefinition, McpServerConfig, Setting
  * different system-prompt template) should track that as its own domain field on its
  * config type, not conflate it with `Mode`.
  */
-export type Mode = "interactive" | "guided" | "autonomous";
+export type Mode = "interactive" | "guided" | "autonomous" | "plan";
 
 /**
  * The minimum a config object needs to drive `buildSessionOptions()` — a concrete agent's
@@ -166,4 +167,27 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
     checkpointLines: string[];
     checkpointQuestion?: string;
   };
+
+  /**
+   * What the agent may still do in "plan" mode, where it only reads and plans (see
+   * hooks/planGate.ts). Without it, the agent can read, search, ask a human and delegate,
+   * writes nothing and presents its plan in its reply.
+   */
+  planMode?: PlanModeSpec<TConfig>;
+}
+
+/** The domain's part of "plan" mode: which files hold the plan and which of its own tools only read. */
+export interface PlanModeSpec<TConfig extends BaseSessionConfig = BaseSessionConfig> {
+  /**
+   * Whether `filePath` (absolute) is a plan file Write/Edit may touch in plan mode, e.g.
+   * `drafts/<slug>/plan.md`. It must also be writable under the file scope (`knowledgeDir`
+   * or `extraWritableDirs`), which still applies.
+   */
+  isPlanFile?(filePath: string, config: TConfig): boolean;
+  /**
+   * Whether one of the agent's own MCP tools (`mcp__<server>__<tool>`) only reads, so plan
+   * mode lets it run. Every MCP tool it doesn't vouch for is denied there: a forgotten tool
+   * can't change anything.
+   */
+  isReadOnlyTool?(toolName: string, input: Record<string, unknown>): boolean;
 }

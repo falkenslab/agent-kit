@@ -19,6 +19,7 @@ An agent acts through tools, so the kit's guardrails sit on the tools: which exi
 | MCP approval | nothing: it approves every `mcp__*` call so project servers work | `canUseTool` | [Permissions and isolation](permissions-and-isolation.md) |
 | Setting sources, auto-memory, git context | the runner's personal Claude Code configuration leaking into the agent | SDK options | [Permissions and isolation](permissions-and-isolation.md) |
 | Step gate, approvals | actions a person should see first | hook and tool | [Human in the loop](../human-in-the-loop/overview.md) |
+| Plan gate | changes while the agent is only meant to plan | `PreToolUse` hook | [Modes](../core-concepts/modes.md#plan) |
 | Transcript redaction | secrets written to logs | `PreToolUse`/`PostToolUse` hook | [Transcript](transcript.md) |
 
 ## What the kit does not protect

@@ -80,6 +80,8 @@ test("the conversation keeps only what the human wrote and the agent replied", a
   assert.equal(entryText({ type: "user", message: { content: "<command-name>/chiste</command-name>" } }), null);
   assert.equal(entryText({ type: "assistant", message: { content: [{ type: "tool_use", name: "Read" }] } }), null);
   assert.equal(entryText({ type: "system", message: { content: "x" } }), null);
+  // The kit's plan-mode note goes, the human's words stay.
+  assert.deepEqual(entryText(user("u", "<system-reminder>The user switched to plan mode.</system-reminder>\n\nfix it")), { role: "user", text: "fix it" });
 });
 
 test("runs are listed newest first with their last message; runs without a session are left out", async () => {

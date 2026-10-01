@@ -104,6 +104,8 @@ run.close();
 `run.events` is one generator for the whole session. Breaking out of a `for await` loop calls its `return()`, which closes it for good: the next turn sees `done: true` immediately and the rest of the conversation is silently lost. Read turn by turn with `events.next()`, as above.
 :::
 
+With switchable modes, pass the session's mode control, `createInputQueue({ modeControl })`: when the person switches into or out of plan mode, the next message carries a `<system-reminder>` telling the model so (see [modes](../core-concepts/modes.md#plan)). Both chats do this for you.
+
 `createDeferred()` is a small helper (`{ promise, resolve }`) to signal "this turn finished" between a reader loop and the code waiting for it.
 
 ## Reading events continuously

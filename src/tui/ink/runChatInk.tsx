@@ -7,7 +7,7 @@ import { Select } from "@inkjs/ui";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import type { Mode } from "../../core/agentSpec.js";
 import { getInteractionPort, setInteractionPort } from "../../core/interaction.js";
-import { createInputQueue, type ModeControl } from "../../core/session.js";
+import { createInputQueue, togglePlanMode, type ModeControl } from "../../core/session.js";
 import { runQuery, type AgentRun } from "../../core/runner.js";
 import { listRuns, readConversation, type RunFolder } from "../../core/runs.js";
 import { capHistory, loadHistory, runChatTui, saveHistory, slashCommandToken, type ChatTuiOptions } from "../chatTui.js";
@@ -71,9 +71,10 @@ export interface InkChatOptions extends ChatTuiOptions {
   toolPhrase?: (toolName: string) => ToolPhrase | undefined;
   /**
    * The session's mode control (`buildSessionOptions()` returns it): the status bar shows the
-   * current mode, and Shift+Tab switches between the modes it allows ("guided" and
-   * "interactive"; an autonomous session can't switch). With a session opener, the one it
-   * returns is used instead.
+   * current mode, Shift+Tab switches between the modes it allows ("guided", "interactive"
+   * and "plan"; an autonomous session can't switch), and entering or leaving plan mode is
+   * told to the model with the next message. With a session opener, the one it returns is
+   * used instead.
    */
   modeControl?: ModeControl;
   /**
@@ -395,7 +396,7 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
   let generation = 0;
   function connect(): void {
     const own = ++generation;
-    queue = createInputQueue();
+    queue = createInputQueue({ modeControl: modeControl() });
     run = runQuery(queue.iterable, { ...current.options, promptSuggestions: tuiOptions.promptSuggestions ?? true });
     const events = run.events[Symbol.asyncIterator]();
     input.setMode(modeControl()?.mode ?? null);
@@ -408,7 +409,11 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
     );
     void knownCommands.then((names) => {
       const exits = [...exitCommands].filter((c) => c.startsWith("/")).map((c) => c.slice(1));
-      const local = [...(tuiOptions.terminalIntegration === false ? [] : ["copy"]), ...(runsDir ? ["resume"] : [])];
+      const local = [
+        ...(tuiOptions.terminalIntegration === false ? [] : ["copy"]),
+        ...(runsDir ? ["resume"] : []),
+        ...(modeControl()?.switchable.includes("plan") ? ["plan"] : []),
+      ];
       input.setCommands([...new Set([...(names ?? []), ...exits, ...local])].sort());
     });
 
@@ -549,6 +554,14 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
       }
       if (runsDir && line.toLowerCase() === "/resume") {
         await resume();
+        continue;
+      }
+      // A local command too: into plan mode, or back to the mode it was entered from.
+      if (line.toLowerCase() === "/plan") {
+        const control = modeControl();
+        const next = control ? togglePlanMode(control) : null;
+        if (next) input.setMode(next);
+        else model.writeLine(ui.dim(t().modeLocked(control?.mode ?? tuiOptions.mode)));
         continue;
       }
 

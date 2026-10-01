@@ -6,7 +6,7 @@
 
 ## What it does
 
-- Wires SDK session options from a small `AgentSpec` contract and a `mode` (interactive / guided / autonomous).
+- Wires SDK session options from a small `AgentSpec` contract and a `mode` (interactive / guided / autonomous / plan).
 - Human-in-the-loop: step gate, approval tool, manual-intervention tool, answered from a terminal or a response file.
 - Security hooks: file scope, subagent gates, MCP permissions, transcript logging with secret redaction.
 - A built-in knowledge base (LLM-wiki pattern) with its own plugin of skills and commands.

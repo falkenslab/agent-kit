@@ -16,7 +16,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 ## Key pieces (`src/core/`)
 
 - `agentSpec.ts` — `AgentSpec<TConfig>`: system prompt, MCP servers, plugin roots, subagents, disallowed tools, approval/intervention texts. `BaseSessionConfig` + `Mode` (ADR-002).
-- `session.ts` — `buildSessionOptions()`: tools, hooks and MCP servers per mode, the session's `ModeControl` (guided ↔ interactive live, ADR-016), `settingSources`/`skills`/auto-memory defaults (ADR-018), the reply language line (ADR-019) and, with `run`, the run store (ADR-020); `createInputQueue()`.
+- `session.ts` — `buildSessionOptions()`: tools, hooks and MCP servers per mode, the session's `ModeControl` (guided, interactive and plan live, ADR-016, ADR-023), `settingSources`/`skills`/auto-memory defaults (ADR-018), the reply language line (ADR-019) and, with `run`, the run store (ADR-020); `createInputQueue()`.
 - `language.ts` — `resolveLanguage()`: `--language`, option, system, English; the reply language line.
 - `messages/` — the kit's texts per language (`en` complete, `es`/`fr`/`de` falling back to it), the process's current language (`chooseLanguage()`, `setLanguage()`, `t()`) (ADR-019).
 - `runs.ts` — run folders: `createRunStore()` (a `SessionStore` in the run folder), `listRuns()`, `readConversation()` (ADR-020).
@@ -25,6 +25,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `interaction.ts` — `InteractionPort`, the UI side of checkpoints; `setInteractionPort()` (ADR-013).
 - `hooks/humanInput.ts` — `askForDecision()`, `askForManualIntervention()`: port vs response file (ADR-004).
 - `hooks/stepGate.ts` — interactive mode: pause before every tool call (registered outside autonomous, active only while the mode is interactive).
+- `hooks/planGate.ts` — plan mode: only reading, the declared plan files and read-only tools (registered outside autonomous, active only while the mode is plan; ADR-023).
 - `tools/humanApproval.ts` — `request_human_approval` (guided mode).
 - `tools/manualLogin.ts` — `request_manual_login`, only with `manualInterventionTexts` (ADR-005).
 - `mcpPermissions.ts` — `allowAnyMcpTool` as `canUseTool` (ADR-006).
@@ -50,6 +51,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `interactive` — step gate before every tool call.
 - `guided` — approval tool before hard-to-undo or visible actions.
 - `autonomous` — no human-in-the-loop tools.
+- `plan` — plan gate: only reads and plans until the human leaves it.
 
 ## File tools
 

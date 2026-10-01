@@ -40,6 +40,7 @@ you>
 - ↑/↓ go through the history (`historyPath`).
 - An unknown `/command` is caught before it reaches the model.
 - `/resume` prints a numbered list of runs and asks for a number.
+- `/plan` switches into [plan mode](../core-concepts/modes.md#plan) and back, with the `modeControl` option or a session opener (the plain chat has no Shift+Tab).
 
 ## Checkpoints
 

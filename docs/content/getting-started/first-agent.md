@@ -70,7 +70,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 ```
 
 - `fullscreen: true` takes the whole terminal: the history scrolls in its own view (PageUp/PageDown, the wheel), the prompt stays at the bottom, dragging selects text and a right-click copies it.
-- In `guided` mode the agent gets a `request_human_approval` tool and must call it before anything visible to others or hard to undo; an approval panel appears in the chat. **Shift+Tab** switches to `interactive`, where every tool call asks first. See [Modes](../core-concepts/modes.md).
+- In `guided` mode the agent gets a `request_human_approval` tool and must call it before anything visible to others or hard to undo; an approval panel appears in the chat. **Shift+Tab** switches to `interactive`, where every tool call asks first, and then to `plan`, where the agent only reads and plans. See [Modes](../core-concepts/modes.md).
 
 ## Step 3: a tool of its own
 

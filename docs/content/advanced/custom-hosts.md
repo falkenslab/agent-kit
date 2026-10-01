@@ -44,7 +44,8 @@ export async function startAgent(window: BrowserWindow, workspace: string): Prom
   const config: Config = { mode: "guided", projectDir: workspace, knowledgeDir: path.join(workspace, "knowledge") };
   const { options, modeControl } = await buildSessionOptions(config, run.dir, spec, { run });
 
-  const queue = createInputQueue();
+  // With the mode control, a switch into or out of plan mode is told to the model with the next message.
+  const queue = createInputQueue({ modeControl });
   const session = runQuery(queue.iterable, options);
   const label = createFriendlyToolLabel();
 
@@ -62,7 +63,7 @@ export async function startAgent(window: BrowserWindow, workspace: string): Prom
 
   ipcMain.on("agent:send", (_event, text: string) => queue.push(text));
   ipcMain.on("agent:interrupt", () => void session.interrupt());
-  ipcMain.on("agent:mode", (_event, mode: "guided" | "interactive") => modeControl.set(mode));
+  ipcMain.on("agent:mode", (_event, mode: "guided" | "interactive" | "plan") => modeControl.set(mode));
   window.on("closed", () => {
     queue.end();
     session.close();

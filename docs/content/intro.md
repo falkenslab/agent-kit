@@ -13,7 +13,7 @@ description: What agent-kit is, what it gives an agent and what an agent still w
 
 | Area | What you get |
 | --- | --- |
-| Oversight | Three modes: `autonomous`, `guided` (an approval before anything visible or hard to undo) and `interactive` (an approval before every tool call). Guided and interactive switch into each other live. |
+| Oversight | Four modes: `autonomous`, `guided` (an approval before anything visible or hard to undo), `interactive` (an approval before every tool call) and `plan` (only reading and planning until the person leaves it). All but autonomous switch into one another live. |
 | Human in the loop | Approval and manual-intervention checkpoints, answered from the keyboard, from a panel in the Ink UI, from a desktop app through an `InteractionPort`, or by writing a response file. |
 | Safety | Hooks that keep the file tools inside the agent's own folders, protect paths, keep Bash for subagents only, allow only the subagents you declare and run them in the foreground. |
 | Memory | A built-in knowledge base (an "LLM wiki" the agent maintains), originals kept untouched in a sources folder, and every conversation stored in its run folder to resume it later. |

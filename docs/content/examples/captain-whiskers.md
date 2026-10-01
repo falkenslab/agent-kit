@@ -178,6 +178,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 
 - `/captain-whiskers:joke` for a classic, `/captain-whiskers:fresh-joke` to send the crew to the web.
 - "What time is it, and how long until New Year's Eve?" (the clock cabin boy).
-- `CAPTAIN_MODE=interactive npm start` and watch every tool call stop at the approval panel; Shift+Tab switches to guided.
+- `CAPTAIN_MODE=interactive npm start` and watch every tool call stop at the approval panel; Shift+Tab switches to plan, then guided.
+- `CAPTAIN_MODE=plan npm start` and ask for something: the crew can search and read the clock (declared read-only), and anything else is denied until you leave plan mode.
 - Ctrl+O to fold the tool calls; drag and right-click to copy; `?` for the shortcuts.
 - `/exit`, then `npm start -- --continue`.
