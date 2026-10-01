@@ -292,11 +292,16 @@ function FullscreenSession({
   function cellAt(x: number, y: number, clamp: boolean): Cell | null {
     if (!historyRef.current || end === start) return null;
     const box = framePosition(historyRef.current);
-    const firstY = box.y + historyHeight - (end - start); // the rows are bottom-aligned
+    // Measured now, not `historyHeight`: that state is set by an effect after the layout, so
+    // a click on the first frames would find the rows where they were before it.
+    const height = measureElement(historyRef.current).height;
+    const firstY = box.y + height - (end - start); // the rows are bottom-aligned
     let offset = y - firstY;
-    if (offset < 0 || offset >= end - start) {
+    // Rows that don't fit are clipped above the box, not clickable.
+    const firstShown = Math.max(0, box.y - firstY);
+    if (offset < firstShown || offset >= end - start) {
       if (!clamp) return null;
-      offset = Math.min(end - start - 1, Math.max(0, offset));
+      offset = Math.min(end - start - 1, Math.max(firstShown, offset));
     }
     return { row: start + offset, col: Math.max(0, x - box.x) };
   }

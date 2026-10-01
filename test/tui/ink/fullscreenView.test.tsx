@@ -158,6 +158,19 @@ test("dragging over the history selects it (also while the agent works) and a ri
   assert.equal(copies.length, 1);
 });
 
+// The history's height is measured after the first layout: a click before that still lands
+// on the row shown under it (it fell 4 rows higher, making the test above fail at random).
+test("a drag right after the first frame selects the rows shown under it", async () => {
+  const { view } = setup(30);
+  const y28 = screen(view).indexOf("line 28");
+  assert.ok(y28 > 0);
+  view.stdin.write(`\x1b[<0;6;${y28 + 1}M`);
+  view.stdin.write(`\x1b[<32;4;${y28 + 2}M`);
+  view.stdin.write(`\x1b[<0;4;${y28 + 2}m`);
+  await settle();
+  assert.ok((view.lastFrame() ?? "").includes("\x1b[7m28"), "the highlight starts on line 28's number");
+});
+
 // A long approval in a short terminal: the history gives up its rows and the panel's options
 // and the status bar stay on screen (seen hidden at 110×34 from teacher-agent).
 for (const [columns, height] of [
