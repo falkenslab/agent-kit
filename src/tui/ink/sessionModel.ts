@@ -2,7 +2,7 @@ import type { AgentEvent, SessionUsage } from "../../core/runner.js";
 import { createFriendlyToolLabel } from "../../core/toolLabels.js";
 import { createConsoleRenderer, type ConsoleRenderer } from "../consoleRenderer.js";
 import { fitWidth, stripAnsi } from "./lineBuffer.js";
-import { finishedLength, renderMarkdown } from "./markdown.js";
+import { finishedLength, hasTable, renderMarkdown } from "./markdown.js";
 import { toolGroupExpanded, toolGroupSummary, type ToolCall, type ToolPhrase } from "./toolGroup.js";
 import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
@@ -206,6 +206,15 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     const rest = segment.slice(segmentDone);
     if (!rest.trim()) return [];
     const rows = renderMarkdown(rest, mdWidth());
+    // A table's columns are sized from all its rows, so a later row can widen rows already
+    // drawn: an unfinished table is never moved to the history, and only its latest rows
+    // show live until its block ends and it goes to the history whole.
+    if (hasTable(rest)) {
+      const shown = segmentShown;
+      const live = decorate(rows.slice(Math.max(rowsCommitted, rows.length - LIVE_ROWS)));
+      segmentShown = shown;
+      return live;
+    }
     const overflow = rows.length - rowsCommitted - LIVE_ROWS;
     if (overflow > 0) {
       const lead = segmentShown && rowsCommitted === 0 ? [""] : [];

@@ -96,6 +96,28 @@ test("a long reply keeps only a few rows live, and no text is lost", () => {
   assert.equal(text.replace(/\s+/g, " ").trim(), words.join(" "));
 });
 
+test("a streamed table reaches the history whole, with every row as wide as the rest", () => {
+  const model = createSessionModel({ width: () => 100 });
+  model.startTurn();
+  const rows = ["| # | Joke |", "| --- | --- |", ...Array.from({ length: 6 }, (_, i) => `| ${i + 1} | short ${i + 1} |`)];
+  // The last row widens the joke column after the first rows would no longer fit live.
+  rows.push("| 7 | a much longer joke that widens the column well past the others |");
+  for (const row of rows) {
+    model.render({ type: "text", text: `${row}\n` });
+    // While it streams, nothing of the table is in the history, and it stays a few rows tall live.
+    assert.equal(model.getSnapshot().items.filter((item) => /[┌├│└]/.test(stripAnsi(item.text))).length, 0);
+    assert.ok(stripAnsi(model.getSnapshot().live).split("\n").length <= 6);
+  }
+  model.render({ type: "text", text: "\nThat's the haul." });
+  model.endTurn();
+  const table = model
+    .getSnapshot()
+    .items.map((item) => stripAnsi(item.text))
+    .filter((text) => /[┌├│└]/.test(text));
+  assert.equal(table.length, 2 * 7 + 3); // header, 7 rows, rules between them, top and bottom borders
+  assert.equal(new Set(table.map((text) => text.length)).size, 1, table.join("\n"));
+});
+
 test("tool calls show one by one with their results (and a subagent's calls); Ctrl+O folds them into one line", () => {
   const model = createSessionModel({ formatAction });
   model.startTurn();

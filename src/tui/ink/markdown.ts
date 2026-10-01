@@ -179,6 +179,14 @@ function decodeEntities(text: string): string {
  * Where the finished blocks end in a reply still streaming: after its last blank line
  * outside a code fence. Everything before it renders for good; the rest is still growing.
  */
+/**
+ * Whether `source` holds a table: its columns are sized from all its rows, so none of its
+ * rows is final until the table is (see the session model's streaming).
+ */
+export function hasTable(source: string): boolean {
+  return marked.lexer(source, { gfm: true }).some((token) => token.type === "table");
+}
+
 export function finishedLength(source: string): number {
   let fenceOpen = false;
   let cut = 0;
