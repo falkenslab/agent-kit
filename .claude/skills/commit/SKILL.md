@@ -13,7 +13,7 @@ Run `git status --short` and `git diff --stat`, then read the diffs. Other sessi
 
 ## 2. Verify
 
-Run the `verify` skill first. Do not commit a tree that fails typecheck, lint or tests.
+Run the `update-docs` skill first when the change touches `src/`, `examples/captain-whiskers/`, `assets/knowledge-plugin/` or the root scripts: the documentation site must describe it before it's committed. Then run the `verify` skill. Do not commit a tree that fails typecheck, lint or tests, nor a visible change without its documentation.
 
 ## 3. Group into atomic commits
 
