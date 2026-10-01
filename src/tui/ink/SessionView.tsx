@@ -1,3 +1,4 @@
+import wrapAnsi from "wrap-ansi";
 import { useEffect, useReducer, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, measureElement, Static, Text, useInput, useStdout, type DOMElement } from "ink";
 import { Select } from "@inkjs/ui";
@@ -40,17 +41,42 @@ const manualOptions = () => [{ label: `1. ${t().doneContinue}`, value: "continue
 const DECISION_KEYS: Record<string, string> = { "1": "y", "2": "n", "3": "q", y: "y", n: "n", q: "q" };
 
 /**
+ * The rows a checkpoint panel's preview leaves to everything else: the panel's own frame
+ * (borders, title, question, options: 8 rows), the status bar and a little room.
+ */
+const PANEL_RESERVED_ROWS = 12;
+
+/** The panel's border and horizontal padding, on both sides. */
+const PANEL_FRAME_COLUMNS = 4;
+
+/**
  * The preview's lines, capped so the whole live area stays shorter than the terminal: Ink
  * clears the entire screen (scrollback included) to redraw anything taller, and a step-gate
- * preview carries the tool's parameters, which can be a whole file.
+ * preview carries the tool's parameters, which can be a whole file. `reservedRows` is what
+ * the rest of the screen needs besides the preview; full screen adds its pinned header, or
+ * the panel's options and the status bar end up below the terminal's last row. With `width`
+ * (the panel's inner width) the cap counts screen rows, not lines: a long summary line takes
+ * several.
  */
-export function previewLines(lines: readonly string[], terminalRows: number | undefined): string[] {
-  const all = lines.flatMap((line) => line.split("\n"));
-  const max = Math.max(3, (terminalRows || 24) - 12);
+export function previewLines(lines: readonly string[], terminalRows: number | undefined, reservedRows = PANEL_RESERVED_ROWS, width?: number): string[] {
+  const all = lines
+    .flatMap((line) => line.split("\n"))
+    .flatMap((line) => (width ? wrapAnsi(line, Math.max(1, width), { hard: true, trim: false }).split("\n") : [line]));
+  const max = Math.max(3, (terminalRows || 24) - reservedRows);
   return all.length <= max ? all : [...all.slice(0, max - 1), ui.dim(t().moreLines(all.length - max + 1))];
 }
 
-function CheckpointPanel({ checkpoint, renderApproval }: { checkpoint: Checkpoint; renderApproval?: RenderApproval }) {
+function CheckpointPanel({
+  checkpoint,
+  renderApproval,
+  reservedRows,
+  width,
+}: {
+  checkpoint: Checkpoint;
+  renderApproval?: RenderApproval;
+  reservedRows?: number;
+  width: number;
+}) {
   const decision = checkpoint.kind === "decision";
   useInput((input) => {
     const key = input.toLowerCase();
@@ -67,7 +93,7 @@ function CheckpointPanel({ checkpoint, renderApproval }: { checkpoint: Checkpoin
       ) : (
         <>
           <Text bold>{prompt.title}</Text>
-          {previewLines(prompt.lines, stdout.rows).map((line, index) => (
+          {previewLines(prompt.lines, stdout.rows, reservedRows, width - PANEL_FRAME_COLUMNS).map((line, index) => (
             <Text key={index}>{line}</Text>
           ))}
           {!decision && prompt.question ? <Text dimColor>{prompt.question}</Text> : null}
@@ -141,6 +167,8 @@ interface LiveAreaProps {
   statusExtra?: string;
   /** The mode can be switched (Shift+Tab): the status bar says so. */
   modeSwitchable?: boolean;
+  /** Rows the checkpoint panel's preview leaves to the rest of the screen (see previewLines()). */
+  reservedRows?: number;
   children?: ReactNode;
 }
 
@@ -160,7 +188,7 @@ function Working({ label, startedAt, width }: { label: string; startedAt: number
 }
 
 /** Line in progress, checkpoint panel or spinner, the input, and the status bar. */
-function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtra, modeSwitchable, children }: LiveAreaProps) {
+function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtra, modeSwitchable, reservedRows, children }: LiveAreaProps) {
   // The mode in the spinner's color; the rest dim.
   const plain = statusText(mode, session.turns, session.usage, { contextPercent: session.contextPercent, modeSwitchable }) + (statusExtra ? ` · ${statusExtra}` : "");
   const cut = mode ? plain.indexOf(" · ") : -1;
@@ -169,7 +197,7 @@ function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtr
     <Box flexDirection="column" flexShrink={0} width={width} marginTop={session.liveGap ? 1 : 0}>
       {stripAnsi(session.live) ? <Text>{session.live}</Text> : null}
       {checkpoint ? (
-        <CheckpointPanel checkpoint={checkpoint} renderApproval={renderApproval} />
+        <CheckpointPanel checkpoint={checkpoint} renderApproval={renderApproval} reservedRows={reservedRows} width={width} />
       ) : session.busy ? (
         // Always one blank line above the spinner: from this margin, or from the live area's
         // own when a separator is pending and nothing is written above the spinner yet.
@@ -343,6 +371,8 @@ function FullscreenSession({
         width={width}
         statusExtra={statusExtra || undefined}
         modeSwitchable={modeSwitchable}
+        // The pinned header (and the blank row under it) is taken from the preview too.
+        reservedRows={PANEL_RESERVED_ROWS + (header && header.length > 0 ? header.length + 1 : 0)}
       >
         {children}
       </LiveArea>

@@ -158,6 +158,45 @@ test("dragging over the history selects it (also while the agent works) and a ri
   assert.equal(copies.length, 1);
 });
 
+// A long approval in a short terminal: the history gives up its rows and the panel's options
+// and the status bar stay on screen (seen hidden at 110×34 from teacher-agent).
+for (const [columns, height] of [
+  [110, 34],
+  [80, 24],
+]) {
+  test(`full screen at ${columns}×${height}: a long approval panel shows its options above the status bar`, async () => {
+    const model = createSessionModel();
+    const interaction = createInkInteraction((text) => model.note(text));
+    for (let i = 1; i <= 200; i++) model.note(`line ${i}`);
+    const view = render(
+      <SessionView model={model} interaction={interaction} fullscreen header={["LOGO  Captain", "      mode guided", "      ~/project"]}>
+        <Text>PROMPT</Text>
+      </SessionView>,
+    );
+    Object.defineProperty(view.stdout, "columns", { value: columns });
+    Object.defineProperty(view.stdout, "rows", { value: height });
+    view.stdout.emit("resize");
+    await settle();
+
+    const summary = Array.from({ length: 40 }, (_, i) => `summary line ${i + 1}${i % 5 === 0 ? ` ${"long words ".repeat(20)}` : ""}`);
+    void interaction.port.askDecision({ title: "Publish the activity", lines: summary }, new AbortController().signal);
+    await settle();
+    await settle();
+
+    const rows = screen(view);
+    assert.equal(rows.length, height, "the frame is exactly as tall as the terminal");
+    assert.match(rows.at(-1) ?? "", /0 turns/, "the status bar is the last row");
+    const title = rows.findIndex((row) => row.includes("Publish the activity"));
+    assert.ok(title > 0, "the panel's title is on screen");
+    assert.ok(
+      rows.slice(title).some((row) => row.includes("Yes")),
+      "the panel's options are on screen",
+    );
+    // The history's rows sit above the panel, never over it.
+    assert.ok(rows.slice(title).every((row) => !/^line \d+/.test(row.trim())));
+  });
+}
+
 test("the prompt never types a mouse report", async () => {
   const submitted: string[] = [];
   const view = render(<PromptInput label="> " history={[]} commands={[]} onSubmit={(line) => submitted.push(line)} onExit={() => {}} />);
