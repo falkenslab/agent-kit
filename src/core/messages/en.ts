@@ -68,6 +68,8 @@ export interface Messages {
   otherTools: ToolPhrase;
   noOutput: string;
   error: string;
+  /** A failed tool call when results are hidden (`toolDetail: "calls"`): no tool output, just that it failed. */
+  toolFailed: string;
   moreResultLines(count: number): string;
   earlierCalls(count: number): string;
   labels: {
@@ -180,6 +182,7 @@ export const en: Messages = {
   otherTools: ["used {n} tool", "used {n} tools"],
   noOutput: "(no output)",
   error: "error",
+  toolFailed: "Couldn't complete it",
   moreResultLines: (count) => `(+${count} ${plural(count, "line", "lines")})`,
   earlierCalls: (count) => `… ${count} earlier`,
   labels: {

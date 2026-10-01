@@ -60,6 +60,8 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 | `language` | `string` | | The kit's language. See [Languages](../sessions/languages.md). |
 | `formatAction` | `(toolName, input) => string` | `createFriendlyToolLabel()` | Tool call labels. See [Tool labels](tool-labels.md). |
 | `toolPhrase` | `(toolName) => ToolPhrase \| undefined` | | How your tools count in a folded summary. See [Tool labels](tool-labels.md#folded-summaries). |
+| `toolDetail` | `"full" \| "calls" \| "summary"` | `"full"` | How much of the tool calls shows until Ctrl+O. See [Tool labels](tool-labels.md#how-much-shows). |
+| `formatResult` | `ResultFormatter` | | Your own result line per tool, or none. See [Tool labels](tool-labels.md#results-for-your-tools). |
 | `renderApproval` | `(prompt) => ReactNode` | | Replaces the preview of the approval panels. See [Approval panels](#approval-panels). |
 
 ### Behavior
@@ -96,7 +98,7 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 ```
 
 - **The agent's reply** follows a `●`, with its markdown rendered (bold, italics, inline code, lists, headings, quotes, code blocks, and tables as grids), also while it streams.
-- **Tool calls** show one by one: `●` and the tool's label, then `⎿` and the first line of its result (red if it failed, `…` while it runs). Under a subagent call, the subagent's own tool calls (the latest five). **Ctrl+O** folds each group of consecutive calls into one summary line ("Read 2 files, ran 1 shell command") and back.
+- **Tool calls** show one by one: `●` and the tool's label, then `⎿` and the first line of its result (red if it failed, `…` while it runs). Under a subagent call, the subagent's own tool calls (the latest five). **Ctrl+O** folds each group of consecutive calls into one summary line ("Read 2 files, ran 1 shell command") and back. `toolDetail` shows less from the start: the calls without results, or the summary lines (see [How much shows](tool-labels.md#how-much-shows)).
 - **The spinner** shows what the agent is doing, the seconds, and `esc to interrupt`; with a subagent working, a second line `↳` shows its action.
 - **Each turn ends** with `✻ Worked for Ns`.
 - **The status bar** shows the mode (`(shift+tab)` if it can switch), the turns, the session's input and output tokens, and how full the context window is.
@@ -117,7 +119,7 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 | Esc | Interrupt the turn. |
 | Ctrl+C | Interrupt the turn (or answer Stop to a checkpoint); at an idle prompt, leave. |
 | Shift+Tab | Next mode (guided → interactive → plan). |
-| Ctrl+O | Fold or unfold tool calls. |
+| Ctrl+O | Fold or unfold tool calls (unfolded: every call with its result). |
 
 **Pasting** a multi-line block folds it into a token, `[Pasted text #1 +12 lines]`, sent expanded. **`@`** followed by part of a path suggests the project's files (Tab completes).
 

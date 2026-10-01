@@ -79,6 +79,7 @@ export const de: Partial<Messages> = {
   otherTools: ["hat {n} Werkzeug verwendet", "hat {n} Werkzeuge verwendet"],
   noOutput: "(keine Ausgabe)",
   error: "Fehler",
+  toolFailed: "Konnte nicht abgeschlossen werden",
   moreResultLines: (count) => `(+${count} ${plural(count, "Zeile", "Zeilen")})`,
   earlierCalls: (count) => `… ${count} frühere`,
   labels: {

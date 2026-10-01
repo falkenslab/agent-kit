@@ -72,7 +72,7 @@ export { runChatTui, type ChatTuiOptions } from "./tui/chatTui.js";
 export type { SessionOpener } from "./tui/runs.js";
 export { createConsoleRenderer, type ConsoleRenderer, type ConsoleRendererOptions } from "./tui/consoleRenderer.js";
 export { runChatInk, type InkChatOptions, type HeaderInfo } from "./tui/ink/runChatInk.js";
-export type { ToolPhrase } from "./tui/ink/toolGroup.js";
+export type { ToolPhrase, ToolDetail, ResultFormatter } from "./tui/ink/toolGroup.js";
 export type { RenderApproval } from "./tui/ink/SessionView.js";
 export { createProgressView, type ProgressView, type ProgressViewOptions } from "./tui/ink/progressView.js";
 export {

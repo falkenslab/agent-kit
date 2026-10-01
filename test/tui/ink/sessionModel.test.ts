@@ -151,6 +151,72 @@ test("tool calls show one by one with their results (and a subagent's calls); Ct
   assert.equal(group?.expanded?.length, 9);
 });
 
+/** A turn with a read that worked, one still running and a shell command that failed, then a reply (unless `stop`). */
+function toolTurn(model: ReturnType<typeof createSessionModel>, stop = false): void {
+  model.startTurn();
+  model.render({ type: "action", toolName: "Read", input: {}, toolUseId: "a" });
+  model.render({ type: "action", toolName: "Read", input: {}, toolUseId: "b" });
+  model.render({ type: "action", toolName: "Bash", input: {}, toolUseId: "c" });
+  model.render({ type: "tool-result", toolUseId: "a", toolName: "Read", isError: false, text: "### Result\none" });
+  model.render({ type: "tool-result", toolUseId: "c", toolName: "Bash", isError: true, text: "command not found" });
+  if (stop) return;
+  model.render({ type: "text", text: "Done." });
+}
+
+test('toolDetail "calls": the calls without their results, a failure in one short line; Ctrl+O shows the results', () => {
+  const model = createSessionModel({ formatAction, toolDetail: "calls" });
+  toolTurn(model, true);
+  assert.deepEqual(stripAnsi(model.getSnapshot().live).split("\n"), ["● run Read", "● run Read", "● run Bash", "  ⎿  Couldn't complete it"]);
+  model.toggleExpanded();
+  assert.match(stripAnsi(model.getSnapshot().live), /⎿ {2}### Result \(\+1 line\)/);
+  model.toggleExpanded();
+
+  model.render({ type: "text", text: "Done." });
+  const group = model.getSnapshot().items.find((item) => item.kind === "action");
+  assert.equal(stripAnsi(group?.text ?? ""), "● run Read\n● run Read\n● run Bash\n  ⎿  Couldn't complete it");
+  assert.equal(group?.expanded?.length, 6);
+});
+
+test('toolDetail "summary": groups start folded into one line until Ctrl+O', () => {
+  const model = createSessionModel({ formatAction, toolDetail: "summary" });
+  toolTurn(model, true);
+  assert.equal(stripAnsi(model.getSnapshot().live), "  Read 2 files, ran 1 shell command");
+  model.toggleExpanded();
+  assert.equal(stripAnsi(model.getSnapshot().live).split("\n")[0], "● run Read");
+});
+
+test("formatResult replaces, hides or keeps a result line", () => {
+  const model = createSessionModel({
+    formatAction,
+    formatResult: (toolName, result) => (toolName === "Read" ? "Page read" : result.isError ? null : undefined),
+  });
+  toolTurn(model, true);
+  model.render({ type: "action", toolName: "Grep", input: {}, toolUseId: "d" });
+  model.render({ type: "tool-result", toolUseId: "d", toolName: "Grep", isError: false, text: "3 matches" });
+  assert.deepEqual(stripAnsi(model.getSnapshot().live).split("\n"), [
+    "● run Read",
+    "  ⎿  Page read",
+    "● run Read",
+    "  ⎿  …",
+    "● run Bash",
+    "● run Grep",
+    "  ⎿  3 matches",
+  ]);
+});
+
+test("the session log is the same whatever the tool detail", () => {
+  const logs = (["full", "calls", "summary"] as const).map((toolDetail) => {
+    let logged = "";
+    const model = createSessionModel({ formatAction, toolDetail, formatResult: () => null, onWrite: (text) => (logged += text) });
+    toolTurn(model);
+    model.endTurn();
+    return logged;
+  });
+  assert.ok(logs[0].includes("run Read"));
+  assert.equal(logs[1], logs[0]);
+  assert.equal(logs[2], logs[0]);
+});
+
 test("notes reach the history but not the log; writeLine reaches both", () => {
   let logged = "";
   const model = createSessionModel({ onWrite: (text) => (logged += text) });

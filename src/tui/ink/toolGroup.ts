@@ -22,6 +22,27 @@ const SUBAGENT_TOOLS = new Set(["Agent", "Task"]);
 export type { ToolPhrase };
 
 /**
+ * How much of its tool calls a chat shows: `"full"`, every call with its result line;
+ * `"calls"`, the calls without their results (a failed call says so in one short line);
+ * `"summary"`, one line per group. Ctrl+O unfolds any of them into the full view.
+ */
+export type ToolDetail = "full" | "calls" | "summary";
+
+/**
+ * The line shown under a tool call for its result: a string replaces the kit's (plain text,
+ * drawn in the result's color, or the error color if it failed), `null` hides it, and
+ * `undefined` keeps the kit's (the result's first line).
+ */
+export type ResultFormatter = (toolName: string, result: { isError: boolean; text: string }) => string | null | undefined;
+
+/** How `toolGroupExpanded()` draws the results. */
+export interface ResultOptions {
+  /** Show the result lines (the default); without them a failed call shows a short failure line. */
+  results?: boolean;
+  formatResult?: ResultFormatter;
+}
+
+/**
  * A folded group's one line, as in the Claude Code CLI: "Read 2 files, ran 1 shell
  * command". Calls to the same kind of tool are counted together, in the order they first
  * appear; tools with no phrase of their own (MCP tools, the consumer's) count as "tools",
@@ -58,20 +79,30 @@ export function resultSummary(result: { isError: boolean; text: string }, markdo
   return ui.toolResult(markdown ? stripAnsi(renderMarkdown(first, 1000)[0] ?? first) : first) + more;
 }
 
+/** The line under a call for its result, or null for none. */
+function resultLine(call: ToolCall, { results = true, formatResult }: ResultOptions): string | null {
+  if (!call.result) return results ? ui.dim("…") : null;
+  if (!results) return call.result.isError ? ui.error(t().toolFailed) : null;
+  const custom = formatResult?.(call.toolName, call.result);
+  if (custom === null) return null;
+  if (custom !== undefined) return call.result.isError ? ui.error(custom) : ui.toolResult(custom);
+  return resultSummary(call.result, SUBAGENT_TOOLS.has(call.toolName));
+}
+
 /**
  * The calls one by one: each behind a `●`, then after `⎿` the calls a subagent made (the
  * latest few, dim) and the result in one line (a subagent's answer with its markdown
- * rendered), or "…" while it runs.
+ * rendered), or "…" while it runs. Without `options.results`, only a failure's short line.
  */
-export function toolGroupExpanded(calls: readonly ToolCall[], width: number): string[] {
+export function toolGroupExpanded(calls: readonly ToolCall[], width: number, options: ResultOptions = {}): string[] {
   return calls.flatMap((call) => {
     const children = call.children ?? [];
     const shown = children.slice(-MAX_CHILDREN);
-    const result = call.result ? fitWidth(resultSummary(call.result, SUBAGENT_TOOLS.has(call.toolName)), width - 5) : ui.dim("…");
+    const result = resultLine(call, options);
     const under = [
       ...(children.length > shown.length ? [ui.dim(t().earlierCalls(children.length - shown.length))] : []),
       ...shown.map((label) => fitWidth(ui.dim(`· ${label}`), width - 5)),
-      result,
+      ...(result === null ? [] : [fitWidth(result, width - 5)]),
     ];
     return [
       `${ui.toolBullet("●")} ${fitWidth(ui.toolLabel(call.label), width - 2)}`,

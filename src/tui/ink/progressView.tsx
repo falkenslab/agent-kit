@@ -7,7 +7,7 @@ import { createConsoleRenderer, type ConsoleRenderer, type ConsoleRendererOption
 import { createInkInteraction, type InkInteraction } from "./inkInteraction.js";
 import { createSessionModel, liveWidth, type SessionModel } from "./sessionModel.js";
 import { SessionView, type RenderApproval } from "./SessionView.js";
-import type { ToolPhrase } from "./toolGroup.js";
+import type { ResultFormatter, ToolDetail, ToolPhrase } from "./toolGroup.js";
 import { applyLanguage } from "../language.js";
 import { applyTheme, type Theme } from "../theme.js";
 import { KitTheme } from "./inkTheme.js";
@@ -16,6 +16,10 @@ import { KitTheme } from "./inkTheme.js";
 export interface ProgressViewOptions extends Omit<ConsoleRendererOptions, "output"> {
   /** How one of the agent's own tools counts in a folded group's summary (see `InkChatOptions.toolPhrase`). */
   toolPhrase?: (toolName: string) => ToolPhrase | undefined;
+  /** How much of the tool calls shows (see `InkChatOptions.toolDetail`); "full" if not given. */
+  toolDetail?: ToolDetail;
+  /** The result line under a tool call (see `InkChatOptions.formatResult`). */
+  formatResult?: ResultFormatter;
   /** Replaces the default preview in the approval and manual-intervention panels. */
   renderApproval?: RenderApproval;
   /** Shown in the status bar. */

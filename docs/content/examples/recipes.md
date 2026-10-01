@@ -105,6 +105,21 @@ tool("delete_page", "Delete a page of the site.", { pageId: z.string() }, async 
 
 In every mode, the person confirms before the page is deleted. Build the server inside `buildMcpServers(config, runDir)` so it has the run folder.
 
+## A chat for a non-technical audience
+
+The tools' output is written for the model; a teacher or a client only needs to know what the agent is doing. Show the calls without their results, hide the raw lines of the tools that still show one when unfolded, and keep the labels friendly:
+
+```ts
+await runChatInk(opener, {
+  runsDir,
+  toolDetail: "calls", // "● Searching the web for …", no "Web search results for query: …" under it
+  formatResult: (tool) => (tool.startsWith("mcp__playwright__") ? null : undefined),
+  formatAction: createFriendlyToolLabel({ describe: (tool) => (tool === "mcp__playwright__browser_navigate" ? "Opening the page" : undefined) }),
+});
+```
+
+Ctrl+O still unfolds everything for whoever needs to see it, and `session.log` keeps the full detail.
+
 ## A different prompt per mode
 
 ```ts

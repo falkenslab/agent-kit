@@ -26,7 +26,7 @@ import { clipboardSequence, enterFullscreen } from "./fullscreen.js";
 import { createCursorController, CursorContext } from "./terminalCursor.js";
 import { createTerminalStatus, focusFromReport } from "./terminalStatus.js";
 import { listProjectFiles } from "./fileMentions.js";
-import type { ToolPhrase } from "./toolGroup.js";
+import type { ResultFormatter, ToolDetail, ToolPhrase } from "./toolGroup.js";
 import { headerLines, type HeaderInfo } from "./header.js";
 
 export type { HeaderInfo } from "./header.js";
@@ -69,6 +69,21 @@ export interface InkChatOptions extends ChatTuiOptions {
    * counts as "used {n} tools".
    */
   toolPhrase?: (toolName: string) => ToolPhrase | undefined;
+  /**
+   * How much of the tool calls shows: `"full"` (the default), every call with its result
+   * line; `"calls"`, the calls without their results, a failed one with a short line in the
+   * kit's language instead of the tool's error; `"summary"`, one line per group ("Read 2
+   * files, ran 1 shell command"). Ctrl+O unfolds any of them into the full view. For an
+   * audience that doesn't need the tools' raw output. The session log is the same whatever
+   * the level.
+   */
+  toolDetail?: ToolDetail;
+  /**
+   * The line under a tool call for its result, e.g. a friendly one for an MCP tool whose
+   * output is written for the model: a string replaces the kit's (the result's first line),
+   * `null` hides it, `undefined` keeps it. Shown wherever results are (`"full"`, or unfolded).
+   */
+  formatResult?: ResultFormatter;
   /**
    * The session's mode control (`buildSessionOptions()` returns it): the status bar shows the
    * current mode, Shift+Tab switches between the modes it allows ("guided", "interactive"
@@ -361,6 +376,8 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
   const model = createSessionModel({
     formatAction: tuiOptions.formatAction,
     toolPhrase: tuiOptions.toolPhrase,
+    toolDetail: tuiOptions.toolDetail,
+    formatResult: tuiOptions.formatResult,
     agentLabel: tuiOptions.agentLabel,
     onWrite: mirror,
     width: () => liveWidth(stdout.columns),

@@ -25,7 +25,7 @@ A foundation for building AI agents on top of the [Claude Agent SDK](https://www
 - **Use external tools.** MCP servers of its own or of the project, and skills and commands organized in plugins.
 - **Leave a trail.** It records every action and the whole conversation, with secrets hidden.
 - **Look the way you want.** The terminal's colors come from a theme by roles (the agent's replies, tool results, the focused option, borders…): pass only the ones you want to change, as a color name, a hex or a function.
-- **Chat in a terminal the way Claude Code does.** Full screen, with the reply written live and its markdown already formatted, the tools it uses summed up in one line (Ctrl+O unfolds it), panels for approvals, history and search, a suggestion for the next message, pasted blocks, file mentions with `@`, mouse selection (right-click to copy), and the agent's status in the tab and in the Windows taskbar.
+- **Chat in a terminal the way Claude Code does.** Full screen, with the reply written live and its markdown already formatted, the tools it uses shown in as much detail as the agent chooses (each call with its result, the calls alone, or one line per group; Ctrl+O unfolds them), panels for approvals, history and search, a suggestion for the next message, pasted blocks, file mentions with `@`, mouse selection (right-click to copy), and the agent's status in the tab and in the Windows taskbar.
 - **Also work without a terminal.** The same foundation runs inside a desktop app or a server, which bring their own interface.
 
 ## Examples

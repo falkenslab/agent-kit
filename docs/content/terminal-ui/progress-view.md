@@ -29,6 +29,8 @@ Without a TTY, or with `plain: true`, it's `createConsoleRenderer()` (plain line
 | --- | --- |
 | `formatAction` | Tool call labels. See [Tool labels](tool-labels.md). |
 | `toolPhrase` | How your tools count in a folded summary. |
+| `toolDetail` | How much of the tool calls shows: `"full"` (default), `"calls"` or `"summary"`. See [Tool labels](tool-labels.md#how-much-shows). |
+| `formatResult` | Your own result line per tool, or none. See [Tool labels](tool-labels.md#results-for-your-tools). |
 | `agentLabel` | The label before the reply in plain output. |
 | `onWrite` | Called with everything the console renderer writes (plain text), e.g. to mirror a log file. |
 | `renderApproval` | Your own preview in the approval panels. |

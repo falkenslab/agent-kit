@@ -74,6 +74,44 @@ await runChatInk(opener, { runsDir, toolPhrase });
 
 A `ToolPhrase` is `[one, many]`, with `{n}` for the count. Calls with the same phrase are counted together, in the order they first appear, and the line starts with a capital.
 
+## How much shows
+
+`toolDetail` chooses how much of the tool calls the chat (and the progress view) shows until Ctrl+O:
+
+| Level | What shows |
+| --- | --- |
+| `"full"` (default) | Every call with its result line. |
+| `"calls"` | Every call without its result. A failed call shows one short line in the kit's language ("Couldn't complete it"), not the tool's error. |
+| `"summary"` | One summary line per group, as above. |
+
+```text
+"full"                                   "calls"                         "summary"
+● Fetching https://example.com           ● Fetching https://example.com    Fetched 1 page, ran 1 shell command
+  ⎿  ### Ran Playwright code (+12 lines) ● Running "npm test"
+● Running "npm test"                       ⎿  Couldn't complete it
+  ⎿  npm ERR! missing script: test
+```
+
+Ctrl+O unfolds any level into the full view, and folds it back. Only the screen changes: `session.log` and `transcript.jsonl` are the same whatever the level. `"full"` suits whoever develops the agent; `"calls"` or `"summary"` an audience that doesn't need the tools' output, which is written for the model.
+
+## Results for your tools
+
+The result line is the first line of the tool's output, often written for the model (Playwright's `### Ran Playwright code`, the CLI's `Web search results for query: …`). `formatResult` gives your own, as `formatAction` does for labels: a string replaces the line, `null` hides it, `undefined` keeps the kit's.
+
+```ts
+import type { ResultFormatter } from "@falkenslab/agent-kit";
+
+const formatResult: ResultFormatter = (tool, result) => {
+  if (!tool.startsWith("mcp__playwright__")) return undefined; // the kit's line
+  if (result.isError) return "The browser couldn't do it";
+  return tool === "mcp__playwright__browser_snapshot" ? null : "Done"; // a snapshot needs no line
+};
+
+await runChatInk(opener, { runsDir, formatResult });
+```
+
+The string is plain text, drawn in the theme's `toolResult` role, or `error` for a failed call. `formatResult` applies wherever results show: in `"full"`, and in any level unfolded with Ctrl+O.
+
 ## Coloring labels
 
 Labels are drawn in the theme's `toolLabel` role (dimmed by default). An agent can still color inside its own labels (with `ui.*` or picocolors); see [Themes](themes.md).

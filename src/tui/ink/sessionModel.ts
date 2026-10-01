@@ -3,7 +3,7 @@ import { createFriendlyToolLabel } from "../../core/toolLabels.js";
 import { createConsoleRenderer, type ConsoleRenderer } from "../consoleRenderer.js";
 import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import { finishedLength, hasTable, renderMarkdown } from "./markdown.js";
-import { toolGroupExpanded, toolGroupSummary, type ToolCall, type ToolPhrase } from "./toolGroup.js";
+import { toolGroupExpanded, toolGroupSummary, type ResultFormatter, type ToolCall, type ToolDetail, type ToolPhrase } from "./toolGroup.js";
 import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
 
@@ -12,7 +12,7 @@ export interface HistoryItem {
   text: string;
   /** What it is: the view draws the human's lines as a bar, and the spacing follows it. */
   kind?: OutputKind;
-  /** A folded group of tool calls: the lines it unfolds into with Ctrl+O. */
+  /** A group of tool calls: the lines it unfolds into with Ctrl+O (`text` is the folded view). */
   expanded?: string[];
 }
 
@@ -38,7 +38,7 @@ export interface SessionSnapshot {
   activity: string | null;
   /** Label of the latest action taken inside a subagent in this turn. */
   subagentActivity: string | null;
-  /** Tool calls shown one by one with their results (the default); Ctrl+O folds them into a summary line. */
+  /** Tool groups unfolded into every call with its result (Ctrl+O toggles it); folded, they show as `toolDetail` says. */
   expanded: boolean;
   turns: number;
   usage: SessionUsage | null;
@@ -50,6 +50,10 @@ export interface SessionModelOptions {
   formatAction?: (toolName: string, toolInput: unknown) => string;
   /** How a tool counts in a folded group's summary ("read 2 files"); built-in tools have their own. */
   toolPhrase?: (toolName: string) => ToolPhrase | undefined;
+  /** How much of the tool calls shows until Ctrl+O (see `ToolDetail`); "full" if not given. */
+  toolDetail?: ToolDetail;
+  /** The result line under a tool call (see `ResultFormatter`). */
+  formatResult?: ResultFormatter;
   agentLabel?: string;
   /** Called with everything the console renderer writes, e.g. to mirror a session log. */
   onWrite?: (text: string) => void;
@@ -112,6 +116,7 @@ const isBlank = (line: string): boolean => stripAnsi(line).trim() === "";
  */
 export function createSessionModel(options: SessionModelOptions = {}): SessionModel {
   const formatAction = options.formatAction ?? createFriendlyToolLabel();
+  const toolDetail = options.toolDetail ?? "full";
   const width = (): number => Math.max(20, options.width?.() ?? 80);
   const listeners = new Set<() => void>();
   let nextId = 0;
@@ -123,7 +128,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     turnStartedAt: null,
     activity: null,
     subagentActivity: null,
-    expanded: true,
+    expanded: toolDetail === "full",
     turns: 0,
     usage: null,
     contextPercent: null,
@@ -232,7 +237,17 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     if (!group) return;
     const calls = group;
     group = null;
-    push([groupLine(calls)], "action", { expanded: toolGroupExpanded(calls, width()) });
+    push([folded(calls).join("\n")], "action", { expanded: unfolded(calls) });
+  }
+
+  /** A group with every call and its result: "full", or any level unfolded with Ctrl+O. */
+  function unfolded(calls: ToolCall[]): string[] {
+    return toolGroupExpanded(calls, width(), { formatResult: options.formatResult });
+  }
+
+  /** A group as its level shows it folded: the calls without results, or one summary line. */
+  function folded(calls: ToolCall[]): string[] {
+    return toolDetail === "calls" ? toolGroupExpanded(calls, width(), { results: false }) : [groupLine(calls)];
   }
 
   function groupLine(calls: ToolCall[]): string {
@@ -250,7 +265,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     let rows = liveRows;
     let kind: OutputKind | null = liveRows.length > 0 ? "agent" : null;
     if (group) {
-      rows = snapshot.expanded ? toolGroupExpanded(group, width()) : [groupLine(group)];
+      rows = snapshot.expanded ? unfolded(group) : folded(group);
       kind = "action";
     }
     const live = rows.join("\n");
