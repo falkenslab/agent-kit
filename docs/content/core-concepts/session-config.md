@@ -24,7 +24,7 @@ interface Config extends BaseSessionConfig {
 | `mode` | `"interactive" \| "guided" \| "autonomous" \| "plan"` | yes | How much a human is in the loop. See [Modes](modes.md). |
 | `projectDir` | `string` | yes | The project root: the session's working directory when the agent has file tools or plugins, and the base for relative paths in the file scope. |
 | `knowledgeDir` | `string` | no | The agent's notes. Gives the session the file tools and, by default, the [knowledge base](../capabilities/knowledge-base.md). |
-| `sourcesDir` | `string` | no | Originals, kept as obtained: readable and searchable, never writable. Gives the file tools and the `save_to_sources` tool. |
+| `sourcesDir` | `string` | no | Originals, kept as obtained: readable and searchable, never writable. Gives the file tools and the [sources tools](../capabilities/knowledge-base.md#sources-originals-kept-as-obtained). |
 | `extraWritableDirs` | `string[]` | no | More folders where `Write`/`Edit` are allowed (and `Grep` searches). |
 | `deniedPaths` | `string[]` | no | Files or folders the agent must never read, search or write, e.g. a config file holding a password. |
 | `secrets` | `string[]` | no | Values scrubbed from the transcript log, e.g. a password. |
@@ -54,7 +54,7 @@ const config: BaseSessionConfig = {
 };
 ```
 
-The agent can read everything under `workspace` that isn't denied, write only inside `knowledge/`, search inside `knowledge/` and `sources/`, and add to `sources/` only through `save_to_sources`.
+The agent can read everything under `workspace` that isn't denied, write only inside `knowledge/`, search inside `knowledge/` and `sources/`, and add to `sources/` only through the sources tools (`save_to_sources`, `download_to_sources`, `request_file`).
 
 ### Protecting a secret
 

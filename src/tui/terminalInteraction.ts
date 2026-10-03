@@ -89,6 +89,7 @@ async function askOnTerminal(prompt: ApprovalPrompt, signal: AbortSignal): Promi
 export const terminalInteractionPort: InteractionPort = {
   askDecision: askOnTerminal,
   askManualIntervention: askOnTerminal,
+  askText: askOnTerminal,
   notify(message: string): void {
     if (stdin.isTTY) console.log(message);
   },

@@ -18,6 +18,14 @@ export async function askForDecision(runDir: string, prompt: ApprovalPrompt): Pr
   return await raceWithResponseFile(runDir, (port, signal) => port.askDecision(prompt, signal));
 }
 
+/**
+ * A free-text answer, through the port's `askText()` (or `askDecision()` when it has none)
+ * and the response file: trimmed, with its case kept.
+ */
+export async function askForText(runDir: string, prompt: ApprovalPrompt): Promise<string> {
+  return await raceWithResponseFile(runDir, (port, signal) => (port.askText ? port.askText(prompt, signal) : port.askDecision(prompt, signal)), false);
+}
+
 /** Like `askForDecision()`, for a manual-intervention checkpoint (see tools/manualLogin.ts). */
 export async function askForManualIntervention(runDir: string, prompt: ApprovalPrompt): Promise<string> {
   return await raceWithResponseFile(runDir, (port, signal) => port.askManualIntervention(prompt, signal));
@@ -30,6 +38,7 @@ function never(): Promise<string> {
 async function raceWithResponseFile(
   runDir: string,
   ask: (port: InteractionPort, signal: AbortSignal) => Promise<string>,
+  lowercase = true,
 ): Promise<string> {
   const responseFile = path.join(runDir, "approval-response.txt");
   await rm(responseFile, { force: true });
@@ -59,5 +68,5 @@ async function raceWithResponseFile(
   controller.abort();
   await rm(responseFile, { force: true });
 
-  return raw.trim().toLowerCase();
+  return lowercase ? raw.trim().toLowerCase() : raw.trim();
 }

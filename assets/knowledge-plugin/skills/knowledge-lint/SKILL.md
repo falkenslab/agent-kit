@@ -19,7 +19,7 @@ Use `Glob` to list pages and `Grep` (always with `path` inside the knowledge bas
 6. **Missing pages**: terms that several pages treat as concepts or entities but have no page. Create them if the material is there; otherwise list them.
 7. **Contradictions**: claims that disagree across pages without being recorded as such. Record both sides, attributed.
 8. **Provenance**: claims with no traceable source. Add the link, or mark them as unsourced.
-9. **Gaps**: files in the sources folder with no summary page yet, concepts mentioned but never explained by any source. Report them - they are what to ingest or find next.
+9. **Gaps**: originals `list_sources` reports as new (no summary yet), changed (their summary may be stale) or missing (deleted by hand: their summaries point nowhere), and concepts mentioned but never explained by any source. Report them - they are what to ingest, update or find next.
 
 ## Close
 

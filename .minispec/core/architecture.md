@@ -29,7 +29,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `tools/humanApproval.ts` — `request_human_approval` (guided mode).
 - `tools/manualLogin.ts` — `request_manual_login`, only with `manualInterventionTexts` (ADR-005).
 - `mcpPermissions.ts` — `allowAnyMcpTool` as `canUseTool` (ADR-006).
-- `hooks/fileScopeGate.ts` — file tool boundary (ADR-007); `tools/saveToSources.ts` — `save_to_sources`.
+- `hooks/fileScopeGate.ts` — file tool boundary (ADR-007); `tools/saveToSources.ts` — the sources folder's tools (`list_sources`, `save_to_sources`, `download_to_sources`; `request_file`, `retire_source` outside autonomous); `sources.ts` — their manifest (`sources/.agent-kit/sources.json`), statuses, duplicates, versions and retiring.
 - `todos.ts` — the SDK's `TodoWrite` task list, in every session: `parseTodos()`, `todoChanges()`; the chats draw the list instead of the calls.
 - `tools/time.ts` — `current_time`, `date_math` (server `time`), in every session and mode; `config.timeZone` or the system's.
 - `knowledge.ts` — knowledge base prompt section and plugin root (ADR-008).
@@ -57,7 +57,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 
 ## File tools
 
-With `knowledgeDir` and/or `sourcesDir`: `Read`, `Write`, `Edit`, `Glob`, `Grep`, `cwd` = `projectDir`. Writes only in `knowledgeDir` + `extraWritableDirs`; `Grep` in those plus `sourcesDir`; `deniedPaths` never. `sourcesDir` grows only through `save_to_sources` (`COPYFILE_EXCL`, never overwrites).
+With `knowledgeDir` and/or `sourcesDir`: `Read`, `Write`, `Edit`, `Glob`, `Grep`, `cwd` = `projectDir`. Writes only in `knowledgeDir` + `extraWritableDirs`; `Grep` in those plus `sourcesDir`; `deniedPaths` never. `sourcesDir` grows only through the sources tools (never overwriting, no duplicates) and shrinks only through `retire_source`, which moves an original to `.agent-kit/retired/` with the person's approval.
 
 ## Knowledge plugin
 

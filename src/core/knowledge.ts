@@ -31,7 +31,7 @@ export function knowledgePromptSection(projectDir: string, knowledgeDir: string,
 \`${notes}\` is your memory across sessions, kept as an interlinked knowledge base of markdown pages that you write and maintain yourself — a wiki, not a pile of notes. A future session only knows what is written there, so anything worth remembering must end up in a page, not just in this turn's reply. Write page content in the language you are using with the human; file names stay lowercase ASCII with hyphens.
 
 ### Layers
-${originals ? `- **Originals (read-only for you)**: \`${originals}\`. Never rewrite one; build pages *about* them. Add a file there only with \`save_to_sources\`.\n` : ""}- **The knowledge base**: \`${notes}\`, entirely yours to write.
+${originals ? `- **Originals (read-only for you)**: \`${originals}\`. Never rewrite one; build pages *about* them. \`list_sources\` says which are new (not ingested yet), changed since their ingest or missing; add a file only with \`save_to_sources\`, \`download_to_sources\` or by asking the person (\`request_file\`), and take out a wrong or superseded one only with \`retire_source\`. \`Read\` reads PDFs and images, not DOCX or PPTX.\n` : ""}- **The knowledge base**: \`${notes}\`, entirely yours to write.
 - **The schema**: these rules plus the \`knowledge-pages\` skill (exact template of every page type — load it before creating a page) and the \`knowledge-ingest\`, \`knowledge-query\` and \`knowledge-lint\` skills.
 
 ### Layout

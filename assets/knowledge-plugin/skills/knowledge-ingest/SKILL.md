@@ -9,13 +9,13 @@ A source is ingested once, and from then on the knowledge base holds what it tau
 
 ## 1. Check it isn't already ingested
 
-Look for it in `index.md` (Summaries) or `Grep` its file name or URL inside the knowledge base. If it already has a page:
+`list_sources` gives each original's status and summary pages: *new* needs ingesting; *ingested* has a page; *changed* changed after its ingest. For a document from elsewhere, look for it in `index.md` (Summaries) or `Grep` its URL inside the knowledge base. If it already has a page:
 - unchanged source: nothing to do;
 - the source changed or the page is thin: update that page instead of creating another.
 
 ## 2. Read it for real
 
-Read the whole source, not its first page. If it exists only outside the sources folder (a downloaded document, a remote file), save it with `save_to_sources` first, so the original is kept as obtained.
+Read the whole source, not its first page (a long PDF in parts: `list_sources` gives its pages). If it exists only outside the sources folder, keep the original first: `download_to_sources` for a URL (a web page is kept as markdown too: read that one), `save_to_sources` for a file in the run's folder, `request_file` to ask the person for one. `Read` can't read DOCX or PPTX: ask the person for a PDF of it, or note it as unread.
 
 ## 3. Write the summary page
 
@@ -40,3 +40,7 @@ Every link you added from page A to page B needs its counterpart in B. If the so
 - `overview.md`: only if the source changes the big picture.
 
 When ingesting several sources in a row, do steps 1-5 for each and close once at the end.
+
+## An original that was wrong or replaced
+
+`retire_source` (the person approves it) moves it aside and marks its summary retired (wrong) or superseded (replaced by a better one). Then update `index.md`, and fix the pages that cite it (`Grep` its file name): after a wrong one, correct or remove what it taught; after a replaced one, ingest the new original and re-ground those passages on it.

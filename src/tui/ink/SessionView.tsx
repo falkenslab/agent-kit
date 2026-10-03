@@ -1,7 +1,7 @@
 import wrapAnsi from "wrap-ansi";
 import { useEffect, useReducer, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, measureElement, Static, Text, useInput, useStdout, type DOMElement } from "ink";
-import { Select } from "@inkjs/ui";
+import { Select, TextInput } from "@inkjs/ui";
 import type { ApprovalPrompt } from "../../core/interaction.js";
 import type { Mode } from "../../core/agentSpec.js";
 import type { SessionUsage } from "../../core/runner.js";
@@ -79,10 +79,15 @@ function CheckpointPanel({
   width: number;
 }) {
   const decision = checkpoint.kind === "decision";
-  useInput((input) => {
-    const key = input.toLowerCase();
-    if (decision && DECISION_KEYS[key]) checkpoint.answer(DECISION_KEYS[key]);
-    else if (!decision && key === "1") checkpoint.answer("");
+  const text = checkpoint.kind === "text";
+  useInput((input, key) => {
+    if (text) {
+      if (key.escape) checkpoint.answer("");
+      return;
+    }
+    const lower = input.toLowerCase();
+    if (decision && DECISION_KEYS[lower]) checkpoint.answer(DECISION_KEYS[lower]);
+    else if (!decision && lower === "1") checkpoint.answer("");
   });
 
   const { prompt } = checkpoint;
@@ -105,13 +110,23 @@ function CheckpointPanel({
           <Text>{t().proceed}</Text>
         </Box>
       ) : null}
-      <Box marginTop={decision ? 0 : 1}>
-        <Select
-          key={checkpoint.id}
-          options={decision ? decisionOptions() : manualOptions()}
-          onChange={(value) => checkpoint.answer(decision ? value : "")}
-        />
-      </Box>
+      {text ? (
+        <Box marginTop={1} flexDirection="column">
+          <Box>
+            <Text>{"> "}</Text>
+            <TextInput key={checkpoint.id} placeholder={t().textAnswerHint} onSubmit={(value) => checkpoint.answer(value.trim())} />
+          </Box>
+          <Text dimColor>{t().textAnswerKeys}</Text>
+        </Box>
+      ) : (
+        <Box marginTop={decision ? 0 : 1}>
+          <Select
+            key={checkpoint.id}
+            options={decision ? decisionOptions() : manualOptions()}
+            onChange={(value) => checkpoint.answer(decision ? value : "")}
+          />
+        </Box>
+      )}
     </Box>
   );
 }

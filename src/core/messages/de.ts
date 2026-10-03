@@ -62,6 +62,19 @@ export const de: Partial<Messages> = {
   parametersLine: (parameters) => `Parameter: ${parameters}`,
   approvalTitle: "Vor dem Veröffentlichen ist eine menschliche Bestätigung nötig",
   summaryLine: (summary) => `Zusammenfassung: ${summary}`,
+  noAnswer: "(keine Antwort)",
+  textAnswerHint: "Antwort eingeben",
+  textAnswerKeys: "Enter zum Senden · Esc für keine Antwort",
+  fileRequestTitle: "Der Agent bittet um eine Datei",
+  fileRequestQuestion: "Pfad der Datei (hierher ziehen), oder Enter, wenn du sie nicht hast: ",
+  retireTitle: "Eine Quelle zurückziehen?",
+  retireLines: (source, why, reason, replacedBy) => [
+    `Quelle: ${source}`,
+    why === "wrong" ? "Warum: sie ist falsch; ihre Zusammenfassung wird zurückgezogen" : "Warum: sie wird ersetzt; ihre Zusammenfassung wird als ersetzt markiert",
+    `Grund: ${reason}`,
+    ...(replacedBy ? [`Ersetzt durch: ${replacedBy}`] : []),
+    "Sie wird nach sources/.agent-kit/retired/ verschoben, nicht gelöscht.",
+  ],
 
   toolPhrases: {
     Read: ["hat {n} Datei gelesen", "hat {n} Dateien gelesen"],
@@ -77,6 +90,11 @@ export const de: Partial<Messages> = {
     Task: ["hat {n} Subagenten gestartet", "hat {n} Subagenten gestartet"],
     mcp__time__current_time: ["Uhrzeit abgefragt", "Uhrzeit {n}-mal abgefragt"],
     mcp__time__date_math: ["Daten berechnet", "Daten {n}-mal berechnet"],
+    mcp__sourceFiles__list_sources: ["Quellen geprüft", "Quellen {n}-mal geprüft"],
+    mcp__sourceFiles__save_to_sources: ["{n} Quelle gespeichert", "{n} Quellen gespeichert"],
+    mcp__sourceFiles__download_to_sources: ["{n} Quelle heruntergeladen", "{n} Quellen heruntergeladen"],
+    mcp__sourceFiles__request_file: ["um {n} Datei gebeten", "um {n} Dateien gebeten"],
+    mcp__sourceFiles__retire_source: ["{n} Quelle zurückgezogen", "{n} Quellen zurückgezogen"],
   },
   otherTools: ["hat {n} Werkzeug verwendet", "hat {n} Werkzeuge verwendet"],
   noOutput: "(keine Ausgabe)",
@@ -107,6 +125,10 @@ export const de: Partial<Messages> = {
     applyingSkill: (skill) => `Wendet den Skill "${skill}" an`,
     aSkill: "einen Skill",
     updatingTasks: "Aufgabenliste aktualisieren",
+    listingSources: "Quellen prüfen",
+    downloading: (url) => `${url} in die Quellen herunterladen`,
+    requestingFile: (description) => `Um eine Datei bitten: ${description}`,
+    retiringSource: (source) => `Quelle ${source} zurückziehen`,
   },
 
   auth: {

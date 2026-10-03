@@ -47,9 +47,9 @@ Useful to watch a new agent work, step by step, or to run it where every action 
 
 Think before building: the agent reads, researches and presents a plan, and nothing changes until the person switches out of plan mode (Shift+Tab in the chat) and the agent carries the plan out. The plan gate, a `PreToolUse` hook active only in this mode, decides every tool call, the subagents' included:
 
-- **Goes through:** `Read`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Skill`, `Agent`, `TodoWrite`, the approval and manual-intervention tools, the date and time tools, and the MCP tools the agent declares read-only.
+- **Goes through:** `Read`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Skill`, `Agent`, `TodoWrite`, the approval and manual-intervention tools, the date and time tools, `list_sources`, and the MCP tools the agent declares read-only.
 - **Writes:** `Write`/`Edit` only to the agent's plan files, if it declares any. Without them the agent presents the plan in its reply.
-- **Denied:** everything else: other writes, `Bash`, `save_to_sources` and every MCP tool the agent doesn't vouch for, so a forgotten tool can't change anything. The denial tells the model it's in plan mode and that the person leaves it when they want the plan carried out.
+- **Denied:** everything else: other writes, `Bash`, the tools that add to or retire from the sources folder, and every MCP tool the agent doesn't vouch for, so a forgotten tool can't change anything. The denial tells the model it's in plan mode and that the person leaves it when they want the plan carried out.
 
 The agent declares both in [`planMode`](agent-spec.md#planmode):
 

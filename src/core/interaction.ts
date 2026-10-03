@@ -24,6 +24,12 @@ export interface InteractionPort {
   askDecision(prompt: ApprovalPrompt, signal: AbortSignal): Promise<string>;
   /** Waits until the person confirms they intervened by hand (e.g. logged in). */
   askManualIntervention(prompt: ApprovalPrompt, signal: AbortSignal): Promise<string>;
+  /**
+   * A free-text answer (e.g. the path of a file the agent asked for), with case and spaces
+   * kept; "" for none. Optional: without it the kit asks through `askDecision()`, whose
+   * answer a plain terminal reads as text too.
+   */
+  askText?(prompt: ApprovalPrompt, signal: AbortSignal): Promise<string>;
   /** A one-way message for the person. */
   notify(message: string): void;
 }

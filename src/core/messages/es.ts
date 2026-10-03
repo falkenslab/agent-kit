@@ -62,6 +62,19 @@ export const es: Partial<Messages> = {
   parametersLine: (parameters) => `Parámetros: ${parameters}`,
   approvalTitle: "Hace falta confirmación humana antes de publicar",
   summaryLine: (summary) => `Resumen: ${summary}`,
+  noAnswer: "(sin respuesta)",
+  textAnswerHint: "escribe la respuesta",
+  textAnswerKeys: "Enter para enviar · Esc para no responder",
+  fileRequestTitle: "El agente pide un fichero",
+  fileRequestQuestion: "Ruta del fichero (arrástralo aquí), o Enter si no lo tienes: ",
+  retireTitle: "¿Retirar una fuente?",
+  retireLines: (source, why, reason, replacedBy) => [
+    `Fuente: ${source}`,
+    why === "wrong" ? "Motivo: es errónea; su resumen se retirará" : "Motivo: se sustituye; su resumen se marcará como sustituido",
+    `Razón: ${reason}`,
+    ...(replacedBy ? [`Sustituida por: ${replacedBy}`] : []),
+    "Se mueve a sources/.agent-kit/retired/, no se borra.",
+  ],
 
   toolPhrases: {
     Read: ["leyó {n} fichero", "leyó {n} ficheros"],
@@ -77,6 +90,11 @@ export const es: Partial<Messages> = {
     Task: ["lanzó {n} subagente", "lanzó {n} subagentes"],
     mcp__time__current_time: ["consultó la hora", "consultó la hora {n} veces"],
     mcp__time__date_math: ["calculó fechas", "calculó fechas {n} veces"],
+    mcp__sourceFiles__list_sources: ["revisó las fuentes", "revisó las fuentes {n} veces"],
+    mcp__sourceFiles__save_to_sources: ["guardó {n} fuente", "guardó {n} fuentes"],
+    mcp__sourceFiles__download_to_sources: ["descargó {n} fuente", "descargó {n} fuentes"],
+    mcp__sourceFiles__request_file: ["pidió {n} fichero", "pidió {n} ficheros"],
+    mcp__sourceFiles__retire_source: ["retiró {n} fuente", "retiró {n} fuentes"],
   },
   otherTools: ["usó {n} herramienta", "usó {n} herramientas"],
   noOutput: "(sin salida)",
@@ -107,6 +125,10 @@ export const es: Partial<Messages> = {
     applyingSkill: (skill) => `Aplicando la skill "${skill}"`,
     aSkill: "una skill",
     updatingTasks: "Actualizando la lista de tareas",
+    listingSources: "Revisando las fuentes",
+    downloading: (url) => `Descargando ${url} a las fuentes`,
+    requestingFile: (description) => `Pidiendo un fichero: ${description}`,
+    retiringSource: (source) => `Retirando la fuente ${source}`,
   },
 
   auth: {

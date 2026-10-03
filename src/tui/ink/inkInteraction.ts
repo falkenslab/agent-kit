@@ -2,7 +2,7 @@ import type { ApprovalPrompt, InteractionPort } from "../../core/interaction.js"
 import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
 
-export type CheckpointKind = "decision" | "manual-intervention";
+export type CheckpointKind = "decision" | "manual-intervention" | "text";
 
 export interface Checkpoint {
   id: number;
@@ -56,7 +56,7 @@ export function createInkInteraction(note: (text: string) => void): InkInteracti
         prompt,
         answer(value: string): void {
           if (!remove(checkpoint)) return;
-          record(prompt, kind === "decision" ? (outcome(value) ?? value) : ui.success(t().done));
+          record(prompt, kind === "decision" ? (outcome(value) ?? value) : kind === "text" ? (value ? ui.success(`✔ ${value}`) : ui.dim(t().noAnswer)) : ui.success(t().done));
           resolve(value);
         },
       };
@@ -76,6 +76,7 @@ export function createInkInteraction(note: (text: string) => void): InkInteracti
     port: {
       askDecision: (prompt, signal) => ask("decision", prompt, signal),
       askManualIntervention: (prompt, signal) => ask("manual-intervention", prompt, signal),
+      askText: (prompt, signal) => ask("text", prompt, signal),
       notify: (message) => note(message),
     },
     subscribe(listener: () => void): () => void {

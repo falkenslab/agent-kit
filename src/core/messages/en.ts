@@ -62,6 +62,13 @@ export interface Messages {
   parametersLine(parameters: string): string;
   approvalTitle: string;
   summaryLine(summary: string): string;
+  noAnswer: string;
+  textAnswerHint: string;
+  textAnswerKeys: string;
+  fileRequestTitle: string;
+  fileRequestQuestion: string;
+  retireTitle: string;
+  retireLines(source: string, why: "wrong" | "replaced", reason: string, replacedBy?: string): string[];
 
   // Tool calls: folded groups, results and friendly labels.
   toolPhrases: Record<string, ToolPhrase>;
@@ -96,6 +103,10 @@ export interface Messages {
     applyingSkill(skill: string): string;
     aSkill: string;
     updatingTasks: string;
+    listingSources: string;
+    downloading(url: string): string;
+    requestingFile(description: string): string;
+    retiringSource(source: string): string;
   };
 
   // Claude authentication.
@@ -170,6 +181,19 @@ export const en: Messages = {
   parametersLine: (parameters) => `Parameters: ${parameters}`,
   approvalTitle: "Human confirmation required before publishing",
   summaryLine: (summary) => `Summary: ${summary}`,
+  noAnswer: "(no answer)",
+  textAnswerHint: "type the answer",
+  textAnswerKeys: "Enter to send · Esc for no answer",
+  fileRequestTitle: "The agent asks for a file",
+  fileRequestQuestion: "Path of the file (drag it here), or Enter if you don't have it: ",
+  retireTitle: "Retire a source?",
+  retireLines: (source, why, reason, replacedBy) => [
+    `Source: ${source}`,
+    why === "wrong" ? "Why: it's wrong; its summary will be retired" : "Why: it's replaced; its summary will be marked superseded",
+    `Reason: ${reason}`,
+    ...(replacedBy ? [`Replaced by: ${replacedBy}`] : []),
+    "It's moved to sources/.agent-kit/retired/, not deleted.",
+  ],
 
   toolPhrases: {
     Read: ["read {n} file", "read {n} files"],
@@ -185,6 +209,11 @@ export const en: Messages = {
     Task: ["ran {n} subagent", "ran {n} subagents"],
     mcp__time__current_time: ["checked the time", "checked the time {n} times"],
     mcp__time__date_math: ["calculated dates", "calculated dates {n} times"],
+    mcp__sourceFiles__list_sources: ["listed the sources", "listed the sources {n} times"],
+    mcp__sourceFiles__save_to_sources: ["saved {n} source", "saved {n} sources"],
+    mcp__sourceFiles__download_to_sources: ["downloaded {n} source", "downloaded {n} sources"],
+    mcp__sourceFiles__request_file: ["asked for {n} file", "asked for {n} files"],
+    mcp__sourceFiles__retire_source: ["retired {n} source", "retired {n} sources"],
   },
   otherTools: ["used {n} tool", "used {n} tools"],
   noOutput: "(no output)",
@@ -215,6 +244,10 @@ export const en: Messages = {
     applyingSkill: (skill) => `Applying the "${skill}" skill`,
     aSkill: "a skill",
     updatingTasks: "Updating the task list",
+    listingSources: "Listing the sources",
+    downloading: (url) => `Downloading ${url} to the sources`,
+    requestingFile: (description) => `Asking for a file: ${description}`,
+    retiringSource: (source) => `Retiring the source ${source}`,
   },
 
   auth: {

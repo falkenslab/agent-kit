@@ -127,7 +127,7 @@ const config: BaseSessionConfig = {
 };
 ```
 
-Now Scout can `Read`, `Write`, `Edit`, `Glob` and `Grep`, but only write inside `knowledge/`, only search inside `knowledge/` and `sources/`, and never modify `sources/` (it adds files there with `save_to_sources`, which never overwrites). Try `/knowledge:ingest` after dropping a PDF in `sources/`.
+Now Scout can `Read`, `Write`, `Edit`, `Glob` and `Grep`, but only write inside `knowledge/`, only search inside `knowledge/` and `sources/`, and never modify `sources/` (it adds files there with the sources tools, which never overwrite, and `list_sources` tells it what isn't ingested yet). Try `/knowledge:ingest` after dropping a PDF in `sources/`.
 
 ## Step 5: resume a conversation
 

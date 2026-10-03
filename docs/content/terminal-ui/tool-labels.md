@@ -23,6 +23,12 @@ A tool call is shown as a short sentence instead of its technical name: `Reading
 | `request_human_approval` | `Asking for human approval: <summary>` |
 | `request_manual_login` | `Waiting for a human to intervene manually` |
 | `save_to_sources` | `Saving a file to sources/<destination>` |
+| `list_sources` | `Listing the sources` |
+| `download_to_sources` | `Downloading <url> to the sources` |
+| `request_file` | `Asking for a file: <description>` |
+| `retire_source` | `Retiring the source <source>` |
+| `current_time`, `date_math` | `Checking the date and time`, `Calculating dates` |
+| `TodoWrite` | `Updating the task list` (not shown in the chats, which draw the list) |
 
 Labels follow the [kit's language](../sessions/languages.md). Long paths keep their end (`…/course/knowledge/index.md`), long text its start.
 

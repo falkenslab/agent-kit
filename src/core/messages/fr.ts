@@ -62,6 +62,19 @@ export const fr: Partial<Messages> = {
   parametersLine: (parameters) => `Paramètres : ${parameters}`,
   approvalTitle: "Confirmation humaine requise avant de publier",
   summaryLine: (summary) => `Résumé : ${summary}`,
+  noAnswer: "(pas de réponse)",
+  textAnswerHint: "tapez la réponse",
+  textAnswerKeys: "Entrée pour envoyer · Échap pour ne pas répondre",
+  fileRequestTitle: "L'agent demande un fichier",
+  fileRequestQuestion: "Chemin du fichier (glissez-le ici), ou Entrée si vous ne l'avez pas : ",
+  retireTitle: "Retirer une source ?",
+  retireLines: (source, why, reason, replacedBy) => [
+    `Source : ${source}`,
+    why === "wrong" ? "Motif : elle est erronée ; son résumé sera retiré" : "Motif : elle est remplacée ; son résumé sera marqué comme remplacé",
+    `Raison : ${reason}`,
+    ...(replacedBy ? [`Remplacée par : ${replacedBy}`] : []),
+    "Elle est déplacée dans sources/.agent-kit/retired/, pas supprimée.",
+  ],
 
   toolPhrases: {
     Read: ["a lu {n} fichier", "a lu {n} fichiers"],
@@ -77,6 +90,11 @@ export const fr: Partial<Messages> = {
     Task: ["a lancé {n} sous-agent", "a lancé {n} sous-agents"],
     mcp__time__current_time: ["a consulté l'heure", "a consulté l'heure {n} fois"],
     mcp__time__date_math: ["a calculé des dates", "a calculé des dates {n} fois"],
+    mcp__sourceFiles__list_sources: ["a examiné les sources", "a examiné les sources {n} fois"],
+    mcp__sourceFiles__save_to_sources: ["a enregistré {n} source", "a enregistré {n} sources"],
+    mcp__sourceFiles__download_to_sources: ["a téléchargé {n} source", "a téléchargé {n} sources"],
+    mcp__sourceFiles__request_file: ["a demandé {n} fichier", "a demandé {n} fichiers"],
+    mcp__sourceFiles__retire_source: ["a retiré {n} source", "a retiré {n} sources"],
   },
   otherTools: ["a utilisé {n} outil", "a utilisé {n} outils"],
   noOutput: "(aucune sortie)",
@@ -107,6 +125,10 @@ export const fr: Partial<Messages> = {
     applyingSkill: (skill) => `Application de la skill "${skill}"`,
     aSkill: "une skill",
     updatingTasks: "Mise à jour de la liste des tâches",
+    listingSources: "Examen des sources",
+    downloading: (url) => `Téléchargement de ${url} dans les sources`,
+    requestingFile: (description) => `Demande d'un fichier : ${description}`,
+    retiringSource: (source) => `Retrait de la source ${source}`,
   },
 
   auth: {

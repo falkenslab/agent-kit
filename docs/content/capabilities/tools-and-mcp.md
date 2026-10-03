@@ -27,7 +27,8 @@ Besides the built-in ones, the kit registers MCP tools of its own, each when it 
 | `date_math` | Exact date arithmetic: days, weeks and working days between two dates; a date plus or minus days, weeks, months or working days | Always |
 | `request_human_approval` | Asks a person before an action that's hard to undo. See [Approvals](../human-in-the-loop/approvals.md) | Not in autonomous mode |
 | `request_manual_login` | Waits for a person to act by hand. See [Manual intervention](../human-in-the-loop/manual-intervention.md) | With `manualInterventionTexts`, not in autonomous mode |
-| `save_to_sources` | Copies a file from the run's folder into the sources folder, never overwriting | With `sourcesDir` |
+| `list_sources`, `save_to_sources`, `download_to_sources` | List the originals with their status; add one from the run's folder or a URL, never overwriting. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained) | With `sourcesDir` |
+| `request_file`, `retire_source` | Ask the person for a file; take out a wrong or superseded original, with approval | With `sourcesDir`, not in autonomous mode |
 
 ### Date and time
 

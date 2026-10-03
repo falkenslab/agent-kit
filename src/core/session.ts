@@ -173,7 +173,17 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       ...spec.buildMcpServers(config, runDir),
       ...(includeApprovalTool ? { approvals: createHumanApprovalServer(runDir, spec.humanApprovalTexts) } : {}),
       ...(manualInterventionTexts ? { manualLogin: createManualLoginServer(runDir, manualInterventionTexts) } : {}),
-      ...(config.sourcesDir ? { sourceFiles: createSaveToSourcesServer(runDir, config.sourcesDir, spec.saveToSourcesDescription) } : {}),
+      // The sources folder's tools (tools/saveToSources.ts); asking a person (request_file,
+      // retire_source) only where there is one.
+      ...(config.sourcesDir
+        ? {
+            sourceFiles: createSaveToSourcesServer(runDir, config.sourcesDir, spec.saveToSourcesDescription, {
+              knowledgeDir: config.knowledgeDir,
+              projectDir: config.projectDir,
+              interactive: mode !== "autonomous",
+            }),
+          }
+        : {}),
       // The date and date arithmetic, in every session and mode: only reads (tools/time.ts).
       time: createTimeServer(config.timeZone),
     },

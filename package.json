@@ -62,11 +62,15 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@mozilla/readability": "^0.6.0",
     "@types/node": "^24.0.0",
+    "@types/turndown": "^5.0.6",
     "eslint": "^10.9.1",
     "globals": "^17.11.0",
     "ink-testing-library": "^4.0.0",
+    "linkedom": "^0.18.13",
     "tsx": "^4.19.0",
+    "turndown": "^7.2.4",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.68.0"
   },
@@ -75,5 +79,21 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "peerDependencies": {
+    "@mozilla/readability": ">=0.5.0",
+    "linkedom": ">=0.16.0",
+    "turndown": ">=7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@mozilla/readability": {
+      "optional": true
+    },
+    "linkedom": {
+      "optional": true
+    },
+    "turndown": {
+      "optional": true
+    }
   }
 }

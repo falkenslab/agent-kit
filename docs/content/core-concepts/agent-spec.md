@@ -46,7 +46,7 @@ buildSystemPrompt: (config) =>
 
 ### `buildMcpServers(config, runDir): Record<string, McpServerConfig>`
 
-The MCP servers this agent always registers, keyed by server name. The kit adds its own next to them when they apply (approvals, manual intervention, save to sources, date and time), so don't register those. `runDir` is this run's folder, useful for a server that writes files (a browser that downloads into it, say).
+The MCP servers this agent always registers, keyed by server name. The kit adds its own next to them when they apply (approvals, manual intervention, the sources tools, date and time), so don't register those. `runDir` is this run's folder, useful for a server that writes files (a browser that downloads into it, say).
 
 ```ts
 buildMcpServers: (config, runDir) => ({

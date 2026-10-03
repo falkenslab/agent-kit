@@ -4,4 +4,4 @@ description: Ingest material into the knowledge base right now - the files or to
 
 Apply the `knowledge-ingest` skill right now to: $ARGUMENTS
 
-If nothing is given above, find every file in the sources folder that has no summary page in the knowledge base yet (check `index.md` and `summaries/`) and ingest them all. When you're done, summarize which pages you created and updated, and anything you couldn't read.
+If nothing is given above, ingest every original `list_sources` reports as new, and update the summaries of the ones it reports as changed. When you're done, summarize which pages you created and updated, and anything you couldn't read.

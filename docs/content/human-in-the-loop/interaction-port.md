@@ -21,12 +21,16 @@ interface InteractionPort {
   askDecision(prompt: ApprovalPrompt, signal: AbortSignal): Promise<string>;
   /** Waits until the person confirms they intervened by hand (e.g. logged in). */
   askManualIntervention(prompt: ApprovalPrompt, signal: AbortSignal): Promise<string>;
+  /** Optional: a free-text answer, case kept ("" for none), e.g. a file's path for request_file. */
+  askText?(prompt: ApprovalPrompt, signal: AbortSignal): Promise<string>;
   /** A one-way message for the person. */
   notify(message: string): void;
 }
 ```
 
 One port is installed per process: `setInteractionPort(port)` and `getInteractionPort()`.
+
+`askText` is optional: a port without it gets the question through `askDecision`, which a terminal reads as text anyway; the kit's own ports implement it (the Ink port with a text field: Enter sends, Esc answers nothing). Its answer keeps its case, unlike a decision's.
 
 ## The ports the kit installs
 

@@ -269,3 +269,22 @@ test("the agent's task list shows above the prompt, not in the history, and goes
   await settle();
   assert.doesNotMatch(stripAnsi(view.lastFrame() ?? ""), /Task 1/);
 });
+
+test("a text checkpoint takes typed text with Enter, or no answer with Esc", async () => {
+  const { model, interaction } = setup();
+  const view = render(<SessionView model={model} interaction={interaction} />);
+  const answer = interaction.port.askText!({ title: "The agent asks for a file", lines: ["The course syllabus"], question: "Path:" }, new AbortController().signal);
+  await settle();
+  assert.match(stripAnsi(view.lastFrame() ?? ""), /The agent asks for a file[\s\S]*The course syllabus[\s\S]*Path:/);
+  view.stdin.write("C:/Docs/My Syllabus.PDF");
+  await settle();
+  view.stdin.write(ENTER);
+  assert.equal(await answer, "C:/Docs/My Syllabus.PDF");
+  await settle();
+  assert.match(stripAnsi(view.lastFrame() ?? ""), /✔ C:\/Docs\/My Syllabus\.PDF/);
+
+  const none = interaction.port.askText!({ title: "Again", lines: [] }, new AbortController().signal);
+  await settle();
+  view.stdin.write("\u001B");
+  assert.equal(await none, "");
+});
