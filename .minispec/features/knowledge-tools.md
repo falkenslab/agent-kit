@@ -24,7 +24,7 @@ The agent reaches the built-in knowledge base only through `knowledge_*` tools o
   - `knowledge_edit(page, old, new)`: one fragment; links checked, backlinks and index kept;
   - `knowledge_supersede(page, by)`: marks a page superseded, never deletes or renames;
   - `knowledge_log(operation, what)`: an entry in the log with the real date;
-  - `knowledge_check()`: broken links, orphans, pages missing from the index, and the originals `list_sources` (#14) reports new or changed.
+  - `knowledge_check()`: broken links, orphans, pages missing from the index, the originals `list_sources` (#14) reports new, changed or missing, and the pages that cite a retired original.
 - `buildSessionOptions()`: with the built-in knowledge base, the `knowledge` server instead of file tools on `knowledgeDir`; `Read` only on `sourcesDir`. A spec option to keep the file tools, and one to pass another store. Agents with `knowledgeBase: false` or `extraWritableDirs` keep the file tools for those folders.
 - Plan gate: the reading tools allowed, the writing ones denied.
 - Rewrite the prompt section and the `knowledge-*` skills in terms of the tools.
