@@ -30,7 +30,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `modeControl.ts` — `ModeControl` (`subscribe()` for UIs), `createModeControl()`, `togglePlanMode()`.
 - `tools/manualLogin.ts` — `request_manual_login`, only with `manualInterventionTexts` (ADR-005).
 - `mcpPermissions.ts` — `allowAnyMcpTool` as `canUseTool` (ADR-006).
-- `hooks/fileScopeGate.ts` — file tool boundary (ADR-007); `tools/saveToSources.ts` — the sources folder's tools (`list_sources`, `save_to_sources`, `download_to_sources`; `request_file`, `retire_source` outside autonomous); `sources.ts` — their manifest (`sources/.agent-kit/sources.json`), statuses, duplicates, versions and retiring.
+- `hooks/fileScopeGate.ts` — file tool boundary (ADR-007); `tools/saveToSources.ts` — the sources folder's tools (`list_sources`, `save_to_sources`, `download_to_sources`; `request_file`, `retire_source` outside autonomous); `extractText.ts` — DOCX/PPTX/XLSX to markdown for `extract_text` (optional `mammoth`, `fflate`); `sources.ts` — their manifest (`sources/.agent-kit/sources.json`), statuses, duplicates, versions and retiring.
 - `todos.ts` — the SDK's `TodoWrite` task list, in every session: `parseTodos()`, `todoChanges()`; the chats draw the list instead of the calls.
 - `tools/time.ts` — `current_time`, `date_math` (server `time`), in every session and mode; `config.timeZone` or the system's.
 - `knowledge.ts` — knowledge base prompt section and plugin root (ADR-008).

@@ -26,6 +26,7 @@ A tool call is shown as a short sentence instead of its technical name: `Reading
 | `present_plan` | `Presenting the plan` |
 | `save_to_sources` | `Saving a file to sources/<destination>` |
 | `list_sources` | `Listing the sources` |
+| `extract_text` | `Reading <source>` |
 | `download_to_sources` | `Downloading <url> to the sources` |
 | `request_file` | `Asking for a file: <description>` |
 | `retire_source` | `Retiring the source <source>` |

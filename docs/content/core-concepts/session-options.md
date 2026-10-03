@@ -54,7 +54,7 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 | --- | --- | --- |
 | `approvals` | `request_human_approval`, `ask_human`, `present_plan` | mode is not `autonomous` |
 | `manualLogin` | `request_manual_login` | mode is not `autonomous` and `spec.manualInterventionTexts` is set |
-| `sourceFiles` | `list_sources`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode | `config.sourcesDir` is set |
+| `sourceFiles` | `list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode | `config.sourcesDir` is set |
 | `time` | `current_time`, `date_math` | always (in `config.timeZone`, or the system's) |
 
 `canUseTool` is `allowAnyMcpTool`: every `mcp__*` call is approved, anything else is denied (the built-in tools above are already pre-approved, so they never reach it). `disallowedTools` is `spec.disallowedTools ?? []` and wins over everything.

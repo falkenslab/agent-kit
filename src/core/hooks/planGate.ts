@@ -18,7 +18,7 @@ const READING_TOOLS = new Set(["Read", "Glob", "Grep", "WebFetch", "WebSearch", 
 const ASKING_SERVERS = ["mcp__approvals__", "mcp__manualLogin__", "mcp__time__"];
 
 /** The kit's own MCP tools that only read, on servers that also have tools that write. */
-const READING_KIT_TOOLS = new Set(["mcp__sourceFiles__list_sources"]);
+const READING_KIT_TOOLS = new Set(["mcp__sourceFiles__list_sources", "mcp__sourceFiles__extract_text"]);
 
 /** Why a call is denied in plan mode, and what the model should do instead. */
 const denial =

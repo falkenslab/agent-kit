@@ -15,7 +15,7 @@ A source is ingested once, and from then on the knowledge base holds what it tau
 
 ## 2. Read it for real
 
-Read the whole source, not its first page (a long PDF in parts: `list_sources` gives its pages). If it exists only outside the sources folder, keep the original first: `download_to_sources` for a URL (a web page is kept as markdown too: read that one), `save_to_sources` for a file in the run's folder, `request_file` to ask the person for one. `Read` can't read DOCX or PPTX: ask the person for a PDF of it, or note it as unread.
+Read the whole source, not its first page (a long PDF in parts: `list_sources` gives its pages). If it exists only outside the sources folder, keep the original first: `download_to_sources` for a URL (a web page is kept as markdown too: read that one), `save_to_sources` for a file in the run's folder, `request_file` to ask the person for one. `Read` reads PDFs and images; read DOCX, PPTX (with its speaker notes) and XLSX with `extract_text`.
 
 ## 3. Write the summary page
 

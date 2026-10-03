@@ -79,6 +79,7 @@ The agent keeps it with the kit's tools (server `sourceFiles`), never with the f
 | Tool | What it does | Modes |
 | --- | --- | --- |
 | `list_sources` | Every original with its status, type, size, pages (PDF) or slides (PPTX), provenance, the version it replaces and its summary pages | All, plan included |
+| `extract_text` | A DOCX, PPTX or XLSX original as markdown, which `Read` can't read | All, plan included |
 | `save_to_sources` | Copies a file from this run's folder in | All but plan |
 | `download_to_sources` | Downloads an original from an http(s) URL straight in | All but plan |
 | `request_file` | Asks the person for a file and copies it in | Not autonomous, not plan |
@@ -114,7 +115,18 @@ request_file({ description: "The official syllabus of the module, to build the c
 - A file **identical** to one already there isn't copied again: the tool returns that one's path.
 - A **new version** goes under a new name with `replaces` set to the old one (`topic-3/slides-v2.pdf` replacing `topic-3/slides.pdf`); both are kept and the manifest links them.
 
-`Read` reads PDFs and images, so a saved original of those kinds is readable right away. It **can't read DOCX or PPTX** (confirmed: it refuses them as binary files); for those, ask the person for a PDF. Customize `save_to_sources`' description for your domain with `saveToSourcesDescription` in the spec.
+`Read` reads PDFs and images, so a saved original of those kinds is readable right away. It **can't read DOCX or PPTX** (confirmed: it refuses them as binary files); `extract_text` reads them, and XLSX:
+
+```text
+extract_text({ source: "topic-3/slides.pptx", from: 1, to: 10 })
+```
+
+- **DOCX**: headings, paragraphs, lists and tables.
+- **PPTX**: a section per slide, its title and text as a list, and its **speaker notes**, which often carry the explanation; `from`/`to` pick slides of a long deck (`list_sources` gives the count).
+- **XLSX**: a table per sheet, up to 200 rows (the rest are counted).
+- Images are left out, and counted.
+
+It needs the optional `mammoth`, `fflate` and `turndown` libraries (see [Installation](../getting-started/installation.md#optional-libraries)); without them it says what to install. Customize `save_to_sources`' description for your domain with `saveToSourcesDescription` in the spec.
 
 ### Retiring an original
 
@@ -129,7 +141,7 @@ retire_source({ source: "topic-3/slides.pdf", why: "replaced", reason: "a newer 
 3. Its summary page is marked: `status: retired` and a notice not to rely on it, if it was **wrong**; `status: superseded` with a link to the replacement's summary, if it was **replaced**.
 4. The tool reminds the agent to update the index and fix the pages that cite it; the `knowledge-ingest` skill says how.
 
-The plan gate denies every tool here but `list_sources`, and `request_file` and `retire_source` don't exist in autonomous mode.
+The plan gate denies every tool here but `list_sources` and `extract_text`, and `request_file` and `retire_source` don't exist in autonomous mode.
 
 ## Your own rules instead
 

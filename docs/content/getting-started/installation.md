@@ -21,6 +21,17 @@ npm install @falkenslab/agent-kit
 
 The kit depends on `@anthropic-ai/claude-agent-sdk` itself and re-exports the SDK types and functions an agent usually needs (`Options`, `McpServerConfig`, `AgentDefinition`, `tool()`, `createSdkMcpServer()`), so you don't need the SDK in your own `package.json` unless you call `query()` directly.
 
+### Optional libraries
+
+A few tools of the kit need libraries you install only if your agent uses them (they're optional peer dependencies, so npm doesn't install them for you):
+
+| For | Install |
+| --- | --- |
+| Reading DOCX, PPTX and XLSX originals (`extract_text`) | `npm install mammoth fflate turndown` |
+| Keeping a downloaded web page as markdown (`download_to_sources`) | `npm install @mozilla/readability linkedom turndown` |
+
+Without them, those tools say what to install; nothing else changes.
+
 For TypeScript without a build step:
 
 ```bash

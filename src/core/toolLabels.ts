@@ -43,6 +43,8 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
       return labels.calculatingDates;
     case "list_sources":
       return labels.listingSources;
+    case "extract_text":
+      return labels.extractingText(truncatePath(text(input.source, labels.aFile), 70));
     case "download_to_sources":
       return labels.downloading(truncate(text(input.url, labels.aPage), 80));
     case "request_file":

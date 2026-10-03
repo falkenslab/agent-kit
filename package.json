@@ -66,9 +66,11 @@
     "@types/node": "^24.0.0",
     "@types/turndown": "^5.0.6",
     "eslint": "^10.9.1",
+    "fflate": "^0.8.3",
     "globals": "^17.11.0",
     "ink-testing-library": "^4.0.0",
     "linkedom": "^0.18.13",
+    "mammoth": "^1.13.0",
     "tsx": "^4.19.0",
     "turndown": "^7.2.4",
     "typescript": "^5.7.0",
@@ -83,7 +85,9 @@
   "peerDependencies": {
     "@mozilla/readability": ">=0.5.0",
     "linkedom": ">=0.16.0",
-    "turndown": ">=7.0.0"
+    "turndown": ">=7.0.0",
+    "mammoth": ">=1.6.0",
+    "fflate": ">=0.8.0"
   },
   "peerDependenciesMeta": {
     "@mozilla/readability": {
@@ -93,6 +97,12 @@
       "optional": true
     },
     "turndown": {
+      "optional": true
+    },
+    "mammoth": {
+      "optional": true
+    },
+    "fflate": {
       "optional": true
     }
   }

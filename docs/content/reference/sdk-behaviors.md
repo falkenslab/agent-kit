@@ -15,7 +15,7 @@ The kit encodes several behaviors of the Claude Agent SDK (and the Claude Code C
 - **`mcp__*` is not a valid wildcard** in `allowedTools` for `mcp__<server>__<tool>`: only per-server wildcards match. Hence `allowAnyMcpTool` as `canUseTool`.
 - **With an explicit `tools` list, the `Skill` tool must be listed** to be offered, even though the skills are loaded. Without it, the model looks for `SKILL.md` files by hand.
 - **`TodoWrite` is accepted in an explicit `tools` list**, and each call carries the whole task list (`{ todos: [{ content, status, activeForm }] }`); its result only says it was saved.
-- **`Read` reads PDFs and images, but refuses DOCX and PPTX** ("This tool cannot read binary files").
+- **`Read` reads PDFs and images, but refuses DOCX and PPTX** ("This tool cannot read binary files"). Hence `extract_text`.
 
 ## Subagents
 

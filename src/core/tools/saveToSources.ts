@@ -5,6 +5,7 @@ import { z } from "zod";
 import { addSource, listSources, resolveWithin, retireSource, type AddedSource } from "../sources.js";
 import { askForDecision, askForText } from "../hooks/humanInput.js";
 import { t } from "../messages/index.js";
+import { EXTRACTABLE, extractText } from "../extractText.js";
 
 /**
  * `resolvedPath` as given if it exists; otherwise, a same-directory sibling whose
@@ -40,7 +41,7 @@ async function resolveExistingFileToleratingNormalization(resolvedPath: string):
 const DEFAULT_DESCRIPTION =
   "Copy a file from this run's own folder (e.g. something just downloaded) into a folder " +
   "under sources/, where original files are kept as they were obtained, apart from your " +
-  "own notes. Read reads PDFs and images there; it can't read DOCX or PPTX. This tool does " +
+  "own notes. Read reads PDFs and images there; DOCX, PPTX and XLSX are read with extract_text. This tool does " +
   "no conversion, never overwrites a file already in sources/, and doesn't copy a file " +
   "identical to one already there (it returns that one's path). For a new version of an " +
   "original, save it under a new name with `replaces` set to the old one. Use it right after " +
@@ -168,6 +169,27 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
     { annotations: { readOnlyHint: true } },
   );
 
+  const extractTextTool = tool(
+    "extract_text",
+    "Read a Word (DOCX), PowerPoint (PPTX) or Excel (XLSX) original in sources/ as markdown, which Read can't: a document's headings, paragraphs, lists and tables; a deck's slides with their speaker notes (`from`/`to` pick slides of a long one; list_sources gives the count); a workbook's sheets as tables. Images are left out.",
+    {
+      source: z.string().describe("The original, relative to sources/"),
+      from: z.number().int().positive().optional().describe("First slide (PPTX)"),
+      to: z.number().int().positive().optional().describe("Last slide (PPTX)"),
+    },
+    async (args) => {
+      const file = resolveWithin(sourcesDir, args.source);
+      if (!file || !(await stat(file).catch(() => null))?.isFile()) return fail(`"${args.source}" isn't an original in sources/ (list_sources lists them).`);
+      if (!EXTRACTABLE.has(path.extname(file).slice(1).toLowerCase())) return fail(`extract_text reads DOCX, PPTX and XLSX; read "${args.source}" with Read.`);
+      try {
+        return ok(await extractText(file, args.from, args.to));
+      } catch (error) {
+        return fail(message(error));
+      }
+    },
+    { annotations: { readOnlyHint: true } },
+  );
+
   const downloadToSources = tool(
     "download_to_sources",
     `Download an original (a PDF, an image, a web page...) from an http(s) URL straight into sources/, without its content going through your context; up to ${Math.round(maxBytes / 1024 / 1024)} MB, never overwriting, and not at all if an identical file is already there. A web page is also kept as its main content in markdown next to it (when the kit's optional libraries are installed), to quote literally and read again: WebFetch only gives a summary.`,
@@ -263,6 +285,6 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
   return createSdkMcpServer({
     name: "sourceFiles",
     version: "1.0.0",
-    tools: [saveToSources, listSourcesTool, downloadToSources, ...(options.interactive ? [requestFile, retire] : [])],
+    tools: [saveToSources, listSourcesTool, extractTextTool, downloadToSources, ...(options.interactive ? [requestFile, retire] : [])],
   });
 }

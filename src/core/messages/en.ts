@@ -113,6 +113,7 @@ export interface Messages {
     aSkill: string;
     updatingTasks: string;
     listingSources: string;
+    extractingText(source: string): string;
     downloading(url: string): string;
     requestingFile(description: string): string;
     retiringSource(source: string): string;
@@ -230,6 +231,7 @@ export const en: Messages = {
     mcp__time__current_time: ["checked the time", "checked the time {n} times"],
     mcp__time__date_math: ["calculated dates", "calculated dates {n} times"],
     mcp__sourceFiles__list_sources: ["listed the sources", "listed the sources {n} times"],
+    mcp__sourceFiles__extract_text: ["read {n} document", "read {n} documents"],
     mcp__sourceFiles__save_to_sources: ["saved {n} source", "saved {n} sources"],
     mcp__sourceFiles__download_to_sources: ["downloaded {n} source", "downloaded {n} sources"],
     mcp__sourceFiles__request_file: ["asked for {n} file", "asked for {n} files"],
@@ -267,6 +269,7 @@ export const en: Messages = {
     aSkill: "a skill",
     updatingTasks: "Updating the task list",
     listingSources: "Listing the sources",
+    extractingText: (source) => `Reading ${source}`,
     downloading: (url) => `Downloading ${url} to the sources`,
     requestingFile: (description) => `Asking for a file: ${description}`,
     retiringSource: (source) => `Retiring the source ${source}`,
