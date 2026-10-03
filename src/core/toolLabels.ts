@@ -33,6 +33,10 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
       return labels.askingApproval(truncate(text(input.summary, ""), 120));
     case "request_manual_login":
       return labels.waitingManual;
+    case "current_time":
+      return labels.checkingTime;
+    case "date_math":
+      return labels.calculatingDates;
     case "save_to_sources":
       return labels.savingToSources(truncatePath(text(input.destination, ""), 70));
     case "Read":
@@ -75,11 +79,11 @@ export type ToolDescriber = (shortName: string, input: Record<string, unknown>) 
  * Builds a `friendlyToolLabel(toolName, toolInput)` — `describe` lets the host agent
  * layer its own domain-specific cases (e.g. Playwright's browser_* tools) on top of this
  * kit's generic ones; `extraLocalServers` names any *additional* MCP server (beyond this
- * kit's own "approvals"/"manualLogin"/"sourceFiles") whose tools should be unwrapped
+ * kit's own "approvals"/"manualLogin"/"sourceFiles"/"time") whose tools should be unwrapped
  * without a "[server] " prefix, e.g. "playwright".
  */
 export function createFriendlyToolLabel(options: { describe?: ToolDescriber; extraLocalServers?: readonly string[] } = {}): (toolName: string, toolInput: unknown) => string {
-  const localServers = new Set(["approvals", "manualLogin", "sourceFiles", ...(options.extraLocalServers ?? [])]);
+  const localServers = new Set(["approvals", "manualLogin", "sourceFiles", "time", ...(options.extraLocalServers ?? [])]);
 
   const describe = (shortName: string, input: Record<string, unknown>): string =>
     options.describe?.(shortName, input) ?? describeCore(shortName, input) ?? shortName.replace(/_/g, " ");

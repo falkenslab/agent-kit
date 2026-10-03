@@ -21,7 +21,7 @@ interface Config extends BaseSessionConfig {
 
 | Field | Type | Required | What it does |
 | --- | --- | --- | --- |
-| `mode` | `"interactive" \| "guided" \| "autonomous"` | yes | How much a human is in the loop. See [Modes](modes.md). |
+| `mode` | `"interactive" \| "guided" \| "autonomous" \| "plan"` | yes | How much a human is in the loop. See [Modes](modes.md). |
 | `projectDir` | `string` | yes | The project root: the session's working directory when the agent has file tools or plugins, and the base for relative paths in the file scope. |
 | `knowledgeDir` | `string` | no | The agent's notes. Gives the session the file tools and, by default, the [knowledge base](../capabilities/knowledge-base.md). |
 | `sourcesDir` | `string` | no | Originals, kept as obtained: readable and searchable, never writable. Gives the file tools and the `save_to_sources` tool. |
@@ -29,6 +29,7 @@ interface Config extends BaseSessionConfig {
 | `deniedPaths` | `string[]` | no | Files or folders the agent must never read, search or write, e.g. a config file holding a password. |
 | `secrets` | `string[]` | no | Values scrubbed from the transcript log, e.g. a password. |
 | `language` | `string` | no | The language of the kit's texts and of the agent's replies (`"en"`, `"es"`, `"fr"`, `"de"`). `--language` on the command line wins over it. |
+| `timeZone` | `string` | no | The IANA time zone (`"Europe/Madrid"`) the [date and time tools](../capabilities/tools-and-mcp.md#date-and-time) answer in; the system's if not given. |
 
 ## Examples
 

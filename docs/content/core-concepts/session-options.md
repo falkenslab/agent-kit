@@ -48,13 +48,14 @@ Nothing else of the CLI's built-in tools is available. `Bash` is there only beca
 
 ### MCP servers and permissions
 
-`mcpServers` holds `spec.buildMcpServers(config, runDir)` plus, when they apply:
+`mcpServers` holds `spec.buildMcpServers(config, runDir)` plus the kit's own, when they apply:
 
 | Server | Tool | When |
 | --- | --- | --- |
 | `approvals` | `request_human_approval` | mode is not `autonomous` |
 | `manualLogin` | `request_manual_login` | mode is not `autonomous` and `spec.manualInterventionTexts` is set |
 | `sourceFiles` | `save_to_sources` | `config.sourcesDir` is set |
+| `time` | `current_time`, `date_math` | always (in `config.timeZone`, or the system's) |
 
 `canUseTool` is `allowAnyMcpTool`: every `mcp__*` call is approved, anything else is denied (the built-in tools above are already pre-approved, so they never reach it). `disallowedTools` is `spec.disallowedTools ?? []` and wins over everything.
 

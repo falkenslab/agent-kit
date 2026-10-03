@@ -46,11 +46,11 @@ buildSystemPrompt: (config) =>
 
 ### `buildMcpServers(config, runDir): Record<string, McpServerConfig>`
 
-The MCP servers this agent always registers, keyed by server name. The kit adds its own next to them when they apply (approvals, manual intervention, save to sources), so don't register those. `runDir` is this run's folder, useful for a server that writes files (a browser that downloads into it, say).
+The MCP servers this agent always registers, keyed by server name. The kit adds its own next to them when they apply (approvals, manual intervention, save to sources, date and time), so don't register those. `runDir` is this run's folder, useful for a server that writes files (a browser that downloads into it, say).
 
 ```ts
 buildMcpServers: (config, runDir) => ({
-  clock, // an in-process server built with createSdkMcpServer()
+  inventory, // an in-process server built with createSdkMcpServer()
   playwright: {
     command: "npx",
     args: ["@playwright/mcp@latest", "--output-dir", runDir],
@@ -158,6 +158,7 @@ See [Permissions and isolation](../security/permissions-and-isolation.md) and [C
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPromptLoader, createSdkMcpServer, tool, type AgentSpec, type BaseSessionConfig } from "@falkenslab/agent-kit";
+import { z } from "zod";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const loadPrompt = createPromptLoader(path.join(here, "prompts"));
@@ -166,19 +167,19 @@ export interface Config extends BaseSessionConfig {
   audience: string;
 }
 
-const clock = createSdkMcpServer({
-  name: "clock",
+const inventory = createSdkMcpServer({
+  name: "inventory",
   version: "1.0.0",
   tools: [
-    tool("current_time", "The current date and time.", {}, async () => ({
-      content: [{ type: "text" as const, text: new Date().toString() }],
-    })),
+    tool("find_product", "Find products in the inventory by name.", { query: z.string() }, async ({ query }) => ({
+      content: [{ type: "text" as const, text: JSON.stringify(await db.products.search(query)) }],
+    }), { annotations: { readOnlyHint: true } }),
   ],
 });
 
 export const spec: AgentSpec<Config> = {
   buildSystemPrompt: (config) => loadPrompt("system.md", { audience: config.audience }),
-  buildMcpServers: () => ({ clock }),
+  buildMcpServers: () => ({ inventory }),
   pluginRoots: () => [path.join(here, "plugin")],
   buildSubagents: () => ({
     agents: {
@@ -205,7 +206,7 @@ In [plan mode](modes.md#plan) the agent only reads and plans. Two callbacks say 
 - `isReadOnlyTool(toolName, input)`: whether one of the agent's MCP tools only reads. Every MCP tool it doesn't vouch for is denied in plan mode.
 
 ```ts
-planMode: { isReadOnlyTool: (toolName) => toolName === "mcp__clock__current_time" },
+planMode: { isReadOnlyTool: (toolName) => toolName === "mcp__inventory__find_product" },
 ```
 
 Without `planMode`, the agent can read, search, ask a person and delegate in plan mode, writes nothing and presents its plan in its reply.

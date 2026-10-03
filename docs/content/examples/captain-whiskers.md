@@ -58,30 +58,9 @@ const { language } = detectLanguage();
 
 `detectLanguage()` resolves the kit's language (`--language`, else the system's) so the captain can pick his own texts: his name and on-screen texts come in the four languages, in a `TEXTS` record keyed by language. See [Languages](../sessions/languages.md#an-agents-own-texts).
 
-## 2. A tool of his own
+## 2. The kit's clock
 
-The clock cabin boy needs the time. Rather than giving a subagent `Bash`, the captain has a read-only tool in an in-process MCP server:
-
-```ts
-const clock = createSdkMcpServer({
-  name: "clock",
-  version: "1.0.0",
-  tools: [
-    tool(
-      "current_time",
-      "The system's current date and time: ISO 8601 in UTC, the local date and time, the time zone and the day of the week.",
-      {},
-      async () => {
-        const now = new Date();
-        const { timeZone } = Intl.DateTimeFormat().resolvedOptions();
-        const local = new Intl.DateTimeFormat("en-GB", { dateStyle: "full", timeStyle: "long", timeZone }).format(now);
-        return { content: [{ type: "text" as const, text: JSON.stringify({ utc: now.toISOString(), local, timeZone }) }] };
-      },
-      { annotations: { readOnlyHint: true } },
-    ),
-  ],
-});
-```
+The clock cabin boy needs the time and has to count days. Rather than giving a subagent `Bash`, he uses the kit's own date and time tools, `current_time` and `date_math`, which every session has (see [The kit's own tools](../capabilities/tools-and-mcp.md#date-and-time)). The captain registers no MCP server of his own: for one, see [In-process tools](../capabilities/tools-and-mcp.md#in-process-tools-tool-and-createsdkmcpserver).
 
 ## 3. The prompts, in English
 
@@ -118,23 +97,23 @@ const SUBAGENTS: Record<string, AgentDefinition> = {
     maxTurns: 1,
   },
   "grumete-del-reloj": {
-    description: "Cabin boy who reads the ship's clock (the system's date and time) and does time arithmetic.",
-    prompt: "You are the clock cabin boy. To answer, read the ship's clock with the current_time tool …",
-    tools: ["mcp__clock__current_time"],
+    description: "Cabin boy who reads the ship's clock (the system's date and time) and works out dates and how long until something.",
+    prompt: "You are the clock cabin boy. Read the ship's clock with the current_time tool, and work out any date … with the date_math tool …",
+    tools: ["mcp__time__current_time", "mcp__time__date_math"],
     model: "haiku",
     maxTurns: 3,
   },
 };
 ```
 
-Three small subagents on `haiku`: one searches the web, one only thinks, one uses the captain's own tool. See [Subagents](../capabilities/subagents.md).
+Three small subagents on `haiku`: one searches the web, one only thinks, one uses the kit's date and time tools. See [Subagents](../capabilities/subagents.md).
 
 ## 5. The spec
 
 ```ts
 const spec: AgentSpec<BaseSessionConfig> = {
   buildSystemPrompt: () => SYSTEM_PROMPT,
-  buildMcpServers: () => ({ clock }),
+  buildMcpServers: () => ({}),
   pluginRoots: () => [path.join(__dirname, "plugin")],
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
   disallowedTools: ["Read", "Write", "Glob"],
@@ -179,6 +158,6 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 - `/captain-whiskers:joke` for a classic, `/captain-whiskers:fresh-joke` to send the crew to the web.
 - "What time is it, and how long until New Year's Eve?" (the clock cabin boy).
 - `CAPTAIN_MODE=interactive npm start` and watch every tool call stop at the approval panel; Shift+Tab switches to plan, then guided.
-- `CAPTAIN_MODE=plan npm start` and ask for something: the crew can search and read the clock (declared read-only), and anything else is denied until you leave plan mode.
+- `CAPTAIN_MODE=plan npm start` and ask for something: the crew can search and read the clock (the kit's date and time tools only read), and anything else is denied until you leave plan mode.
 - Ctrl+O to fold the tool calls; drag and right-click to copy; `?` for the shortcuts.
 - `/exit`, then `npm start -- --continue`.

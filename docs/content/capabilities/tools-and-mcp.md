@@ -15,7 +15,37 @@ description: The tools an agent gets, how to give it its own with in-process or 
 - **with file tools or plugins**: `Skill`;
 - **with subagents**: `Agent`, and `Bash` for subagents only.
 
-Everything else an agent does, it does through **MCP tools**: the kit's own (approvals, manual intervention, save to sources) and yours.
+Everything else an agent does, it does through **MCP tools**: the kit's own and yours.
+
+## The kit's own tools
+
+Besides the built-in ones, the kit registers MCP tools of its own, each when it applies (see [Session options](../core-concepts/session-options.md#mcp-servers-and-permissions)):
+
+| Tool | What it does | When |
+| --- | --- | --- |
+| `current_time` | The local date, time, weekday, time zone and UTC offset, and the instant in UTC | Always |
+| `date_math` | Exact date arithmetic: days, weeks and working days between two dates; a date plus or minus days, weeks, months or working days | Always |
+| `request_human_approval` | Asks a person before an action that's hard to undo. See [Approvals](../human-in-the-loop/approvals.md) | Not in autonomous mode |
+| `request_manual_login` | Waits for a person to act by hand. See [Manual intervention](../human-in-the-loop/manual-intervention.md) | With `manualInterventionTexts`, not in autonomous mode |
+| `save_to_sources` | Copies a file from the run's folder into the sources folder, never overwriting | With `sourcesDir` |
+
+### Date and time
+
+The kit puts no date in the system prompt, and only subagents have `Bash`, so `current_time` is how an agent knows what day it is. `date_math` exists because models often miscount dates ("days until 15 November", "three weeks from Friday"); its working days are Monday to Friday, with no holidays. Both answer in the system's time zone, or in `config.timeZone`:
+
+```ts
+const config = { mode: "guided", projectDir, timeZone: "Atlantic/Canary" };
+```
+
+They only read, so they work in every mode, plan mode included. A subagent gets them by name, `tools: ["mcp__time__current_time", "mcp__time__date_math"]`; an agent that doesn't want them leaves them out with `disallowedTools`.
+
+```json
+{"operation": "difference", "from": "2026-10-01", "to": "2026-11-15"}
+→ {"days": 45, "weeks": 6, "remainderDays": 3, "workingDays": 31, "toWeekday": "Sunday", …}
+
+{"operation": "add", "from": "2026-01-31", "amount": 1, "unit": "months"}
+→ {"date": "2026-02-28", "weekday": "Saturday", …}
+```
 
 ## In-process tools: `tool()` and `createSdkMcpServer()`
 
@@ -75,7 +105,7 @@ Guidelines that make tools work well with the model:
 - **Keep dangerous tools behind the approval tool**: in guided mode, say in your system prompt (or the tool's description) to ask for approval before calling it.
 
 :::tip A tool instead of Bash
-If a subagent needs one specific capability (read the clock, run one command), give it a tool that does exactly that, rather than `Bash`. Captain Whiskers' clock cabin boy reads the time with a `current_time` tool of his own. See [Subagents](subagents.md#tools-of-a-subagent).
+If a subagent needs one specific capability (look something up, run one command), give it a tool that does exactly that, rather than `Bash`. Captain Whiskers' clock cabin boy reads the time with the kit's `current_time` and `date_math`, not with `Bash`. See [Subagents](subagents.md#tools-of-a-subagent).
 :::
 
 ## External MCP servers

@@ -4,12 +4,10 @@ import { fileURLToPath } from "node:url";
 import pc from "picocolors";
 import {
   buildSessionOptions,
-  createSdkMcpServer,
   detectLanguage,
   messagesFor,
   runChatInk,
   ensureClaudeAuth,
-  tool,
   ui,
   type AgentDefinition,
   type AgentSpec,
@@ -70,27 +68,6 @@ const TEXTS: Record<Language, { name: string; you: string; mode: string; welcome
 };
 const text = TEXTS[language];
 
-// El reloj del barco: una herramienta propia (un servidor MCP en el mismo proceso) que solo
-// lee la fecha y la hora, en lugar de darle Bash al grumete del reloj.
-const clock = createSdkMcpServer({
-  name: "clock",
-  version: "1.0.0",
-  tools: [
-    tool(
-      "current_time",
-      "The system's current date and time: ISO 8601 in UTC, the local date and time, the time zone and the day of the week.",
-      {},
-      async () => {
-        const now = new Date();
-        const { timeZone } = Intl.DateTimeFormat().resolvedOptions();
-        const local = new Intl.DateTimeFormat("en-GB", { dateStyle: "full", timeStyle: "long", timeZone }).format(now);
-        return { content: [{ type: "text" as const, text: JSON.stringify({ utc: now.toISOString(), local, timeZone }) }] };
-      },
-      { annotations: { readOnlyHint: true } },
-    ),
-  ],
-});
-
 // Todo lo que lee el modelo (prompts, skills, comandos) va en inglés: un texto en español
 // arrastra las respuestas al español aunque el kit pida otro idioma (comprobado), y así el
 // capitán contesta en el idioma del kit. Su nombre sí cambia con el idioma.
@@ -129,10 +106,12 @@ Answer in a cranky parrot's tone, in 3 lines at most.`,
     maxTurns: 1,
   },
   "grumete-del-reloj": {
-    description: "Cabin boy who reads the ship's clock (the system's date and time) and does time arithmetic.",
-    prompt: `You are the clock cabin boy. To answer, read the ship's clock with the current_time tool and
-do any time arithmetic yourself. Return the answer in one line, without frills.`,
-    tools: ["mcp__clock__current_time"],
+    description: "Cabin boy who reads the ship's clock (the system's date and time) and works out dates and how long until something.",
+    prompt: `You are the clock cabin boy. Read the ship's clock with the current_time tool, and work out
+any date or "how long until" with the date_math tool instead of counting yourself. Return the
+answer in one line, without frills.`,
+    // Las herramientas de fecha y hora del kit (servidor "time"), las mismas para todo agente.
+    tools: ["mcp__time__current_time", "mcp__time__date_math"],
     model: "haiku",
     maxTurns: 3,
   },
@@ -140,7 +119,7 @@ do any time arithmetic yourself. Return the answer in one line, without frills.`
 
 const spec: AgentSpec<BaseSessionConfig> = {
   buildSystemPrompt: () => SYSTEM_PROMPT,
-  buildMcpServers: () => ({ clock }),
+  buildMcpServers: () => ({}),
   // Las skills pirate-joke y miau y los comandos /captain-whiskers:joke y
   // /captain-whiskers:fresh-joke (con el nombre del plugin).
   pluginRoots: () => [path.join(__dirname, "plugin")],
@@ -151,9 +130,6 @@ const spec: AgentSpec<BaseSessionConfig> = {
   // llamada en vez de ~16k.
   skills: ["captain-whiskers:pirate-joke", "captain-whiskers:miau"],
   settingSources: [],
-  // En modo plan solo pasan las herramientas que leen: el reloj del barco es una de ellas
-  // (cualquier otra herramienta MCP se deniega mientras dure el plan).
-  planMode: { isReadOnlyTool: (toolName) => toolName === "mcp__clock__current_time" },
 };
 
 // El logo de la cabecera: un gato con sombrero pirata y parche. Solo caracteres de una

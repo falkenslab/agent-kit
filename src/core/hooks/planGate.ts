@@ -14,8 +14,8 @@ export interface PlanScope {
 /** Built-in tools that only read, search, load a skill or delegate (a subagent's own calls come through this gate too). */
 const READING_TOOLS = new Set(["Read", "Glob", "Grep", "WebFetch", "WebSearch", "Skill", "Agent"]);
 
-/** The kit's own MCP tools that only ask a human: approvals and manual intervention. */
-const ASKING_SERVERS = ["mcp__approvals__", "mcp__manualLogin__"];
+/** The kit's own MCP servers whose tools only ask a human (approvals, manual intervention) or only read (the date and time). */
+const ASKING_SERVERS = ["mcp__approvals__", "mcp__manualLogin__", "mcp__time__"];
 
 /** Why a call is denied in plan mode, and what the model should do instead. */
 const denial =

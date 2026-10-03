@@ -76,6 +76,8 @@ export interface Messages {
     askingApproval(summary: string): string;
     waitingManual: string;
     savingToSources(destination: string): string;
+    checkingTime: string;
+    calculatingDates: string;
     reading(file: string): string;
     writing(file: string): string;
     editing(file: string): string;
@@ -178,6 +180,8 @@ export const en: Messages = {
     Skill: ["used {n} skill", "used {n} skills"],
     Agent: ["ran {n} subagent", "ran {n} subagents"],
     Task: ["ran {n} subagent", "ran {n} subagents"],
+    mcp__time__current_time: ["checked the time", "checked the time {n} times"],
+    mcp__time__date_math: ["calculated dates", "calculated dates {n} times"],
   },
   otherTools: ["used {n} tool", "used {n} tools"],
   noOutput: "(no output)",
@@ -189,6 +193,8 @@ export const en: Messages = {
     askingApproval: (summary) => `Asking for human approval: ${summary}`,
     waitingManual: "Waiting for a human to intervene manually",
     savingToSources: (destination) => `Saving a file to sources/${destination}`,
+    checkingTime: "Checking the date and time",
+    calculatingDates: "Calculating dates",
     reading: (file) => `Reading ${file}`,
     writing: (file) => `Writing to ${file}`,
     editing: (file) => `Editing ${file}`,

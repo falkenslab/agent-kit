@@ -25,7 +25,7 @@ Type as usual, `/captain-whiskers:joke` to ask for a joke right away, and `/exit
 
 In a terminal it uses the kit's Ink interface (`runChatInk`) full screen: the prompt stays at the bottom, PageUp/PageDown and the mouse wheel scroll through the conversation and Ctrl+End (or typing) goes back to the bottom; drag with the mouse to select and right-click to copy to the clipboard. With `CAPTAIN_INLINE=1` it uses the inline mode (with the terminal's own scrollback), and without a TTY, or with `CAPTAIN_PLAIN=1`, the plain readline chat.
 
-It runs in `autonomous` mode by default. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=guided` only before publishing something. With `CAPTAIN_MODE=plan` it only reads and plans: its crew can still search the web and read the ship's clock (declared read-only), and anything else is denied until you leave plan mode. Started in any mode but `autonomous`, Shift+Tab cycles through `guided`, `interactive` and `plan`. `/plan` goes into plan mode and back.
+It runs in `autonomous` mode by default. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=guided` only before publishing something. With `CAPTAIN_MODE=plan` it only reads and plans: its crew can still search the web and read the ship's clock (the kit's date and time tools only read), and anything else is denied until you leave plan mode. Started in any mode but `autonomous`, Shift+Tab cycles through `guided`, `interactive` and `plan`. `/plan` goes into plan mode and back.
 
 It shows every tool call with its result (`toolDetail: "full"`, the kit's default). An agent for a non-technical audience would pass `toolDetail: "calls"` or `"summary"` to `runChatInk()` to hide the tools' raw output; Ctrl+O unfolds it either way.
 
@@ -33,6 +33,6 @@ It shows every tool call with its result (`toolDetail: "full"`, the kit's defaul
 
 - `minino-buscachistes` — looks for new jokes on the web (`WebSearch`, `WebFetch`) and brings back 2 or 3 candidates with their source. The captain sends it when you ask for a new joke, or with `/captain-whiskers:fresh-joke`.
 - `loro-critico` — rates the chosen joke from 1 to 10, with no tools; if it fails, the captain asks for another batch, once.
-- `grumete-del-reloj` — tells the time, the date or how long until something. It reads the ship's clock with `current_time`, a read-only tool of the captain's own (an in-process MCP server), not with `Bash`.
+- `grumete-del-reloj` — tells the time, the date or how long until something. It reads the ship's clock and counts days with the kit's own `current_time` and `date_math` tools, not with `Bash`.
 
 All of them use `haiku`. While they work, the interface shows their tool calls under the call that started them, and with `CAPTAIN_MODE=interactive` their tools also go through the approval panel.

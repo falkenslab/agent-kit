@@ -10,6 +10,7 @@ import { createPlanGate } from "./hooks/planGate.js";
 import { createHumanApprovalServer } from "./tools/humanApproval.js";
 import { createManualLoginServer } from "./tools/manualLogin.js";
 import { createSaveToSourcesServer } from "./tools/saveToSources.js";
+import { createTimeServer } from "./tools/time.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { knowledgePluginRoot, knowledgePromptSection } from "./knowledge.js";
 import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
@@ -170,6 +171,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       ...(includeApprovalTool ? { approvals: createHumanApprovalServer(runDir, spec.humanApprovalTexts) } : {}),
       ...(manualInterventionTexts ? { manualLogin: createManualLoginServer(runDir, manualInterventionTexts) } : {}),
       ...(config.sourcesDir ? { sourceFiles: createSaveToSourcesServer(runDir, config.sourcesDir, spec.saveToSourcesDescription) } : {}),
+      // The date and date arithmetic, in every session and mode: only reads (tools/time.ts).
+      time: createTimeServer(config.timeZone),
     },
     hooks: {
       PreToolUse: [

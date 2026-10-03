@@ -30,6 +30,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `tools/manualLogin.ts` — `request_manual_login`, only with `manualInterventionTexts` (ADR-005).
 - `mcpPermissions.ts` — `allowAnyMcpTool` as `canUseTool` (ADR-006).
 - `hooks/fileScopeGate.ts` — file tool boundary (ADR-007); `tools/saveToSources.ts` — `save_to_sources`.
+- `tools/time.ts` — `current_time`, `date_math` (server `time`), in every session and mode; `config.timeZone` or the system's.
 - `knowledge.ts` — knowledge base prompt section and plugin root (ADR-008).
 - `hooks/transcriptLogger.ts` — `transcript.jsonl`: secrets and the OAuth token redacted, long strings and base64 payloads summarized.
 - `claudeAuth.ts` — `resolveClaudeAuth()`: pure lookup, no I/O (ADR-009).

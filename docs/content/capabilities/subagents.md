@@ -82,25 +82,23 @@ buildSubagents: (config) => (config.withResearch ? { agents: { researcher }, all
 A subagent can only use tools that exist in the session. The kit's session has `WebFetch`, `WebSearch`, the file tools (with a knowledge or sources folder), `Skill` (with plugins), `Bash` (with subagents) and every MCP tool from `buildMcpServers()`.
 
 - **Built-in tools**: list them by name: `tools: ["WebSearch", "WebFetch"]`. A subagent with file tools is bound by the same [file scope](../security/file-scope.md) as the main agent.
-- **Your MCP tools**: list them by their full name: `tools: ["mcp__clock__current_time"]`. Register the server in `buildMcpServers()`.
+- **MCP tools**: list them by their full name: the kit's, `tools: ["mcp__time__current_time"]`, or yours, `tools: ["mcp__inventory__find_product"]`, registering the server in `buildMcpServers()`.
 - **No tools**: `tools: []` for a subagent that only thinks.
 - **Bash**: `tools: ["Bash"]`. Bash can reach any path and run anything the user can: keep it opt-in and prefer a tool that does exactly what's needed.
 
 ```ts
-const clock = createSdkMcpServer({
-  name: "clock",
-  version: "1.0.0",
-  tools: [
-    tool("current_time", "The system's current date, time and time zone.", {}, async () => ({
-      content: [{ type: "text" as const, text: new Date().toString() }],
-    }), { annotations: { readOnlyHint: true } }),
-  ],
-});
+const stockClerk: AgentDefinition = {
+  description: "Looks up products in the inventory and reports their stock.",
+  prompt: "Find the products with find_product and answer with their name and stock, one per line.",
+  tools: ["mcp__inventory__find_product"], // a server of yours, from buildMcpServers()
+  model: "haiku",
+  maxTurns: 3,
+};
 
 const clockBoy: AgentDefinition = {
-  description: "Reads the ship's clock (the system's date and time) and does time arithmetic.",
-  prompt: "Read the clock with the current_time tool and do any time arithmetic yourself. Answer in one line.",
-  tools: ["mcp__clock__current_time"],
+  description: "Tells the date and time and works out how long until something.",
+  prompt: "Read the time with current_time and work out dates with date_math. Answer in one line.",
+  tools: ["mcp__time__current_time", "mcp__time__date_math"], // the kit's own
   model: "haiku",
   maxTurns: 3,
 };

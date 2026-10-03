@@ -74,47 +74,45 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 
 ## Step 3: a tool of its own
 
-Tools are MCP servers. The simplest is an in-process server built with `tool()` and `createSdkMcpServer()`, returned from `buildMcpServers()`:
+Every session already has a few tools of the kit, such as `current_time` and `date_math` for dates (see [The kit's own tools](../capabilities/tools-and-mcp.md#the-kits-own-tools)). Your own are MCP servers. The simplest is an in-process server built with `tool()` and `createSdkMcpServer()`, returned from `buildMcpServers()`:
 
 ```ts
 import { createSdkMcpServer, tool } from "@falkenslab/agent-kit";
 import { z } from "zod";
 
-const clock = createSdkMcpServer({
-  name: "clock",
+// Metres per unit.
+const LENGTHS: Record<string, number> = { mm: 0.001, cm: 0.01, m: 1, km: 1000, in: 0.0254, ft: 0.3048, mi: 1609.344 };
+
+const units = createSdkMcpServer({
+  name: "units",
   version: "1.0.0",
   tools: [
     tool(
-      "current_time",
-      "The current date and time, in UTC and in the local time zone.",
-      {},
-      async () => {
-        const now = new Date();
-        return { content: [{ type: "text" as const, text: `${now.toISOString()} (${now.toString()})` }] };
+      "convert_length",
+      "Convert a length between units (mm, cm, m, km, in, ft, mi). Use it instead of converting yourself.",
+      {
+        value: z.number().describe("The length to convert"),
+        from: z.enum(["mm", "cm", "m", "km", "in", "ft", "mi"]),
+        to: z.enum(["mm", "cm", "m", "km", "in", "ft", "mi"]),
+      },
+      async ({ value, from, to }) => {
+        const result = (value * LENGTHS[from]) / LENGTHS[to];
+        return { content: [{ type: "text" as const, text: `${value} ${from} = ${Number(result.toPrecision(10))} ${to}` }] };
       },
       { annotations: { readOnlyHint: true } },
-    ),
-    tool(
-      "days_until",
-      "How many whole days until a date.",
-      { date: z.string().describe("An ISO date, e.g. 2026-12-31") },
-      async ({ date }) => {
-        const days = Math.ceil((Date.parse(date) - Date.now()) / 86_400_000);
-        return { content: [{ type: "text" as const, text: `${days} days` }] };
-      },
     ),
   ],
 });
 
 const spec: AgentSpec<BaseSessionConfig> = {
-  buildSystemPrompt: () => "You are Scout, a concise research assistant. Use the clock tools for anything about dates.",
-  buildMcpServers: () => ({ clock }),
+  buildSystemPrompt: () => "You are Scout, a concise research assistant. Use the tools for dates and unit conversions.",
+  buildMcpServers: () => ({ units }),
   pluginRoots: () => [],
   buildSubagents: () => undefined,
 };
 ```
 
-Tool schemas use [zod](https://zod.dev) (`npm install zod`); a tool without parameters takes `{}`. The kit approves every `mcp__*` tool automatically, so the agent can call `mcp__clock__current_time` right away. See [Tools and MCP servers](../capabilities/tools-and-mcp.md).
+Tool schemas use [zod](https://zod.dev) (`npm install zod`); a tool without parameters takes `{}`. The kit approves every `mcp__*` tool automatically, so the agent can call `mcp__units__convert_length` right away. See [Tools and MCP servers](../capabilities/tools-and-mcp.md).
 
 ## Step 4: notes that survive the session
 

@@ -51,6 +51,11 @@ export interface BaseSessionConfig {
    * language (see language.ts). Pass the same value to the chat, wizard or progress view.
    */
   language?: string;
+  /**
+   * The time zone the date and time tools answer in (`current_time`, `date_math`), an IANA
+   * name such as "Europe/Madrid"; the system's if not given.
+   */
+  timeZone?: string;
 }
 
 /**
