@@ -10,7 +10,7 @@ The agent reaches the built-in knowledge base only through `knowledge_*` tools o
 
 - Today the knowledge base is the prompt section and the `knowledge-*` skills (ADR-008) plus the generic file tools (`Read`, `Write`, `Edit`, `Glob`, `Grep`), scoped by the file scope gate. The model keeps the wiki's rules itself: reads `index.md` first, adds backlinks with `Grep` and `Edit`, updates the index and `log.md`, runs the lint with many `Glob`/`Grep` calls.
 - `knowledgeDir` may become a vector database: the model and the skills must stop depending on files and paths.
-- Originals (`sourcesDir`) stay files; there's no way to download one without a browser or Bash.
+- Originals (`sourcesDir`) stay files, managed by their own tools (`source-tools`, #14).
 
 ## Changes
 
@@ -20,12 +20,11 @@ The agent reaches the built-in knowledge base only through `knowledge_*` tools o
   - `knowledge_index()`: the generated catalog, by section in the declared order;
   - `knowledge_search(query)`: pages matching titles, aliases and content, with snippets (keywords for the file store);
   - `knowledge_read(page)`: the page and what links to it;
-  - `knowledge_create(type, slug, title, content)`: the type's template and frontmatter, unique slug, links that resolve, index updated;
+  - `knowledge_create(type, slug, title, content)`: the type's template and frontmatter, unique slug, links that resolve, index updated; a summary records its original's hash (#14);
   - `knowledge_edit(page, old, new)`: one fragment; links checked, backlinks and index kept;
   - `knowledge_supersede(page, by)`: marks a page superseded, never deletes or renames;
   - `knowledge_log(operation, what)`: an entry in the log with the real date;
-  - `knowledge_check()`: broken links, orphans, pages missing from the index, sources without a summary.
-- Sources: `list_sources()` (each original, and whether it has a summary page) and `download_to_sources(url, destination)` (never overwrites, as `save_to_sources`).
+  - `knowledge_check()`: broken links, orphans, pages missing from the index, and the originals `list_sources` (#14) reports new or changed.
 - `buildSessionOptions()`: with the built-in knowledge base, the `knowledge` server instead of file tools on `knowledgeDir`; `Read` only on `sourcesDir`. A spec option to keep the file tools, and one to pass another store. Agents with `knowledgeBase: false` or `extraWritableDirs` keep the file tools for those folders.
 - Plan gate: the reading tools allowed, the writing ones denied.
 - Rewrite the prompt section and the `knowledge-*` skills in terms of the tools.
