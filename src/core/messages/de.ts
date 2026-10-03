@@ -84,6 +84,7 @@ export const de: Partial<Messages> = {
   toolFailed: "Konnte nicht abgeschlossen werden",
   moreResultLines: (count) => `(+${count} ${plural(count, "Zeile", "Zeilen")})`,
   earlierCalls: (count) => `… ${count} frühere`,
+  moreTodos: (count) => `… ${count} weitere ${plural(count, "Aufgabe", "Aufgaben")}`,
   labels: {
     askingApproval: (summary) => `Bittet um menschliche Genehmigung: ${summary}`,
     waitingManual: "Wartet auf einen manuellen Eingriff",
@@ -105,6 +106,7 @@ export const de: Partial<Messages> = {
     searchingWeb: (query) => `Sucht im Web nach "${query}"`,
     applyingSkill: (skill) => `Wendet den Skill "${skill}" an`,
     aSkill: "einen Skill",
+    updatingTasks: "Aufgabenliste aktualisieren",
   },
 
   auth: {

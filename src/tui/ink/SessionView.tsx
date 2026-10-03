@@ -27,6 +27,7 @@ import { fitWidth, stripAnsi } from "./lineBuffer.js";
 import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
 import { inkColor } from "../theme.js";
+import type { Todo } from "../../core/todos.js";
 
 /** Replaces the default preview (title and lines) of an approval panel; the choices stay. */
 export type RenderApproval = (prompt: ApprovalPrompt) => ReactNode;
@@ -206,8 +207,34 @@ function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtr
           {session.subagentActivity ? <Text dimColor>{fitWidth(`  ↳ ${session.subagentActivity}`, width)}</Text> : null}
         </Box>
       ) : null}
+      {checkpoint || !session.todos ? null : <TodoList todos={session.todos} width={width} />}
       {checkpoint ? null : children}
       <Text>{fitWidth(status, width)}</Text>
+    </Box>
+  );
+}
+
+// At most this many tasks show; the rest are counted (the one in progress always shows).
+const MAX_TODOS = 8;
+
+/** The agent's task list (TodoWrite), as in the Claude Code CLI: `☐` pending, `◼` in progress, `☑` done. */
+function TodoList({ todos, width }: { todos: readonly Todo[]; width: number }) {
+  const current = todos.findIndex((todo) => todo.status === "in_progress");
+  const first = Math.max(0, Math.min(current - 2, todos.length - MAX_TODOS));
+  const shown = todos.slice(first, first + MAX_TODOS);
+  const hidden = todos.length - shown.length;
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      {shown.map((todo, i) => {
+        const line = `  ${i === 0 ? "⎿ " : "  "}${todo.status === "completed" ? "☑" : todo.status === "in_progress" ? "◼" : "☐"} ${todo.content}`;
+        const fitted = fitWidth(line, width);
+        return (
+          <Text key={first + i}>
+            {todo.status === "completed" ? ui.dim(ui.strike(fitted)) : todo.status === "in_progress" ? ui.bold(fitted) : fitted}
+          </Text>
+        );
+      })}
+      {hidden > 0 ? <Text>{ui.dim(fitWidth(`     ${t().moreTodos(hidden)}`, width))}</Text> : null}
     </Box>
   );
 }

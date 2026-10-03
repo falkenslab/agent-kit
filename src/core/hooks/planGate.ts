@@ -11,8 +11,8 @@ export interface PlanScope {
   isReadOnlyTool?(toolName: string, input: Record<string, unknown>): boolean;
 }
 
-/** Built-in tools that only read, search, load a skill or delegate (a subagent's own calls come through this gate too). */
-const READING_TOOLS = new Set(["Read", "Glob", "Grep", "WebFetch", "WebSearch", "Skill", "Agent"]);
+/** Built-in tools that only read, search, load a skill, delegate or keep the task list (a subagent's own calls come through this gate too). */
+const READING_TOOLS = new Set(["Read", "Glob", "Grep", "WebFetch", "WebSearch", "Skill", "Agent", "TodoWrite"]);
 
 /** The kit's own MCP servers whose tools only ask a human (approvals, manual intervention) or only read (the date and time). */
 const ASKING_SERVERS = ["mcp__approvals__", "mcp__manualLogin__", "mcp__time__"];

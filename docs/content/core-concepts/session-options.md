@@ -39,12 +39,12 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 
 | Condition | Tools added |
 | --- | --- |
-| always | `WebFetch`, `WebSearch` |
+| always | `WebFetch`, `WebSearch`, `TodoWrite` |
 | `knowledgeDir` or `sourcesDir` | `Read`, `Write`, `Edit`, `Glob`, `Grep` |
 | file tools or at least one plugin | `Skill` |
 | `spec.buildSubagents()` returns something | `Agent`, `Bash` |
 
-Nothing else of the CLI's built-in tools is available. `Bash` is there only because the SDK won't spawn a subagent whose own tools aren't in the session's; a hook denies it to the main agent.
+`TodoWrite` is the SDK's task list for long jobs: the chats show the list instead of the calls (see [Ink chat](../terminal-ui/ink-chat.md#whats-on-screen)). Nothing else of the CLI's built-in tools is available. `Bash` is there only because the SDK won't spawn a subagent whose own tools aren't in the session's; a hook denies it to the main agent.
 
 ### MCP servers and permissions
 

@@ -10,7 +10,7 @@ description: The tools an agent gets, how to give it its own with in-process or 
 
 `buildSessionOptions()` only grants the built-in tools a configuration needs (see [Session options](../core-concepts/session-options.md#tools)):
 
-- **always**: `WebFetch` and `WebSearch`;
+- **always**: `WebFetch`, `WebSearch` and `TodoWrite` (a task list for long jobs, which the chats show above the prompt);
 - **with `knowledgeDir` or `sourcesDir`**: `Read`, `Write`, `Edit`, `Glob`, `Grep`, all [scoped](../security/file-scope.md);
 - **with file tools or plugins**: `Skill`;
 - **with subagents**: `Agent`, and `Bash` for subagents only.

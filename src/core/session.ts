@@ -11,6 +11,7 @@ import { createHumanApprovalServer } from "./tools/humanApproval.js";
 import { createManualLoginServer } from "./tools/manualLogin.js";
 import { createSaveToSourcesServer } from "./tools/saveToSources.js";
 import { createTimeServer } from "./tools/time.js";
+import { TODO_TOOL } from "./todos.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { knowledgePluginRoot, knowledgePromptSection } from "./knowledge.js";
 import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
@@ -132,8 +133,10 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     // "Skill" has to be listed explicitly: with an explicit `tools` list the SDK loads the
     // skills (they show up in the init message) but doesn't offer the tool to invoke them,
     // so the model ends up looking for SKILL.md files by hand (confirmed empirically).
-    tools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
-    allowedTools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
+    // TodoWrite: the SDK's task list for long jobs, in every session (the chats show the list
+    // instead of the calls; see todos.ts). Accepted in an explicit list (confirmed empirically).
+    tools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", TODO_TOOL, ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
+    allowedTools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", TODO_TOOL, ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
     // Every mcp__* tool (whatever spec.buildMcpServers() registers, approvals/manualLogin
     // when enabled below, sourceFiles, and any server a project's own .mcp.json
     // declares) is approved generically here rather than listed one by one — see

@@ -63,6 +63,7 @@ The approval tool's description (guided mode) already tells the model when to ca
 - **Say who the agent is and what it's for** in the first lines.
 - **Describe its tools' workflow**, not only their existence: "before telling a joke the finder brought, pass it to the critic".
 - **Name the subagents** and say when to use each one.
+- **Ask for a task list on long jobs.** Every session has `TodoWrite`; the model uses it on its own for multi-step work, but a line such as "for anything with more than three steps, keep a task list" makes it reliable, and the person sees the progress above the prompt.
 - **Don't rely on the prompt for safety.** A prompt that says "never delete files" is a wish; the [file scope](../security/file-scope.md), `disallowedTools` and [hooks](../advanced/hooks.md) are guarantees.
 - **Write it in English** (or in the language the agent should reply in). A prompt in another language pulls the replies to that language even when the kit asks for another. See [Languages](../sessions/languages.md#limits).
 - **Keep it short.** Every token of the prompt is sent on every call; put rarely needed detail in a skill, which the model loads only when it applies.

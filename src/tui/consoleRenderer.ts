@@ -1,6 +1,7 @@
 import { stdout } from "node:process";
 import type { AgentEvent } from "../core/runner.js";
 import { createFriendlyToolLabel } from "../core/toolLabels.js";
+import { parseTodos, todoChanges, TODO_TOOL, type Todo } from "../core/todos.js";
 import * as ui from "./ui.js";
 import { t } from "../core/messages/index.js";
 
@@ -43,6 +44,8 @@ export function createConsoleRenderer(options: ConsoleRendererOptions = {}): Con
   const output = options.output ?? ((text: string) => void stdout.write(text));
   let atLineStart = true;
   let labelPrinted = false;
+  // The main agent's task list, to print only what changed in each TodoWrite call.
+  let todos: Todo[] = [];
 
   function write(text: string): void {
     if (text.length === 0) return;
@@ -70,9 +73,18 @@ export function createConsoleRenderer(options: ConsoleRendererOptions = {}): Con
         }
         write(ui.agent(event.text));
         return;
-      case "action":
-        writeLine(ui.action(`[action] ${formatAction(event.toolName, event.input)}`));
+      case "action": {
+        const next = event.toolName === TODO_TOOL ? parseTodos(event.input) : null;
+        if (!next) {
+          writeLine(ui.action(`[action] ${formatAction(event.toolName, event.input)}`));
+          return;
+        }
+        const { started, completed } = todoChanges(todos, next);
+        todos = next;
+        for (const todo of completed) writeLine(ui.action(`[task] ☑ ${todo.content}`));
+        for (const todo of started) writeLine(ui.action(`[task] ◼ ${todo.activeForm}`));
         return;
+      }
       case "subagent-action":
       case "tool-result":
       case "prompt-suggestion":

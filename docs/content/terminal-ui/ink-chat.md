@@ -100,6 +100,7 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 - **The agent's reply** follows a `●`, with its markdown rendered (bold, italics, inline code, lists, headings, quotes, code blocks, and tables as grids), also while it streams.
 - **Tool calls** show one by one: `●` and the tool's label, then `⎿` and the first line of its result (red if it failed, `…` while it runs). Under a subagent call, the subagent's own tool calls (the latest five). **Ctrl+O** folds each group of consecutive calls into one summary line ("Read 2 files, ran 1 shell command") and back. `toolDetail` shows less from the start: the calls without results, or the summary lines (see [How much shows](tool-labels.md#how-much-shows)).
 - **The spinner** shows what the agent is doing, the seconds, and `esc to interrupt`; with a subagent working, a second line `↳` shows its action.
+- **The task list**: on a long job the agent keeps a list of tasks with the SDK's `TodoWrite` tool, and the chat draws it under the spinner, above the prompt: `☐` pending, `◼` in progress (in bold, and the spinner says what it's doing), `☑` done. It stays while any task is left, also between turns, and goes away when they're all done. The `TodoWrite` calls themselves don't show in the history, and at most eight tasks show (the rest are counted). The progress view draws it too.
 - **Each turn ends** with `✻ Worked for Ns`.
 - **The status bar** shows the mode (`(shift+tab)` if it can switch), the turns, the session's input and output tokens, and how full the context window is.
 

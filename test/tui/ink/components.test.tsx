@@ -242,3 +242,30 @@ test("a select shows only the choices that fit in the terminal's height", () => 
   assert.equal(visibleOptions(7, 2, 10), 5);
   assert.equal(visibleOptions(7, 20, 10), 1);
 });
+
+test("the agent's task list shows above the prompt, not in the history, and goes away when it's all done", async () => {
+  const { model, interaction } = setup();
+  const view = render(
+    <SessionView model={model} interaction={interaction}>
+      <Text>PROMPT</Text>
+    </SessionView>,
+  );
+  const todos = (...statuses: string[]) => ({
+    type: "action" as const,
+    toolName: "TodoWrite",
+    input: { todos: statuses.map((status, i) => ({ content: `Task ${i + 1}`, status, activeForm: `Doing task ${i + 1}` })) },
+  });
+  model.startTurn();
+  model.render(todos("completed", "in_progress", "pending"));
+  model.render({ type: "tool-result", toolUseId: "x", toolName: "TodoWrite", isError: false, text: "Todos have been modified successfully." });
+  await settle();
+  const frame = stripAnsi(view.lastFrame() ?? "");
+  assert.match(frame, /⎿ ☑ Task 1\n\s+◼ Task 2\n\s+☐ Task 3\n[\s\S]*PROMPT/);
+  assert.match(frame, /Doing task 2 \(\d+s · esc to interrupt\)/); // the spinner says what's in progress
+  assert.doesNotMatch(frame, /run TodoWrite/);
+  assert.equal(model.getSnapshot().items.length, 0);
+
+  model.render(todos("completed", "completed", "completed"));
+  await settle();
+  assert.doesNotMatch(stripAnsi(view.lastFrame() ?? ""), /Task 1/);
+});

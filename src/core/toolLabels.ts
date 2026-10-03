@@ -67,6 +67,8 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
     // explicitly in `tools`). Confirmed empirically: its input is `{ skill: "name" }`.
     case "Skill":
       return labels.applyingSkill(text(input.skill, labels.aSkill));
+    case "TodoWrite":
+      return labels.updatingTasks;
     default:
       return undefined;
   }

@@ -53,3 +53,16 @@ test("onWrite sees exactly what was written", () => {
   [text("x"), action("Read")].forEach(renderer.render);
   assert.equal(plain(mirrored), "x\n[action] Read\n");
 });
+
+test("a task list prints the tasks that start and finish, not the TodoWrite calls", () => {
+  const { renderer, text: out } = capture();
+  const todos = (...statuses: string[]): AgentEvent => ({
+    type: "action",
+    toolName: "TodoWrite",
+    input: { todos: statuses.map((status, i) => ({ content: `Task ${i + 1}`, status, activeForm: `Doing task ${i + 1}` })) },
+  });
+  renderer.render(todos("in_progress", "pending"));
+  renderer.render(todos("in_progress", "pending")); // nothing changed: nothing printed
+  renderer.render(todos("completed", "in_progress"));
+  assert.equal(out(), "[task] ◼ Doing task 1\n[task] ☑ Task 1\n[task] ◼ Doing task 2\n");
+});

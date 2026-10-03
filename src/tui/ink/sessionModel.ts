@@ -6,6 +6,7 @@ import { finishedLength, hasTable, renderMarkdown } from "./markdown.js";
 import { toolGroupExpanded, toolGroupSummary, type ResultFormatter, type ToolCall, type ToolDetail, type ToolPhrase } from "./toolGroup.js";
 import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
+import { hasOpenTodos, parseTodos, TODO_TOOL, type Todo } from "../../core/todos.js";
 
 export interface HistoryItem {
   id: number;
@@ -44,6 +45,8 @@ export interface SessionSnapshot {
   usage: SessionUsage | null;
   /** How full the context window is (0-100), after the latest turn; null until known. */
   contextPercent: number | null;
+  /** The main agent's task list (TodoWrite), while any task is still to do; null otherwise. */
+  todos: Todo[] | null;
 }
 
 export interface SessionModelOptions {
@@ -132,6 +135,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
     turns: 0,
     usage: null,
     contextPercent: null,
+    todos: null,
   };
 
   function update(changes: Partial<SessionSnapshot>): void {
@@ -286,6 +290,15 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
           return;
         }
         case "action": {
+          // The task list isn't a tool call to show: it's drawn above the prompt, and the task
+          // in progress becomes the spinner's label.
+          const todos = event.toolName === TODO_TOOL ? parseTodos(event.input) : null;
+          if (todos) {
+            const current = todos.find((todo) => todo.status === "in_progress");
+            snapshot = { ...snapshot, todos: hasOpenTodos(todos) ? todos : null, activity: current?.activeForm ?? snapshot.activity };
+            refreshLive();
+            return;
+          }
           flushSegment(true);
           group ??= [];
           group.push({ id: event.toolUseId, label: formatAction(event.toolName, event.input), toolName: event.toolName, result: null });
@@ -294,6 +307,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
           return;
         }
         case "tool-result": {
+          if (event.toolName === TODO_TOOL) return;
           const call = group?.find((c) => c.id === event.toolUseId);
           if (call) call.result = { isError: event.isError, text: event.text };
           refreshLive();
@@ -374,7 +388,7 @@ export function createSessionModel(options: SessionModelOptions = {}): SessionMo
       lastKind = null;
       gapPending = false;
       reply = "";
-      snapshot = { ...snapshot, items: [], live: "", liveGap: false, turns: 0, usage: null, contextPercent: null };
+      snapshot = { ...snapshot, items: [], live: "", liveGap: false, turns: 0, usage: null, contextPercent: null, todos: null };
       refreshLive();
     },
     replay(messages, userLine): void {

@@ -72,6 +72,8 @@ export interface Messages {
   toolFailed: string;
   moreResultLines(count: number): string;
   earlierCalls(count: number): string;
+  /** Tasks of the task list left out of the view. */
+  moreTodos(count: number): string;
   labels: {
     askingApproval(summary: string): string;
     waitingManual: string;
@@ -93,6 +95,7 @@ export interface Messages {
     searchingWeb(query: string): string;
     applyingSkill(skill: string): string;
     aSkill: string;
+    updatingTasks: string;
   };
 
   // Claude authentication.
@@ -189,6 +192,7 @@ export const en: Messages = {
   toolFailed: "Couldn't complete it",
   moreResultLines: (count) => `(+${count} ${plural(count, "line", "lines")})`,
   earlierCalls: (count) => `… ${count} earlier`,
+  moreTodos: (count) => `… ${count} more ${plural(count, "task", "tasks")}`,
   labels: {
     askingApproval: (summary) => `Asking for human approval: ${summary}`,
     waitingManual: "Waiting for a human to intervene manually",
@@ -210,6 +214,7 @@ export const en: Messages = {
     searchingWeb: (query) => `Searching the web for "${query}"`,
     applyingSkill: (skill) => `Applying the "${skill}" skill`,
     aSkill: "a skill",
+    updatingTasks: "Updating the task list",
   },
 
   auth: {

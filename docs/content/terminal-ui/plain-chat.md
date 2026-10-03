@@ -39,6 +39,7 @@ you>
 - Esc interrupts the turn; Ctrl+C interrupts it, or leaves at an idle prompt.
 - ↑/↓ go through the history (`historyPath`).
 - An unknown `/command` is caught before it reaches the model.
+- The agent's task list (`TodoWrite`) prints a line when a task starts (`[task] ◼ Preparing the slides`) and when it's done (`[task] ☑ Prepare the slides`), not the calls; the session log of every chat gets the same lines.
 - `/resume` prints a numbered list of runs and asks for a number.
 - `/plan` switches into [plan mode](../core-concepts/modes.md#plan) and back, with the `modeControl` option or a session opener (the plain chat has no Shift+Tab).
 
