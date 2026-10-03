@@ -18,7 +18,8 @@ With the built-in knowledge base on, the agent reaches `knowledgeDir` only throu
 ## Consequences
 
 - The store keeps backlinks and the index itself; the operation log stays an explicit tool call, so its entries say what the operation was.
-- Page edits are by fragment (`old` → `new`), as `Edit`, so a change costs little output whatever the store.
+- Page edits are by fragment (`old` → `new`), as `Edit`, so a change costs little output whatever the store; a whole page can be rewritten when a better source redoes it. No version history: a knowledge base kept in git has its own.
+- A page's identity (its slug) is never deleted or renamed, since links point to it; its content can change. Knowledge that was wrong is retired: out of the index and the search, kept and restorable, and only with the person's approval.
 - Page types: the kit's four (summary, concept, entity, synthesis, ADR-008) plus the agent's, declared in the spec with their folder (the root included), index section, template and a description of what they hold, which reaches the model through the prompt section and the tools' descriptions. The index lists the sections in the declared order, and a type can add frontmatter fields to its pages' index line (a concept's mastery). A store treats the type as a page label, so a vector store takes declared types as well.
 - The `knowledge-*` skills and the prompt section speak of the tools, not of files or `index.md`.
 - In plan mode the reading tools are allowed and the writing ones denied (ADR-023).
