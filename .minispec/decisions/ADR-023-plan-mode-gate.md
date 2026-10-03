@@ -17,4 +17,5 @@
 - `AgentSpec.planMode` (`isPlanFile`, `isReadOnlyTool`) is the domain's part. Without it, the plan goes in the reply and no MCP tool of the agent runs in plan mode.
 - The note is tagged `<system-reminder>` and in English; a resumed conversation strips it from the human's words (`runs.ts`). A host with its own queue prepends `takeNotice()` itself.
 - A session can start in plan mode; the first message carries the note.
+- The kit's own way out is `present_plan` (in the approvals server, refused outside plan mode): the person runs the plan (the mode goes back as with `/plan`, and the agent carries it out in the same turn), keeps planning or cancels.
 - Besides Shift+Tab, both chats take `/plan` (a local command: it never reaches the model, so it doesn't clash with a skill unless one is named `plan`), which goes into plan mode and back to the mode before it (`togglePlanMode()`, exported for hosts).

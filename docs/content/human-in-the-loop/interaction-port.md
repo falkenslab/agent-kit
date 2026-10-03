@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 7
 title: Interaction port
 description: The InteractionPort interface, the ports the kit installs, and writing your own for a desktop app.
 ---
@@ -23,6 +23,8 @@ interface InteractionPort {
   askManualIntervention(prompt: ApprovalPrompt, signal: AbortSignal): Promise<string>;
   /** Optional: a free-text answer, case kept ("" for none), e.g. a file's path for request_file. */
   askText?(prompt: ApprovalPrompt, signal: AbortSignal): Promise<string>;
+  /** Optional: a choice; resolves to the numbers ("1", "1,3") and/or the person's own words on the next line. */
+  askChoice?(prompt: ApprovalPrompt, choice: { options: readonly string[]; multiple: boolean }, signal: AbortSignal): Promise<string>;
   /** A one-way message for the person. */
   notify(message: string): void;
 }
@@ -30,7 +32,7 @@ interface InteractionPort {
 
 One port is installed per process: `setInteractionPort(port)` and `getInteractionPort()`.
 
-`askText` is optional: a port without it gets the question through `askDecision`, which a terminal reads as text anyway; the kit's own ports implement it (the Ink port with a text field: Enter sends, Esc answers nothing). Its answer keeps its case, unlike a decision's.
+`askText` and `askChoice` are optional: a port without them gets the question through `askDecision` (a choice with its options numbered in the lines), which a terminal reads as text anyway; the kit's own ports implement both (the Ink port with a text field, and a list with "Other"). Their answers keep their case, unlike a decision's. An `ApprovalPrompt` with `markdown: true` (a plan) should be rendered as markdown where the UI can.
 
 ## The ports the kit installs
 

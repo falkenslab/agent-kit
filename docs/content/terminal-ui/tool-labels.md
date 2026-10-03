@@ -22,6 +22,8 @@ A tool call is shown as a short sentence instead of its technical name: `Reading
 | `Skill` | `Applying the "<skill>" skill` |
 | `request_human_approval` | `Asking for human approval: <summary>` |
 | `request_manual_login` | `Waiting for a human to intervene manually` |
+| `ask_human` | `Asking: <question>` |
+| `present_plan` | `Presenting the plan` |
 | `save_to_sources` | `Saving a file to sources/<destination>` |
 | `list_sources` | `Listing the sources` |
 | `download_to_sources` | `Downloading <url> to the sources` |

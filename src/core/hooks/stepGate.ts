@@ -2,6 +2,9 @@ import type { HookCallback, PreToolUseHookInput } from "@anthropic-ai/claude-age
 import { askForDecision } from "./humanInput.js";
 import { t } from "../messages/index.js";
 
+const SELF_ASKING_SERVERS = ["mcp__approvals__", "mcp__manualLogin__"];
+const SELF_ASKING_TOOLS = new Set(["mcp__sourceFiles__request_file", "mcp__sourceFiles__retire_source", "TodoWrite"]);
+
 /**
  * PreToolUse hook for "interactive" mode: pauses before every action and asks for
  * confirmation (by keyboard or by file, see humanInput.ts), like reviewing a plan step
@@ -15,6 +18,9 @@ export function createStepGate(runDir: string, isActive: () => boolean = () => t
   return async (input) => {
     if (!isActive()) return {};
     const pre = input as PreToolUseHookInput;
+    // A tool that asks the person itself (an approval, a question, the plan, a file, retiring
+    // a source) or only keeps the task list isn't asked about first: that would be asking to ask.
+    if (SELF_ASKING_SERVERS.some((prefix) => pre.tool_name.startsWith(prefix)) || SELF_ASKING_TOOLS.has(pre.tool_name)) return {};
 
     const answer = await askForDecision(runDir, {
       title: t().proposedAction,

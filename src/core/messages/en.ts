@@ -68,6 +68,15 @@ export interface Messages {
   fileRequestTitle: string;
   fileRequestQuestion: string;
   retireTitle: string;
+  choiceQuestion(multiple: boolean): string;
+  otherOption: string;
+  choiceKeys(multiple: boolean): string;
+  questionTitle: string;
+  planTitle: string;
+  runPlan: string;
+  keepPlanning: string;
+  cancelPlan: string;
+  planCommentQuestion: string;
   retireLines(source: string, why: "wrong" | "replaced", reason: string, replacedBy?: string): string[];
 
   // Tool calls: folded groups, results and friendly labels.
@@ -107,6 +116,8 @@ export interface Messages {
     downloading(url: string): string;
     requestingFile(description: string): string;
     retiringSource(source: string): string;
+    askingHuman(question: string): string;
+    presentingPlan: string;
   };
 
   // Claude authentication.
@@ -187,6 +198,15 @@ export const en: Messages = {
   fileRequestTitle: "The agent asks for a file",
   fileRequestQuestion: "Path of the file (drag it here), or Enter if you don't have it: ",
   retireTitle: "Retire a source?",
+  choiceQuestion: (multiple) => (multiple ? "Numbers separated by commas, or your own answer: " : "Number, or your own answer: "),
+  otherOption: "Other (type your own answer)",
+  choiceKeys: (multiple) => (multiple ? "Space to mark · Enter to send" : "↑/↓ choose · Enter to send"),
+  questionTitle: "The agent asks",
+  planTitle: "The plan, for your approval",
+  runPlan: "Run it",
+  keepPlanning: "Keep planning",
+  cancelPlan: "Cancel",
+  planCommentQuestion: "What should change? (Enter to skip): ",
   retireLines: (source, why, reason, replacedBy) => [
     `Source: ${source}`,
     why === "wrong" ? "Why: it's wrong; its summary will be retired" : "Why: it's replaced; its summary will be marked superseded",
@@ -214,6 +234,8 @@ export const en: Messages = {
     mcp__sourceFiles__download_to_sources: ["downloaded {n} source", "downloaded {n} sources"],
     mcp__sourceFiles__request_file: ["asked for {n} file", "asked for {n} files"],
     mcp__sourceFiles__retire_source: ["retired {n} source", "retired {n} sources"],
+    mcp__approvals__ask_human: ["asked {n} question", "asked {n} questions"],
+    mcp__approvals__present_plan: ["presented the plan", "presented the plan {n} times"],
   },
   otherTools: ["used {n} tool", "used {n} tools"],
   noOutput: "(no output)",
@@ -248,6 +270,8 @@ export const en: Messages = {
     downloading: (url) => `Downloading ${url} to the sources`,
     requestingFile: (description) => `Asking for a file: ${description}`,
     retiringSource: (source) => `Retiring the source ${source}`,
+    askingHuman: (question) => `Asking: ${question}`,
+    presentingPlan: "Presenting the plan",
   },
 
   auth: {

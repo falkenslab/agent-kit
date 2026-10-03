@@ -288,3 +288,60 @@ test("a text checkpoint takes typed text with Enter, or no answer with Esc", asy
   view.stdin.write("\u001B");
   assert.equal(await none, "");
 });
+
+test("a choice panel: pick one with Enter, or type your own answer under Other", async () => {
+  const { model, interaction } = setup();
+  const view = render(<SessionView model={model} interaction={interaction} />);
+  const signal = new AbortController().signal;
+  const choice = { options: ["One session", "Two sessions"], multiple: false };
+  const first = interaction.port.askChoice!({ title: "The agent asks", lines: ["How long is topic 3?"] }, choice, signal);
+  await settle();
+  assert.match(stripAnsi(view.lastFrame() ?? ""), /How long is topic 3\?[\s\S]*1\. One session[\s\S]*2\. Two sessions[\s\S]*Other/);
+  view.stdin.write(DOWN);
+  await settle();
+  view.stdin.write(ENTER);
+  assert.equal(await first, "2");
+  await settle();
+  assert.match(stripAnsi(view.lastFrame() ?? ""), /✔ Two sessions/);
+
+  const second = interaction.port.askChoice!({ title: "The agent asks", lines: ["Again?"] }, choice, signal);
+  await settle();
+  view.stdin.write(DOWN);
+  await settle();
+  view.stdin.write(DOWN);
+  await settle();
+  view.stdin.write(ENTER); // Other
+  await settle();
+  view.stdin.write("Three, with a lab");
+  await settle();
+  view.stdin.write(ENTER);
+  assert.equal(await second, "Three, with a lab");
+});
+
+test("a multiple choice panel marks with Space and sends with Enter", async () => {
+  const { model, interaction } = setup();
+  const view = render(<SessionView model={model} interaction={interaction} />);
+  const answer = interaction.port.askChoice!({ title: "The agent asks", lines: ["Which topics?"] }, { options: ["Knots", "Sails", "Tides"], multiple: true }, new AbortController().signal);
+  await settle();
+  view.stdin.write(" ");
+  await settle();
+  view.stdin.write(DOWN);
+  await settle();
+  view.stdin.write(DOWN);
+  await settle();
+  view.stdin.write(" ");
+  await settle();
+  view.stdin.write(ENTER);
+  assert.equal(await answer, "1,3");
+});
+
+test("a plan in a checkpoint is drawn as markdown", async () => {
+  const { model, interaction } = setup();
+  const view = render(<SessionView model={model} interaction={interaction} />);
+  void interaction.port.askChoice!({ title: "The plan", lines: ["## Steps", "", "1. **Read** the syllabus"], markdown: true }, { options: ["Run it", "Keep planning"], multiple: false }, new AbortController().signal);
+  await settle();
+  const frame = stripAnsi(view.lastFrame() ?? "");
+  assert.match(frame, /Steps/);
+  assert.match(frame, /1\. Read the syllabus/);
+  assert.doesNotMatch(frame, /\*\*Read\*\*/);
+});

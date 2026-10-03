@@ -287,6 +287,14 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
     },
   });
   const { writeLine } = renderer;
+  // The mode can change from inside the session (the agent leaving plan mode with
+  // present_plan): say so, as /plan does.
+  let unsubscribeMode: (() => void) | undefined;
+  const watchMode = (): void => {
+    unsubscribeMode?.();
+    unsubscribeMode = modeControl()?.subscribe?.((mode) => writeLine(ui.dim(`⏵⏵ ${t().mode(mode)}`)));
+  };
+  watchMode();
 
   // Cached lazily (not fetched until the first "/..." line, and only once — the SDK docs
   // don't promise this list changes mid-session, and re-fetching per line would add a
@@ -358,6 +366,7 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
     queue = createInputQueue({ modeControl: modeControl() });
     run = runQuery(queue.iterable, current.options);
     events = run.events[Symbol.asyncIterator]();
+    watchMode();
     knownCommandTokens = null;
     await showConversation(current.run as RunFolder);
   }
@@ -400,7 +409,9 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
       if (line.toLowerCase() === "/plan") {
         const control = modeControl();
         const next = control ? togglePlanMode(control) : null;
-        writeLine(ui.dim(next ? `⏵⏵ ${t().mode(next)}` : t().modeLocked(control?.mode)));
+        // The new mode's line comes from watchMode(); a control without subscribe() says it here.
+        if (!next) writeLine(ui.dim(t().modeLocked(control?.mode)));
+        else if (!control?.subscribe) writeLine(ui.dim(`⏵⏵ ${t().mode(next)}`));
         continue;
       }
 

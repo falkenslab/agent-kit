@@ -31,6 +31,10 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
   switch (shortName) {
     case "request_human_approval":
       return labels.askingApproval(truncate(text(input.summary, ""), 120));
+    case "ask_human":
+      return labels.askingHuman(truncate(text(input.question, ""), 100));
+    case "present_plan":
+      return labels.presentingPlan;
     case "request_manual_login":
       return labels.waitingManual;
     case "current_time":

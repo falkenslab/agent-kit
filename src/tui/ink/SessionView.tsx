@@ -1,7 +1,7 @@
 import wrapAnsi from "wrap-ansi";
 import { useEffect, useReducer, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, measureElement, Static, Text, useInput, useStdout, type DOMElement } from "ink";
-import { Select, TextInput } from "@inkjs/ui";
+import { MultiSelect, Select, TextInput } from "@inkjs/ui";
 import type { ApprovalPrompt } from "../../core/interaction.js";
 import type { Mode } from "../../core/agentSpec.js";
 import type { SessionUsage } from "../../core/runner.js";
@@ -28,6 +28,7 @@ import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
 import { inkColor } from "../theme.js";
 import type { Todo } from "../../core/todos.js";
+import { renderMarkdown } from "./markdown.js";
 
 /** Replaces the default preview (title and lines) of an approval panel; the choices stay. */
 export type RenderApproval = (prompt: ApprovalPrompt) => ReactNode;
@@ -80,8 +81,9 @@ function CheckpointPanel({
 }) {
   const decision = checkpoint.kind === "decision";
   const text = checkpoint.kind === "text";
+  const choice = checkpoint.kind === "choice";
   useInput((input, key) => {
-    if (text) {
+    if (text || choice) {
       if (key.escape) checkpoint.answer("");
       return;
     }
@@ -99,7 +101,7 @@ function CheckpointPanel({
       ) : (
         <>
           <Text bold>{prompt.title}</Text>
-          {previewLines(prompt.lines, stdout.rows, reservedRows, width - PANEL_FRAME_COLUMNS).map((line, index) => (
+          {previewLines(prompt.markdown ? renderMarkdown(prompt.lines.join("\n"), width - PANEL_FRAME_COLUMNS) : prompt.lines, stdout.rows, reservedRows, width - PANEL_FRAME_COLUMNS).map((line, index) => (
             <Text key={index}>{line}</Text>
           ))}
           {!decision && prompt.question ? <Text dimColor>{prompt.question}</Text> : null}
@@ -110,7 +112,9 @@ function CheckpointPanel({
           <Text>{t().proceed}</Text>
         </Box>
       ) : null}
-      {text ? (
+      {choice && checkpoint.choice ? (
+        <ChoiceInput key={checkpoint.id} choice={checkpoint.choice} onAnswer={(value) => checkpoint.answer(value)} />
+      ) : text ? (
         <Box marginTop={1} flexDirection="column">
           <Box>
             <Text>{"> "}</Text>
@@ -127,6 +131,44 @@ function CheckpointPanel({
           />
         </Box>
       )}
+    </Box>
+  );
+}
+
+/**
+ * A choice's options (one with Select, several with MultiSelect), plus "Other" to type an
+ * answer of one's own; answers as `InteractionPort.askChoice()` says: the numbers, then the
+ * typed answer on the next line.
+ */
+function ChoiceInput({ choice, onAnswer }: { choice: { options: readonly string[]; multiple: boolean }; onAnswer: (value: string) => void }) {
+  const [typing, setTyping] = useState<string | null>(null);
+  const options = [...choice.options.map((label, i) => ({ label: `${i + 1}. ${label}`, value: String(i + 1) })), { label: t().otherOption, value: "other" }];
+  if (typing !== null) {
+    return (
+      <Box marginTop={1} flexDirection="column">
+        <Box>
+          <Text>{"> "}</Text>
+          <TextInput placeholder={t().textAnswerHint} onSubmit={(value) => onAnswer([typing, value.trim()].filter(Boolean).join("\n"))} />
+        </Box>
+        <Text dimColor>{t().textAnswerKeys}</Text>
+      </Box>
+    );
+  }
+  return (
+    <Box marginTop={1} flexDirection="column">
+      {choice.multiple ? (
+        <MultiSelect
+          options={options}
+          onSubmit={(values) => {
+            const picked = values.filter((value) => value !== "other").join(",");
+            if (values.includes("other")) setTyping(picked);
+            else onAnswer(picked);
+          }}
+        />
+      ) : (
+        <Select options={options} onChange={(value) => (value === "other" ? setTyping("") : onAnswer(value))} />
+      )}
+      <Text dimColor>{t().choiceKeys(choice.multiple)}</Text>
     </Box>
   );
 }

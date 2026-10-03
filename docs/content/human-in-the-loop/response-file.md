@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 title: Response file
 description: Answer checkpoints from outside the process by writing a file.
 ---

@@ -68,6 +68,15 @@ export const fr: Partial<Messages> = {
   fileRequestTitle: "L'agent demande un fichier",
   fileRequestQuestion: "Chemin du fichier (glissez-le ici), ou Entrée si vous ne l'avez pas : ",
   retireTitle: "Retirer une source ?",
+  choiceQuestion: (multiple) => (multiple ? "Numéros séparés par des virgules, ou votre propre réponse : " : "Numéro, ou votre propre réponse : "),
+  otherOption: "Autre (tapez votre réponse)",
+  choiceKeys: (multiple) => (multiple ? "Espace pour cocher · Entrée pour envoyer" : "↑/↓ choisir · Entrée pour envoyer"),
+  questionTitle: "L'agent demande",
+  planTitle: "Le plan, pour votre approbation",
+  runPlan: "L'exécuter",
+  keepPlanning: "Continuer à planifier",
+  cancelPlan: "Annuler",
+  planCommentQuestion: "Que faut-il changer ? (Entrée pour passer) : ",
   retireLines: (source, why, reason, replacedBy) => [
     `Source : ${source}`,
     why === "wrong" ? "Motif : elle est erronée ; son résumé sera retiré" : "Motif : elle est remplacée ; son résumé sera marqué comme remplacé",
@@ -95,6 +104,8 @@ export const fr: Partial<Messages> = {
     mcp__sourceFiles__download_to_sources: ["a téléchargé {n} source", "a téléchargé {n} sources"],
     mcp__sourceFiles__request_file: ["a demandé {n} fichier", "a demandé {n} fichiers"],
     mcp__sourceFiles__retire_source: ["a retiré {n} source", "a retiré {n} sources"],
+    mcp__approvals__ask_human: ["a posé {n} question", "a posé {n} questions"],
+    mcp__approvals__present_plan: ["a présenté le plan", "a présenté le plan {n} fois"],
   },
   otherTools: ["a utilisé {n} outil", "a utilisé {n} outils"],
   noOutput: "(aucune sortie)",
@@ -129,6 +140,8 @@ export const fr: Partial<Messages> = {
     downloading: (url) => `Téléchargement de ${url} dans les sources`,
     requestingFile: (description) => `Demande d'un fichier : ${description}`,
     retiringSource: (source) => `Retrait de la source ${source}`,
+    askingHuman: (question) => `Question : ${question}`,
+    presentingPlan: "Présentation du plan",
   },
 
   auth: {

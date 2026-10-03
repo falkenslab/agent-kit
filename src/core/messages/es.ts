@@ -68,6 +68,15 @@ export const es: Partial<Messages> = {
   fileRequestTitle: "El agente pide un fichero",
   fileRequestQuestion: "Ruta del fichero (arrástralo aquí), o Enter si no lo tienes: ",
   retireTitle: "¿Retirar una fuente?",
+  choiceQuestion: (multiple) => (multiple ? "Números separados por comas, o tu propia respuesta: " : "Número, o tu propia respuesta: "),
+  otherOption: "Otra (escribe tu respuesta)",
+  choiceKeys: (multiple) => (multiple ? "Espacio para marcar · Enter para enviar" : "↑/↓ elegir · Enter para enviar"),
+  questionTitle: "El agente pregunta",
+  planTitle: "El plan, para tu aprobación",
+  runPlan: "Ejecutarlo",
+  keepPlanning: "Seguir planificando",
+  cancelPlan: "Cancelar",
+  planCommentQuestion: "¿Qué debería cambiar? (Enter para omitir): ",
   retireLines: (source, why, reason, replacedBy) => [
     `Fuente: ${source}`,
     why === "wrong" ? "Motivo: es errónea; su resumen se retirará" : "Motivo: se sustituye; su resumen se marcará como sustituido",
@@ -95,6 +104,8 @@ export const es: Partial<Messages> = {
     mcp__sourceFiles__download_to_sources: ["descargó {n} fuente", "descargó {n} fuentes"],
     mcp__sourceFiles__request_file: ["pidió {n} fichero", "pidió {n} ficheros"],
     mcp__sourceFiles__retire_source: ["retiró {n} fuente", "retiró {n} fuentes"],
+    mcp__approvals__ask_human: ["hizo {n} pregunta", "hizo {n} preguntas"],
+    mcp__approvals__present_plan: ["presentó el plan", "presentó el plan {n} veces"],
   },
   otherTools: ["usó {n} herramienta", "usó {n} herramientas"],
   noOutput: "(sin salida)",
@@ -129,6 +140,8 @@ export const es: Partial<Messages> = {
     downloading: (url) => `Descargando ${url} a las fuentes`,
     requestingFile: (description) => `Pidiendo un fichero: ${description}`,
     retiringSource: (source) => `Retirando la fuente ${source}`,
+    askingHuman: (question) => `Preguntando: ${question}`,
+    presentingPlan: "Presentando el plan",
   },
 
   auth: {

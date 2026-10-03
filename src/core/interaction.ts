@@ -4,6 +4,14 @@ export interface ApprovalPrompt {
   lines: string[];
   /** Terminal question text; defaults to the approve/reject one. */
   question?: string;
+  /** The lines are markdown (a plan): a UI that can render it should. */
+  markdown?: boolean;
+}
+
+/** How `askChoice()` asks: the options to pick from, and whether several can be picked. */
+export interface ChoiceSettings {
+  options: readonly string[];
+  multiple: boolean;
 }
 
 /**
@@ -30,6 +38,13 @@ export interface InteractionPort {
    * answer a plain terminal reads as text too.
    */
   askText?(prompt: ApprovalPrompt, signal: AbortSignal): Promise<string>;
+  /**
+   * A choice between options. Resolves to the raw answer: the chosen options' numbers
+   * (1-based, comma-separated, "1" or "1,3") on the first line, and the person's own answer
+   * ("Other") on the lines after it, or alone. Optional: without it the kit asks through
+   * `askDecision()`, with the options numbered in the prompt.
+   */
+  askChoice?(prompt: ApprovalPrompt, choice: ChoiceSettings, signal: AbortSignal): Promise<string>;
   /** A one-way message for the person. */
   notify(message: string): void;
 }

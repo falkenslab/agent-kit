@@ -52,7 +52,7 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 
 | Server | Tool | When |
 | --- | --- | --- |
-| `approvals` | `request_human_approval` | mode is not `autonomous` |
+| `approvals` | `request_human_approval`, `ask_human`, `present_plan` | mode is not `autonomous` |
 | `manualLogin` | `request_manual_login` | mode is not `autonomous` and `spec.manualInterventionTexts` is set |
 | `sourceFiles` | `list_sources`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode | `config.sourcesDir` is set |
 | `time` | `current_time`, `date_math` | always (in `config.timeZone`, or the system's) |

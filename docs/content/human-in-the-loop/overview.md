@@ -6,14 +6,16 @@ description: How checkpoints ask a person, and the two channels that can answer 
 
 # Human in the loop
 
-A **checkpoint** is a moment when the agent stops and waits for a person. The kit has two kinds:
+A **checkpoint** is a moment when the agent stops and waits for a person. The kit has these kinds:
 
 | Kind | Asked by | Answers | Page |
 | --- | --- | --- | --- |
 | Decision | the [step gate](step-gate.md) (interactive mode) and the [approval tool](approvals.md) (guided mode) | Yes, No, Stop | [Step gate](step-gate.md), [Approvals](approvals.md) |
 | Manual intervention | the [manual login tool](manual-intervention.md) | Done, continue | [Manual intervention](manual-intervention.md) |
+| Choice | `ask_human`, and `present_plan` in plan mode | One or more options, or one's own words | [Choices and plans](choices-and-plans.md) |
+| Text | `request_file` | A path, or nothing | [Sources](../capabilities/knowledge-base.md#adding-originals) |
 
-Your own tools and hooks can ask too, with the same functions: [`askForDecision()`](#asking-from-your-own-code) and `askForManualIntervention()`.
+Your own tools and hooks can ask too, with the same functions: [`askForDecision()`](#asking-from-your-own-code), `askForManualIntervention()`, [`askForChoice()`](choices-and-plans.md#asking-from-your-own-code) and `askForText()`.
 
 ## Two channels, first answer wins
 

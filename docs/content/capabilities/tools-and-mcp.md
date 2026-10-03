@@ -26,6 +26,8 @@ Besides the built-in ones, the kit registers MCP tools of its own, each when it 
 | `current_time` | The local date, time, weekday, time zone and UTC offset, and the instant in UTC | Always |
 | `date_math` | Exact date arithmetic: days, weeks and working days between two dates; a date plus or minus days, weeks, months or working days | Always |
 | `request_human_approval` | Asks a person before an action that's hard to undo. See [Approvals](../human-in-the-loop/approvals.md) | Not in autonomous mode |
+| `ask_human` | Asks the person to choose between options, within the turn. See [Choices and plans](../human-in-the-loop/choices-and-plans.md) | Not in autonomous mode |
+| `present_plan` | Shows the plan; the person runs it (leaving plan mode), keeps planning or cancels | Only in plan mode |
 | `request_manual_login` | Waits for a person to act by hand. See [Manual intervention](../human-in-the-loop/manual-intervention.md) | With `manualInterventionTexts`, not in autonomous mode |
 | `list_sources`, `save_to_sources`, `download_to_sources` | List the originals with their status; add one from the run's folder or a URL, never overwriting. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained) | With `sourcesDir` |
 | `request_file`, `retire_source` | Ask the person for a file; take out a wrong or superseded original, with approval | With `sourcesDir`, not in autonomous mode |

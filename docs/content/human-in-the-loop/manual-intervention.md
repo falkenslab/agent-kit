@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 title: Manual intervention
 description: Let the agent pause until a person does something by hand, such as logging in.
 ---

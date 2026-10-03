@@ -6,7 +6,7 @@ description: The interactive mode's PreToolUse hook that asks before every tool 
 
 # Step gate
 
-The step gate is a `PreToolUse` hook that stops every tool call (the main agent's and its subagents') until a person answers. It's what `interactive` mode means.
+The step gate is a `PreToolUse` hook that stops every tool call (the main agent's and its subagents') until a person answers. It's what `interactive` mode means. Tools that ask the person themselves (`ask_human`, `present_plan`, the approval and manual-intervention tools, `request_file`, `retire_source`) and the task list (`TodoWrite`) go through without asking first.
 
 ## When it's active
 

@@ -90,6 +90,8 @@ export const terminalInteractionPort: InteractionPort = {
   askDecision: askOnTerminal,
   askManualIntervention: askOnTerminal,
   askText: askOnTerminal,
+  askChoice: (prompt, choice, signal) =>
+    askOnTerminal({ ...prompt, lines: [...prompt.lines, ...choice.options.map((option, i) => `${i + 1}. ${option}`)], question: t().choiceQuestion(choice.multiple) }, signal),
   notify(message: string): void {
     if (stdin.isTTY) console.log(message);
   },

@@ -45,7 +45,7 @@ Useful to watch a new agent work, step by step, or to run it where every action 
 
 ## plan
 
-Think before building: the agent reads, researches and presents a plan, and nothing changes until the person switches out of plan mode (Shift+Tab in the chat) and the agent carries the plan out. The plan gate, a `PreToolUse` hook active only in this mode, decides every tool call, the subagents' included:
+Think before building: the agent reads, researches and presents a plan, and nothing changes until the person switches out of plan mode and the agent carries the plan out. The agent presents the plan with [`present_plan`](../human-in-the-loop/choices-and-plans.md#present_plan-leaving-plan-mode-with-approval), where the person runs it, keeps planning or cancels; Shift+Tab and `/plan` switch out by hand. The plan gate, a `PreToolUse` hook active only in this mode, decides every tool call, the subagents' included:
 
 - **Goes through:** `Read`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Skill`, `Agent`, `TodoWrite`, the approval and manual-intervention tools, the date and time tools, `list_sources`, and the MCP tools the agent declares read-only.
 - **Writes:** `Write`/`Edit` only to the agent's plan files, if it declares any. Without them the agent presents the plan in its reply.

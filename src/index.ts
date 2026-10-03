@@ -56,8 +56,8 @@ export { createSubagentTypeGate } from "./core/hooks/subagentTypeGate.js";
 export { createSubagentForegroundGate } from "./core/hooks/subagentForegroundGate.js";
 export { createFileScopeGate, checkFileScope, type FileScope } from "./core/hooks/fileScopeGate.js";
 export { createPlanGate, checkPlanScope, type PlanScope } from "./core/hooks/planGate.js";
-export { askForDecision, askForManualIntervention } from "./core/hooks/humanInput.js";
-export { setInteractionPort, getInteractionPort, type InteractionPort, type ApprovalPrompt } from "./core/interaction.js";
+export { askForDecision, askForManualIntervention, askForChoice, askForText, type ChoiceAnswer } from "./core/hooks/humanInput.js";
+export { setInteractionPort, getInteractionPort, type InteractionPort, type ApprovalPrompt, type ChoiceSettings } from "./core/interaction.js";
 export { terminalInteractionPort, setSharedReadline, getSharedReadline } from "./tui/terminalInteraction.js";
 
 // The checkpoints answer on the terminal by default, as they always have; a non-terminal

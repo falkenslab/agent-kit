@@ -1,6 +1,7 @@
 import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { getInteractionPort, type ApprovalPrompt, type InteractionPort } from "../interaction.js";
+import { t } from "../messages/index.js";
 
 export type { ApprovalPrompt } from "../interaction.js";
 
@@ -24,6 +25,42 @@ export async function askForDecision(runDir: string, prompt: ApprovalPrompt): Pr
  */
 export async function askForText(runDir: string, prompt: ApprovalPrompt): Promise<string> {
   return await raceWithResponseFile(runDir, (port, signal) => (port.askText ? port.askText(prompt, signal) : port.askDecision(prompt, signal)), false);
+}
+
+/** What the person chose: the options they picked, and their own answer if they gave one. */
+export interface ChoiceAnswer {
+  chosen: string[];
+  other?: string;
+}
+
+/** Reads a raw choice answer (see `InteractionPort.askChoice()`) against `options`. */
+export function parseChoice(raw: string, options: readonly string[], multiple: boolean): ChoiceAnswer {
+  const [first = "", ...rest] = raw.trim().split(/\r?\n/);
+  const isNumbers = /^\s*\d+(\s*,\s*\d+)*\s*$/.test(first);
+  const numbers = isNumbers ? first.split(",").map((n) => Number(n.trim())).filter((n) => n >= 1 && n <= options.length) : [];
+  const chosen = [...new Set(numbers)].slice(0, multiple ? undefined : 1).map((n) => options[n - 1]);
+  const other = (isNumbers ? rest : [first, ...rest]).join("\n").trim();
+  return other ? { chosen, other } : { chosen };
+}
+
+/**
+ * A choice between `options`, through the port's `askChoice()` (or `askDecision()` with the
+ * options numbered in the prompt) and the response file, which takes the same answer: the
+ * numbers, or the person's own words.
+ */
+export async function askForChoice(runDir: string, prompt: ApprovalPrompt, options: readonly string[], multiple = false): Promise<ChoiceAnswer> {
+  const raw = await raceWithResponseFile(
+    runDir,
+    (port, signal) =>
+      port.askChoice
+        ? port.askChoice(prompt, { options, multiple }, signal)
+        : port.askDecision(
+            { ...prompt, lines: [...prompt.lines, ...options.map((option, i) => `${i + 1}. ${option}`)], question: t().choiceQuestion(multiple) },
+            signal,
+          ),
+    false,
+  );
+  return parseChoice(raw, options, multiple);
 }
 
 /** Like `askForDecision()`, for a manual-intervention checkpoint (see tools/manualLogin.ts). */

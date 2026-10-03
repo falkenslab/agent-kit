@@ -411,12 +411,17 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
   let run!: AgentRun;
   let knownCommands!: Promise<Set<string> | null>;
   let generation = 0;
+  let unsubscribeMode: (() => void) | undefined;
   function connect(): void {
     const own = ++generation;
     queue = createInputQueue({ modeControl: modeControl() });
     run = runQuery(queue.iterable, { ...current.options, promptSuggestions: tuiOptions.promptSuggestions ?? true });
     const events = run.events[Symbol.asyncIterator]();
     input.setMode(modeControl()?.mode ?? null);
+    // The mode can also change from inside the session (the agent leaving plan mode with
+    // present_plan): the status bar follows it.
+    unsubscribeMode?.();
+    unsubscribeMode = modeControl()?.subscribe?.((mode) => input.setMode(mode));
 
     // Every registered command name and alias, built-ins included, for completion and for
     // catching an unknown "/command" before it reaches the model as plain text (see chatTui.ts).

@@ -1,13 +1,17 @@
-import type { ApprovalPrompt, InteractionPort } from "../../core/interaction.js";
+import type { ApprovalPrompt, ChoiceSettings, InteractionPort } from "../../core/interaction.js";
+import { parseChoice } from "../../core/hooks/humanInput.js";
 import * as ui from "../ui.js";
+import { renderMarkdown } from "./markdown.js";
 import { t } from "../../core/messages/index.js";
 
-export type CheckpointKind = "decision" | "manual-intervention" | "text";
+export type CheckpointKind = "decision" | "manual-intervention" | "text" | "choice";
 
 export interface Checkpoint {
   id: number;
   kind: CheckpointKind;
   prompt: ApprovalPrompt;
+  /** For a choice: the options and whether several can be picked. */
+  choice?: ChoiceSettings;
   /** Settles the checkpoint with the raw answer ("y", "n", "q" for a decision). */
   answer(value: string): void;
 }
@@ -48,15 +52,28 @@ export function createInkInteraction(note: (text: string) => void): InkInteracti
     note([ui.heading(`=== ${prompt.title} ===`), ...prompt.lines, outcome].join("\n"));
   }
 
-  function ask(kind: CheckpointKind, prompt: ApprovalPrompt, signal: AbortSignal): Promise<string> {
+  /** How a settled checkpoint is written to the history. */
+  function settledAs(kind: CheckpointKind, value: string, choice?: ChoiceSettings): string {
+    if (kind === "decision") return outcome(value) ?? value;
+    if (kind === "text") return value ? ui.success(`✔ ${value}`) : ui.dim(t().noAnswer);
+    if (kind === "choice" && choice) {
+      const answer = parseChoice(value, choice.options, choice.multiple);
+      const words = [...answer.chosen, ...(answer.other ? [answer.other] : [])];
+      return words.length ? ui.success(`✔ ${words.join("; ")}`) : ui.dim(t().noAnswer);
+    }
+    return ui.success(t().done);
+  }
+
+  function ask(kind: CheckpointKind, prompt: ApprovalPrompt, signal: AbortSignal, choice?: ChoiceSettings): Promise<string> {
     return new Promise<string>((resolve) => {
       const checkpoint: Checkpoint = {
         id: nextId++,
         kind,
         prompt,
+        ...(choice ? { choice } : {}),
         answer(value: string): void {
           if (!remove(checkpoint)) return;
-          record(prompt, kind === "decision" ? (outcome(value) ?? value) : kind === "text" ? (value ? ui.success(`✔ ${value}`) : ui.dim(t().noAnswer)) : ui.success(t().done));
+          record(prompt.markdown ? { ...prompt, lines: renderMarkdown(prompt.lines.join("\n"), 80) } : prompt, settledAs(kind, value, choice));
           resolve(value);
         },
       };
@@ -77,6 +94,7 @@ export function createInkInteraction(note: (text: string) => void): InkInteracti
       askDecision: (prompt, signal) => ask("decision", prompt, signal),
       askManualIntervention: (prompt, signal) => ask("manual-intervention", prompt, signal),
       askText: (prompt, signal) => ask("text", prompt, signal),
+      askChoice: (prompt, choice, signal) => ask("choice", prompt, signal, choice),
       notify: (message) => note(message),
     },
     subscribe(listener: () => void): () => void {

@@ -68,6 +68,15 @@ export const de: Partial<Messages> = {
   fileRequestTitle: "Der Agent bittet um eine Datei",
   fileRequestQuestion: "Pfad der Datei (hierher ziehen), oder Enter, wenn du sie nicht hast: ",
   retireTitle: "Eine Quelle zurückziehen?",
+  choiceQuestion: (multiple) => (multiple ? "Nummern durch Kommas getrennt, oder deine eigene Antwort: " : "Nummer, oder deine eigene Antwort: "),
+  otherOption: "Andere (eigene Antwort eingeben)",
+  choiceKeys: (multiple) => (multiple ? "Leertaste markiert · Enter sendet" : "↑/↓ wählen · Enter sendet"),
+  questionTitle: "Der Agent fragt",
+  planTitle: "Der Plan, zur Freigabe",
+  runPlan: "Ausführen",
+  keepPlanning: "Weiter planen",
+  cancelPlan: "Abbrechen",
+  planCommentQuestion: "Was soll sich ändern? (Enter zum Überspringen): ",
   retireLines: (source, why, reason, replacedBy) => [
     `Quelle: ${source}`,
     why === "wrong" ? "Warum: sie ist falsch; ihre Zusammenfassung wird zurückgezogen" : "Warum: sie wird ersetzt; ihre Zusammenfassung wird als ersetzt markiert",
@@ -95,6 +104,8 @@ export const de: Partial<Messages> = {
     mcp__sourceFiles__download_to_sources: ["{n} Quelle heruntergeladen", "{n} Quellen heruntergeladen"],
     mcp__sourceFiles__request_file: ["um {n} Datei gebeten", "um {n} Dateien gebeten"],
     mcp__sourceFiles__retire_source: ["{n} Quelle zurückgezogen", "{n} Quellen zurückgezogen"],
+    mcp__approvals__ask_human: ["{n} Frage gestellt", "{n} Fragen gestellt"],
+    mcp__approvals__present_plan: ["Plan vorgelegt", "Plan {n}-mal vorgelegt"],
   },
   otherTools: ["hat {n} Werkzeug verwendet", "hat {n} Werkzeuge verwendet"],
   noOutput: "(keine Ausgabe)",
@@ -129,6 +140,8 @@ export const de: Partial<Messages> = {
     downloading: (url) => `${url} in die Quellen herunterladen`,
     requestingFile: (description) => `Um eine Datei bitten: ${description}`,
     retiringSource: (source) => `Quelle ${source} zurückziehen`,
+    askingHuman: (question) => `Frage: ${question}`,
+    presentingPlan: "Plan vorlegen",
   },
 
   auth: {
