@@ -34,6 +34,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `todos.ts` — the SDK's `TodoWrite` task list, in every session: `parseTodos()`, `todoChanges()`; the chats draw the list instead of the calls.
 - `tools/time.ts` — `current_time`, `date_math` (server `time`), in every session and mode; `config.timeZone` or the system's.
 - `knowledge.ts` — knowledge base prompt section (tools or files variant) and plugin roots (ADR-008).
+- `agentHelp.ts` — with `spec.identity`: the "Who you are" prompt section (name, version, agent-kit's version) and the `agent-help` plugin, written into the run's folder from `assets/agent-help/SKILL.md` (the chat's part, checked against the chat's commands and keys by a test), this session's facts and `spec.helpGuide`.
 - `knowledgeStore.ts` — `KnowledgeStore`, `PageType`, the kit's four page types and their templates; `fileKnowledgeStore.ts` — the store over markdown files (index generated, backlinks computed, links as ids to the tools and relative paths on disk); `tools/knowledgeTools.ts` — the `knowledge_*` tools (ADR-024).
 - `hooks/transcriptLogger.ts` — `transcript.jsonl`: secrets and the OAuth token redacted, long strings and base64 payloads summarized.
 - `claudeAuth.ts` — `resolveClaudeAuth()`: pure lookup, no I/O (ADR-009).
@@ -65,10 +66,14 @@ With `knowledgeDir` and/or `sourcesDir`, `cwd` = `projectDir`. With the built-in
 
 `assets/knowledge-plugin/` (name `knowledge`): skills `knowledge-ingest`, `knowledge-query`, `knowledge-lint` over the `knowledge_*` tools; commands `/knowledge:ingest`, `/knowledge:query`, `/knowledge:lint`. `assets/knowledge-plugin-files/`, the same name, for `knowledgeTools: "files"`: the skills on files, plus `knowledge-pages` (templates). Opt out with `spec.knowledgeBase: false`.
 
+## Agent help plugin
+
+Generated per session in `<runDir>/agent-help/` (name `agent-kit`, skill `agent-help`) when the spec has an `identity`, so the agent's guide goes inside the skill and needs no file tools.
+
 ## Folder map
 
 - `src/core/`, `src/tui/`, `src/index.ts` — the library.
-- `assets/knowledge-plugin/`, `assets/knowledge-plugin-files/` — shipped with the package.
+- `assets/knowledge-plugin/`, `assets/knowledge-plugin-files/`, `assets/agent-help/` — shipped with the package.
 - `test/` — `node:test` suites mirroring `src/`.
 - `examples/captain-whiskers/` — toy consumer.
 - `docs/` — the documentation site (Docusaurus, its own npm project): guides in `content/`, the API reference generated from `src/` (ADR-022); published to GitHub Pages by `.github/workflows/docs.yml`.

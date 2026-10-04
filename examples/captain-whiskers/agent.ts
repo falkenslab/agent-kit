@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { appendFile, copyFile, mkdir, readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -148,8 +149,15 @@ const JOKE_PAGE: PageType = {
   indexFields: ["score"],
 };
 
+// Su versión, la de su package.json.
+const { version } = JSON.parse(readFileSync(path.join(__dirname, "package.json"), "utf8")) as { version: string };
+
 const spec: AgentSpec<BaseSessionConfig> = {
   buildSystemPrompt: () => SYSTEM_PROMPT,
+  // Quién es: el kit se lo dice al modelo (con la versión de agent-kit) y le da la skill
+  // agent-help, que responde cómo se usa el chat y, con guide.md, sus comandos y carpetas.
+  identity: { name: text.name, version, description: "a retired pirate cat who tells jokes, an example agent of agent-kit" },
+  helpGuide: path.join(__dirname, "guide.md"),
   buildMcpServers: () => ({}),
   // Las skills pirate-joke y miau y los comandos /captain-whiskers:joke y
   // /captain-whiskers:fresh-joke (con el nombre del plugin).

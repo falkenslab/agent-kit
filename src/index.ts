@@ -14,7 +14,7 @@ export {
   truncatePath,
   type ToolDescriber,
 } from "./core/toolLabels.js";
-export type { Mode, BaseSessionConfig, AgentSpec, PlanModeSpec } from "./core/agentSpec.js";
+export type { Mode, BaseSessionConfig, AgentSpec, AgentIdentity, PlanModeSpec } from "./core/agentSpec.js";
 export { buildSessionOptions, createInputQueue, createDeferred, createModeControl, togglePlanMode, type ModeControl } from "./core/session.js";
 export { runQuery, type AgentEvent, type AgentRun, type SessionUsage, type ContextUsage } from "./core/runner.js";
 export { knowledgePluginRoot, knowledgePromptSection } from "./core/knowledge.js";

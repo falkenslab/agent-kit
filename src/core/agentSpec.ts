@@ -75,6 +75,19 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
   buildSystemPrompt(config: TConfig): string;
 
   /**
+   * Who the agent is. With it, the kit tells the model its name, version and what it is, plus
+   * agent-kit's version, and offers the `agent-help` skill, which answers how to use the
+   * agent: the kit's chat (modes, keys, slash commands, resuming) and `helpGuide`. Without
+   * it, neither.
+   */
+  identity?: AgentIdentity;
+  /**
+   * Absolute path of a markdown guide to the agent's own domain (its commands, configuration,
+   * folders), which the `agent-help` skill includes. Only with `identity`.
+   */
+  helpGuide?: string;
+
+  /**
    * MCP servers this agent always registers (e.g. Playwright for a browser-driving
    * agent), on top of the generic ones `buildSessionOptions()` wires up itself when
    * applicable (human approval, manual intervention, save-to-knowledge) — those aren't
@@ -199,6 +212,16 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    * writes nothing and presents its plan in its reply.
    */
   planMode?: PlanModeSpec<TConfig>;
+}
+
+/** Who an agent is, as told to its model (`AgentSpec.identity`). */
+export interface AgentIdentity {
+  /** The agent's name, e.g. "padawan". */
+  name: string;
+  /** Its version, e.g. its package's. */
+  version?: string;
+  /** What it is, in one line, e.g. "an agent that takes a Moodle course as a student". */
+  description?: string;
 }
 
 /** The domain's part of "plan" mode: which files hold the plan and which of its own tools only read. */

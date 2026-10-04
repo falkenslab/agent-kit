@@ -100,7 +100,9 @@ export interface InkChatOptions extends ChatTuiOptions {
 }
 
 const DEFAULT_PROMPT_LABEL = "\n> ";
-const DEFAULT_EXIT_COMMANDS: readonly string[] = ["/exit", "/quit"];
+/** The chat's own commands, never sent to the model (the agent-help skill lists them; a test keeps both in step). */
+export const DEFAULT_EXIT_COMMANDS: readonly string[] = ["/exit", "/quit"];
+export const LOCAL_COMMANDS = { copy: "/copy", resume: "/resume", plan: "/plan" } as const;
 const DEFAULT_HISTORY_LIMIT = 100;
 // The prompt's frame: a border and one column of padding on each side.
 const PROMPT_FRAME_COLUMNS = 4;
@@ -568,18 +570,18 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
       if (exitCommands.has(line.toLowerCase())) break;
 
       // A local command, never sent to the model: the last reply to the clipboard (OSC 52).
-      if (status && line.toLowerCase() === "/copy") {
+      if (status && line.toLowerCase() === LOCAL_COMMANDS.copy) {
         const reply = model.lastReply();
         if (reply) stdout.write(clipboardSequence(reply));
         model.writeLine(ui.dim(reply ? t().copiedReply(reply.length) : t().nothingToCopy));
         continue;
       }
-      if (runsDir && line.toLowerCase() === "/resume") {
+      if (runsDir && line.toLowerCase() === LOCAL_COMMANDS.resume) {
         await resume();
         continue;
       }
       // A local command too: into plan mode, or back to the mode it was entered from.
-      if (line.toLowerCase() === "/plan") {
+      if (line.toLowerCase() === LOCAL_COMMANDS.plan) {
         const control = modeControl();
         const next = control ? togglePlanMode(control) : null;
         if (next) input.setMode(next);

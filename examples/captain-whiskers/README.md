@@ -34,6 +34,8 @@ Type as usual, and `/exit` to leave. His commands:
 
 The kit's own `/knowledge:ingest`, `/knowledge:query` and `/knowledge:lint` work too.
 
+He knows who he is and how he's used: the spec's `identity` gives the model his name, his version and agent-kit's, and the kit's `agent-help` skill answers questions such as "how do I resume a conversation?" from the kit's chat and from his own [guide.md](guide.md) (his commands, folders and settings).
+
 ↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each run keeps its session log, its transcript and the conversation in `.run/<date-time>/` (ignored by git): `npm start -- --continue` picks up the latest one, and `/resume` lists them to pick one. The ↑/↓ history lives in `.run/history.jsonl`.
 
 In a terminal it uses the kit's Ink interface (`runChatInk`) full screen: the prompt stays at the bottom, PageUp/PageDown and the mouse wheel scroll through the conversation and Ctrl+End (or typing) goes back to the bottom; drag with the mouse to select and right-click to copy to the clipboard. With `CAPTAIN_INLINE=1` it uses the inline mode (with the terminal's own scrollback), and without a TTY, or with `CAPTAIN_PLAIN=1`, the plain readline chat.
@@ -74,5 +76,6 @@ A walk through every feature, in a fresh start (`rm -rf logbook treasure`, then 
 | 9 | `Organize and run a 4-step treasure hunt for the crew, step by step.` | A task list under the spinner (`TodoWrite`): pending, in progress, done. |
 | 10 | `/plan`, then `Plan a pirate party.` | The plan in a panel (`present_plan`): *Run it* leaves plan mode (the status bar changes) and he carries it out in the same turn. |
 | 11 | `CAPTAIN_TOOL_DETAIL=summary npm start`, then step 6 again | Tool calls as one line per group; Ctrl+O unfolds them. |
+| 12 | `How do I pick up yesterday's conversation, and how do I make you learn a document?` | He applies the `agent-kit:agent-help` skill and answers `/resume` (or `--continue`), and `treasure/` plus `/captain-whiskers:learn` from his guide. |
 
 The model decides some of it: if a step doesn't happen (he lists the steps in his reply instead of keeping a task list, say), ask for it in other words.

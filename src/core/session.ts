@@ -18,6 +18,7 @@ import type { KnowledgeStore } from "./knowledgeStore.js";
 import { createKnowledgeServer } from "./tools/knowledgeTools.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { knowledgePluginRoot, knowledgePromptSection } from "./knowledge.js";
+import { AGENT_HELP_SKILL, identityPromptSection, writeAgentHelpPlugin } from "./agentHelp.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 import { replyLanguageInstruction, type Language } from "./language.js";
 import { chooseLanguage } from "./messages/index.js";
@@ -104,7 +105,25 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // to invent one just to get `cwd`/`skills: "all"`/`plugins` wired up. Gated on either
   // signal, not on `pluginRoots` alone, so an agent with file tools keeps getting the SDK's
   // own project-level `.claude/skills`/`.claude/commands` discovery.
-  const pluginRoots = [...spec.pluginRoots(config), ...(includeKnowledgeBase ? [knowledgePluginRoot(knowledgeViaStore ? "tools" : "files")] : [])];
+  // With an identity, the agent-help skill (agentHelp.ts): written into the run's folder, since
+  // it carries this session's facts and the agent's own guide.
+  const helpPlugin = spec.identity
+    ? await writeAgentHelpPlugin(
+        path.join(runDir, "agent-help"),
+        {
+          mode,
+          switchable: modeControl.switchable,
+          knowledgeBase: includeKnowledgeBase,
+          ...(config.sourcesDir ? { sourcesFolder: `${path.relative(config.projectDir, config.sourcesDir).split(path.sep).join("/")}/` } : {}),
+        },
+        spec.helpGuide,
+      )
+    : undefined;
+  const pluginRoots = [
+    ...spec.pluginRoots(config),
+    ...(includeKnowledgeBase ? [knowledgePluginRoot(knowledgeViaStore ? "tools" : "files")] : []),
+    ...(helpPlugin ? [helpPlugin] : []),
+  ];
   const knowledgeStore: KnowledgeStore | undefined =
     knowledgeViaStore && config.knowledgeDir
       ? (spec.knowledgeStore?.(config) ?? createFileKnowledgeStore(config.knowledgeDir, { pageTypes: spec.knowledgePageTypes, sourcesDir: config.sourcesDir }))
@@ -135,12 +154,16 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const transcriptPath = path.join(runDir, "transcript.jsonl");
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);
 
+  const promptSections = [
+    spec.buildSystemPrompt(config),
+    ...(spec.identity ? [identityPromptSection(spec.identity)] : []),
+    ...(includeKnowledgeBase && config.knowledgeDir
+      ? [knowledgePromptSection(config.projectDir, config.knowledgeDir, config.sourcesDir, { tools: knowledgeViaStore, pageTypes: knowledgeStore?.types() })]
+      : []),
+  ];
+
   const sdkOptions: Options = {
-    systemPrompt: withReplyLine(
-      includeKnowledgeBase && config.knowledgeDir
-        ? `${spec.buildSystemPrompt(config)}\n\n${knowledgePromptSection(config.projectDir, config.knowledgeDir, config.sourcesDir, { tools: knowledgeViaStore, pageTypes: knowledgeStore?.types() })}`
-        : spec.buildSystemPrompt(config),
-    ),
+    systemPrompt: withReplyLine(promptSections.join("\n\n")),
     // Not the SDK's default (every source): "user" hands the agent the runner's own Claude
     // Code configuration, and its `language` setting outranked the agent's prompt.
     settingSources: spec.settingSources ?? ["project"],
@@ -193,8 +216,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           // "skills" acts as a name whitelist, not an addition: "all" enables both the
           // SDK's own official skills (pdf/docx), the project's own custom ones, and the
           // plugin-provided built-ins below. A spec's own list gets the knowledge base's
-          // skills added, so it only names its own.
-          skills: skillList(spec.skills, includeKnowledgeBase ? (knowledgeViaStore ? "tools" : "files") : null),
+          // skills and agent-help added, so it only names its own.
+          skills: skillList(spec.skills, includeKnowledgeBase ? (knowledgeViaStore ? "tools" : "files") : null, Boolean(helpPlugin)),
           plugins: pluginRoots.map((pluginPath) => ({ type: "local" as const, path: pluginPath, skipMcpDiscovery: true })),
         }
       : {}),
@@ -289,9 +312,9 @@ const KNOWLEDGE_SKILLS = {
   files: ["knowledge-pages", "knowledge-ingest", "knowledge-query", "knowledge-lint"].map((skill) => `knowledge:${skill}`),
 };
 
-function skillList(skills: string[] | "all" | undefined, knowledgeVariant: "tools" | "files" | null): string[] | "all" {
+function skillList(skills: string[] | "all" | undefined, knowledgeVariant: "tools" | "files" | null, agentHelp: boolean): string[] | "all" {
   if (skills === undefined || skills === "all") return "all";
-  return knowledgeVariant ? [...new Set([...skills, ...KNOWLEDGE_SKILLS[knowledgeVariant]])] : skills;
+  return [...new Set([...skills, ...(knowledgeVariant ? KNOWLEDGE_SKILLS[knowledgeVariant] : []), ...(agentHelp ? [AGENT_HELP_SKILL] : [])])];
 }
 
 /**

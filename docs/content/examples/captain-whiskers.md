@@ -80,6 +80,12 @@ In interactive mode the kit's [step gate](../human-in-the-loop/step-gate.md) sto
 
 ![The step gate asks before the captain delegates to the cabin boy](/captain/step-gate.png)
 
+### Explain himself
+
+Asked how to do something, he loads the kit's `agent-help` skill: the chat's part (resuming, keys, modes) is the kit's, the rest comes from his own `guide.md` (his commands, folders and settings). See [`identity` and `helpGuide`](../core-concepts/agent-spec.md#identity-and-helpguide).
+
+![The captain explains /resume and how to make him learn a document](/captain/agent-help.png)
+
 ### Speak your language
 
 He speaks the kit's language, the system's or the one given with `--language`: his name, his texts, the kit's own and his replies. Here as Capitán Bigotes. See [Languages](../sessions/languages.md).
@@ -110,6 +116,7 @@ It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment or 
 ```text
 examples/captain-whiskers/
 ├── agent.ts                    everything: texts, tools, crew, spec, chat
+├── guide.md                    his own help guide (commands, folders, settings)
 ├── package.json                "@falkenslab/agent-kit": "file:../.."
 ├── plugin/
 │   ├── .claude-plugin/plugin.json   { "name": "captain-whiskers" }
@@ -204,8 +211,12 @@ const JOKE_PAGE: PageType = {
   indexFields: ["score"],
 };
 
+const { version } = JSON.parse(readFileSync(path.join(__dirname, "package.json"), "utf8")) as { version: string };
+
 const spec: AgentSpec<BaseSessionConfig> = {
   buildSystemPrompt: () => SYSTEM_PROMPT,
+  identity: { name: text.name, version, description: "a retired pirate cat who tells jokes, an example agent of agent-kit" },
+  helpGuide: path.join(__dirname, "guide.md"),
   buildMcpServers: () => ({}),
   pluginRoots: () => [path.join(__dirname, "plugin")],
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
@@ -215,6 +226,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
 };
 ```
 
+- `identity` and `helpGuide`: the model knows his name, his version and agent-kit's, and the `agent-help` skill answers how to use him, from the kit's chat and his `guide.md`. See [`identity` and `helpGuide`](../core-concepts/agent-spec.md#identity-and-helpguide).
 - `knowledgePageTypes`: his logbook has a page type of its own, `joke`, kept in `logbook/jokes/` with the parrot's score in its index line. See [Your own page types](../capabilities/knowledge-base.md#your-own-page-types).
 - `skills` and `settingSources: []`: only his two skills (the kit adds the knowledge base's), and nothing from the machine's Claude Code configuration. See [Context and cost](../sessions/context-and-cost.md).
 
@@ -272,5 +284,6 @@ His README has a test script that goes through every feature in order. A few:
 - `/plan`, then "Plan a pirate party": the plan in a panel, and *Run it* leaves plan mode.
 - `CAPTAIN_MODE=interactive npm start` and watch every tool call stop at the approval panel; Shift+Tab switches to plan, then guided.
 - `CAPTAIN_MODE=plan npm start` and ask for something: the crew can search, read the clock and the logbook, and anything else is denied until the plan is approved or you leave plan mode.
+- "How do I resume a conversation?" or "What does Shift+Tab do?": he answers from the `agent-help` skill.
 - Ctrl+O to fold the tool calls; drag and right-click to copy; `?` for the shortcuts.
 - `/exit`, then `npm start -- --continue`.
