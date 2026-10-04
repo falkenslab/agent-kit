@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pc from "picocolors";
 import {
+  agentKitVersion,
   buildSessionOptions,
   detectLanguage,
   messagesFor,
@@ -219,8 +220,9 @@ async function main(): Promise<void> {
   // recorre guided, interactive y plan (una sesión autónoma no puede cambiar).
   await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
     runsDir,
-    // El nombre del modo, en el idioma del kit (el mismo que en la barra de estado).
-    header: { title: text.name, fields: { [text.mode]: messagesFor(language).mode(mode) }, art: LOGO },
+    // El nombre del modo, en el idioma del kit (el mismo que en la barra de estado), y la
+    // versión de agent-kit con la que navega.
+    header: { title: text.name, fields: { [text.mode]: messagesFor(language).mode(mode), "agent-kit": agentKitVersion() }, art: LOGO },
     mode,
     // Su tema: solo cambia estos roles; el resto sigue con los colores del kit. El borde de
     // los paneles de aprobación y la opción elegida en las listas, en dorado de doblón.

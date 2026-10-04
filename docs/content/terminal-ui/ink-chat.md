@@ -186,7 +186,7 @@ Everything the plain console would print is mirrored to the session log: the wel
 ```ts
 header: {
   title: "Captain Whiskers",
-  fields: { mode: "guided", workspace: "course-2026" },
+  fields: { mode: "guided", workspace: "course-2026", "agent-kit": agentKitVersion() },
   art: [
     pc.gray("   ▄▄███▄▄"),
     pc.gray("  ▀▀▀▀▀▀▀▀▀"),
@@ -197,4 +197,4 @@ header: {
 },
 ```
 
-`art` is drawn left of the title, one string per row, colored as you like. **Use single-column characters only** (ASCII, box and block characters such as `▄ ▀ █`): emoji are measured differently by the kit and by terminals, and would shift the title.
+`fields` are shown after the title, `name value`, in order; `agentKitVersion()` gives the version of the kit in use, worth showing so a screenshot or a bug report says which one. `art` is drawn left of the title, one string per row, colored as you like. **Use single-column characters only** (ASCII, box and block characters such as `▄ ▀ █`): emoji are measured differently by the kit and by terminals, and would shift the title.

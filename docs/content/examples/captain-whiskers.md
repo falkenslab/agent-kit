@@ -154,7 +154,7 @@ const toolDetail = details.find((d) => d === process.env.CAPTAIN_TOOL_DETAIL) ??
 
 await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
   runsDir,
-  header: { title: text.name, fields: { [text.mode]: messagesFor(language).mode(mode) }, art: LOGO },
+  header: { title: text.name, fields: { [text.mode]: messagesFor(language).mode(mode), "agent-kit": agentKitVersion() }, art: LOGO },
   mode,
   theme: { accent: "#e5b53a", selection: "#e5b53a" },
   plain: process.env.CAPTAIN_PLAIN === "1",
@@ -169,7 +169,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 ```
 
 - **A session opener with `runsDir`**: every run in `.run/<timestamp>/`, resumable with `--continue` or `/resume`.
-- **The header**: the translated name, the mode in the kit's language, and a logo in single-column block characters.
+- **The header**: the translated name, the mode in the kit's language, the version of agent-kit he runs on (`agentKitVersion()`), and a logo in single-column block characters.
 - **A theme**: the approval panels' border and the focused option in doubloon gold; everything else keeps the kit's colors.
 - **The first suggestion**: Tab takes it before the first turn.
 - **Guided by default**, so he can ask: which kind of joke (`ask_human`), a file (`request_file`), whether to retire an original.
