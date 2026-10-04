@@ -23,7 +23,7 @@ interface Config extends BaseSessionConfig {
 | --- | --- | --- | --- |
 | `mode` | `"interactive" \| "guided" \| "autonomous" \| "plan"` | yes | How much a human is in the loop. See [Modes](modes.md). |
 | `projectDir` | `string` | yes | The project root: the session's working directory when the agent has file tools or plugins, and the base for relative paths in the file scope. |
-| `knowledgeDir` | `string` | no | The agent's notes. Gives the session the file tools and, by default, the [knowledge base](../capabilities/knowledge-base.md). |
+| `knowledgeDir` | `string` | no | The agent's notes: by default, the [knowledge base](../capabilities/knowledge-base.md), reached through its own tools. |
 | `sourcesDir` | `string` | no | Originals, kept as obtained: readable and searchable, never writable. Gives the file tools and the [sources tools](../capabilities/knowledge-base.md#sources-originals-kept-as-obtained). |
 | `extraWritableDirs` | `string[]` | no | More folders where `Write`/`Edit` are allowed (and `Grep` searches). |
 | `deniedPaths` | `string[]` | no | Files or folders the agent must never read, search or write, e.g. a config file holding a password. |

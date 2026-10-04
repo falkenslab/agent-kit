@@ -394,3 +394,20 @@ async function retireSourceNow(
   }
   return result;
 }
+
+/**
+ * Records `source` (relative to `sourcesDir`) as ingested now, with its current hash: a
+ * summary page was just written from it, so "changed" means changed after this.
+ */
+export function recordIngest(sourcesDir: string, source: string): Promise<void> {
+  return serialized(sourcesDir, async () => {
+    const full = resolveWithin(sourcesDir, source);
+    if (!full || !(await stat(full).catch(() => null))?.isFile()) return;
+    const rel = posix(path.relative(sourcesDir, full));
+    const manifest = await loadManifest(sourcesDir);
+    const entry = await freshEntry(full, manifest.files[rel], { kind: "manual" });
+    entry.ingestedHash = entry.hash;
+    manifest.files[rel] = entry;
+    await saveManifest(sourcesDir, manifest);
+  });
+}

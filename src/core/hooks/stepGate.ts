@@ -3,7 +3,7 @@ import { askForDecision } from "./humanInput.js";
 import { t } from "../messages/index.js";
 
 const SELF_ASKING_SERVERS = ["mcp__approvals__", "mcp__manualLogin__"];
-const SELF_ASKING_TOOLS = new Set(["mcp__sourceFiles__request_file", "mcp__sourceFiles__retire_source", "TodoWrite"]);
+const SELF_ASKING_TOOLS = new Set(["mcp__sourceFiles__request_file", "mcp__sourceFiles__retire_source", "mcp__knowledge__knowledge_retire", "TodoWrite"]);
 
 /**
  * PreToolUse hook for "interactive" mode: pauses before every action and asks for

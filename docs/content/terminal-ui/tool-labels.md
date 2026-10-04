@@ -26,6 +26,10 @@ A tool call is shown as a short sentence instead of its technical name: `Reading
 | `present_plan` | `Presenting the plan` |
 | `save_to_sources` | `Saving a file to sources/<destination>` |
 | `list_sources` | `Listing the sources` |
+| `knowledge_index`, `knowledge_search` | `Reading the knowledge base's index`, `Searching the knowledge base for "<query>"` |
+| `knowledge_read`, `knowledge_create`, `knowledge_edit`, `knowledge_rewrite` | `Reading <page>`, `Creating <page>`, `Editing <page>`, `Rewriting <page>` |
+| `knowledge_supersede`, `knowledge_retire` | `Marking <page> superseded`, `Retiring <page>` |
+| `knowledge_log`, `knowledge_check` | `Updating the knowledge base's log`, `Checking the knowledge base` |
 | `extract_text` | `Reading <source>` |
 | `download_to_sources` | `Downloading <url> to the sources` |
 | `request_file` | `Asking for a file: <description>` |

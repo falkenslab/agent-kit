@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { PageType } from "./knowledgeStore.js";
 
 /**
  * The built-in knowledge base (an "LLM wiki"): `sourcesDir` holds the originals, `knowledgeDir`
@@ -10,9 +11,13 @@ import { fileURLToPath } from "node:url";
  * writes its own rules, or extends these.
  */
 
-/** Absolute path of the plugin shipped with the kit — `assets/knowledge-plugin` next to `dist/` (or `src/` under tsx). */
-export function knowledgePluginRoot(): string {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", "knowledge-plugin");
+/**
+ * Absolute path of the plugin shipped with the kit, next to `dist/` (or `src/` under tsx):
+ * `assets/knowledge-plugin`, whose skills work through the `knowledge_*` tools, or with
+ * `"files"` `assets/knowledge-plugin-files`, whose skills work on the files (ADR-024).
+ */
+export function knowledgePluginRoot(variant: "tools" | "files" = "tools"): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", variant === "files" ? "knowledge-plugin-files" : "knowledge-plugin");
 }
 
 /** A path as shown to the model: relative to the project, forward slashes, with a trailing slash. */
@@ -20,18 +25,50 @@ function shown(projectDir: string, dir: string): string {
   return `${path.relative(projectDir, dir).split(path.sep).join("/")}/`;
 }
 
+/** The originals' line of the prompt section, the same in both variants. */
+function originalsLine(originals: string): string {
+  return `- **Originals (read-only for you)**: \`${originals}\`. Never rewrite one; build pages *about* them. \`list_sources\` says which are new (not ingested yet), changed since their ingest or missing; add a file only with \`save_to_sources\`, \`download_to_sources\` or by asking the person (\`request_file\`), and take out a wrong or superseded one only with \`retire_source\`. \`Read\` reads PDFs and images; \`extract_text\` reads DOCX, PPTX (with speaker notes) and XLSX.\n`;
+}
+
+/** The section for a knowledge base reached through the `knowledge_*` tools (ADR-024). */
+function toolsSection(originals: string | undefined, pageTypes: readonly PageType[]): string {
+  return `## Knowledge base
+Your memory across sessions is an interlinked knowledge base of pages that you write and maintain yourself — a wiki, not a pile of notes. A future session only knows what is written there, so anything worth remembering must end up in a page, not just in this turn's reply. You reach it only through the \`knowledge_*\` tools. Write page content in the language you are using with the human.
+
+### Layers
+${originals ? originalsLine(originals) : ""}- **The knowledge base**: pages identified by type and slug (\`concept/spring-tides\`), plus the \`overview\`, a living synthesis of the whole. Page types: ${pageTypes.map((type) => `\`${type.type}\` (${type.description})`).join("; ")}.
+- **The schema**: these rules plus the \`knowledge-ingest\`, \`knowledge-query\` and \`knowledge-lint\` skills. \`knowledge_create\` without content gives a type's template.
+
+### Working rules
+- Start from \`knowledge_search\` or \`knowledge_index\`, then \`knowledge_read\` only the pages the task needs.
+- Link pages by id, \`[Spring tides](concept/spring-tides)\`; links must point to existing pages. The index and the backlinks ("linked from") are kept for you.
+- Change a page with \`knowledge_edit\` (a fragment); \`knowledge_rewrite\` only to redo it whole. Pages are never deleted or renamed: \`knowledge_supersede\` one replaced by another; \`knowledge_retire\` one that was wrong.
+- When an operation is done, \`knowledge_log\` it: \`ingest\`, \`query\`, \`lint\` or \`update\`, with the pages touched.
+- Every claim must be traceable to a summary page, an original, or — clearly labelled as outside the knowledge base — the web.
+- Contradictions are kept, not overwritten: record both versions with attribution in the affected pages.
+- Short, focused, well-linked pages beat long ones: when a page mixes two things, split it.`;
+}
+
 /**
  * The "Knowledge base" section appended to the system prompt: the layout and the working
- * rules. The exact page templates live in the `knowledge-pages` skill, to keep this short.
+ * rules. With `tools` (the kit's default since ADR-024), for a knowledge base reached through
+ * the `knowledge_*` tools, listing `pageTypes`; otherwise for one kept with the file tools,
+ * whose page templates live in the `knowledge-pages` skill.
  */
-export function knowledgePromptSection(projectDir: string, knowledgeDir: string, sourcesDir?: string): string {
+export function knowledgePromptSection(
+  projectDir: string,
+  knowledgeDir: string,
+  sourcesDir?: string,
+  options: { tools?: boolean; pageTypes?: readonly PageType[] } = {},
+): string {
   const notes = shown(projectDir, knowledgeDir);
   const originals = sourcesDir ? shown(projectDir, sourcesDir) : undefined;
+  if (options.tools) return toolsSection(originals, options.pageTypes ?? []);
   return `## Knowledge base (${notes})
 \`${notes}\` is your memory across sessions, kept as an interlinked knowledge base of markdown pages that you write and maintain yourself — a wiki, not a pile of notes. A future session only knows what is written there, so anything worth remembering must end up in a page, not just in this turn's reply. Write page content in the language you are using with the human; file names stay lowercase ASCII with hyphens.
 
 ### Layers
-${originals ? `- **Originals (read-only for you)**: \`${originals}\`. Never rewrite one; build pages *about* them. \`list_sources\` says which are new (not ingested yet), changed since their ingest or missing; add a file only with \`save_to_sources\`, \`download_to_sources\` or by asking the person (\`request_file\`), and take out a wrong or superseded one only with \`retire_source\`. \`Read\` reads PDFs and images; \`extract_text\` reads DOCX, PPTX (with speaker notes) and XLSX.\n` : ""}- **The knowledge base**: \`${notes}\`, entirely yours to write.
+${originals ? originalsLine(originals) : ""}- **The knowledge base**: \`${notes}\`, entirely yours to write.
 - **The schema**: these rules plus the \`knowledge-pages\` skill (exact template of every page type — load it before creating a page) and the \`knowledge-ingest\`, \`knowledge-query\` and \`knowledge-lint\` skills.
 
 ### Layout

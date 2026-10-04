@@ -1,26 +1,30 @@
 ---
 name: knowledge-lint
-description: Health-check the knowledge base - broken links, pages missing from index.md, orphan pages, one-way links, duplicated concepts, mentioned-but-missing concepts, contradictions, gaps - fix what's mechanical and report the rest.
+description: Health-check the knowledge base - broken links, orphan pages, links to retired pages, missing or changed originals, duplicated concepts, mentioned-but-missing concepts, contradictions, gaps - fix what's mechanical and report the rest.
 ---
 
 # Linting the knowledge base
 
-A knowledge base maintained across sessions drifts: links break, pages go unlisted, the same concept appears under two names. Lint it when asked and after a large ingest. Load `knowledge-pages` first for the templates.
+A knowledge base maintained across sessions drifts. Lint it when asked and after a large ingest.
 
-## Checks
+## 1. The mechanical checks, in one call
 
-Use `Glob` to list pages and `Grep` (always with `path` inside the knowledge base) to find links, instead of reading every page in full.
+`knowledge_check` returns broken links, orphan pages, links to retired pages, summaries whose original is gone, originals that are new, changed or missing, and the passages that cite a retired original. The index and backlinks are kept by the store: there's nothing to fix there.
 
-1. **Broken links**: a relative link whose target file doesn't exist. Fix it if the right target is obvious (a typo, a page under a close name); otherwise report it.
-2. **Index**: every page is listed in `index.md` and every entry there points to an existing page. Fix it.
-3. **Orphans**: pages nothing links to (`Grep` for the file name). Link them from where they belong, or report why they don't belong anywhere.
-4. **One-way links**: a summary that feeds a concept which doesn't list it back... Add the missing side.
-5. **Duplicates**: two pages for the same idea under different names. Merge the content into one, mark the other as superseded (never delete it) and repoint links.
-6. **Missing pages**: terms that several pages treat as concepts or entities but have no page. Create them if the material is there; otherwise list them.
-7. **Contradictions**: claims that disagree across pages without being recorded as such. Record both sides, attributed.
-8. **Provenance**: claims with no traceable source. Add the link, or mark them as unsourced.
-9. **Gaps**: originals `list_sources` reports as new (no summary yet), changed (their summary may be stale) or missing (deleted by hand: their summaries point nowhere), and concepts mentioned but never explained by any source. Report them - they are what to ingest, update or find next.
+- **Broken links**: fix them with `knowledge_edit` when the right target is obvious (a typo, a page under a close name: `knowledge_search`); otherwise report them.
+- **Orphans**: link them from the pages where they belong, or report why they don't belong anywhere.
+- **Links to retired pages, passages citing a retired original**: correct or re-ground them.
+- **New or changed originals**: report them as what to ingest or update next (or do it, if asked).
+
+## 2. The checks that need judgement
+
+Use `knowledge_index` and `knowledge_search`; read only the pages a check needs.
+
+- **Duplicates**: two pages for the same idea under different names. Merge the content into one with `knowledge_edit`, `knowledge_supersede` the other (never delete it) and repoint links.
+- **Missing pages**: terms that several pages treat as concepts or entities but have no page. Create them if the material is there; otherwise list them.
+- **Contradictions**: claims that disagree across pages without being recorded as such. Record both sides, attributed.
+- **Provenance**: claims with no traceable source. Add the link, or mark them as unsourced.
 
 ## Close
 
-Append `## [date] lint | <summary>` to `log.md` listing what was fixed. Then report to the human: what you fixed, and what needs their decision or more material. Don't make judgement calls silently - merging pages that are only similar, or choosing between contradictory sources, goes in the report.
+`knowledge_log` with operation `lint` and what was fixed. Then report to the person: what you fixed, and what needs their decision or more material. Don't make judgement calls silently: merging pages that are only similar, or choosing between contradictory sources, goes in the report.

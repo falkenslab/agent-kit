@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 title: Prompts
 description: Keep system prompts as files with createPromptLoader(), and write prompts that work well with the kit.
 ---

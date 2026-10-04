@@ -40,7 +40,7 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 | Condition | Tools added |
 | --- | --- |
 | always | `WebFetch`, `WebSearch`, `TodoWrite` |
-| `knowledgeDir` or `sourcesDir` | `Read`, `Write`, `Edit`, `Glob`, `Grep` |
+| `knowledgeDir` or `sourcesDir` | `Read`, `Write`, `Edit`, `Glob`, `Grep`; with the built-in knowledge base reached through its tools (the default), only `Read`, `Glob`, `Grep` for `sourcesDir` and `extraWritableDirs`, plus `Write`, `Edit` for the latter |
 | file tools or at least one plugin | `Skill` |
 | `spec.buildSubagents()` returns something | `Agent`, `Bash` |
 
@@ -56,6 +56,7 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 | `manualLogin` | `request_manual_login` | mode is not `autonomous` and `spec.manualInterventionTexts` is set |
 | `sourceFiles` | `list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode | `config.sourcesDir` is set |
 | `time` | `current_time`, `date_math` | always (in `config.timeZone`, or the system's) |
+| `knowledge` | the `knowledge_*` tools (`knowledge_retire` outside autonomous mode) | the built-in knowledge base, unless `spec.knowledgeTools` is `"files"` |
 
 `canUseTool` is `allowAnyMcpTool`: every `mcp__*` call is approved, anything else is denied (the built-in tools above are already pre-approved, so they never reach it). `disallowedTools` is `spec.disallowedTools ?? []` and wins over everything.
 
@@ -70,6 +71,8 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 5. with subagents, the three [subagent gates](../security/subagent-gates.md): type, Bash, foreground.
 
 `PostToolUse`: the transcript logger.
+
+The result also has `knowledgeStore`, the knowledge base's store, when the agent reaches it through its tools (see [Knowledge store](../capabilities/knowledge-store.md)).
 
 ### Skills, plugins and the working directory
 

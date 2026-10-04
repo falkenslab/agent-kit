@@ -18,6 +18,11 @@ export interface FileScope {
   searchableDirs: string[];
   /** Never readable, searchable or writable. */
   deniedPaths: string[];
+  /**
+   * Reached only through the kit's own tools, never the file tools: the knowledge folder
+   * when the agent has the `knowledge_*` tools (ADR-024). The denial says what to use instead.
+   */
+  toolOnlyDirs?: { dir: string; instead: string }[];
 }
 
 /** Whether `candidate` is `base` itself or somewhere inside it (case-insensitive on Windows, like path.relative). */
@@ -39,6 +44,26 @@ export function checkFileScope(scope: FileScope, toolName: string, input: Record
   const resolve = (value: unknown): string | undefined =>
     typeof value === "string" && value !== "" ? path.resolve(scope.projectDir, value) : undefined;
   const isDenied = (target: string) => scope.deniedPaths.some((denied) => isWithin(denied, target));
+  // The folder of the kit's own tools that `target` is in, if any.
+  const toolOnlyDirs = (scope.toolOnlyDirs ?? []).map((only) => ({ ...only, dir: path.resolve(scope.projectDir, only.dir) }));
+  const toolOnly = (target: string) => toolOnlyDirs.find(({ dir }) => isWithin(dir, target));
+  const viaTools = (shown: unknown, only: { dir: string; instead: string }) =>
+    `"${String(shown)}" is in ${path.relative(scope.projectDir, only.dir) || "."}/, which is reached only through ${only.instead}, not the file tools.`;
+
+  if (toolName === "Read" || toolName === "Write" || toolName === "Edit") {
+    const target = resolve(input.file_path);
+    const only = target && toolOnly(target);
+    if (only) return viaTools(input.file_path, only);
+  }
+  if (toolName === "Grep" || toolName === "Glob") {
+    const target = resolve(input.path) ?? scope.projectDir;
+    const pattern = typeof input.pattern === "string" ? input.pattern : "";
+    // Where a search really starts: Grep's path, Glob's path plus the pattern's fixed folders
+    // ("sources/**" starts in sources/). From above the folder it would reach into it.
+    const start = toolName === "Glob" ? path.resolve(target, pattern.replace(/[^/\\]*[*?[{].*$/, "")) : target;
+    const only = toolOnly(start) ?? toolOnlyDirs.find(({ dir }) => isWithin(start, dir));
+    if (only) return viaTools(input.path ?? pattern, only);
+  }
 
   switch (toolName) {
     case "Read": {

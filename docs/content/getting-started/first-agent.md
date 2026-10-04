@@ -116,18 +116,18 @@ Tool schemas use [zod](https://zod.dev) (`npm install zod`); a tool without para
 
 ## Step 4: notes that survive the session
 
-Give the agent a `knowledgeDir` and it gets the file tools, scoped to its own folders, and the kit's [knowledge base](../capabilities/knowledge-base.md): rules and skills to keep its notes as an interlinked wiki.
+Give the agent a `knowledgeDir` and it gets the kit's [knowledge base](../capabilities/knowledge-base.md): its own tools, rules and skills to keep its notes as an interlinked wiki.
 
 ```ts
 const config: BaseSessionConfig = {
   mode: "guided",
   projectDir: process.cwd(),
-  knowledgeDir: path.resolve("knowledge"), // the agent's notes: readable and writable
+  knowledgeDir: path.resolve("knowledge"), // the agent's notes, through the knowledge_* tools
   sourcesDir: path.resolve("sources"), // originals: readable, never modified
 };
 ```
 
-Now Scout can `Read`, `Write`, `Edit`, `Glob` and `Grep`, but only write inside `knowledge/`, only search inside `knowledge/` and `sources/`, and never modify `sources/` (it adds files there with the sources tools, which never overwrite, and `list_sources` tells it what isn't ingested yet). Try `/knowledge:ingest` after dropping a PDF in `sources/`.
+Now Scout keeps its notes with the `knowledge_*` tools (search, read, create, edit, log…), reads the originals in `sources/` with `Read` but never modifies them (it adds files there with the sources tools, which never overwrite, and `list_sources` tells it what isn't ingested yet). Try `/knowledge:ingest` after dropping a PDF in `sources/`.
 
 ## Step 5: resume a conversation
 

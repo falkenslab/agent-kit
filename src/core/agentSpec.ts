@@ -1,4 +1,5 @@
 import type { AgentDefinition as SdkSubagentDefinition, McpServerConfig, SettingSource } from "@anthropic-ai/claude-agent-sdk";
+import type { KnowledgeStore, PageType } from "./knowledgeStore.js";
 
 /**
  * The human-supervision spectrum every agent built on this kit shares, independent of
@@ -115,12 +116,31 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
   /**
    * The built-in knowledge base (see knowledge.ts): when `config.knowledgeDir` is set, the kit
    * appends its "Knowledge base" rules to the system prompt and loads its plugin (skills
-   * knowledge-pages/knowledge-ingest/knowledge-query/knowledge-lint, commands /knowledge:ingest, /knowledge:query,
-   * /knowledge:lint), so the agent maintains its notes as an interlinked wiki. On by default;
+   * knowledge-ingest/knowledge-query/knowledge-lint, commands /knowledge:ingest, /knowledge:query,
+   * /knowledge:lint), so the agent maintains its notes as an interlinked wiki, through the
+   * `knowledge_*` tools by default (see `knowledgeTools`). On by default;
    * set `false` for an agent that writes its own rules for `knowledgeDir` (or wants plain
    * notes) — `knowledgePromptSection()`/`knowledgePluginRoot()` are exported to reuse the pieces.
    */
   knowledgeBase?: boolean;
+  /**
+   * How the agent reaches the built-in knowledge base: `"store"` (the default), only through
+   * the kit's `knowledge_*` tools over a `KnowledgeStore`, never with the file tools, so the
+   * storage can change and the wiki's rules are kept by code (ADR-024); `"files"`, with the
+   * file tools on `knowledgeDir` and the rules in the prompt, as before.
+   */
+  knowledgeTools?: "store" | "files";
+  /**
+   * The agent's own page types for the built-in knowledge base, besides the kit's four
+   * (summary, concept, entity, synthesis): each with its folder (`""` for the root), index
+   * section, description (told to the model) and template.
+   */
+  knowledgePageTypes?: PageType[];
+  /**
+   * The knowledge base's store, instead of the kit's over markdown files in `knowledgeDir`
+   * (e.g. a database or a vector store implementing `KnowledgeStore`).
+   */
+  knowledgeStore?(config: TConfig): KnowledgeStore;
 
   /**
    * Whether the kit tells the agent (and each subagent) to reply in the resolved language

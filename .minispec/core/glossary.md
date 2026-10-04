@@ -26,7 +26,9 @@ Where a chat creates each run's folder and finds the runs to resume (`--continue
 
 ## Knowledge base
 
-`knowledgeDir`: the agent's own notes (wiki layer), with `index.md` and `log.md`.
+`knowledgeDir`: the agent's own notes (wiki layer), reached through the `knowledge_*` tools over a `KnowledgeStore`; on disk, `index.md`, `log.md`, `overview.md` and a folder per page type.
+
+Page id: `type/slug` (`concept/spring-tides`), how the tools name a page and how pages link to each other.
 
 ## Sources
 

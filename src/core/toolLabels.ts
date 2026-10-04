@@ -41,6 +41,26 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
       return labels.checkingTime;
     case "date_math":
       return labels.calculatingDates;
+    case "knowledge_index":
+      return labels.knowledgeIndex;
+    case "knowledge_search":
+      return labels.knowledgeSearch(truncate(text(input.query, ""), 60));
+    case "knowledge_read":
+      return labels.knowledgeRead(text(input.page, labels.aPage));
+    case "knowledge_create":
+      return labels.knowledgeCreate(`${text(input.type, "")}/${text(input.slug, "")}`);
+    case "knowledge_edit":
+      return labels.knowledgeEdit(text(input.page, labels.aPage));
+    case "knowledge_rewrite":
+      return labels.knowledgeRewrite(text(input.page, labels.aPage));
+    case "knowledge_supersede":
+      return labels.knowledgeSupersede(text(input.page, labels.aPage));
+    case "knowledge_retire":
+      return labels.knowledgeRetire(text(input.page, labels.aPage));
+    case "knowledge_log":
+      return labels.knowledgeLog;
+    case "knowledge_check":
+      return labels.knowledgeCheck;
     case "list_sources":
       return labels.listingSources;
     case "extract_text":
@@ -99,7 +119,7 @@ export type ToolDescriber = (shortName: string, input: Record<string, unknown>) 
  * without a "[server] " prefix, e.g. "playwright".
  */
 export function createFriendlyToolLabel(options: { describe?: ToolDescriber; extraLocalServers?: readonly string[] } = {}): (toolName: string, toolInput: unknown) => string {
-  const localServers = new Set(["approvals", "manualLogin", "sourceFiles", "time", ...(options.extraLocalServers ?? [])]);
+  const localServers = new Set(["approvals", "manualLogin", "sourceFiles", "time", "knowledge", ...(options.extraLocalServers ?? [])]);
 
   const describe = (shortName: string, input: Record<string, unknown>): string =>
     options.describe?.(shortName, input) ?? describeCore(shortName, input) ?? shortName.replace(/_/g, " ");

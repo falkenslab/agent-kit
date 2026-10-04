@@ -89,11 +89,5 @@ test("skills: every one by default; a spec's list gets the knowledge base's adde
     runDir,
     makeSpec({ skills: ["own:joke"] }),
   );
-  assert.deepEqual(withKnowledge.options.skills, [
-    "own:joke",
-    "knowledge:knowledge-pages",
-    "knowledge:knowledge-ingest",
-    "knowledge:knowledge-query",
-    "knowledge:knowledge-lint",
-  ]);
+  assert.deepEqual(withKnowledge.options.skills, ["own:joke", "knowledge:knowledge-ingest", "knowledge:knowledge-query", "knowledge:knowledge-lint"]);
 });

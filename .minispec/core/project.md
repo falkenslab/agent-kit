@@ -9,7 +9,7 @@
 - Wires SDK session options from a small `AgentSpec` contract and a `mode` (interactive / guided / autonomous / plan).
 - Human-in-the-loop: step gate, approval tool, manual-intervention tool, answered from a terminal or a response file.
 - Security hooks: file scope, subagent gates, MCP permissions, transcript logging with secret redaction.
-- A built-in knowledge base (LLM-wiki pattern) with its own plugin of skills and commands.
+- A built-in knowledge base (LLM-wiki pattern) reached through its own tools over a pluggable store, with a plugin of skills and commands; tools for the sources folder.
 - A normalized event stream (`runQuery()`), tool-label formatting, a terminal UI (Ink, with a readline fallback) and Claude auth.
 - The kit's texts and the agent's replies in English, Spanish, French or German (ADR-019).
 - Each run's conversation kept in its run folder, resumed with `--continue` or `/resume` (ADR-020).

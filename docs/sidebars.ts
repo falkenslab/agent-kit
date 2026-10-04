@@ -38,6 +38,7 @@ const sidebars: SidebarsConfig = {
         "capabilities/skills-and-plugins",
         "capabilities/subagents",
         "capabilities/knowledge-base",
+        "capabilities/knowledge-store",
         "capabilities/prompts",
       ],
     },

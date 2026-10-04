@@ -19,6 +19,22 @@ export { buildSessionOptions, createInputQueue, createDeferred, createModeContro
 export { runQuery, type AgentEvent, type AgentRun, type SessionUsage, type ContextUsage } from "./core/runner.js";
 export { knowledgePluginRoot, knowledgePromptSection } from "./core/knowledge.js";
 export {
+  BUILT_IN_PAGE_TYPES,
+  isSlug,
+  parseId,
+  linkedIds,
+  type KnowledgeStore,
+  type PageType,
+  type KnowledgePage,
+  type PageInfo,
+  type SearchHit,
+  type CheckReport,
+  type FieldChanges,
+  type NewPage,
+} from "./core/knowledgeStore.js";
+export { createFileKnowledgeStore, type FileKnowledgeStoreOptions } from "./core/fileKnowledgeStore.js";
+export { createKnowledgeServer, type KnowledgeToolsOptions } from "./core/tools/knowledgeTools.js";
+export {
   resolveLanguage,
   detectLanguage,
   SUPPORTED_LANGUAGES,

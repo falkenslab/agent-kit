@@ -33,7 +33,8 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `hooks/fileScopeGate.ts` — file tool boundary (ADR-007); `tools/saveToSources.ts` — the sources folder's tools (`list_sources`, `save_to_sources`, `download_to_sources`; `request_file`, `retire_source` outside autonomous); `extractText.ts` — DOCX/PPTX/XLSX to markdown for `extract_text` (optional `mammoth`, `fflate`); `sources.ts` — their manifest (`sources/.agent-kit/sources.json`), statuses, duplicates, versions and retiring.
 - `todos.ts` — the SDK's `TodoWrite` task list, in every session: `parseTodos()`, `todoChanges()`; the chats draw the list instead of the calls.
 - `tools/time.ts` — `current_time`, `date_math` (server `time`), in every session and mode; `config.timeZone` or the system's.
-- `knowledge.ts` — knowledge base prompt section and plugin root (ADR-008).
+- `knowledge.ts` — knowledge base prompt section (tools or files variant) and plugin roots (ADR-008).
+- `knowledgeStore.ts` — `KnowledgeStore`, `PageType`, the kit's four page types and their templates; `fileKnowledgeStore.ts` — the store over markdown files (index generated, backlinks computed, links as ids to the tools and relative paths on disk); `tools/knowledgeTools.ts` — the `knowledge_*` tools (ADR-024).
 - `hooks/transcriptLogger.ts` — `transcript.jsonl`: secrets and the OAuth token redacted, long strings and base64 payloads summarized.
 - `claudeAuth.ts` — `resolveClaudeAuth()`: pure lookup, no I/O (ADR-009).
 - `toolLabels.ts`, `promptTemplate.ts` — friendly tool labels, prompt loading.
@@ -58,16 +59,16 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 
 ## File tools
 
-With `knowledgeDir` and/or `sourcesDir`: `Read`, `Write`, `Edit`, `Glob`, `Grep`, `cwd` = `projectDir`. Writes only in `knowledgeDir` + `extraWritableDirs`; `Grep` in those plus `sourcesDir`; `deniedPaths` never. `sourcesDir` grows only through the sources tools (never overwriting, no duplicates) and shrinks only through `retire_source`, which moves an original to `.agent-kit/retired/` with the person's approval.
+With `knowledgeDir` and/or `sourcesDir`, `cwd` = `projectDir`. With the built-in knowledge base reached through its tools (the default, ADR-024), `knowledgeDir` is tools-only: no file tool reaches it; `Read`/`Glob`/`Grep` are for `sourcesDir` and `extraWritableDirs`, `Write`/`Edit` for the latter. With `knowledgeTools: "files"` or `knowledgeBase: false`, all five, writes only in `knowledgeDir` + `extraWritableDirs`; `Grep` in those plus `sourcesDir`. `deniedPaths` never. `sourcesDir` grows only through the sources tools (never overwriting, no duplicates) and shrinks only through `retire_source`, which moves an original to `.agent-kit/retired/` with the person's approval.
 
 ## Knowledge plugin
 
-`assets/knowledge-plugin/` (name `knowledge`): skills `knowledge-pages`, `knowledge-ingest`, `knowledge-query`, `knowledge-lint`; commands `/knowledge:ingest`, `/knowledge:query`, `/knowledge:lint`. Opt out with `spec.knowledgeBase: false`.
+`assets/knowledge-plugin/` (name `knowledge`): skills `knowledge-ingest`, `knowledge-query`, `knowledge-lint` over the `knowledge_*` tools; commands `/knowledge:ingest`, `/knowledge:query`, `/knowledge:lint`. `assets/knowledge-plugin-files/`, the same name, for `knowledgeTools: "files"`: the skills on files, plus `knowledge-pages` (templates). Opt out with `spec.knowledgeBase: false`.
 
 ## Folder map
 
 - `src/core/`, `src/tui/`, `src/index.ts` — the library.
-- `assets/knowledge-plugin/` — shipped with the package.
+- `assets/knowledge-plugin/`, `assets/knowledge-plugin-files/` — shipped with the package.
 - `test/` — `node:test` suites mirroring `src/`.
 - `examples/captain-whiskers/` — toy consumer.
 - `docs/` — the documentation site (Docusaurus, its own npm project): guides in `content/`, the API reference generated from `src/` (ADR-022); published to GitHub Pages by `.github/workflows/docs.yml`.

@@ -1,12 +1,12 @@
 ---
 sidebar_position: 4
 title: Knowledge base
-description: The built-in LLM wiki - folders, rules, skills and commands - and the sources folder of untouched originals.
+description: The built-in LLM wiki - pages reached through the knowledge_* tools, page types, skills and commands - and the sources folder of untouched originals.
 ---
 
 # Knowledge base
 
-An agent forgets everything when a session ends, except what it wrote down. The kit gives every agent with a `knowledgeDir` a built-in way to keep its notes: an interlinked wiki of markdown pages, with rules in the system prompt and skills to maintain it (the "LLM wiki" pattern). Originals the agent works from stay apart, in `sourcesDir`.
+An agent forgets everything when a session ends, except what it wrote down. The kit gives every agent with a `knowledgeDir` a built-in way to keep its notes: an interlinked wiki of pages, with rules in the system prompt, skills to maintain it (the "LLM wiki" pattern) and tools of its own to reach it. Originals the agent works from stay apart, in `sourcesDir`.
 
 ## Turning it on
 
@@ -21,54 +21,127 @@ const config: BaseSessionConfig = {
 
 With `knowledgeDir` set, and unless the spec says `knowledgeBase: false`:
 
-- the **file tools** are granted (`Read`, `Write`, `Edit`, `Glob`, `Grep`), scoped so writing is only possible inside `knowledgeDir` (and `extraWritableDirs`);
-- a **"Knowledge base" section** is appended to the system prompt, with the layout and the working rules;
-- the **`knowledge` plugin** ships with the kit and is loaded: four skills and three commands.
+- the agent gets the **`knowledge_*` tools** (an MCP server, `knowledge`) and reaches the knowledge base only through them: the file tools can't read, write or search `knowledgeDir` (the [file scope](../security/file-scope.md) says so, pointing to the tools);
+- a **"Knowledge base" section** is appended to the system prompt, with the page types and the working rules;
+- the **`knowledge` plugin** ships with the kit and is loaded: three skills and three commands.
 
-## Layout
+The file tools stay for the originals (`Read`, `Glob`, `Grep` on `sourcesDir`) and for `extraWritableDirs` (`Write`, `Edit` too). An agent with only a `knowledgeDir` has no file tools at all.
+
+### Why tools and not files
+
+The agent works on **pages**, not files: a page is identified by its type and slug, `concept/spring-tides`, and links between pages use that id. So the storage can change underneath (markdown files today; a database or a vector store, see [Knowledge store](knowledge-store.md)) without touching the tools, the prompt or the skills. And the wiki's rules are kept by code: the index is generated, backlinks are computed, links must resolve, pages are never deleted or renamed.
+
+It also saves work. On a sample knowledge base of 33 pages, a `/knowledge:lint` took 66 tool calls, 175 seconds and 469k input tokens with the file tools, and 13 to 18 calls, about a minute and 200-250k tokens with these tools; an ingest went from 20 calls to 13-15, and both cost a third to two thirds less.
+
+## The tools
+
+| Tool | What it does | Plan mode |
+| --- | --- | --- |
+| `knowledge_index` | The catalog: every page, one line each (title, id, what it is), by section | Allowed |
+| `knowledge_search(query)` | Pages matching words in their title, aliases or content, best first, with the line that matched | Allowed |
+| `knowledge_read(page)` | A page: its fields, its content (links as ids) and the pages that link to it; or `"overview"` | Allowed |
+| `knowledge_create(type, slug, title, content?, fields?, also?)` | A new page; without content, the type's template. `also` creates more pages in the same call, which may link to each other: all or none | Denied |
+| `knowledge_edit(page, oldText, newText, fields?)` | Changes one fragment, unique in the page | Denied |
+| `knowledge_rewrite(page, content, fields?)` | Replaces a page's whole content, keeping its id and the links to it; or the `"overview"` | Denied |
+| `knowledge_supersede(page, by, reason?)` | Marks a page superseded by another, with a notice at its top | Denied |
+| `knowledge_retire(page, reason)` | Takes a page whose knowledge was wrong out of the index and the search (kept, restorable), after the person approves | Not offered in autonomous mode; denied |
+| `knowledge_log(operation, what, pages?)` | Adds an entry to the log, dated today | Denied |
+| `knowledge_check` | The mechanical problems in one call (see below) | Allowed |
+
+`fields` is a list of frontmatter fields to set, `[{ "name": "aliases", "value": "king tides" }]` (`value: null` removes one). A summary's `file` is its original relative to `sources/`; the store records the original's hash, so `list_sources` reports it as *changed* if it changes later.
+
+### Links and templates
+
+Pages link by id: `[Spring tides](concept/spring-tides)`. A link to a page that doesn't exist is refused with the reason, so the agent creates it first, or in the same call with `also` (a summary and the new concepts it feeds usually link to each other). Backlinks aren't written by the agent: `knowledge_read` returns what links to a page.
+
+`knowledge_create` without content returns the page type's template; the agent fills it and calls again. The kit's types and their templates:
+
+| Type | What it holds | Fields |
+| --- | --- | --- |
+| `summary` | One per ingested source: what it says, key points, the pages it feeds | `file` or `url`, `ingested` |
+| `concept` | One idea: definition, explanation, connections, sources | `aliases` |
+| `entity` | A concrete thing: a system, a component, an organization, a document | `kind`, `aliases` |
+| `synthesis` | An answer worth keeping: a comparison, an analysis, a report | `question` |
+
+Besides the pages there's the **overview**, a living synthesis of the whole knowledge base, read and rewritten as `"overview"`, and the **log** of operations.
+
+### What `knowledge_check` finds
+
+- broken links (to pages that don't exist, or relative links to missing files);
+- orphan pages (nothing links to them; summaries and syntheses aside, which the index reaches);
+- links to retired pages;
+- summaries whose original is gone;
+- with a sources folder: originals that are new (not ingested), changed after their ingest, or missing, and the passages that cite a retired original.
+
+The index and backlinks can't drift, so there's nothing to check there.
+
+## Your own page types
+
+An agent with its own kinds of notes (a course's topics and activities) declares them, and they work like the kit's four: the same tools, in the index under their own section, with their own template and fields.
+
+```ts
+const spec: AgentSpec<Config> = {
+  // …
+  knowledgePageTypes: [
+    {
+      type: "topic",
+      dir: "", // at the knowledge folder's root
+      indexSection: "Topics",
+      description: "A topic of the course: what it covers and the students' mastery of it.",
+      template: "## Goals\n- <What the students learn>\n\n## Sessions\n- <Plan>",
+      indexFields: ["mastery"], // shown in the index line: (mastery: 3)
+    },
+    { type: "activity", dir: "activities", indexSection: "Activities", description: "A class activity.", template: "## Steps\n…" },
+  ],
+};
+```
+
+The description reaches the model in the prompt section and in `knowledge_create`'s description, so the agent knows when to create one. A type with `dir: ""` keeps its pages at the root of the knowledge folder, telling them apart by their `type` field. A declared type with the name of a kit's type replaces it.
+
+## On disk
+
+The kit's store keeps the layout the knowledge base always had, so an existing one works as is:
 
 ```text
 knowledge/
-├── index.md            catalog of every page, one line each: read first, always
-├── log.md              append-only log of what was done to the knowledge base
-├── overview.md         living synthesis of the whole knowledge base
+├── index.md            the catalog, generated after every change
+├── log.md              the operation log
+├── overview.md         the living synthesis
 ├── summaries/<slug>.md one page per ingested source
 ├── concepts/<slug>.md  one page per idea
-├── entities/<slug>.md  one page per concrete thing (a system, a component, an organization, a document)
-└── syntheses/<slug>.md answers worth keeping: comparisons, analyses, reports
+├── entities/<slug>.md  one page per concrete thing
+├── syntheses/<slug>.md answers worth keeping
+└── <slug>.md           pages of a declared type with dir: ""
 ```
 
-The agent creates the pages as it goes; you don't need to create anything but the folder.
+Each page is markdown with a YAML frontmatter (`type`, `title`, the fields, `updated`); links are stored as relative paths, so the files read well in an editor or on GitHub, and come back to the agent as ids. The agent creates the pages as it goes; you don't need to create anything but the folder.
 
 ## The rules the agent follows
 
 The prompt section tells the agent, among other things:
 
-- start by reading `index.md`, then only the pages the task needs;
-- links are relative markdown links and go both ways;
-- never rename, move or delete a page: mark it superseded and link to the new one;
-- prefer `Edit` for existing pages, `Write` for new ones;
-- after any change, update `index.md` and append an entry to `log.md` (`## [YYYY-MM-DD] ingest | …`);
+- start from `knowledge_search` or `knowledge_index`, then read only the pages the task needs;
+- link by id; change a page by fragment; never delete or rename one: supersede or retire it;
+- log each operation when it's done;
 - every claim is traceable to a summary page, an original, or clearly labelled web content;
 - contradictions are kept with their attribution, not overwritten;
-- write pages in the language of the conversation; file names stay lowercase ASCII with hyphens.
+- write pages in the language of the conversation.
 
 ## Skills and commands
 
 | Skill | What it does |
 | --- | --- |
-| `knowledge:knowledge-pages` | Exact templates of every page type; loaded before creating or restructuring a page. |
-| `knowledge:knowledge-ingest` | Ingest one source: its summary page, the concept and entity pages it touches, links both ways, index and log. |
-| `knowledge:knowledge-query` | Answer a question from the knowledge base, with links, filing the answer back as a synthesis when worth keeping. |
-| `knowledge:knowledge-lint` | Health-check: broken links, missing index entries, orphans, one-way links, duplicates, contradictions, gaps. |
+| `knowledge:knowledge-ingest` | Ingest one source: its summary page, the concept and entity pages it touches, and the log; and what to do when an original was wrong or replaced. |
+| `knowledge:knowledge-query` | Answer a question from the knowledge base, citing its pages, filing the answer back as a synthesis when worth keeping. |
+| `knowledge:knowledge-lint` | Health-check: `knowledge_check` for the mechanical problems, then duplicates, missing pages, contradictions and provenance. |
 
 | Command | What it does |
 | --- | --- |
-| `/knowledge:ingest <files or topic>` | Ingest the given material, or everything in `sources/` not ingested yet. |
+| `/knowledge:ingest <files or topic>` | Ingest the given material, or every original not ingested yet. |
 | `/knowledge:query <question>` | Answer from the knowledge base. |
 | `/knowledge:lint` | Check the whole knowledge base, fix what's mechanical, report the rest. |
 
-If your spec lists its [skills](skills-and-plugins.md#choosing-which-skills-the-agent-offers), these four are added automatically.
+If your spec lists its [skills](skills-and-plugins.md#choosing-which-skills-the-agent-offers), these three are added automatically.
 
 ## Sources: originals kept as obtained
 
@@ -143,9 +216,17 @@ retire_source({ source: "topic-3/slides.pdf", why: "replaced", reason: "a newer 
 
 The plan gate denies every tool here but `list_sources` and `extract_text`, and `request_file` and `retire_source` don't exist in autonomous mode.
 
+## With the file tools instead
+
+`knowledgeTools: "files"` keeps the knowledge base as it was before the tools: the file tools on `knowledgeDir`, the rules about `index.md`, links and the log in the prompt, and a fourth skill with the page templates (`knowledge:knowledge-pages`). Same layout on disk, so an agent can switch either way.
+
+```ts
+const spec: AgentSpec<Config> = { /* … */ knowledgeTools: "files" };
+```
+
 ## Your own rules instead
 
-An agent whose notes have their own page types (courses, activities, customers…) turns the built-in knowledge base off and writes its own rules, keeping `knowledgeDir` for the file tools:
+An agent that wants plain notes, or rules entirely its own, turns the built-in knowledge base off and keeps `knowledgeDir` for the file tools:
 
 ```ts
 const spec: AgentSpec<Config> = {
@@ -155,12 +236,4 @@ const spec: AgentSpec<Config> = {
 };
 ```
 
-The pieces are exported to reuse them selectively:
-
-```ts
-import { knowledgePluginRoot, knowledgePromptSection } from "@falkenslab/agent-kit";
-
-pluginRoots: (config) => [knowledgePluginRoot(), path.join(here, "plugin")],
-buildSystemPrompt: (config) =>
-  `${myPrompt}\n\n${knowledgePromptSection(config.projectDir, config.knowledgeDir!, config.sourcesDir)}\n\n${myExtraRules}`,
-```
+The pieces are exported to reuse them selectively: `knowledgePromptSection(projectDir, knowledgeDir, sourcesDir?, { tools?, pageTypes? })`, `knowledgePluginRoot("tools" | "files")`, and the store and its tools (see [Knowledge store](knowledge-store.md)).

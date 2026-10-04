@@ -47,11 +47,11 @@ workspace/                projectDir: the session's cwd
 │   └── commands/
 ├── CLAUDE.md             project instructions (loaded by default)
 ├── .mcp.json             extra MCP servers for this workspace (optional)
-├── knowledge/            knowledgeDir: the agent's notes (read/write)
+├── knowledge/            knowledgeDir: the agent's notes (through the knowledge_* tools)
 │   ├── index.md
 │   ├── log.md
 │   └── …
-└── sources/              sourcesDir: originals (read-only for the agent)
+└── sources/              sourcesDir: originals (read-only for the agent; .agent-kit/ holds the kit's bookkeeping)
 ```
 
 For a single-purpose agent the workspace can be the agent's own repository (`projectDir: __dirname`, as in Captain Whiskers). An agent that serves many workspaces (one per course, per customer…) takes the workspace from its configuration and keeps its own code elsewhere.

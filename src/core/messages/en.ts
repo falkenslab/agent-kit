@@ -68,6 +68,7 @@ export interface Messages {
   fileRequestTitle: string;
   fileRequestQuestion: string;
   retireTitle: string;
+  retirePageTitle: string;
   choiceQuestion(multiple: boolean): string;
   otherOption: string;
   choiceKeys(multiple: boolean): string;
@@ -117,6 +118,16 @@ export interface Messages {
     downloading(url: string): string;
     requestingFile(description: string): string;
     retiringSource(source: string): string;
+    knowledgeIndex: string;
+    knowledgeSearch(query: string): string;
+    knowledgeRead(page: string): string;
+    knowledgeCreate(page: string): string;
+    knowledgeEdit(page: string): string;
+    knowledgeRewrite(page: string): string;
+    knowledgeSupersede(page: string): string;
+    knowledgeRetire(page: string): string;
+    knowledgeLog: string;
+    knowledgeCheck: string;
     askingHuman(question: string): string;
     presentingPlan: string;
   };
@@ -199,6 +210,7 @@ export const en: Messages = {
   fileRequestTitle: "The agent asks for a file",
   fileRequestQuestion: "Path of the file (drag it here), or Enter if you don't have it: ",
   retireTitle: "Retire a source?",
+  retirePageTitle: "Retire a knowledge base page?",
   choiceQuestion: (multiple) => (multiple ? "Numbers separated by commas, or your own answer: " : "Number, or your own answer: "),
   otherOption: "Other (type your own answer)",
   choiceKeys: (multiple) => (multiple ? "Space to mark · Enter to send" : "↑/↓ choose · Enter to send"),
@@ -236,6 +248,16 @@ export const en: Messages = {
     mcp__sourceFiles__download_to_sources: ["downloaded {n} source", "downloaded {n} sources"],
     mcp__sourceFiles__request_file: ["asked for {n} file", "asked for {n} files"],
     mcp__sourceFiles__retire_source: ["retired {n} source", "retired {n} sources"],
+    mcp__knowledge__knowledge_index: ["read the index", "read the index {n} times"],
+    mcp__knowledge__knowledge_search: ["searched the knowledge base", "searched the knowledge base {n} times"],
+    mcp__knowledge__knowledge_read: ["read {n} page", "read {n} pages"],
+    mcp__knowledge__knowledge_create: ["created {n} page", "created {n} pages"],
+    mcp__knowledge__knowledge_edit: ["edited {n} page", "edited {n} pages"],
+    mcp__knowledge__knowledge_rewrite: ["rewrote {n} page", "rewrote {n} pages"],
+    mcp__knowledge__knowledge_supersede: ["superseded {n} page", "superseded {n} pages"],
+    mcp__knowledge__knowledge_retire: ["retired {n} page", "retired {n} pages"],
+    mcp__knowledge__knowledge_log: ["updated the log", "updated the log {n} times"],
+    mcp__knowledge__knowledge_check: ["checked the knowledge base", "checked the knowledge base {n} times"],
     mcp__approvals__ask_human: ["asked {n} question", "asked {n} questions"],
     mcp__approvals__present_plan: ["presented the plan", "presented the plan {n} times"],
   },
@@ -273,6 +295,16 @@ export const en: Messages = {
     downloading: (url) => `Downloading ${url} to the sources`,
     requestingFile: (description) => `Asking for a file: ${description}`,
     retiringSource: (source) => `Retiring the source ${source}`,
+    knowledgeIndex: "Reading the knowledge base's index",
+    knowledgeSearch: (query) => `Searching the knowledge base for "${query}"`,
+    knowledgeRead: (page) => `Reading ${page}`,
+    knowledgeCreate: (page) => `Creating ${page}`,
+    knowledgeEdit: (page) => `Editing ${page}`,
+    knowledgeRewrite: (page) => `Rewriting ${page}`,
+    knowledgeSupersede: (page) => `Marking ${page} superseded`,
+    knowledgeRetire: (page) => `Retiring ${page}`,
+    knowledgeLog: "Updating the knowledge base's log",
+    knowledgeCheck: "Checking the knowledge base",
     askingHuman: (question) => `Asking: ${question}`,
     presentingPlan: "Presenting the plan",
   },
