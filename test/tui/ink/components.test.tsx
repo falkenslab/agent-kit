@@ -19,6 +19,29 @@ const TAB = "\t";
 // Ink attaches its input listeners and repaints asynchronously.
 const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
 
+/**
+ * Writes `key` until the frame matches `shows`: a panel that just appeared may not be
+ * listening to the keyboard yet (its input handler is attached after it's drawn), so the
+ * first key can be lost under load.
+ */
+async function pressUntil(view: { stdin: { write(data: string): void }; lastFrame(): string | undefined }, key: string, shows: RegExp): Promise<void> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    view.stdin.write(key);
+    for (let waited = 0; waited < 400; waited += 10) {
+      if (shows.test(stripAnsi(view.lastFrame() ?? ""))) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  assert.fail(`the frame never showed ${shows}`);
+}
+
+/** Writes `key` and waits until the frame changes (a fixed wait fails now and then under load). */
+async function press(view: { stdin: { write(data: string): void }; lastFrame(): string | undefined }, key: string): Promise<void> {
+  const before = view.lastFrame();
+  view.stdin.write(key);
+  for (let waited = 0; waited < 3000 && view.lastFrame() === before; waited += 10) await new Promise((resolve) => setTimeout(resolve, 10));
+}
+
 afterEach(() => cleanup());
 
 function setup() {
@@ -297,7 +320,7 @@ test("a choice panel: pick one with Enter, or type your own answer under Other",
   const first = interaction.port.askChoice!({ title: "The agent asks", lines: ["How long is topic 3?"] }, choice, signal);
   await settle();
   assert.match(stripAnsi(view.lastFrame() ?? ""), /How long is topic 3\?[\s\S]*1\. One session[\s\S]*2\. Two sessions[\s\S]*Other/);
-  view.stdin.write(DOWN);
+  await pressUntil(view, DOWN, /❯ 2\. Two sessions/);
   await settle();
   view.stdin.write(ENTER);
   assert.equal(await first, "2");
@@ -306,13 +329,11 @@ test("a choice panel: pick one with Enter, or type your own answer under Other",
 
   const second = interaction.port.askChoice!({ title: "The agent asks", lines: ["Again?"] }, choice, signal);
   await settle();
-  view.stdin.write(DOWN);
-  await settle();
-  view.stdin.write(DOWN);
-  await settle();
-  view.stdin.write(ENTER); // Other
-  await settle();
-  view.stdin.write("Three, with a lab");
+  await pressUntil(view, DOWN, /❯ 2\. Two sessions/);
+  await pressUntil(view, DOWN, /❯ Other/);
+  await pressUntil(view, ENTER, /type the answer/); // Other: a text field
+  await pressUntil(view, "T", /> T/); // the field is listening
+  await pressUntil(view, "hree, with a lab", /> Three, with a lab/);
   await settle();
   view.stdin.write(ENTER);
   assert.equal(await second, "Three, with a lab");
@@ -323,13 +344,13 @@ test("a multiple choice panel marks with Space and sends with Enter", async () =
   const view = render(<SessionView model={model} interaction={interaction} />);
   const answer = interaction.port.askChoice!({ title: "The agent asks", lines: ["Which topics?"] }, { options: ["Knots", "Sails", "Tides"], multiple: true }, new AbortController().signal);
   await settle();
-  view.stdin.write(" ");
-  await settle();
-  view.stdin.write(DOWN);
-  await settle();
-  view.stdin.write(DOWN);
-  await settle();
-  view.stdin.write(" ");
+  // Each key once the frame shows the one before took effect: ❯ is the focus, ✔ a mark.
+  await pressUntil(view, " ", /1\. Knots ✔/);
+  await pressUntil(view, DOWN, /❯ 2\. Sails/);
+  await pressUntil(view, DOWN, /❯ 3\. Tides/);
+  await pressUntil(view, " ", /3\. Tides ✔/);
+  // The list's key handler is renewed just after the frame: an Enter at once would still see
+  // the marks before the last one (no person is that fast).
   await settle();
   view.stdin.write(ENTER);
   assert.equal(await answer, "1,3");

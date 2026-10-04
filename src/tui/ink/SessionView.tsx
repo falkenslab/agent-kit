@@ -347,6 +347,14 @@ function FullscreenSession({
     const { height } = measureElement(historyRef.current);
     if (height !== historyHeight) setHistoryHeight(height);
   });
+  // The history's height now: `historyHeight` is set by the effect above after the layout,
+  // so a key or a click on the first frames would still find the terminal's height.
+  function heightNow(): number {
+    if (!historyRef.current) return historyHeight;
+    const { height } = measureElement(historyRef.current);
+    if (height !== historyHeight) setHistoryHeight(height);
+    return height;
+  }
 
   const [anchor, setAnchor] = useState<ScrollAnchor>(null);
   // Mirrored in a ref: mouse reports can arrive faster than React re-renders.
@@ -376,9 +384,7 @@ function FullscreenSession({
   function cellAt(x: number, y: number, clamp: boolean): Cell | null {
     if (!historyRef.current || end === start) return null;
     const box = framePosition(historyRef.current);
-    // Measured now, not `historyHeight`: that state is set by an effect after the layout, so
-    // a click on the first frames would find the rows where they were before it.
-    const height = measureElement(historyRef.current).height;
+    const height = heightNow();
     const firstY = box.y + height - (end - start); // the rows are bottom-aligned
     let offset = y - firstY;
     // Rows that don't fit are clipped above the box, not clickable.
@@ -394,7 +400,8 @@ function FullscreenSession({
     for (const event of mouseEvents(text)) {
       if (event.kind === "wheel-up" || event.kind === "wheel-down") {
         const steps = event.kind === "wheel-up" ? -WHEEL_ROWS : WHEEL_ROWS;
-        setAnchor((a) => scrollBy(a, steps, total, historyHeight));
+        const height = heightNow();
+        setAnchor((a) => scrollBy(a, steps, total, height));
       } else if (event.kind === "press") {
         const cell = cellAt(event.x, event.y, false);
         dragging.current = cell !== null;
@@ -421,11 +428,13 @@ function FullscreenSession({
   }
 
   useInput((text, key) => {
-    const page = Math.max(1, historyHeight - 1);
     if (isMouseReport(text)) handleMouse(text);
     else if (isFocusReport(text)) return;
-    else if (key.pageUp) setAnchor((a) => scrollBy(a, -page, total, historyHeight));
-    else if (key.pageDown) setAnchor((a) => scrollBy(a, page, total, historyHeight));
+    else if (key.pageUp || key.pageDown) {
+      const height = heightNow();
+      const page = Math.max(1, height - 1);
+      setAnchor((a) => scrollBy(a, key.pageUp ? -page : page, total, height));
+    }
     else if (key.ctrl && key.end) setAnchor(null);
     else if (text && !key.ctrl && !key.meta && !key.escape) setAnchor(null); // typing
   });
