@@ -358,6 +358,13 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
 
     index: indexText,
 
+    async recentLog(limit = 10) {
+      const text = await readFile(path.join(knowledgeDir, "log.md"), "utf8").catch(() => "");
+      // Entries start with "## [date] operation | what"; the newest are at the bottom.
+      const entries = text.split(/\r?\n(?=## )/).filter((entry) => entry.startsWith("## ")).map((entry) => entry.trim());
+      return entries.slice(-limit).reverse();
+    },
+
     async log(operation, what, pages = []) {
       await mkdir(knowledgeDir, { recursive: true });
       const file = path.join(knowledgeDir, "log.md");
@@ -369,16 +376,21 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
     async check(): Promise<CheckReport> {
       await writeIndex(); // the one mechanical fix there is: an index.md out of date
       const { pages, byFile } = await pagesByFile();
+      const reservedFiles = new Set([...RESERVED].map((name) => path.normalize(path.join(knowledgeDir, `${name}.md`))));
       const known = new Map(pages.map((p) => [p.id, p]));
       const inbound = new Map<string, number>();
       const report: CheckReport = { brokenLinks: [], orphans: [], linksToRetired: [], missingOriginals: [] };
       for (const page of pages) {
         if (statusOf(page) === "retired") continue;
         const body = fromFile(page.body, page.file, byFile);
-        // Relative links to .md files that resolve to nothing are broken too.
+        // Relative links to .md files that resolve to nothing are broken too. The overview, the
+        // index and the log aren't pages but are files: a link to one that exists is fine (a
+        // knowledge base written with the file tools links the overview, #22).
         for (const m of page.body.matchAll(/\]\(([^)\s:]+\.md)(?:#[^)]*)?\)/g)) {
           const target = path.normalize(path.resolve(path.dirname(page.file), decodeURI(m[1])));
-          if (!byFile.has(target) && target.startsWith(path.normalize(knowledgeDir))) report.brokenLinks.push({ page: page.id, target: posix(path.relative(knowledgeDir, target)) });
+          if (byFile.has(target) || !target.startsWith(path.normalize(knowledgeDir))) continue;
+          if (reservedFiles.has(target) && (await stat(target).catch(() => null))) continue;
+          report.brokenLinks.push({ page: page.id, target: posix(path.relative(knowledgeDir, target)) });
         }
         for (const id of new Set(linkedIds(body))) {
           const target = known.get(id);

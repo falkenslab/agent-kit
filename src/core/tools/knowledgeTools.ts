@@ -26,6 +26,7 @@ async function attempt(work: () => Promise<string>) {
 }
 
 const OVERVIEW = "overview";
+const LOG = "log";
 
 /** Options of `createKnowledgeServer()`. */
 export interface KnowledgeToolsOptions {
@@ -86,11 +87,16 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
 
   const read = tool(
     "knowledge_read",
-    'A page by its id ("concept/bowline"), or "overview": its fields, its content (links to other pages as ids) and the pages that link to it.',
-    { page: z.string().describe('The page id, or "overview"') },
+    'A page by its id ("concept/bowline"): its fields, its content (links to other pages as ids) and the pages that link to it. Or "overview" (the living synthesis of the whole knowledge base), or "log" (the latest entries of the operation log, newest first: what was done to the knowledge base, and when).',
+    { page: z.string().describe('The page id, "overview" or "log"') },
     async (args) =>
       attempt(async () => {
         if (args.page === OVERVIEW) return (await store.overview()) || "There's no overview yet: write it with knowledge_rewrite (page \"overview\").";
+        if (args.page === LOG) {
+          if (!store.recentLog) return "This knowledge base's store can't show its log.";
+          const entries = await store.recentLog(10);
+          return entries.length ? entries.join("\n\n") : "The log is empty: nothing has been logged yet.";
+        }
         const page = await store.read(args.page);
         if (!page) throw new Error(`There's no page "${args.page}". knowledge_search or knowledge_index finds the right one.`);
         const fieldLines = Object.entries(page.fields).map(([key, value]) => `${key}: ${value}`);

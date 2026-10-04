@@ -113,6 +113,11 @@ export interface KnowledgeStore {
   index(): Promise<string>;
   /** Adds an entry to the operation log, dated today. */
   log(operation: string, what: string, pages?: readonly string[]): Promise<void>;
+  /**
+   * The latest entries of the operation log, newest first, as markdown (e.g. "## [2026-10-04]
+   * ingest | …"). Optional: a store without it can't show the log to the agent.
+   */
+  recentLog?(limit?: number): Promise<string[]>;
   /** The mechanical problems. */
   check(): Promise<CheckReport>;
   /** The overview: a living synthesis of the whole knowledge base ("" if none yet). */

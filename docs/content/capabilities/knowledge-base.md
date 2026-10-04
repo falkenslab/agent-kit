@@ -39,7 +39,7 @@ It also saves work. On a sample knowledge base of 33 pages, a `/knowledge:lint` 
 | --- | --- | --- |
 | `knowledge_index` | The catalog: every page, one line each (title, id, what it is), by section | Allowed |
 | `knowledge_search(query)` | Pages matching words in their title, aliases or content, best first, with the line that matched | Allowed |
-| `knowledge_read(page)` | A page: its fields, its content (links as ids) and the pages that link to it; or `"overview"` | Allowed |
+| `knowledge_read(page)` | A page: its fields, its content (links as ids) and the pages that link to it; or `"overview"`; or `"log"`, the latest entries of the operation log, newest first | Allowed |
 | `knowledge_create(type, slug, title, content?, fields?, also?)` | A new page; without content, the type's template. `also` creates more pages in the same call, which may link to each other: all or none | Denied |
 | `knowledge_edit(page, oldText, newText, fields?)` | Changes one fragment, unique in the page | Denied |
 | `knowledge_rewrite(page, content, fields?)` | Replaces a page's whole content, keeping its id and the links to it; or the `"overview"` | Denied |
@@ -63,11 +63,11 @@ Pages link by id: `[Spring tides](concept/spring-tides)`. A link to a page that 
 | `entity` | A concrete thing: a system, a component, an organization, a document | `kind`, `aliases` |
 | `synthesis` | An answer worth keeping: a comparison, an analysis, a report | `question` |
 
-Besides the pages there's the **overview**, a living synthesis of the whole knowledge base, read and rewritten as `"overview"`, and the **log** of operations.
+Besides the pages there's the **overview**, a living synthesis of the whole knowledge base, read and rewritten as `"overview"`, and the **log** of operations, written with `knowledge_log` and read as `"log"` (the latest ten entries, newest first: what was done last, and when).
 
 ### What `knowledge_check` finds
 
-- broken links (to pages that don't exist, or relative links to missing files);
+- broken links (to pages that don't exist, or relative links to missing files; a link to the overview, index or log file is fine when the file exists);
 - orphan pages (nothing links to them; summaries and syntheses aside, which the index reaches);
 - links to retired pages;
 - summaries whose original is gone;

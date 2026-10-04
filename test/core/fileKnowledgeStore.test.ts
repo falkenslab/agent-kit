@@ -202,3 +202,36 @@ test("several pages at once may link to each other; if one is wrong, none is wri
     await kb.done();
   }
 });
+
+test("links to the overview, the index or the log aren't broken when the file exists (#22)", async () => {
+  const kb = await existing();
+  try {
+    await writeFile(path.join(kb.k, "overview.md"), "# Overview\n");
+    await writeFile(path.join(kb.k, "concepts", "links.md"), "---\ntype: concept\n---\n\n# Links\n\nSee [the overview](../overview.md), [the index](../index.md) and [the log](../log.md). See [Tides](tides.md).\n");
+    const store = createFileKnowledgeStore(kb.k);
+    const broken = (await store.check()).brokenLinks.filter((link) => link.page === "concept/links");
+    assert.deepEqual(broken, [{ page: "concept/links", target: "log.md" }]); // no log.md yet
+    await store.log("update", "first entry");
+    assert.deepEqual((await store.check()).brokenLinks.filter((link) => link.page === "concept/links"), []);
+  } finally {
+    await kb.done();
+  }
+});
+
+test("the latest log entries, newest first (#23)", async () => {
+  const kb = await existing();
+  try {
+    const store = createFileKnowledgeStore(kb.k);
+    assert.deepEqual(await store.recentLog!(), []);
+    await store.log("ingest", "Tides chapter", ["summary/tides-chapter"]);
+    await store.log("lint", "fixed a link");
+    await store.log("query", "best tides");
+    const entries = await store.recentLog!(2);
+    assert.equal(entries.length, 2);
+    assert.match(entries[0], /^## \[\d{4}-\d{2}-\d{2}\] query \| best tides$/);
+    assert.match(entries[1], /lint \| fixed a link/);
+    assert.match((await store.recentLog!())[2], /ingest \| Tides chapter\n- pages: summary\/tides-chapter/);
+  } finally {
+    await kb.done();
+  }
+});

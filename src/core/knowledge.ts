@@ -36,7 +36,7 @@ function toolsSection(originals: string | undefined, pageTypes: readonly PageTyp
 Your memory across sessions is an interlinked knowledge base of pages that you write and maintain yourself — a wiki, not a pile of notes. A future session only knows what is written there, so anything worth remembering must end up in a page, not just in this turn's reply. You reach it only through the \`knowledge_*\` tools. Write page content in the language you are using with the human.
 
 ### Layers
-${originals ? originalsLine(originals) : ""}- **The knowledge base**: pages identified by type and slug (\`concept/spring-tides\`), plus the \`overview\`, a living synthesis of the whole. Page types: ${pageTypes.map((type) => `\`${type.type}\` (${type.description})`).join("; ")}.
+${originals ? originalsLine(originals) : ""}- **The knowledge base**: pages identified by type and slug (\`concept/spring-tides\`), plus the \`overview\`, a living synthesis of the whole, and the \`log\` of what was done to it (\`knowledge_read\` reads both). Page types: ${pageTypes.map((type) => `\`${type.type}\` (${type.description})`).join("; ")}.
 - **The schema**: these rules plus the \`knowledge-ingest\`, \`knowledge-query\` and \`knowledge-lint\` skills. \`knowledge_create\` without content gives a type's template.
 
 ### Working rules
