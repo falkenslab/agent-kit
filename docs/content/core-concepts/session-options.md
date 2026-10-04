@@ -44,7 +44,7 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 | file tools or at least one plugin | `Skill` |
 | `spec.buildSubagents()` returns something | `Agent`, `Bash` |
 
-`TodoWrite` is the SDK's task list for long jobs: the chats show the list instead of the calls (see [Ink chat](../terminal-ui/ink-chat.md#whats-on-screen)). Nothing else of the CLI's built-in tools is available. `Bash` is there only because the SDK won't spawn a subagent whose own tools aren't in the session's; a hook denies it to the main agent.
+`TodoWrite` is the SDK's task list for long jobs (the session's `env` is `process.env` plus `CLAUDE_CODE_ENABLE_TASKS=0`, without which the CLI replaces it with its own Task tools): the chats show the list instead of the calls (see [Ink chat](../terminal-ui/ink-chat.md#whats-on-screen)). Nothing else of the CLI's built-in tools is available. `Bash` is there only because the SDK won't spawn a subagent whose own tools aren't in the session's; a hook denies it to the main agent.
 
 ### MCP servers and permissions
 

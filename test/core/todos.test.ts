@@ -44,3 +44,15 @@ test("every session has TodoWrite, and plan mode lets it through", async () => {
     await rm(runDir, { recursive: true, force: true });
   }
 });
+
+test("the session asks the CLI for TodoWrite, which it otherwise replaces with its Task tools", async () => {
+  const runDir = await mkdtemp(path.join(tmpdir(), "agent-kit-"));
+  try {
+    const spec = { buildSystemPrompt: () => "test", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined };
+    const { options } = await buildSessionOptions({ mode: "guided", projectDir: runDir }, runDir, spec);
+    assert.equal(options.env?.CLAUDE_CODE_ENABLE_TASKS, "0");
+    assert.equal(options.env?.PATH ?? options.env?.Path, process.env.PATH ?? process.env.Path); // the rest is passed on
+  } finally {
+    await rm(runDir, { recursive: true, force: true });
+  }
+});

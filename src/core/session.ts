@@ -171,6 +171,11 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     // name isn't known ahead of time.
     canUseTool: allowAnyMcpTool,
     disallowedTools: spec.disallowedTools ?? [],
+    // TodoWrite (todos.ts) only exists with CLAUDE_CODE_ENABLE_TASKS=0: by default the CLI
+    // offers its TaskCreate/TaskUpdate/TaskList/TaskGet tools instead, and drops TodoWrite from
+    // the session even when `tools` names it (confirmed empirically). `env` replaces the
+    // subprocess environment, so the rest is passed on as it is.
+    env: { ...process.env, CLAUDE_CODE_ENABLE_TASKS: "0" },
     // Real text streaming instead of silently waiting for the turn's complete message —
     // see the caller's message loop.
     includePartialMessages: true,
