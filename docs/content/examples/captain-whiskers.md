@@ -1,14 +1,90 @@
 ---
 sidebar_position: 1
 title: Captain Whiskers
-description: A walk through the kit's example agent, piece by piece.
+description: What the kit's example agent can do, with screenshots, and a walk through his code, piece by piece.
 ---
 
 # Captain Whiskers
 
-[Captain Whiskers](https://github.com/falkenslab/agent-kit/tree/main/examples/captain-whiskers) is the kit's example: a retired pirate cat who tells jokes in the terminal. It's small, but it uses most of the kit, so it's the best template for an agent of your own.
+[Captain Whiskers](https://github.com/falkenslab/agent-kit/tree/main/examples/captain-whiskers) is the kit's example: a retired pirate cat who tells jokes in the terminal, keeps a logbook of what he learns and a chest of original documents. It's small, but it uses most of the kit, so it's the best template for an agent of your own.
 
 ![Captain Whiskers running full screen in Windows Terminal](/captain-whiskers.png)
+
+This page first shows what he can do, each thing with a screenshot from a real session and the piece of the kit behind it, and then [walks through his code](#running-it).
+
+## What he can do
+
+### Talk
+
+He answers in the chat as you'd expect from Claude Code: the reply streams in with its markdown already formatted, tables drawn as grids, his tool calls folded under each step. All of it is the kit's [Ink chat](../terminal-ui/ink-chat.md); the captain only gives it a header, a theme and his texts.
+
+![The captain answers with a table of jokes and their scores](/captain/conversation.png)
+
+### Send his crew
+
+He has three [subagents](../capabilities/subagents.md): a kitten that searches the web for jokes, a grumpy parrot that scores them and a cabin boy who reads the clock. The chat shows each subagent's own tool calls under the call that started it. The kit's [subagent gates](../security/subagent-gates.md) keep them to their declared types and tools, and in the foreground.
+
+![The kitten searches the web twice and the parrot scores each joke](/captain/crew.png)
+
+### Ask you
+
+When he needs you to choose, he asks in a panel instead of ending his turn with a question, and goes on with your answer in the same turn. "Other" lets you type your own. That's the kit's [`ask_human`](../human-in-the-loop/choices-and-plans.md) tool.
+
+![A panel asks which kind of joke: classic, fresh or from the logbook](/captain/ask.png)
+
+### Stock his chest
+
+His chest (`treasure/`) holds the original documents he learns from, which he can read but never change. He downloads web pages into it, kept as markdown too so he can quote them, and asks you for files of yours. Those are the kit's [sources tools](../capabilities/knowledge-base.md#sources-originals-kept-as-obtained): `download_to_sources` and `request_file`. Nothing is overwritten, and an identical file isn't copied twice.
+
+![Two Wikipedia pages downloaded into the chest, then a panel asking for a joke book](/captain/chest.png)
+
+### Learn from it
+
+`/captain-whiskers:learn` reads every original he hasn't learned yet, PowerPoint speaker notes included, and writes what it teaches into his logbook: a summary of each document and a page per concept, created together. `list_sources` tells what's new, [`extract_text`](../capabilities/knowledge-base.md#adding-originals) reads Word and PowerPoint, and the [`knowledge_*` tools](../capabilities/knowledge-base.md#the-tools) keep the logbook.
+
+![The captain reads a PowerPoint and a Word document and creates the logbook pages](/captain/learn.png)
+
+### Remember
+
+His logbook (`logbook/`) is his memory across sessions: a wiki of pages he reaches only through the knowledge tools. Besides the kit's page types it has one of his own, `joke`, with the parrot's score shown in the index ([your own page types](../capabilities/knowledge-base.md#your-own-page-types)). `/captain-whiskers:best-jokes` ranks them and files the ranking back as a page.
+
+![The captain ranks the jokes in his logbook by the parrot's score](/captain/remember.png)
+
+### Set things right
+
+Told that a document was the wrong one, he asks before taking it out of the chest: [`retire_source`](../capabilities/knowledge-base.md#retiring-an-original) moves it aside instead of deleting it, and marks its summary page as retired so he no longer relies on it.
+
+![An approval panel to retire the ship's rules document](/captain/retire.png)
+
+### Know the date
+
+The cabin boy answers "how many days until…" with the kit's [`current_time` and `date_math`](../capabilities/tools-and-mcp.md#date-and-time), rather than counting on his paws.
+
+![The cabin boy works out the days until Talk Like a Pirate Day](/captain/date.png)
+
+### Organize a mission
+
+For anything with several steps he keeps a task list, drawn under the spinner as he goes: pending, in progress, done. That's the SDK's `TodoWrite`, [drawn by the chat](../terminal-ui/ink-chat.md#whats-on-screen).
+
+![A treasure hunt's four steps, two done and one in progress](/captain/tasks.png)
+
+### Plan before acting
+
+In [plan mode](../core-concepts/modes.md#plan) he can only read and plan. When the plan is ready, he presents it: *Run it* leaves plan mode and he carries it out in the same turn; *Keep planning* lets you say what to change.
+
+![A party plan in a panel, with Run it, Keep planning and Cancel](/captain/plan.png)
+
+### Go step by step
+
+In interactive mode the kit's [step gate](../human-in-the-loop/step-gate.md) stops every tool call, his crew's included, until you approve it. `CAPTAIN_MODE=interactive npm start`, or Shift+Tab in any mode but autonomous.
+
+![The step gate asks before the captain delegates to the cabin boy](/captain/step-gate.png)
+
+### Speak your language
+
+He speaks the kit's language, the system's or the one given with `--language`: his name, his texts, the kit's own and his replies. Here as Capitán Bigotes. See [Languages](../sessions/languages.md).
+
+![The same captain in Spanish, as Capitán Bigotes](/captain/languages.png)
 
 ## Running it
 
