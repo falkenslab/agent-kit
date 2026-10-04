@@ -1,0 +1,12 @@
+# Interface: FileKnowledgeStoreOptions
+
+Defined in: [core/fileKnowledgeStore.ts:58](https://github.com/falkenslab/agent-kit/blob/main/src/core/fileKnowledgeStore.ts#L58)
+
+Options of `createFileKnowledgeStore()`.
+
+## Properties
+
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="property-pagetypes"></a> `pageTypes?` | readonly [`PageType`](PageType.md)[] | The agent's own page types, besides the kit's four. | [core/fileKnowledgeStore.ts:60](https://github.com/falkenslab/agent-kit/blob/main/src/core/fileKnowledgeStore.ts#L60) |
+| <a id="property-sourcesdir"></a> `sourcesDir?` | `string` | The sources folder: a summary's `file` field is given relative to it. | [core/fileKnowledgeStore.ts:62](https://github.com/falkenslab/agent-kit/blob/main/src/core/fileKnowledgeStore.ts#L62) |
