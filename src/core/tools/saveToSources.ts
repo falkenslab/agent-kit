@@ -1,6 +1,6 @@
 import path from "node:path";
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
+import { tool, createSdkMcpServer, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { addSource, listSources, resolveWithin, retireSource, type AddedSource } from "../sources.js";
 import { askForDecision, askForText } from "../hooks/humanInput.js";
@@ -50,8 +50,6 @@ const DEFAULT_DESCRIPTION =
 /** The most `download_to_sources` and `request_file` copy in. */
 export const MAX_SOURCE_BYTES = 50 * 1024 * 1024;
 
-const ok = (text: string) => ({ content: [{ type: "text" as const, text }] });
-const fail = (text: string) => ({ content: [{ type: "text" as const, text }], isError: true });
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 function added(result: AddedSource, extra = ""): string {
@@ -129,6 +127,18 @@ export interface SourceToolsOptions {
 export function createSaveToSourcesServer(runDir: string, sourcesDir: string, description = DEFAULT_DESCRIPTION, options: SourceToolsOptions = {}) {
   const projectDir = options.projectDir ?? path.dirname(sourcesDir);
   const maxBytes = options.maxBytes ?? MAX_SOURCE_BYTES;
+  // The texts say "sources/"; the model reads the folder's real name (e.g. "treasure/"),
+  // since it reads and searches the originals by that path. Paths it gives may start with
+  // either.
+  const folder = `${path.relative(projectDir, sourcesDir).split(path.sep).join("/") || "."}/`;
+  const named = (text: string): string => text.replaceAll("sources/", folder);
+  const inFolder = (relative: string): string => {
+    const clean = relative.replace(/\\/g, "/").replace(/^\.\//, "");
+    for (const prefix of [folder, "sources/"]) if (clean.startsWith(prefix)) return clean.slice(prefix.length);
+    return clean;
+  };
+  const ok = (text: string) => ({ content: [{ type: "text" as const, text: named(text) }] });
+  const fail = (text: string) => ({ content: [{ type: "text" as const, text: named(text) }], isError: true });
   const replaces = z.string().optional().describe("For a new version: the original it replaces, relative to sources/ (kept, never overwritten)");
 
   const saveToSources = tool(
@@ -148,7 +158,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
       }
       try {
         const relative = path.relative(runDir, resolvedSource).split(path.sep).join("/");
-        return ok(added(await addSource(sourcesDir, resolvedSource, args.destination, { kind: "run", from: relative }, { replaces: args.replaces })));
+        return ok(added(await addSource(sourcesDir, resolvedSource, inFolder(args.destination), { kind: "run", from: relative }, { replaces: args.replaces && inFolder(args.replaces) })));
       } catch (error) {
         return fail(message(error));
       }
@@ -178,7 +188,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
       to: z.number().int().positive().optional().describe("Last slide (PPTX)"),
     },
     async (args) => {
-      const file = resolveWithin(sourcesDir, args.source);
+      const file = resolveWithin(sourcesDir, inFolder(args.source));
       if (!file || !(await stat(file).catch(() => null))?.isFile()) return fail(`"${args.source}" isn't an original in sources/ (list_sources lists them).`);
       if (!EXTRACTABLE.has(path.extname(file).slice(1).toLowerCase())) return fail(`extract_text reads DOCX, PPTX and XLSX; read "${args.source}" with Read.`);
       try {
@@ -203,7 +213,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
       try {
         const type = await downloadToFile(args.url, temp, maxBytes);
         const name = decodeURIComponent(new URL(args.url).pathname.split("/").filter(Boolean).pop() ?? "download");
-        const result = await addSource(sourcesDir, temp, args.destination, { kind: "url", from: args.url }, { replaces: args.replaces, name });
+        const result = await addSource(sourcesDir, temp, inFolder(args.destination), { kind: "url", from: args.url }, { replaces: args.replaces && inFolder(args.replaces), name });
         let extra = "";
         if (!result.duplicateOf && /html/i.test(type)) {
           const html = await readFile(temp, "utf8");
@@ -248,7 +258,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
       if (!info?.isFile()) return fail(`"${answer}" isn't a file the person has here. Ask again if needed.`);
       if (info.size > maxBytes) return fail(`"${answer}" is ${info.size} bytes, over the ${maxBytes}-byte limit.`);
       try {
-        return ok(added(await addSource(sourcesDir, file, args.destination ?? path.basename(file), { kind: "person", from: path.basename(file) }, { replaces: args.replaces })));
+        return ok(added(await addSource(sourcesDir, file, args.destination ? inFolder(args.destination) : path.basename(file), { kind: "person", from: path.basename(file) }, { replaces: args.replaces && inFolder(args.replaces) })));
       } catch (error) {
         return fail(message(error));
       }
@@ -265,10 +275,10 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
       replacedBy: z.string().optional().describe('For "replaced": the original that replaces it, relative to sources/'),
     },
     async (args) => {
-      const answer = await askForDecision(runDir, { title: t().retireTitle, lines: t().retireLines(args.source, args.why, args.reason, args.replacedBy) });
+      const answer = await askForDecision(runDir, { title: t().retireTitle, lines: t().retireLines(inFolder(args.source), args.why, args.reason, args.replacedBy && inFolder(args.replacedBy), folder) });
       if (answer !== "" && answer !== "y" && answer !== "yes") return ok(answer === "q" ? "The person stopped: don't retire it, and stop what you were doing." : "The person said no: the original stays.");
       try {
-        const result = await retireSource(sourcesDir, options.knowledgeDir, projectDir, args.source, args.why, args.reason, args.replacedBy);
+        const result = await retireSource(sourcesDir, options.knowledgeDir, projectDir, inFolder(args.source), args.why, args.reason, args.replacedBy && inFolder(args.replacedBy));
         const pages = result.summaries.map((s) => `${s.page} marked ${s.marked}${s.supersededBy ? ` (see ${s.supersededBy})` : ""}`);
         return ok(
           [
@@ -283,9 +293,13 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
     },
   );
 
-  return createSdkMcpServer({
-    name: "sourceFiles",
-    version: "1.0.0",
-    tools: [saveToSources, listSourcesTool, extractTextTool, downloadToSources, ...(options.interactive ? [requestFile, retire] : [])],
-  });
+  // The descriptions (the tool's and its parameters') with the folder's real name too.
+  const tools = [saveToSources, listSourcesTool, extractTextTool, downloadToSources, ...(options.interactive ? [requestFile, retire] : [])].map((definition) => ({
+    ...definition,
+    description: named(definition.description),
+    inputSchema: Object.fromEntries(
+      Object.entries(definition.inputSchema).map(([key, schema]) => [key, schema.description ? schema.describe(named(schema.description)) : schema]),
+    ) as typeof definition.inputSchema,
+  }));
+  return createSdkMcpServer({ name: "sourceFiles", version: "1.0.0", tools: tools as SdkMcpToolDefinition[] });
 }

@@ -24,7 +24,7 @@ A tool call is shown as a short sentence instead of its technical name: `Reading
 | `request_manual_login` | `Waiting for a human to intervene manually` |
 | `ask_human` | `Asking: <question>` |
 | `present_plan` | `Presenting the plan` |
-| `save_to_sources` | `Saving a file to sources/<destination>` |
+| `save_to_sources` | `Saving <destination> to the sources` |
 | `list_sources` | `Listing the sources` |
 | `knowledge_index`, `knowledge_search` | `Reading the knowledge base's index`, `Searching the knowledge base for "<query>"` |
 | `knowledge_read`, `knowledge_create`, `knowledge_edit`, `knowledge_rewrite` | `Reading <page>`, `Creating <page>`, `Editing <page>`, `Rewriting <page>` |

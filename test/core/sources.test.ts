@@ -203,3 +203,24 @@ test("a folder as destination keeps the file's own name inside it (found by a re
     await p.done();
   }
 });
+
+test("the sources tools name the folder as it really is, and take paths with either name (found by a real session)", async () => {
+  const p = await project();
+  try {
+    const treasure = path.join(p.root, "treasure");
+    await mkdir(treasure, { recursive: true });
+    const { createSaveToSourcesServer } = await import("../../src/core/tools/saveToSources.js");
+    const server = createSaveToSourcesServer(p.run, treasure, undefined, { projectDir: p.root, interactive: true }) as unknown as {
+      instance: { _registeredTools: Record<string, { description: string; handler: (args: unknown, extra: unknown) => Promise<{ content: { text: string }[] }> }> };
+    };
+    const tools = server.instance._registeredTools;
+    assert.match(tools.list_sources.description, /List the originals in treasure\//);
+    assert.doesNotMatch(tools.save_to_sources.description, /sources\//);
+    await writeFile(path.join(p.run, "map.txt"), "X marks the spot");
+    const saved = await tools.save_to_sources.handler({ source: "map.txt", destination: "treasure/maps/map.txt" }, {});
+    assert.equal(saved.content[0].text, "Saved to treasure/maps/map.txt.");
+    assert.equal(await readFile(path.join(treasure, "maps", "map.txt"), "utf8"), "X marks the spot");
+  } finally {
+    await p.done();
+  }
+});

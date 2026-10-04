@@ -78,12 +78,12 @@ export const es: Partial<Messages> = {
   keepPlanning: "Seguir planificando",
   cancelPlan: "Cancelar",
   planCommentQuestion: "¿Qué debería cambiar? (Enter para omitir): ",
-  retireLines: (source, why, reason, replacedBy) => [
+  retireLines: (source, why, reason, replacedBy, folder) => [
     `Fuente: ${source}`,
     why === "wrong" ? "Motivo: es errónea; su resumen se retirará" : "Motivo: se sustituye; su resumen se marcará como sustituido",
     `Razón: ${reason}`,
     ...(replacedBy ? [`Sustituida por: ${replacedBy}`] : []),
-    "Se mueve a sources/.agent-kit/retired/, no se borra.",
+    `Se mueve a ${folder}.agent-kit/retired/, no se borra.`,
   ],
 
   toolPhrases: {
@@ -129,7 +129,7 @@ export const es: Partial<Messages> = {
   labels: {
     askingApproval: (summary) => `Pidiendo aprobación humana: ${summary}`,
     waitingManual: "Esperando a que una persona intervenga a mano",
-    savingToSources: (destination) => `Guardando un fichero en sources/${destination}`,
+    savingToSources: (destination) => `Guardando ${destination} en las fuentes`,
     checkingTime: "Consultando la fecha y la hora",
     calculatingDates: "Calculando fechas",
     reading: (file) => `Leyendo ${file}`,

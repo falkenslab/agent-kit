@@ -78,7 +78,7 @@ export interface Messages {
   keepPlanning: string;
   cancelPlan: string;
   planCommentQuestion: string;
-  retireLines(source: string, why: "wrong" | "replaced", reason: string, replacedBy?: string): string[];
+  retireLines(source: string, why: "wrong" | "replaced", reason: string, replacedBy: string | undefined, folder: string): string[];
 
   // Tool calls: folded groups, results and friendly labels.
   toolPhrases: Record<string, ToolPhrase>;
@@ -220,12 +220,12 @@ export const en: Messages = {
   keepPlanning: "Keep planning",
   cancelPlan: "Cancel",
   planCommentQuestion: "What should change? (Enter to skip): ",
-  retireLines: (source, why, reason, replacedBy) => [
+  retireLines: (source, why, reason, replacedBy, folder) => [
     `Source: ${source}`,
     why === "wrong" ? "Why: it's wrong; its summary will be retired" : "Why: it's replaced; its summary will be marked superseded",
     `Reason: ${reason}`,
     ...(replacedBy ? [`Replaced by: ${replacedBy}`] : []),
-    "It's moved to sources/.agent-kit/retired/, not deleted.",
+    `It's moved to ${folder}.agent-kit/retired/, not deleted.`,
   ],
 
   toolPhrases: {
@@ -271,7 +271,7 @@ export const en: Messages = {
   labels: {
     askingApproval: (summary) => `Asking for human approval: ${summary}`,
     waitingManual: "Waiting for a human to intervene manually",
-    savingToSources: (destination) => `Saving a file to sources/${destination}`,
+    savingToSources: (destination) => `Saving ${destination} to the sources`,
     checkingTime: "Checking the date and time",
     calculatingDates: "Calculating dates",
     reading: (file) => `Reading ${file}`,

@@ -191,7 +191,10 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
   /** A field given by the model, made ready to store: `file` (relative to sources/) becomes a link from the page. */
   async function storedField(key: string, value: string, file: string): Promise<string> {
     if (key !== "file" || !options.sourcesDir || /^[a-z]+:\/\//i.test(value)) return value;
-    const original = path.resolve(options.sourcesDir, value.replace(/^sources\//, ""));
+    // Relative to the sources folder; a leading "sources/" or the folder's own name is dropped.
+    let relative = value.replace(/\\/g, "/").replace(/^\.\//, "");
+    for (const prefix of ["sources/", `${path.basename(options.sourcesDir)}/`]) if (relative.startsWith(prefix)) relative = relative.slice(prefix.length);
+    const original = path.resolve(options.sourcesDir, relative);
     if (!(await stat(original).catch(() => null))?.isFile()) throw new Error(`"${value}" isn't an original in sources/ (list_sources lists them).`);
     return posix(path.relative(path.dirname(file), original));
   }
