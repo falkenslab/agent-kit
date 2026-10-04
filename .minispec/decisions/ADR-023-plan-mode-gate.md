@@ -6,7 +6,7 @@
 
 ## Motivation
 
-- Agents need a "think before building" phase in which nothing changes (teacher-agent's activity plan); no other mode keeps an agent from acting.
+- Agents need a "think before building" phase in which nothing changes (teacher-agent's, now miyagi's, activity plan); no other mode keeps an agent from acting.
 - The SDK's plan mode has the model call `ExitPlanMode`, which isn't among the kit's explicit tools, and can't let one plan file be written. A hook is where the kit's other guardrails live, applies to subagents' calls too, and its denial can't be talked around.
 - Unknown MCP tools are denied, not allowed: a tool the agent forgot to classify can't change anything in plan mode.
 - The system prompt stays as built (ADR-016), so the switch has to reach the model in the conversation; the deny reason alone would only tell it after a failed attempt, and nothing would tell it that it may act again.

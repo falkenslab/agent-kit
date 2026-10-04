@@ -6,7 +6,7 @@
 
 ## Motivation
 
-- Without `settingSources` the SDK loads every source, as the CLI does, so an agent inherited the Claude Code configuration of whoever ran it: its `language` setting became a system prompt rule that outranked the agent's own (a French workspace in student-agent answered in Spanish), and its CLAUDE.md, skills and hooks came along.
+- Without `settingSources` the SDK loads every source, as the CLI does, so an agent inherited the Claude Code configuration of whoever ran it: its `language` setting became a system prompt rule that outranked the agent's own (a French workspace in student-agent (now padawan) answered in Spanish), and its CLAUDE.md, skills and hooks came along.
 - The runner's auto-memory (`~/.claude/projects/<repository>/memory/MEMORY.md`) is loaded whatever `settingSources` says (confirmed empirically): notes for the runner, not for the agent, whose memory is the knowledge base.
 - Context per call, measured on a captain-whiskers session answering "hola" (API usage, not `getContextUsage()`, whose split between skills and system tools was misleading): ~16.1k tokens with every source, ~15.7k with `["project"]`, ~11.4k with `settingSources: []`, its own two skills and no auto-memory. Plugin commands keep working when they aren't in the `skills` list.
 - Git instructions are for committing code, which no kit agent does, and without them the CLI's git context (the runner's git user name among it) stopped pulling a German session's replies into Spanish (confirmed empirically).

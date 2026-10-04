@@ -10,4 +10,4 @@ Every consumer needed the same notes behavior, not just the permissions; keeping
 
 ## Consequences
 
-The plugin stays domain-agnostic (summaries, concepts, entities, syntheses) and in English. Consumers add their own page types on top (as teacher-agent's course layer does) or opt out and write their own rules.
+The plugin stays domain-agnostic (summaries, concepts, entities, syntheses) and in English. Consumers add their own page types on top (as teacher-agent's (now miyagi) course layer does) or opt out and write their own rules.

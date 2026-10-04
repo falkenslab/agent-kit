@@ -6,7 +6,7 @@ The terminal UI's colors come from one theme of roles (`agent`, `user`, `userBar
 
 ## Motivation
 
-- The colors were spread over `ui.ts`, constants in the Ink views and `@inkjs/ui`'s own default theme, and an agent could change none of them; two requests from teacher-agent's user were colors (#1, #2).
+- The colors were spread over `ui.ts`, constants in the Ink views and `@inkjs/ui`'s own default theme, and an agent could change none of them; two requests from teacher-agent's (now miyagi) user were colors (#1, #2).
 - Roles, not colors: an agent says what it wants tool results to look like, not which call sites to patch. The `ui` functions read the theme, so an agent's own texts drawn with `ui.agent()` follow it too.
 - Names and hexes cover most wishes and work both as text escape codes and as Ink props; a function covers the rest (bold, a background).
 - One theme per process, like the language (ADR-019): an agent has one look.

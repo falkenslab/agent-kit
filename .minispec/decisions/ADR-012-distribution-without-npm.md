@@ -12,4 +12,4 @@ The API is still 0.x and has few consumers. A git dependency works for developer
 
 ## Consequences
 
-`prepare` builds on install for git dependencies; tarball consumers deny it in `allowScripts`. A consumer that ships to end users (teacher-agent) uses the tarball; one that doesn't yet (student-agent) can use the git tag. Publishing to npm would replace all of this once the API settles.
+`prepare` builds on install for git dependencies; tarball consumers deny it in `allowScripts`. A consumer that ships to end users (teacher-agent, now miyagi) uses the tarball; one that doesn't yet (student-agent, now padawan) can use the git tag. Publishing to npm would replace all of this once the API settles.

@@ -38,11 +38,11 @@ A foundation for building AI agents on top of the [Claude Agent SDK](https://www
 
 See [everything he can do](https://falkenslab.github.io/agent-kit/docs/next/examples/captain-whiskers#what-he-can-do), with screenshots.
 
-### teacher-agent
+### miyagi
 
-[teacher-agent](https://github.com/falkenslab/teacher-agent) is a real assistant for Moodle teachers. It signs in with your account in a Chrome window and works as you would: it grades submissions, answers in the forum, creates or reviews content and sums up how the class is going. It asks for your permission before publishing anything students will see, and takes notes about the course to remember everything in the next session.
+[miyagi](https://github.com/falkenslab/miyagi) is a real assistant for Moodle teachers. It signs in with your account in a Chrome window and works as you would: it grades submissions, answers in the forum, creates or reviews content and sums up how the class is going. It asks for your permission before publishing anything students will see, and takes notes about the course to remember everything in the next session.
 
-Oversight, memory, safety and the chat come from the kit; teacher-agent brings what it knows about Moodle and driving the browser.
+Oversight, memory, safety and the chat come from the kit; miyagi brings what it knows about Moodle and driving the browser.
 
 ## Installation
 

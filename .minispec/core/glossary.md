@@ -6,7 +6,7 @@ What a concrete agent implements: everything domain-specific about its sessions.
 
 ## Consumer
 
-A concrete agent built on the kit (`teacher-agent`, `student-agent`, `captain-whiskers`, a desktop app).
+A concrete agent built on the kit (`miyagi`, `padawan`, `captain-whiskers`, a desktop app).
 
 ## Mode
 

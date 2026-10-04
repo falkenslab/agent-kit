@@ -10,4 +10,4 @@ A session may be piloted by another process (Claude Code, a test script) or by a
 
 ## Consequences
 
-The file channel is a public contract: consumers' test tooling (e.g. teacher-agent's `auto-approve.mjs`) and desktop apps depend on it. Any new terminal UI must keep it and must not open its own stdin reader alongside the shared one.
+The file channel is a public contract: consumers' test tooling (e.g. teacher-agent's, now miyagi's, `auto-approve.mjs`) and desktop apps depend on it. Any new terminal UI must keep it and must not open its own stdin reader alongside the shared one.
