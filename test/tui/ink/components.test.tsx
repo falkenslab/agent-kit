@@ -35,13 +35,6 @@ async function pressUntil(view: { stdin: { write(data: string): void }; lastFram
   assert.fail(`the frame never showed ${shows}`);
 }
 
-/** Writes `key` and waits until the frame changes (a fixed wait fails now and then under load). */
-async function press(view: { stdin: { write(data: string): void }; lastFrame(): string | undefined }, key: string): Promise<void> {
-  const before = view.lastFrame();
-  view.stdin.write(key);
-  for (let waited = 0; waited < 3000 && view.lastFrame() === before; waited += 10) await new Promise((resolve) => setTimeout(resolve, 10));
-}
-
 afterEach(() => cleanup());
 
 function setup() {
