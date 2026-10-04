@@ -188,3 +188,18 @@ test("parallel additions don't lose each other's manifest entries", async () => 
     await p.done();
   }
 });
+
+test("a folder as destination keeps the file's own name inside it (found by a real session)", async () => {
+  const p = await project();
+  try {
+    const file = path.join(p.run, "jokes-book.md");
+    await writeFile(file, "# Jokes");
+    assert.deepEqual(await addSource(p.sources, file, "books/", { kind: "person", from: "jokes-book.md" }), { path: "books/jokes-book.md" });
+    const other = path.join(p.run, "tmp-123");
+    await writeFile(other, "# More jokes");
+    // An existing folder without the slash, and a name given apart (a download's, from its URL).
+    assert.deepEqual(await addSource(p.sources, other, "books", { kind: "url", from: "https://x/y/more.md" }, { name: "more.md" }), { path: "books/more.md" });
+  } finally {
+    await p.done();
+  }
+});

@@ -136,7 +136,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
     description,
     {
       source: z.string().describe("Path to the file, relative to this run's own folder - not a URL"),
-      destination: z.string().describe('Path to save it under, relative to sources/, e.g. "topic-3/slides.pdf"'),
+      destination: z.string().describe('Path to save it under, relative to sources/, e.g. "topic-3/slides.pdf" (a folder, "topic-3/", keeps its own name)'),
       replaces,
     },
     async (args) => {
@@ -202,7 +202,8 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
       const temp = path.join(runDir, "downloads", `${Date.now()}-${path.basename(args.destination)}`);
       try {
         const type = await downloadToFile(args.url, temp, maxBytes);
-        const result = await addSource(sourcesDir, temp, args.destination, { kind: "url", from: args.url }, { replaces: args.replaces });
+        const name = decodeURIComponent(new URL(args.url).pathname.split("/").filter(Boolean).pop() ?? "download");
+        const result = await addSource(sourcesDir, temp, args.destination, { kind: "url", from: args.url }, { replaces: args.replaces, name });
         let extra = "";
         if (!result.duplicateOf && /html/i.test(type)) {
           const html = await readFile(temp, "utf8");
@@ -210,7 +211,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
           if (markdown) {
             const mdTemp = `${temp}.md`;
             await writeFile(mdTemp, markdown);
-            const mdDestination = args.destination.replace(/\.[^./]+$/, "") + ".md";
+            const mdDestination = result.path.replace(/\.[^./]+$/, "") + ".md";
             try {
               const md = await addSource(sourcesDir, mdTemp, mdDestination, { kind: "url", from: args.url }, { derivedFrom: result.path });
               extra = md.duplicateOf ? "" : ` Its main content is in sources/${md.path}: read that one.`;

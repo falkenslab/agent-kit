@@ -241,7 +241,8 @@ export interface AddedSource {
 }
 
 /**
- * Adds `file` (an absolute path) to `sourcesDir` at `destination`: never overwriting, and
+ * Adds `file` (an absolute path) to `sourcesDir` at `destination` (a folder: under `extra.name`,
+ * or the file's own name): never overwriting, and
  * not at all if an identical file is already there (its path is returned). `replaces`
  * records it as a new version of an original already in the folder.
  */
@@ -250,7 +251,7 @@ export function addSource(
   file: string,
   destination: string,
   origin: SourceOrigin,
-  extra: { replaces?: string; derivedFrom?: string } = {},
+  extra: { replaces?: string; derivedFrom?: string; name?: string } = {},
 ): Promise<AddedSource> {
   return serialized(sourcesDir, () => addSourceNow(sourcesDir, file, destination, origin, extra));
 }
@@ -260,8 +261,11 @@ async function addSourceNow(
   file: string,
   destination: string,
   origin: SourceOrigin,
-  extra: { replaces?: string; derivedFrom?: string },
+  extra: { replaces?: string; derivedFrom?: string; name?: string },
 ): Promise<AddedSource> {
+  // A folder ("books/", or one that exists) means: inside it, under the file's own name.
+  const isFolder = /[/\\]$/.test(destination) || (await stat(path.join(sourcesDir, destination)).catch(() => null))?.isDirectory();
+  if (isFolder) destination = path.join(destination, extra.name ?? path.basename(file));
   const target = resolveWithin(sourcesDir, destination);
   if (!target || posix(path.relative(sourcesDir, target)).split("/").some((part) => part.startsWith("."))) {
     throw new Error(`"${destination}" isn't a path inside sources/ (hidden folders are the kit's).`);
