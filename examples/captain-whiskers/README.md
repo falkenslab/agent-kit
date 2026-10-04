@@ -1,6 +1,6 @@
 # Captain Whiskers
 
-A minimal agent built on agent-kit: a retired pirate cat who tells jokes in a terminal chat. He speaks the kit's language, the system's or the one given with `npm start -- --language=fr` (`en`, `es`, `fr`, `de`): his name (Capitán Bigotes, Captain Whiskers, Capitaine Moustaches, Käpt'n Schnurrbart), his on-screen texts and the kit's follow it, and he answers in it. Everything the model reads (prompts, skills, commands) is in English, since text in another language pulls the replies towards it; only his crew keeps Spanish names. It's a standalone project that uses the kit through `file:../..`.
+A small agent built on agent-kit: a retired pirate cat who tells jokes in a terminal chat, keeps a logbook of what he learns and a treasure chest of originals. It uses most of the kit, so it doubles as its end-to-end check. He speaks the kit's language, the system's or the one given with `npm start -- --language=fr` (`en`, `es`, `fr`, `de`): his name (Capitán Bigotes, Captain Whiskers, Capitaine Moustaches, Käpt'n Schnurrbart), his on-screen texts and the kit's follow it, and he answers in it. Everything the model reads (prompts, skills, commands) is in English, since text in another language pulls the replies towards it; only his crew keeps Spanish names. It's a standalone project that uses the kit through `file:../..`.
 
 ## Getting started
 
@@ -21,13 +21,33 @@ It needs Claude authentication: `CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY
 
 ## Usage
 
-Type as usual, `/captain-whiskers:joke` to ask for a joke right away, and `/exit` to leave. ↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each run keeps its session log, its transcript and the conversation in `.run/<date-time>/` (ignored by git): `npm start -- --continue` picks up the latest one, and `/resume` lists them to pick one. The ↑/↓ history lives in `.run/history.jsonl`.
+Type as usual, and `/exit` to leave. His commands:
+
+| Command | What it does |
+| --- | --- |
+| `/captain-whiskers:joke` | A classic pirate joke right away |
+| `/captain-whiskers:fresh-joke` | A new joke found on the web by the crew, scored by the parrot and noted in the logbook |
+| `/captain-whiskers:stock-the-chest` | Downloads two pages of pirate lore into the chest and asks you for a joke book |
+| `/captain-whiskers:learn` | Reads every new original in the chest and writes what it teaches into the logbook |
+| `/captain-whiskers:best-jokes` | The best jokes in the logbook by the parrot's score, filed back as a synthesis |
+| `/captain-whiskers:logbook-check` | Checks the logbook (broken links, orphans, originals not learned yet) |
+
+The kit's own `/knowledge:ingest`, `/knowledge:query` and `/knowledge:lint` work too.
+
+↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each run keeps its session log, its transcript and the conversation in `.run/<date-time>/` (ignored by git): `npm start -- --continue` picks up the latest one, and `/resume` lists them to pick one. The ↑/↓ history lives in `.run/history.jsonl`.
 
 In a terminal it uses the kit's Ink interface (`runChatInk`) full screen: the prompt stays at the bottom, PageUp/PageDown and the mouse wheel scroll through the conversation and Ctrl+End (or typing) goes back to the bottom; drag with the mouse to select and right-click to copy to the clipboard. With `CAPTAIN_INLINE=1` it uses the inline mode (with the terminal's own scrollback), and without a TTY, or with `CAPTAIN_PLAIN=1`, the plain readline chat.
 
-It runs in `autonomous` mode by default. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=guided` only before publishing something. With `CAPTAIN_MODE=plan` it only reads and plans: its crew can still search the web and read the ship's clock (the kit's date and time tools only read), and anything else is denied until you leave plan mode. Started in any mode but `autonomous`, Shift+Tab cycles through `guided`, `interactive` and `plan`. `/plan` goes into plan mode and back.
+It runs in `guided` mode by default, so it can ask you things: which kind of joke, a file, whether to retire an original. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=autonomous` it asks nothing. With `CAPTAIN_MODE=plan` it only reads and plans: its crew can still search the web, read the ship's clock and the logbook, and anything else is denied until the plan is approved (`present_plan`) or you leave plan mode. Started in any mode but `autonomous`, Shift+Tab cycles through `guided`, `interactive` and `plan`. `/plan` goes into plan mode and back.
 
-It shows every tool call with its result (`toolDetail: "full"`, the kit's default). An agent for a non-technical audience would pass `toolDetail: "calls"` or `"summary"` to `runChatInk()` to hide the tools' raw output; Ctrl+O unfolds it either way.
+It shows every tool call with its result (`toolDetail: "full"`, the kit's default); `CAPTAIN_TOOL_DETAIL=calls` shows the calls without their results, and `CAPTAIN_TOOL_DETAIL=summary` one line per group. Ctrl+O unfolds them either way.
+
+## Logbook and treasure chest
+
+- `logbook/` is his knowledge base (`knowledgeDir`), kept only through the kit's `knowledge_*` tools. Besides the kit's page types it has one of his own, `joke` (in `logbook/jokes/`), with the parrot's score shown in the index.
+- `treasure/` is his chest of originals (`sourcesDir`). On the first start it gets the two samples in `treasure-samples/`: a PowerPoint on knots (with speaker notes) and a Word document with the ship's rules, which he reads with `extract_text`.
+
+Both are ignored by git: delete them to start over. Reading DOCX and PPTX and keeping web pages as markdown use the kit's optional libraries, already in this project's `package.json`.
 
 ## Crew (subagents)
 
@@ -36,3 +56,23 @@ It shows every tool call with its result (`toolDetail: "full"`, the kit's defaul
 - `grumete-del-reloj` — tells the time, the date or how long until something. It reads the ship's clock and counts days with the kit's own `current_time` and `date_math` tools, not with `Bash`.
 
 All of them use `haiku`. While they work, the interface shows their tool calls under the call that started them, and with `CAPTAIN_MODE=interactive` their tools also go through the approval panel.
+
+## Test script
+
+A walk through every feature, in a fresh start (`rm -rf logbook treasure`, then `npm start -- --language=en`). What you type, and what should show:
+
+| # | Type | What should show |
+| --- | --- | --- |
+| 1 | `/captain-whiskers:learn` | `list_sources` shows `knots.pptx` and `ship-rules.docx` as new; `extract_text` reads both (the speaker notes too); one `knowledge_create` call makes a summary and the concepts it feeds together; `knowledge_log` closes. `logbook/index.md` lists them. |
+| 2 | `tell me a joke` | A panel asks which kind (classic, fresh, from the logbook), with "Other" to type your own (`ask_human`). |
+| 3 | `tell me a fresh joke` | The kitten searches the web, the parrot scores it, and a page appears in `logbook/jokes/`; the index shows it with `(score: N)`. |
+| 4 | `/captain-whiskers:best-jokes` | A ranking from the logbook, filed as a page in `logbook/syntheses/`. |
+| 5 | `/captain-whiskers:stock-the-chest` | Two Wikipedia pages downloaded into `treasure/lore/`, each with a `.md` copy of its main content; then a panel asks for a file: give the path of any text file (dragging it into the terminal pastes it), and it lands in `treasure/books/`. |
+| 6 | `/captain-whiskers:logbook-check` | `knowledge_check` reports the chest's new originals as not learned yet; nothing broken. |
+| 7 | `The ship-rules document was the wrong one: retire it from the chest.` | An approval panel (`retire_source`); approved, `ship-rules.docx` moves to `treasure/.agent-kit/retired/` and its summary page gets `status: retired`. He may then offer to retire the pages that only came from it (`knowledge_retire`, with its own approval). |
+| 8 | `How many days until Talk Like a Pirate Day?` | The clock cabin boy, with `current_time` and `date_math`. |
+| 9 | `Organize and run a 4-step treasure hunt for the crew, step by step.` | A task list under the spinner (`TodoWrite`): pending, in progress, done. |
+| 10 | `/plan`, then `Plan a pirate party.` | The plan in a panel (`present_plan`): *Run it* leaves plan mode (the status bar changes) and he carries it out in the same turn. |
+| 11 | `CAPTAIN_TOOL_DETAIL=summary npm start`, then step 6 again | Tool calls as one line per group; Ctrl+O unfolds them. |
+
+The model decides some of it: if a step doesn't happen (he lists the steps in his reply instead of keeping a task list, say), ask for it in other words.

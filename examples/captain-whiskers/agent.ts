@@ -1,4 +1,4 @@
-import { appendFile, readFile } from "node:fs/promises";
+import { appendFile, copyFile, mkdir, readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pc from "picocolors";
@@ -14,6 +14,8 @@ import {
   type BaseSessionConfig,
   type Language,
   type Mode,
+  type PageType,
+  type ToolDetail,
 } from "@falkenslab/agent-kit";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -80,7 +82,19 @@ Your crew (subagents, launch them with the Agent tool):
   to find candidates on the web. For the classics, use your own pirate-joke skill.
 - loro-critico: before telling a joke the kitten brought, pass them the one you like best. If
   it scores below 6, ask the kitten for another batch, only once.
-- grumete-del-reloj: if you're asked the time, the date or how long until something, ask them.
+- grumete-del-reloj: if you're asked the time, the date or how long until something (Talk Like a
+  Pirate Day is 19 September), ask them.
+
+Your logbook is your knowledge base: everything you learn from the treasure chest (your sources
+folder) and every joke the parrot scored goes there, as a \`joke\` page with the parrot's score in
+the field \`score\` (search it first: don't note the same joke twice).
+
+When you're asked for a joke without saying which kind, ask with ask_human: a classic (your
+pirate-joke skill), a fresh one (the kitten) or one from the logbook.
+
+For a mission with more than three steps (a treasure hunt, a party), keep a task list with
+TodoWrite and tick it off as you go. In plan mode, when the plan is ready, present it with
+present_plan.
 
 Be brief: 3-4 sentences per reply at most, always in character.`;
 
@@ -117,6 +131,22 @@ answer in one line, without frills.`,
   },
 };
 
+// Un tipo de página propio de su cuaderno: los chistes, con la nota del loro en el índice.
+const JOKE_PAGE: PageType = {
+  type: "joke",
+  dir: "jokes",
+  indexSection: "Jokes",
+  description: "A joke the captain told or the crew found: the joke itself, where it comes from and the parrot's score (field score, 1-10).",
+  template: `<The joke, word for word.>
+
+## Where it comes from
+- <The captain's own, the pirate-joke skill, or the URL the kitten found it at.>
+
+## The parrot's verdict
+- <The score and the parrot's comment.>`,
+  indexFields: ["score"],
+};
+
 const spec: AgentSpec<BaseSessionConfig> = {
   buildSystemPrompt: () => SYSTEM_PROMPT,
   buildMcpServers: () => ({}),
@@ -124,10 +154,12 @@ const spec: AgentSpec<BaseSessionConfig> = {
   // /captain-whiskers:fresh-joke (con el nombre del plugin).
   pluginRoots: () => [path.join(__dirname, "plugin")],
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
-  disallowedTools: ["Read", "Write", "Glob"],
-  // Solo sus propias skills (los comandos del plugin siguen funcionando sin estar en la
-  // lista) y ninguna configuración de Claude Code de quien lo ejecute: ~11k tokens por
-  // llamada en vez de ~16k.
+  // El cuaderno (logbook/) se lleva con las herramientas knowledge_* del kit; Read, Glob y Grep
+  // solo llegan al cofre (treasure/), y nada puede escribir en él.
+  knowledgePageTypes: [JOKE_PAGE],
+  // Solo sus propias skills, más las del cuaderno que el kit añade solo (los comandos del
+  // plugin siguen funcionando sin estar en la lista), y ninguna configuración de Claude Code
+  // de quien lo ejecute.
   skills: ["captain-whiskers:pirate-joke", "captain-whiskers:miau"],
   settingSources: [],
 };
@@ -157,16 +189,29 @@ async function main(): Promise<void> {
   // conversación, para retomarla con --continue (la última) o /resume (a elegir).
   const runsDir = path.join(__dirname, ".run");
 
-  // Autónomo por defecto; CAPTAIN_MODE=interactive pide permiso antes de cada herramienta
-  // (útil para ver los paneles de aprobación), CAPTAIN_MODE=guided solo antes de publicar y
-  // CAPTAIN_MODE=plan solo lee y planea hasta que se sale del modo.
+  // Guiado por defecto, para que pueda preguntar (ask_human, request_file, retirar);
+  // CAPTAIN_MODE=interactive pide permiso antes de cada herramienta, CAPTAIN_MODE=plan solo lee
+  // y planea hasta que se sale del modo, y CAPTAIN_MODE=autonomous no pregunta nada.
   const modes: Mode[] = ["autonomous", "guided", "interactive", "plan"];
-  const mode = modes.find((m) => m === process.env.CAPTAIN_MODE) ?? "autonomous";
+  const mode = modes.find((m) => m === process.env.CAPTAIN_MODE) ?? "guided";
+
+  // Su cuaderno de bitácora (la base de conocimiento) y su cofre (los originales), ignorados
+  // por git. La primera vez, el cofre recibe las muestras de treasure-samples/.
+  const logbook = path.join(__dirname, "logbook");
+  const treasure = path.join(__dirname, "treasure");
+  await stockTheChest(treasure);
 
   const config: BaseSessionConfig = {
     mode,
     projectDir: __dirname,
+    knowledgeDir: logbook,
+    sourcesDir: treasure,
   };
+
+  // Cuánto de las herramientas enseña el chat: CAPTAIN_TOOL_DETAIL=full (por defecto), calls
+  // o summary.
+  const details: ToolDetail[] = ["full", "calls", "summary"];
+  const toolDetail = details.find((d) => d === process.env.CAPTAIN_TOOL_DETAIL) ?? "full";
 
   // Interfaz Ink a pantalla completa (CAPTAIN_INLINE=1: en línea, con el historial de la
   // terminal); sin TTY, o con CAPTAIN_PLAIN=1, el chat de readline. Recibe cómo abrir la
@@ -181,6 +226,7 @@ async function main(): Promise<void> {
     // los paneles de aprobación y la opción elegida en las listas, en dorado de doblón.
     theme: { accent: "#e5b53a", selection: "#e5b53a" },
     plain: process.env.CAPTAIN_PLAIN === "1",
+    toolDetail,
     fullscreen: process.env.CAPTAIN_INLINE !== "1",
     // La primera sugerencia (Tab la acepta): el modelo solo sugiere a partir del segundo turno.
     firstPromptSuggestion: text.suggestion,
@@ -190,6 +236,17 @@ async function main(): Promise<void> {
     // Fuera de las carpetas de ejecución para que el historial de ↑/↓ sobreviva entre sesiones.
     historyPath: path.join(runsDir, "history.jsonl"),
   });
+}
+
+/** Copia las muestras al cofre si aún no tiene nada (una carpeta nueva, o vacía). */
+async function stockTheChest(treasure: string): Promise<void> {
+  const samples = path.join(__dirname, "treasure-samples");
+  const existing = await readdir(treasure).catch(() => [] as string[]);
+  if (existing.some((name) => !name.startsWith("."))) return;
+  await mkdir(treasure, { recursive: true });
+  for (const name of await readdir(samples)) {
+    if ((await stat(path.join(samples, name))).isFile()) await copyFile(path.join(samples, name), path.join(treasure, name));
+  }
 }
 
 main().catch((error) => {
