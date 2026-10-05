@@ -86,9 +86,9 @@ test("extraReadableDirs gives the file tools with the knowledge base on its tool
 });
 
 test("the CLI's folder for a project is its path with every character but letters and digits as -", () => {
-  const [projectPath, folder] =
-    process.platform === "win32"
-      ? ["C:\\Users\\me\\GitHub\\agent-kit\\examples\\captain-whiskers", "C--Users-me-GitHub-agent-kit-examples-captain-whiskers"]
-      : ["/home/me/agent-kit/examples/captain_whiskers", "-home-me-agent-kit-examples-captain-whiskers"];
-  assert.equal(path.basename(claudeProjectDir(projectPath)), folder);
+  // The same on every system: "/work/my agent.v2" is "-work-my-agent-v2" on Linux and macOS,
+  // "C--work-my-agent-v2" on Windows (the drive's "C:" plus the separator).
+  const folder = path.basename(claudeProjectDir(path.resolve("/work/my agent.v2")));
+  assert.match(folder, /^[A-Za-z]?-+work-my-agent-v2$/);
+  assert.equal(path.dirname(claudeProjectDir(path.resolve("/work/x"))), path.join(claudeHome, "projects"));
 });
