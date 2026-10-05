@@ -4,9 +4,9 @@ Issue: [#30](https://github.com/falkenslab/agent-kit/issues/30)
 
 ## Problem
 
-With a `KnowledgeStore` that doesn't keep pages as the kit's markdown files (`AgentSpec.knowledgeStore`: a database, a vector store), the sources tools and the knowledge tools get the ingest status wrong:
+With a `KnowledgeStore` that doesn't keep pages as the kit's markdown files (`AgentSpec.knowledgeStore`: a database, a vector store), the ingest status is wrong:
 
-- `list_sources` reports every original as `new`, even the ingested ones, and lists no summaries for them.
+- `list_sources` reports every original as `new`, even the ingested ones, and lists no summaries.
 - `retire_source` moves the original out but doesn't retire or supersede its summary pages.
 - `knowledge_check`'s new and changed originals are wrong the same way (it calls `listSources`).
 - A summary's ingest hash may be recorded against the wrong path.
@@ -15,30 +15,30 @@ With the kit's own file store everything works, which is why nothing caught it.
 
 ## Cause
 
-The sources side knows the knowledge base by its file layout, not by its interface (ADR-024: the knowledge base is reached only through the `knowledge_*` tools over a `KnowledgeStore`):
+Each side reaches into the other's data:
 
-- `sources.ts`'s `summariesByOriginal()` reads `knowledgeDir/summaries/*.md` and parses the `file:` frontmatter, as stored on disk (a link relative to the page); `listSources()` and `retireSource()` use it.
-- `retireSource()` edits those summary files directly (`markPage()`), instead of `store.retire()`/`store.supersede()`.
-- `knowledgeTools.ts`'s `ingested()` resolves a summary's `file` relative to `knowledgeDir/summaries/`, the file store's on-disk form, while the tools' contract says `file` is relative to the sources folder.
-
-The dependency also points the wrong way: "which originals are ingested" is the knowledge base's fact, and ingesting is its operation; the sources folder should work alone, and the knowledge base build on it.
+- `sources.ts` reads the knowledge base's files: `summariesByOriginal()` parses `knowledgeDir/summaries/*.md`; `retireSource()` edits them (`markPage()`). Both bypass the store (ADR-024).
+- The knowledge tools write into the sources' data: `recordIngest()` stores the ingest hash (`ingestedHash`) in the sources manifest, and `ingested()` resolves a summary's `file` the way the file store keeps it on disk.
 
 ## Solution
 
-Both interfaces are defined by the sources side, so it depends on nothing, and the knowledge side depends on it only when it's on (dependency inversion):
+**Each extension owns its data, and the model connects them when it sees fit.** Neither reads nor writes the other's data, in code or on disk; nothing is shared but what the model carries between their tools, and the model only carries short identifiers (an original's path, a page id) and dates, never data that must be exact (hashes). This is also the shape of the sources and knowledge base extensions (#29), in process or out of it.
 
-- **The knowledge side consumes the sources side's API** (in-process code, not its MCP tools): a `SourcesFolder` object with `list()` (each original's path, current hash and status), `has(path)` (is it a real original: to validate a summary's `file`), `hash(path)` and `extractText(path)`. The knowledge tools use it to validate `file` and record the hash when a summary is written, and in `knowledge_check` (new, changed and missing originals).
-- **The knowledge side implements the sources side's hook**, `IngestLink`: `summariesOf(originals)`, the summary ids by original (relative to the sources folder), and `originalRetired(original, why, reason, replacedBy)`, which retires or supersedes the summaries through `store.retire()`/`store.supersede()` and returns their ids. `list_sources` and `retire_source` call it without knowing who is behind; without it, originals are `present` and retiring touches no summary. `buildSessionOptions()` wires it when both folders are set.
-- **The ingest hash moves to the summary.** Today the sources manifest keeps `ingestedHash`, recorded by the knowledge tools through `recordIngest()`: an ingest fact living in the sources' store. Instead, the sources side only gives each original's current hash; the summary keeps the hash of the original it read as a field of its page (e.g. `source_hash`), in its store; "changed" is the knowledge side's comparison of both, inside `summariesOf()`. The manifest stops knowing about ingests. Existing knowledge bases are migrated once: `ingestedHash` from the manifest into the summaries' field.
-- `KnowledgePage.fields.file` is relative to the sources folder in every store (the file store converts from and to its on-disk link).
-- `summariesByOriginal()`, `markPage()` and `recordIngest()` go from `sources.ts`.
-- The model's side is content, not code: the ingest skill tells it to use the sources' MCP tools (`list_sources`, `extract_text`), so as an extension it would `requires: sources`, and the knowledge base's sources parts (the prompt's originals line, `knowledge_check`'s originals) only show with the sources on.
-- This is the shape the sources and knowledge base extensions will have (#29): `sources` standalone, `knowledge` optionally depending on it. An interface rather than events: two operations, simpler and easier to test.
+- **The sources side owns the originals.** It knows which there are, their type, size and pages, and **when each last changed**: it computes their hashes itself when listing, and records the date the hash changed (`changedAt`, next to `addedAt`). Hashes never leave it. `list_sources` returns each original with `changedAt` and `present`, `missing` or retired; no `new`/`ingested`/`changed`, no summaries.
+- **The knowledge side owns its pages.** A summary records which original it's about (`file`, the path relative to the sources folder, as given) and **when it was written** (`ingested`, a timestamp the store sets itself when the summary is created or rewritten from its original). The summaries' index line shows both, so one `knowledge_index` and one `list_sources` give the model everything to match.
+- **The model connects them**, as the skills tell it:
+  - to ingest: `list_sources` and `knowledge_index`; an original with no summary, or whose `changedAt` is after its summary's `ingested`, needs (re)ingesting; the comparison is `date_math`'s, not the model's by eye, one original at a time;
+  - to retire: `retire_source`, then `knowledge_retire` (wrong) or `knowledge_supersede` (replaced) for its summaries, each with the person's approval. `retire_source`'s answer reminds it ("if anything was built from it, review it").
+  - Both tools return dates in the same format (ISO 8601 with the time), so carrying them is near-literal.
+- **The sources' prompt section is theirs.** The "originals" line moves out of the knowledge base's section (`knowledge.ts`'s `originalsLine()`) into its own, added whenever `sourcesDir` is set, with or without a knowledge base (today an agent with sources and no knowledge base gets no prompt about them).
+- Removed: `summariesByOriginal()`, `markPage()`, `recordIngest()` and `ingestedHash` from `sources.ts`; the sources part of `knowledge_check` (new, changed and missing originals, passages citing a retired original) and the knowledge tools' `sourcesDir`/`knowledgeDir` options; the file store's check that `file` is a real original. `knowledge_check` keeps what is its own: broken links, orphans, links to retired pages.
+- Updated: the ingest and lint skills and the ingest command (how to match originals and summaries, with `date_math`), the prompt sections, Captain Whiskers' `learn` and `logbook-check` commands and his test script, the docs (`capabilities/knowledge-base.md`, the sources tools' pages).
+- Accepted trade-off: the kit no longer guarantees that a summary's `file` exists, nor marks summaries when an original is retired; the model does it, and a lint finds what it missed. `list_sources`' output changes (statuses): a breaking change for agents that read it, noted in the release.
+- Migration: manifests keep `ingestedHash` harmlessly (ignored); existing summaries without `ingested` get it from their page's `updated`/creation date on first read.
 
 ## Verification
 
-- A test with an in-memory `KnowledgeStore` (no files): after creating a summary of an original, `list_sources` says `ingested` and names its summary; changing the original makes it `changed`; `retire_source` with `why: "wrong"` retires the summary and with `"replaced"` supersedes it, through the store; `knowledge_check` reports the same.
-- The same tests pass with the file store, and the existing sources and knowledge tests stay green.
-- The sources tools' tests run with no knowledge base at all, and `sources.ts` imports nothing from the knowledge side.
-- A knowledge base whose manifest has `ingestedHash` is migrated: its originals keep their status (`ingested` or `changed`).
-- Captain Whiskers: `/captain-whiskers:learn`, then `list_sources`, then retiring an original, as in his test script.
+- The sources tools' tests run with no knowledge base at all; `sources.ts` imports nothing from the knowledge side, and the knowledge side nothing from `sources.ts`.
+- `changedAt` moves when an original's content changes, not when it's only touched.
+- With an in-memory `KnowledgeStore` and with the file store alike: creating a summary sets `ingested`; the index line shows `file` and `ingested`.
+- A real session with Captain Whiskers: `/captain-whiskers:learn` ingests the new originals; after replacing one, a second `learn` re-ingests only that one (it compared with `date_math`); retiring an original as wrong ends with its summary retired, after approval.
