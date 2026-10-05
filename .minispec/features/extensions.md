@@ -57,21 +57,28 @@ Probed with real calls (SDK 0.3.283, streaming input), a stdio and an in-process
 - **The kit's policy must be live**: the file scope's folders, plan mode's read-only tools, tool labels, the `Bash` decision and the subagent allow-list are computed once in `buildSessionOptions()` today; hot extensions need a registry the hooks read on every call (as they already read the current mode through `ModeControl`), and a note to the model on the next message ("extension X enabled: …" or "… disabled"), as plan mode's notices do (`takeNotice`).
 - Found on the way: **claude.ai connectors** (the account's own MCP connectors, e.g. "Claude Docs") were loaded into a session with `settingSources: []` when it ran with the developer's Claude login; `settings.disableClaudeAiConnectors: true` keeps them out. The kit doesn't set it today.
 
-## Open questions
+## Decided (6 October 2026)
 
-- One extension for several agents (declaring which), or each agent its own?
-- Dependencies between non-built-in extensions: forbidden, or flat?
-- The shareable project file: one name and format for every agent, or each agent's own?
+- **Knowledge, sources and memory stay internal** (in-process, as today: the injectable `KnowledgeStore`, the person's panels, the hooks), **managed as extensions**: the same manifest and the same way to enable them as external ones (e.g. `extensions: ["knowledge"]`); only where they run differs. `knowledgeDir`/`knowledgeBase` keep working for compatibility. External extensions (Docker, Moodle, the users') run out of process.
+- **Enabling or disabling an extension reopens the session**, keeping the conversation (as `/resume` does); the kit's rules are computed once. Hot reloading (probed above) comes later.
+- **The breaking release stays 0.x** (a minor bump, as so far); 1.0 is declared when extensions are stable.
+- **An extension names no agents**: it depends on the kit's API (a range of agent-kit versions in its manifest) and on capabilities (`provides`); any agent on those kit versions that asks for its capability uses it. A capability defined by one agent (miyagi's `classroom_*`) is a contract, not a name: another agent asking for it gets the same extension.
+- **Dependencies only on capabilities**: an extension `requires: ["run-containers"]`, never another extension by name; with no enabled extension providing it, it stays inactive and the agent says why. No dependency tree to resolve.
+- **One project file for every agent**, the kit's (e.g. `agent.json` with `extensions`, and `agent.lock`), with a free section for each agent's own keys; secrets always apart (`.env`).
+- **A plugin's subagents are registered like the code's**: in the allow-list as `<plugin>:<name>`, in the `Agent`/`Bash` decision, with the reply-language line; for an extension from a repository, no `Bash` unless the person accepted it. Probed (see below).
+- **The file scope and plan mode vs the SDK's permission rules: probe first**, before the ADR: `Read(//path/**)` allow and deny rules (does a deny on `Read` stop `Glob`/`Grep`?), `dontAsk`, `permissionMode: "plan"`; migrate what they cover as well (messages that teach the model included), keep the hooks for the rest.
+
+## Probes and notes
+
 - Subagents declared by a plugin (`agents/*.md`): today the kit only knows those from `AgentSpec.buildSubagents()`, and only those get the `Agent` tool, the type gate's allow-list, the `Bash` decision (#25) and the reply-language line; Captain Whiskers declares his in code for that reason (and because his prompts use his name in the kit's language). Probed (SDK 0.3.283, a local plugin `probe` with `agents/echo-bot.md`):
   - the SDK loads it as `probe:echo-bot` (in the init message's `agents`, next to its own built-ins: `general-purpose`, `Explore`, `Plan`…), and with `Agent` in the tools the model delegates to it and it answers;
   - through the kit, the type gate denies it ("Delegation is only available for …") unless `allowedSubagentTypes` names it as `probe:echo-bot`; then it works;
   - the session only gets `Agent` if `buildSubagents()` returns something, so a plugin's subagents alone can't be used; and the kit's `Bash` decision and reply-language line don't see them (one listing `Bash` would be refused if no code subagent lists it; one without `tools` inherits everything).
   - So the kit would read its plugins' `agents/*.md` (frontmatter `name`, `tools`, `model`) and register them as it does code subagents: in the allow-list as `<plugin>:<name>`, in the `Agent`/`Bash` decision; and, for a non-built-in extension, decide whether its subagents are allowed at all.
-- Does the file scope move to the SDK's permission rules (`Read(//path/**)`, `dontAsk`), and does the plan gate give way to `permissionMode: "plan"`? To verify in code: a deny rule on `Read` stopping `Glob`/`Grep`; (`setMcpServers()` mid-session: probed, see above.)
 
 ## Acceptance
 
-- The ADR is written, with the open questions settled.
+- The SDK's permission rules are probed, and the ADR is written with the decisions above.
 - Captain Whiskers runs with a built-in extension and one installed from a local test marketplace: pinned in a lock, verified by hash, confirmed, loaded from the store; its MCP server starts with a clean environment (a test shows it doesn't see `CLAUDE_CODE_OAUTH_TOKEN` nor other variables); its hooks don't run; the approval and file scope gates apply to its tools.
 - A skill that requires a missing capability isn't offered; enabling the extension that provides it offers it.
 - The knowledge base works as a built-in extension, and padawan and miyagi run unchanged on the release that ships it.
