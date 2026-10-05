@@ -25,14 +25,20 @@ The dependency also points the wrong way: "which originals are ingested" is the 
 
 ## Solution
 
-- The sources tools stop knowing about summaries. They take an optional link to the knowledge base (an interface in `sources.ts`, e.g. `IngestLink`: `summariesOf()`, the summary ids by original, relative to the sources folder; `originalRetired(original, why, reason, replacedBy)`), and without it list originals as `present`, as they already do without a knowledge folder.
-- The knowledge side implements that link over its `KnowledgeStore`: summaries from `store.list()`/`store.read()` and their `file` field; retiring through `store.retire()` or `store.supersede()`. `buildSessionOptions()` wires it when both folders are set.
-- `KnowledgePage.fields.file` is relative to the sources folder in every store (the file store converts from and to its on-disk link), and `ingested()` resolves it from there.
-- `summariesByOriginal()` and `markPage()` go, or stay private to the file store.
-- This is the shape the sources and knowledge base extensions will have (#29): `sources` standalone, `knowledge` optionally depending on it.
+Both interfaces are defined by the sources side, so it depends on nothing, and the knowledge side depends on it only when it's on (dependency inversion):
+
+- **The knowledge side consumes the sources side's API** (in-process code, not its MCP tools): a `SourcesFolder` object with `list()` (each original's path, current hash and status), `has(path)` (is it a real original: to validate a summary's `file`), `hash(path)` and `extractText(path)`. The knowledge tools use it to validate `file` and record the hash when a summary is written, and in `knowledge_check` (new, changed and missing originals).
+- **The knowledge side implements the sources side's hook**, `IngestLink`: `summariesOf(originals)`, the summary ids by original (relative to the sources folder), and `originalRetired(original, why, reason, replacedBy)`, which retires or supersedes the summaries through `store.retire()`/`store.supersede()` and returns their ids. `list_sources` and `retire_source` call it without knowing who is behind; without it, originals are `present` and retiring touches no summary. `buildSessionOptions()` wires it when both folders are set.
+- **The ingest hash moves to the summary.** Today the sources manifest keeps `ingestedHash`, recorded by the knowledge tools through `recordIngest()`: an ingest fact living in the sources' store. Instead, the sources side only gives each original's current hash; the summary keeps the hash of the original it read as a field of its page (e.g. `source_hash`), in its store; "changed" is the knowledge side's comparison of both, inside `summariesOf()`. The manifest stops knowing about ingests. Existing knowledge bases are migrated once: `ingestedHash` from the manifest into the summaries' field.
+- `KnowledgePage.fields.file` is relative to the sources folder in every store (the file store converts from and to its on-disk link).
+- `summariesByOriginal()`, `markPage()` and `recordIngest()` go from `sources.ts`.
+- The model's side is content, not code: the ingest skill tells it to use the sources' MCP tools (`list_sources`, `extract_text`), so as an extension it would `requires: sources`, and the knowledge base's sources parts (the prompt's originals line, `knowledge_check`'s originals) only show with the sources on.
+- This is the shape the sources and knowledge base extensions will have (#29): `sources` standalone, `knowledge` optionally depending on it. An interface rather than events: two operations, simpler and easier to test.
 
 ## Verification
 
 - A test with an in-memory `KnowledgeStore` (no files): after creating a summary of an original, `list_sources` says `ingested` and names its summary; changing the original makes it `changed`; `retire_source` with `why: "wrong"` retires the summary and with `"replaced"` supersedes it, through the store; `knowledge_check` reports the same.
 - The same tests pass with the file store, and the existing sources and knowledge tests stay green.
+- The sources tools' tests run with no knowledge base at all, and `sources.ts` imports nothing from the knowledge side.
+- A knowledge base whose manifest has `ingestedHash` is migrated: its originals keep their status (`ingested` or `changed`).
 - Captain Whiskers: `/captain-whiskers:learn`, then `list_sources`, then retiring an original, as in his test script.
