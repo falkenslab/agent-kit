@@ -12,4 +12,4 @@ Consult **before** writing code.
 - Touching subagent wiring means re-reading all three gates (ADR-003).
 - Guardrails live in hooks, not in prompts (ADR-003, ADR-007).
 - Features that grant Bash stay opt-in in consumers.
-- Public API changes are checked against captain-whiskers and stay backward-compatible where possible; outside agents adopt new versions on their own (ADR-011).
+- Public API changes are checked against captain-whiskers, which is updated with them. No backward compatibility is kept while the version is 0.x (decided 6 October 2026: padawan and miyagi are unstable and unused): a better behavior becomes the default directly and an old option is removed, not deprecated; the release notes say what changed. Outside agents adopt new versions on their own (ADR-011).

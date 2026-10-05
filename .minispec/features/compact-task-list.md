@@ -24,5 +24,5 @@ The task list the kit gives every session costs a fraction of the 3.4k tokens `T
 
 - The session's first call is about 3k tokens smaller.
 - The list shows as before in the Ink chat and the plain one, and plan mode allows it.
-- Tried in padawan and miyagi (linked to the local kit) before a release: their long jobs still keep a list.
+- Captain Whiskers' long jobs (his treasure hunt) still keep a list, as reliably as with `TodoWrite`.
 - `verify` passes.

@@ -34,7 +34,6 @@ Each side reaches into the other's data:
 - Removed: `summariesByOriginal()`, `markPage()`, `recordIngest()` and `ingestedHash` from `sources.ts`; the sources part of `knowledge_check` (new, changed and missing originals, passages citing a retired original) and the knowledge tools' `sourcesDir`/`knowledgeDir` options; the file store's check that `file` is a real original. `knowledge_check` keeps what is its own: broken links, orphans, links to retired pages.
 - Updated: the ingest and lint skills and the ingest command (how to match originals and summaries, with `date_math`), the prompt sections, Captain Whiskers' `learn` and `logbook-check` commands and his test script, the docs (`capabilities/knowledge-base.md`, the sources tools' pages).
 - Accepted trade-off: the kit no longer guarantees that a summary's `file` exists, nor marks summaries when an original is retired; the model does it, and a lint finds what it missed. `list_sources`' output changes (statuses): a breaking change for agents that read it, noted in the release.
-- Migration: manifests keep `ingestedHash` harmlessly (ignored); existing summaries without `ingested` get it from their page's `updated`/creation date on first read.
 
 ## Verification
 
