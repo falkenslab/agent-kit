@@ -45,6 +45,18 @@ Must not break padawan and miyagi: every phase is opt-in until a breaking releas
   - To verify: whether Claude Code marketplaces accept an `npm` source for a plugin.
 - **An extension builder, in the official repository first.** A script (`scripts/build-extension.mjs`, ~50–100 lines) and a GitHub Actions workflow on each tag, plus an extension template: bundle with esbuild (failing on a native `.node` dependency); validate with `claude plugin validate` plus the kit's checks (the agent's key in `plugin.json`: `provides`, `requires`, API version; `.mcp.json` pointing at `dist/server.mjs`); compute the SHA-256, update `marketplace.json`, tag with `claude plugin tag` (`{name}--v{version}`). It moves into the kit as a command (`npx agent-kit extension build`, `… validate`) when a second repository needs it, so builder and installer can't drift. While an extension is being developed it's loaded unbundled from the project's `extensions/` folder (`tsx`, its own `node_modules`): bundling is only for publishing.
 
+## Adding and removing extensions mid-session (probed)
+
+Probed with real calls (SDK 0.3.283, streaming input), a stdio and an in-process MCP server each with `instructions`, and local plugins changed on disk:
+
+- **How the model learns an extension**, in layers: its tools' descriptions (what and when, always in context); its MCP server's `instructions` (what it's for and its rules, always in context, short); its skills (procedures, loaded on demand; `requires:` a capability); and a short "active extensions" section the kit composes from the manifests (also what `agent-help` tells the person). The agent's own prompt speaks of capabilities, not extensions.
+- **MCP `instructions` reach the model**, from in-process and stdio servers alike, both at start and when added mid-session.
+- **`setMcpServers()` adds and removes servers mid-session**: their tools, and their instructions, appear or disappear on the next turn. Gotcha: it replaces the set of "dynamic" servers, and in-process servers passed in `options.mcpServers` count as dynamic (one was dropped), while stdio ones from the options are kept: every call must name all the in-process servers to keep (the kit's own: knowledge, time, approvals…).
+- **`reloadPlugins()` picks up changes on disk**: a new skill in a plugin, and a whole plugin (with skills and subagents) at a path that was in `options.plugins` but didn't exist at start; removing that folder and reloading removes them. A plugin at a path not declared at start can't be added (`plugins` is fixed): the kit declares one path per installed extension (e.g. under the run folder) and fills or empties it to enable or disable it. An extension installed mid-session needs the session reopened (as `/resume` does, keeping the conversation).
+- **A `skills` list is fixed at start**: skills added later are listed but refused ("not in this session's skills allowlist"). With `skills: "all"` they work. So the kit's `skills: "plugins"` (a list computed at start) doesn't survive hot changes: for extensions use `"all"` with the settings `disableBundledSkills: true` (drops the ~20 skills that ship with the CLI; only `design` and `doctor` remain) and, to hide one skill mid-session, `skillOverrides` through `applyFlagSettings()`.
+- **The kit's policy must be live**: the file scope's folders, plan mode's read-only tools, tool labels, the `Bash` decision and the subagent allow-list are computed once in `buildSessionOptions()` today; hot extensions need a registry the hooks read on every call (as they already read the current mode through `ModeControl`), and a note to the model on the next message ("extension X enabled: …" or "… disabled"), as plan mode's notices do (`takeNotice`).
+- Found on the way: **claude.ai connectors** (the account's own MCP connectors, e.g. "Claude Docs") were loaded into a session with `settingSources: []` when it ran with the developer's Claude login; `settings.disableClaudeAiConnectors: true` keeps them out. The kit doesn't set it today.
+
 ## Open questions
 
 - One extension for several agents (declaring which), or each agent its own?
@@ -55,7 +67,7 @@ Must not break padawan and miyagi: every phase is opt-in until a breaking releas
   - through the kit, the type gate denies it ("Delegation is only available for …") unless `allowedSubagentTypes` names it as `probe:echo-bot`; then it works;
   - the session only gets `Agent` if `buildSubagents()` returns something, so a plugin's subagents alone can't be used; and the kit's `Bash` decision and reply-language line don't see them (one listing `Bash` would be refused if no code subagent lists it; one without `tools` inherits everything).
   - So the kit would read its plugins' `agents/*.md` (frontmatter `name`, `tools`, `model`) and register them as it does code subagents: in the allow-list as `<plugin>:<name>`, in the `Agent`/`Bash` decision; and, for a non-built-in extension, decide whether its subagents are allowed at all.
-- Does the file scope move to the SDK's permission rules (`Read(//path/**)`, `dontAsk`), and does the plan gate give way to `permissionMode: "plan"`? To verify in code: a deny rule on `Read` stopping `Glob`/`Grep`; `setMcpServers()` on a running session (enabling an extension without reopening).
+- Does the file scope move to the SDK's permission rules (`Read(//path/**)`, `dontAsk`), and does the plan gate give way to `permissionMode: "plan"`? To verify in code: a deny rule on `Read` stopping `Glob`/`Grep`; (`setMcpServers()` mid-session: probed, see above.)
 
 ## Acceptance
 
