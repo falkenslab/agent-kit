@@ -35,6 +35,7 @@ Must not break padawan and miyagi: every phase is opt-in until a breaking releas
 - One extension for several agents (declaring which), or each agent its own?
 - Dependencies between non-built-in extensions: forbidden, or flat?
 - The shareable project file: one name and format for every agent, or each agent's own?
+- Subagents declared by a plugin (`agents/*.md`): today the kit only knows those from `AgentSpec.buildSubagents()`, and only those get the `Agent` tool, the type gate's allow-list, the `Bash` decision (#25) and the reply-language line; Captain Whiskers declares his in code for that reason (and because his prompts use his name in the kit's language). To verify in code: whether the SDK loads a local plugin's `agents/`, under what names (`<plugin>:<agent>`?), and how the kit would register them through the same gates.
 - Does the file scope move to the SDK's permission rules (`Read(//path/**)`, `dontAsk`), and does the plan gate give way to `permissionMode: "plan"`? To verify in code: a deny rule on `Read` stopping `Glob`/`Grep`; `setMcpServers()` on a running session (enabling an extension without reopening).
 
 ## Acceptance
