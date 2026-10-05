@@ -6,7 +6,7 @@ description: The three hooks that keep delegation safe - type, Bash and foregrou
 
 # Subagent gates
 
-When a spec declares subagents, the session gets the `Agent` and `Bash` tools and three `PreToolUse` hooks. They work together: remove one and another can be routed around.
+When a spec declares subagents, the session gets the `Agent` tool, `Bash` when a subagent lists it (or has no `tools`, and so inherits every session tool), and three `PreToolUse` hooks. They work together: remove one and another can be routed around.
 
 ## Type gate
 
@@ -22,7 +22,7 @@ The gate denies any `Agent` call whose `subagent_type` isn't in `allowedSubagent
 
 **Bash is for subagents only.**
 
-The SDK refuses to spawn a subagent whose declared tools aren't all in the session's tools, so `Bash` must be in the session for a subagent to use it. Once there, the main agent could use it directly, and built-in tools bypass `canUseTool`. The gate denies `Bash` when the call comes from the main thread: the hook input carries `agent_id` only for calls made inside a subagent.
+The SDK refuses to spawn a subagent whose declared tools aren't all in the session's tools, so `Bash` must be in the session for a subagent to use it; the kit adds it only then. Once there, the main agent could use it directly, and built-in tools bypass `canUseTool`. The gate denies `Bash` when the call comes from the main thread: the hook input carries `agent_id` only for calls made inside a subagent.
 
 > Bash is only available to dedicated subagents, not the main agent directly — use the Agent tool to delegate to one of them instead.
 

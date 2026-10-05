@@ -64,7 +64,7 @@ The kit appends the [reply language](../sessions/languages.md) line to each suba
 
 When `buildSubagents()` returns something (not `undefined`):
 
-1. The session gets the `Agent` tool, to delegate, and `Bash`.
+1. The session gets the `Agent` tool, to delegate, and `Bash` when a subagent can use it: one that lists it in its `tools`, or one without `tools` (it inherits every session tool). Otherwise `Bash` is left out, saving about 1.9k input tokens on every call.
 2. `agents` is set to your definitions.
 3. Three `PreToolUse` hooks are registered, the [subagent gates](../security/subagent-gates.md):
    - **type gate**: `Agent` may only spawn the types in `allowedSubagentTypes`;
@@ -79,7 +79,7 @@ buildSubagents: (config) => (config.withResearch ? { agents: { researcher }, all
 
 ## Tools of a subagent
 
-A subagent can only use tools that exist in the session. The kit's session has `WebFetch`, `WebSearch`, the file tools (with a knowledge or sources folder), `Skill` (with plugins), `Bash` (with subagents) and every MCP tool from `buildMcpServers()`.
+A subagent can only use tools that exist in the session. The kit's session has `WebFetch`, `WebSearch`, the file tools (with a knowledge or sources folder), `Skill` (with plugins), `Bash` (when a subagent lists it) and every MCP tool from `buildMcpServers()`.
 
 - **Built-in tools**: list them by name: `tools: ["WebSearch", "WebFetch"]`. A subagent with file tools is bound by the same [file scope](../security/file-scope.md) as the main agent.
 - **MCP tools**: list them by their full name: the kit's, `tools: ["mcp__time__current_time"]`, or yours, `tools: ["mcp__inventory__find_product"]`, registering the server in `buildMcpServers()`.

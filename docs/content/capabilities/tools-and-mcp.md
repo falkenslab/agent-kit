@@ -13,7 +13,7 @@ description: The tools an agent gets, how to give it its own with in-process or 
 - **always**: `WebFetch`, `WebSearch` and `TodoWrite` (a task list for long jobs, which the chats show above the prompt);
 - **with `knowledgeDir` or `sourcesDir`**: `Read`, `Write`, `Edit`, `Glob`, `Grep`, all [scoped](../security/file-scope.md);
 - **with file tools or plugins**: `Skill`;
-- **with subagents**: `Agent`, and `Bash` for subagents only.
+- **with subagents**: `Agent`, and `Bash` (for subagents only) when one of them lists it or has no `tools`.
 
 Everything else an agent does, it does through **MCP tools**: the kit's own and yours.
 

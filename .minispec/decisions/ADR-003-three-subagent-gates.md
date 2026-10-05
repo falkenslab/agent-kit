@@ -10,4 +10,4 @@ The SDK refuses to spawn a subagent whose tools aren't in the session's tools, s
 
 ## Consequences
 
-All three matter: removing any one reopens a bypass. Re-read the three files together before touching subagent wiring. Bash is not covered by the file scope (ADR-007), so Bash-granting features stay opt-in in consumers.
+`Bash` is added to the session only when a registered subagent lists it or has no `tools` (inheriting them all): its definition costs about 1.9k tokens per call. All three matter: removing any one reopens a bypass. Re-read the three files together before touching subagent wiring. Bash is not covered by the file scope (ADR-007), so Bash-granting features stay opt-in in consumers.

@@ -131,8 +131,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const includeSkillsAndPlugins = includeFileTools || pluginRoots.length > 0;
   const skillTools = includeSkillsAndPlugins ? ["Skill"] : [];
   // Whatever opt-in subagents `spec` wants for this config, or undefined if none apply.
-  // Either opt-in feature needs the Agent tool (to delegate to a subagent) and Bash (used
-  // only by the subagent itself — see createSubagentBashGate() below, which denies Bash
+  // Subagents need the Agent tool (to delegate to them), and Bash when one of them uses it
+  // (used only by the subagent itself — see createSubagentBashGate() below, which denies Bash
   // to the main agent regardless of which one put it in `tools`) — Bash has to be present
   // in this session's own tools for any subagent to be allowed to use it at all
   // (confirmed empirically the SDK refuses to spawn a subagent whose own tools list names
@@ -144,6 +144,12 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     ? Object.fromEntries(Object.entries(subagents.agents).map(([name, agent]) => [name, { ...agent, prompt: withReplyLine(agent.prompt) }]))
     : undefined;
   const includeSubagentTools = subagents !== undefined;
+  // Bash only when a subagent can use it: one that lists it, or one without `tools`, which
+  // inherits every session tool. Its definition costs about 1.9k input tokens on every call
+  // (measured), and the main agent can't use it anyway.
+  const subagentTools = includeSubagentTools
+    ? ["Agent", ...(Object.values(subagents.agents).some((agent) => !agent.tools || agent.tools.includes("Bash")) ? ["Bash"] : [])]
+    : [];
   // The exact set of subagent_type values the Agent tool may spawn in this session — see
   // createSubagentTypeGate() below for why this can't just be "whatever's in `agents`
   // below": the SDK's own built-in "general-purpose" type is spawnable regardless of that
@@ -185,8 +191,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     // so the model ends up looking for SKILL.md files by hand (confirmed empirically).
     // TodoWrite: the SDK's task list for long jobs, in every session (the chats show the list
     // instead of the calls; see todos.ts). Accepted in an explicit list (confirmed empirically).
-    tools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", TODO_TOOL, ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
-    allowedTools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", TODO_TOOL, ...(includeSubagentTools ? ["Agent", "Bash"] : [])],
+    tools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", TODO_TOOL, ...subagentTools],
+    allowedTools: [...fileTools, ...skillTools, "WebFetch", "WebSearch", TODO_TOOL, ...subagentTools],
     // Every mcp__* tool (whatever spec.buildMcpServers() registers, approvals/manualLogin
     // when enabled below, sourceFiles, and any server a project's own .mcp.json
     // declares) is approved generically here rather than listed one by one — see
