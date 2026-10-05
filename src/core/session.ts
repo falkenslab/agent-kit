@@ -1,3 +1,4 @@
+import { readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
@@ -131,6 +132,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       ? (spec.knowledgeStore?.(config) ?? createFileKnowledgeStore(config.knowledgeDir, { pageTypes: spec.knowledgePageTypes, sourcesDir: config.sourcesDir }))
       : undefined;
   const includeSkillsAndPlugins = includeFileTools || pluginRoots.length > 0;
+  // "plugins": the skills of the plugins loaded, named as the SDK names them.
+  const offeredSkills = spec.skills === "plugins" ? await pluginSkills(pluginRoots) : spec.skills;
   const skillTools = includeSkillsAndPlugins ? ["Skill"] : [];
   // Whatever opt-in subagents `spec` wants for this config, or undefined if none apply.
   // Subagents need the Agent tool (to delegate to them), and Bash when one of them uses it
@@ -225,7 +228,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           // SDK's own official skills (pdf/docx), the project's own custom ones, and the
           // plugin-provided built-ins below. A spec's own list gets the knowledge base's
           // skills and agent-help added, so it only names its own.
-          skills: skillList(spec.skills, includeKnowledgeBase ? (knowledgeViaStore ? "tools" : "files") : null, Boolean(helpPlugin)),
+          skills: skillList(offeredSkills, includeKnowledgeBase ? (knowledgeViaStore ? "tools" : "files") : null, Boolean(helpPlugin)),
           plugins: pluginRoots.map((pluginPath) => ({ type: "local" as const, path: pluginPath, skipMcpDiscovery: true })),
         }
       : {}),
@@ -344,6 +347,30 @@ const KNOWLEDGE_SKILLS = {
   tools: ["knowledge-ingest", "knowledge-query", "knowledge-lint"].map((skill) => `knowledge:${skill}`),
   files: ["knowledge-pages", "knowledge-ingest", "knowledge-query", "knowledge-lint"].map((skill) => `knowledge:${skill}`),
 };
+
+/**
+ * The skills of the plugins in `roots`, as the SDK names them: `<plugin>:<folder>`, the
+ * plugin's name from its `.claude-plugin/plugin.json` and the skill's folder under `skills/`,
+ * whatever its frontmatter's `name` says (confirmed empirically).
+ */
+export async function pluginSkills(roots: readonly string[]): Promise<string[]> {
+  const names: string[] = [];
+  for (const root of roots) {
+    let plugin: string | undefined;
+    try {
+      plugin = (JSON.parse(await readFile(path.join(root, ".claude-plugin", "plugin.json"), "utf8")) as { name?: string }).name;
+    } catch {
+      continue; // not a plugin the SDK would load
+    }
+    if (!plugin) continue;
+    const folders = await readdir(path.join(root, "skills"), { withFileTypes: true }).catch(() => []);
+    for (const folder of folders.filter((entry) => entry.isDirectory())) {
+      const hasSkill = await readFile(path.join(root, "skills", folder.name, "SKILL.md")).then(() => true, () => false);
+      if (hasSkill) names.push(`${plugin}:${folder.name}`);
+    }
+  }
+  return names;
+}
 
 function skillList(skills: string[] | "all" | undefined, knowledgeVariant: "tools" | "files" | null, agentHelp: boolean): string[] | "all" {
   if (skills === undefined || skills === "all") return "all";

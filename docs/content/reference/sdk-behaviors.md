@@ -43,6 +43,8 @@ The kit encodes several behaviors of the Claude Agent SDK (and the Claude Code C
 - **The git context (with the runner's git user name) comes with the git instructions**; `settings.includeGitInstructions: false` drops it.
 - **The logged-in account's name and e-mail are always in the context** (from `~/.claude.json`); only a separate `CLAUDE_CONFIG_DIR` avoids it.
 - **Plugin commands work without being in the `skills` list.**
+- **A plugin's skill is named after its folder**: `<plugin>:<folder>`, whatever its frontmatter's `name` says; a `SKILL.md` without frontmatter isn't loaded. A plugin's subagents (`agents/*.md`) are loaded too, as `<plugin>:<name>`.
+- **About twenty skills come with the SDK itself** (`deep-research`, `dataviz`, `code-review`, `loop`…), even with `settingSources: []`: `skills` is what keeps them out of the context.
 - **`getContextUsage()`'s split between categories can mislead** (skills counted as system tools when filtered), and before the first turn it counts in-process MCP tools as 0 tokens (15.5k estimated for a session whose first call took 23.7k); the API usage of a call is the reliable measure.
 
 ## Sessions

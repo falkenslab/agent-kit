@@ -222,7 +222,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
   knowledgePageTypes: [JOKE_PAGE],
   restrictReads: true,
-  skills: ["captain-whiskers:pirate-joke", "captain-whiskers:miau"],
+  skills: "plugins",
   settingSources: [],
 };
 ```
@@ -230,7 +230,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
 - `identity` and `helpGuide`: the model knows his name, his version and agent-kit's, and the `agent-help` skill answers how to use him, from the kit's chat and his `guide.md`. See [`identity` and `helpGuide`](../core-concepts/agent-spec.md#identity-and-helpguide).
 - `knowledgePageTypes`: his logbook has a page type of its own, `joke`, kept in `logbook/jokes/` with the parrot's score in its index line. See [Your own page types](../capabilities/knowledge-base.md#your-own-page-types).
 - `restrictReads`: `Read` and `Glob` only reach his chest, his plugins and his run folder, not his `.env` (with his token) nor anything outside the project, even if a web page tells him to. See [Restricting reads](../security/file-scope.md#restricting-reads).
-- `skills` and `settingSources: []`: only his two skills (the kit adds the knowledge base's), and nothing from the machine's Claude Code configuration. See [Context and cost](../sessions/context-and-cost.md).
+- `skills: "plugins"` and `settingSources: []`: only the skills of his plugins (his two, the logbook's and agent-help), not the twenty the SDK brings, and nothing from the machine's Claude Code configuration. See [Context and cost](../sessions/context-and-cost.md).
 
 ## 6. The chat
 

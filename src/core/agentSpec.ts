@@ -192,11 +192,13 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
 
   /**
    * The skills the agent offers (the SDK's `skills`): names, or `plugin:skill` for a
-   * plugin's. Default `"all"`, every skill found (the SDK's own, the project's, the
-   * plugins'). A list keeps the rest out of each turn's context; the knowledge base's own
+   * plugin's. Default `"all"`, every skill found: the SDK's own (about twenty, whatever
+   * `settingSources` says), the project's, the plugins'. `"plugins"` offers only those of the
+   * plugins the session loads (`pluginRoots`, the knowledge base's, agent-help's), without
+   * naming them. A list keeps the rest out of each turn's context; the knowledge base's own
    * skills are added to it when the knowledge base is on. A context filter, not a sandbox.
    */
-  skills?: string[] | "all";
+  skills?: string[] | "all" | "plugins";
 
   /**
    * Text for the generic human-approval checkpoint (see tools/humanApproval.ts) — what

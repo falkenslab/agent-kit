@@ -81,7 +81,7 @@ When the session has file tools or at least one plugin:
 - `cwd` is `config.projectDir`;
 - `additionalDirectories` are the searchable folders (`knowledgeDir`, `sourcesDir`, `extraWritableDirs`);
 - `plugins` are `spec.pluginRoots(config)`, plus the knowledge plugin when the knowledge base is on, each loaded as a local plugin with its MCP discovery skipped;
-- `skills` is `spec.skills ?? "all"`; a list gets the knowledge base's skills added when it's on.
+- `skills` is `spec.skills ?? "all"`; `"plugins"` becomes the skills of the plugins loaded (`plugin:folder`), and a list gets the knowledge base's skills and `agent-kit:agent-help` added when they're on.
 
 Otherwise the SDK's defaults apply (the process's working directory, no plugins).
 

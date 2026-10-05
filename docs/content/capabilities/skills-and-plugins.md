@@ -70,21 +70,30 @@ With the `"project"` setting source (the default), the SDK also finds `<projectD
 
 ## Choosing which skills the agent offers
 
-By default a session offers every skill it finds (`skills: "all"`): the plugins', the project's and the SDK's own. Each one costs context on every call (its name and description are listed to the model), and unrelated skills distract it. List only yours:
+By default a session offers every skill it finds (`skills: "all"`): the plugins', the project's and the SDK's own, about twenty of them (`deep-research`, `dataviz`, `code-review`, `loop`…) even with `settingSources: []`. Each one costs context on every call (its name and description are listed to the model), and unrelated skills distract it.
+
+Offer only the skills of the plugins your agent loads, without naming them:
 
 ```ts
 const spec: AgentSpec<BaseSessionConfig> = {
   // …
-  skills: ["captain-whiskers:pirate-joke", "captain-whiskers:miau"],
+  pluginRoots: () => [path.join(__dirname, "plugin")],
+  skills: "plugins", // its own, the knowledge base's and agent-help's
 };
 ```
 
-- Names are a skill's `name`, or `plugin:skill` for a plugin's.
+Or list them by name, to leave some out:
+
+```ts
+skills: ["captain-whiskers:pirate-joke", "captain-whiskers:miau"],
+```
+
+- Names are a skill's `name`, or `plugin:skill` for a plugin's, where `skill` is **the skill's folder** under `skills/`, whatever its frontmatter's `name` says. A `SKILL.md` without frontmatter isn't loaded.
 - With the knowledge base on, its skills are added to your list automatically, and so is `agent-kit:agent-help` with an [identity](../core-concepts/agent-spec.md#identity-and-helpguide).
 - It's a **context filter, not a sandbox**: unlisted skills are hidden from the model and refused by the `Skill` tool, but their files stay on disk.
 - **Slash commands keep working** when they aren't listed: a command is typed by the person, not chosen by the model.
 
-Captain Whiskers went from about 15.7k to 11.4k input tokens per call by listing its two skills and loading no settings (`settingSources: []`). See [Context and cost](../sessions/context-and-cost.md).
+Captain Whiskers went from about 15.7k to 11.4k input tokens per call by offering only its own skills and loading no settings (`settingSources: []`). See [Context and cost](../sessions/context-and-cost.md).
 
 ## Commands in the chat
 

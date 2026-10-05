@@ -38,7 +38,7 @@ The kit's MCP tools (the knowledge base's, the sources', the approvals', the dat
 
 ## Making it smaller
 
-1. **List your skills**: `skills: ["my-agent:a", "my-agent:b"]`. The SDK's own and unrelated skills are no longer listed. Slash commands keep working. See [Skills and plugins](../capabilities/skills-and-plugins.md#choosing-which-skills-the-agent-offers).
+1. **Offer only your skills**: `skills: "plugins"` (those of the plugins the agent loads), or a list, `skills: ["my-agent:a", "my-agent:b"]`. The SDK's own and unrelated skills are no longer listed. Slash commands keep working. See [Skills and plugins](../capabilities/skills-and-plugins.md#choosing-which-skills-the-agent-offers).
 2. **Load no settings files** when your plugin brings everything: `settingSources: []`. The CLAUDE.md files of parent folders (a repository's developer instructions, say) stop being sent.
 3. **Grant only the tools you need**: no file tools without a knowledge or sources folder, no `Agent` without subagents, no `Bash` unless a subagent lists it. `disallowedTools` removes a built-in tool the configuration would otherwise get; an MCP tool it only blocks, still sending its definition.
 4. **Keep the prompt short** and move rarely needed detail into skills, which are only loaded when they apply.

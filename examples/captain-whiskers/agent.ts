@@ -169,10 +169,9 @@ const spec: AgentSpec<BaseSessionConfig> = {
   // Read y Glob solo en el cofre, sus plugins y su carpeta de ejecución: ni su .env (con el
   // token) ni nada fuera del proyecto, aunque una página web le pida leerlo.
   restrictReads: true,
-  // Solo sus propias skills, más las del cuaderno que el kit añade solo (los comandos del
-  // plugin siguen funcionando sin estar en la lista), y ninguna configuración de Claude Code
-  // de quien lo ejecute.
-  skills: ["captain-whiskers:pirate-joke", "captain-whiskers:miau"],
+  // Solo las skills de sus plugins (las suyas, las del cuaderno y agent-help), no la veintena
+  // que trae el SDK, y ninguna configuración de Claude Code de quien lo ejecute.
+  skills: "plugins",
   settingSources: [],
 };
 

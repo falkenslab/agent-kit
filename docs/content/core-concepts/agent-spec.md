@@ -106,7 +106,7 @@ Returning something here also gives the session the `Agent` tool, and `Bash` whe
 | `manualInterventionTexts?` | none | Its texts, and the opt-in, of the manual-intervention tool. |
 | `replyInLanguage?: boolean` | `true` | The line asking the agent (and each subagent) to reply in the kit's language. |
 | `settingSources?: SettingSource[]` | `["project"]` | Which Claude Code settings files the session loads. |
-| `skills?: string[] \| "all"` | `"all"` | Which skills the agent offers. |
+| `skills?: string[] \| "all" \| "plugins"` | `"all"` | Which skills the agent offers: every one found, only its plugins' (`"plugins"`), or a list. |
 | `planMode?: PlanModeSpec` | none | In plan mode, the agent's plan files and its read-only MCP tools. |
 
 ### `identity` and `helpGuide`
@@ -172,7 +172,7 @@ See [Manual intervention](../human-in-the-loop/manual-intervention.md).
 
 ```ts
 settingSources: [], // load no Claude Code settings or CLAUDE.md at all
-skills: ["my-agent:pirate-joke", "my-agent:miau"], // only these skills are listed to the model
+skills: "plugins", // only the skills of the plugins it loads are listed to the model
 ```
 
 See [Permissions and isolation](../security/permissions-and-isolation.md) and [Context and cost](../sessions/context-and-cost.md).
