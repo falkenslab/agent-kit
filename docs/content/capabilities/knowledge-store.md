@@ -10,7 +10,7 @@ The [knowledge base](knowledge-base.md)'s tools work on a `KnowledgeStore`, neve
 
 ## The kit's store
 
-`createFileKnowledgeStore(knowledgeDir, { pageTypes?, sourcesDir? })` keeps pages as markdown files in the layout the knowledge base always had (see [On disk](knowledge-base.md#on-disk)). `buildSessionOptions()` creates it for you, with `spec.knowledgePageTypes` and `config.sourcesDir`, and returns it as `knowledgeStore`, so a host can read the knowledge base too (to show it in a desktop app, say):
+`createFileKnowledgeStore(knowledgeDir, { pageTypes? })` keeps pages as markdown files in the layout the knowledge base always had (see [On disk](knowledge-base.md#on-disk)). `buildSessionOptions()` creates it for you, with `spec.knowledgePageTypes`, and returns it as `knowledgeStore`, so a host can read the knowledge base too (to show it in a desktop app, say):
 
 ```ts
 const { options, knowledgeStore } = await buildSessionOptions(config, runDir, spec);
@@ -22,7 +22,7 @@ It's usable on its own as well, in a script or a test:
 ```ts
 import { createFileKnowledgeStore } from "@falkenslab/agent-kit";
 
-const store = createFileKnowledgeStore("course/knowledge", { sourcesDir: "course/sources" });
+const store = createFileKnowledgeStore("course/knowledge");
 console.log(await store.index());
 const report = await store.check();
 ```
@@ -57,7 +57,8 @@ What a store must keep, whatever it stores the pages in:
 - **Pages are never deleted or renamed.** `supersede` and `retire` mark them (`fields.status`: `superseded` or `retired`); a retired page leaves `list()`, `index()` and `search()`, but `read()` still returns it.
 - **`edit` replaces exactly one occurrence**, and fails if there's none or several.
 - **`recentLog()`** is optional: without it, `knowledge_read("log")` says the store can't show its log.
-- **`check()`** returns broken links, orphans, links to retired pages and summaries whose original is gone. The tool adds the sources folder's part itself.
+- **`check()`** returns broken links, orphans and links to retired pages.
+- **A summary's `ingested`** is the store's: set when it's created or rewritten, never taken from the caller. Its `file` is kept as given. A store knows nothing of the sources folder (see [Knowledge base and sources](knowledge-base.md#knowledge-base-and-sources)).
 
 `BUILT_IN_PAGE_TYPES` are the kit's four types with their templates; a store gets the agent's declared ones too, and should treat a page's type as a label, so it can hold any type.
 
@@ -85,7 +86,7 @@ A host that builds its own session options gets the same tools with `createKnowl
 import { createKnowledgeServer } from "@falkenslab/agent-kit";
 
 mcpServers: {
-  knowledge: createKnowledgeServer(store, { runDir, interactive: true, sourcesDir, projectDir, knowledgeDir }),
+  knowledge: createKnowledgeServer(store, { runDir, interactive: true }),
 },
 ```
 

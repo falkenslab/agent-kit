@@ -105,10 +105,19 @@ export async function downloadToFile(url: string, file: string, maxBytes: number
   return response.headers.get("content-type") ?? "";
 }
 
+/**
+ * The "Sources" section appended to the system prompt whenever there's a sources folder, with or
+ * without a knowledge base: what the originals are and how they come and go. `projectDir` and
+ * `sourcesDir` give the folder's name as the model reads it.
+ */
+export function sourcesPromptSection(projectDir: string, sourcesDir: string): string {
+  const folder = `${path.relative(projectDir, sourcesDir).split(path.sep).join("/") || "."}/`;
+  return `## Sources
+- **Originals (read-only for you)**: \`${folder}\`. Never rewrite one; build on them. \`list_sources\` lists them with when each one's content last changed (\`changedAt\`), and the missing and retired ones; add a file only with \`save_to_sources\`, \`download_to_sources\` or by asking the person (\`request_file\`), and take out a wrong or superseded one only with \`retire_source\`. \`Read\` reads PDFs and images; \`extract_text\` reads DOCX, PPTX (with speaker notes) and XLSX.`;
+}
+
 /** Options of `createSaveToSourcesServer()`. */
 export interface SourceToolsOptions {
-  /** The knowledge folder, to tell which originals have a summary page (`list_sources`). */
-  knowledgeDir?: string;
   /** The project root: paths in the tools' answers are relative to it. Defaults to the parent of `sourcesDir`. */
   projectDir?: string;
   /** A person can be asked (not autonomous): adds `request_file` and `retire_source`, which ask first. */
@@ -167,11 +176,11 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
 
   const listSourcesTool = tool(
     "list_sources",
-    "List the originals in sources/ with their status: new (no summary page points to it: ingest it), ingested, changed (it changed after its ingest: update its summary), missing (deleted by hand) or present (no knowledge base to compare with); with type, size, pages of a PDF or slides of a PPTX (read long ones in parts), provenance, the version it replaces and its summary pages. Use it instead of listing the folder.",
+    "List the originals in sources/: present, missing (deleted by hand) or retired (when, why, what replaced it); with changedAt (when its content last changed, ISO 8601: compare it with when something was built from it, using date_math), type, size, pages of a PDF or slides of a PPTX (read long ones in parts), provenance and the version it replaces. Use it instead of listing the folder.",
     {},
     async () => {
       try {
-        return ok(JSON.stringify(await listSources(sourcesDir, options.knowledgeDir, projectDir), null, 2));
+        return ok(JSON.stringify(await listSources(sourcesDir), null, 2));
       } catch (error) {
         return fail(message(error));
       }
@@ -267,7 +276,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
 
   const retire = tool(
     "retire_source",
-    'Retire an original that was wrong ("wrong") or replaced by a better one ("replaced"), after the person approves it: it\'s moved to sources/.agent-kit/retired/ (never deleted), and its summary page is marked retired (wrong) or superseded, pointing to the replacement\'s summary (replaced). Afterwards, update the index and correct or re-ground the pages that cited it.',
+    'Retire an original that was wrong ("wrong") or replaced by a better one ("replaced"), after the person approves it: it\'s moved to sources/.agent-kit/retired/ (never deleted), and list_sources shows it as retired. What you built from it is yours to review afterwards.',
     {
       source: z.string().describe("The original, relative to sources/"),
       why: z.enum(["wrong", "replaced"]),
@@ -278,14 +287,11 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
       const answer = await askForDecision(runDir, { title: t().retireTitle, lines: t().retireLines(inFolder(args.source), args.why, args.reason, args.replacedBy && inFolder(args.replacedBy), folder) });
       if (answer !== "" && answer !== "y" && answer !== "yes") return ok(answer === "q" ? "The person stopped: don't retire it, and stop what you were doing." : "The person said no: the original stays.");
       try {
-        const result = await retireSource(sourcesDir, options.knowledgeDir, projectDir, inFolder(args.source), args.why, args.reason, args.replacedBy && inFolder(args.replacedBy));
-        const pages = result.summaries.map((s) => `${s.page} marked ${s.marked}${s.supersededBy ? ` (see ${s.supersededBy})` : ""}`);
+        const result = await retireSource(sourcesDir, inFolder(args.source), args.why, args.reason, args.replacedBy && inFolder(args.replacedBy));
         return ok(
-          [
-            `Retired: moved to sources/${result.movedTo}.`,
-            ...(pages.length ? pages : ["It had no summary page."]),
-            "Now update index.md, and correct or re-ground the pages that cite it (search the knowledge base for its file name).",
-          ].join("\n"),
+          `Retired: moved to sources/${result.movedTo}. If anything was built from it (a summary, notes that cite it), review it now: ${
+            args.why === "wrong" ? "what it taught was wrong" : `it was replaced${args.replacedBy ? ` by sources/${inFolder(args.replacedBy)}` : ""}`
+          }.`,
         );
       } catch (error) {
         return fail(message(error));

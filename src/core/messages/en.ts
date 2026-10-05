@@ -223,7 +223,7 @@ export const en: Messages = {
   planCommentQuestion: "What should change? (Enter to skip): ",
   retireLines: (source, why, reason, replacedBy, folder) => [
     `Source: ${source}`,
-    why === "wrong" ? "Why: it's wrong; its summary will be retired" : "Why: it's replaced; its summary will be marked superseded",
+    why === "wrong" ? "Why: it's wrong" : "Why: it's replaced by a better one",
     `Reason: ${reason}`,
     ...(replacedBy ? [`Replaced by: ${replacedBy}`] : []),
     `It's moved to ${folder}.agent-kit/retired/, not deleted.`,

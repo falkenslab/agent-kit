@@ -9,7 +9,12 @@ A source is ingested once, and from then on the knowledge base holds what it tau
 
 ## 1. Check it isn't already ingested
 
-`list_sources` gives each original's status and summary pages: *new* needs ingesting; *ingested* has a page; *changed* changed after its ingest (update its summary). For a document from elsewhere, `knowledge_search` its title or URL.
+The sources and the knowledge base each keep their own data; you match them:
+
+- `list_sources` gives each original with `changedAt`, when its content last changed.
+- `knowledge_index` gives each summary with `file`, the original it's about, and `ingested`, when it was written.
+
+An original with no summary needs ingesting. One whose `changedAt` is after its summary's `ingested` changed since: update its summary (`knowledge_rewrite`, which sets `ingested` again). Compare the two dates with `date_math`, one original at a time, never by eye. For a document from elsewhere, `knowledge_search` its title or URL.
 
 ## 2. Read it for real
 
@@ -17,7 +22,7 @@ Read the whole source, not its first page (a long PDF in parts: `list_sources` g
 
 ## 3. Write the summary page
 
-`knowledge_create` with type `summary` (call it once without content to get the template), and the field `file` (the original, relative to sources/) or `url`. Key points quote literally where exactness matters. Create the new concept and entity pages it feeds in the same call (`also`): they can link to each other.
+`knowledge_create` with type `summary` (call it once without content to get the template), and the field `file` (the original, exactly as `list_sources` names it) or `url`; `ingested` is set for you. Key points quote literally where exactness matters. Create the new concept and entity pages it feeds in the same call (`also`): they can link to each other.
 
 ## 4. Update concepts and entities
 
@@ -33,4 +38,4 @@ If the source contradicts a page, record both versions with attribution in both 
 
 ## An original that was wrong or replaced
 
-`retire_source` (the person approves it) moves it aside and marks its summary retired (wrong) or superseded (replaced). Then `knowledge_check` lists the passages that cite it: after a wrong one, correct or remove what it taught (`knowledge_edit`, or `knowledge_retire` for a page that was only about it); after a replaced one, ingest the new original and re-ground those passages on it.
+`retire_source` (the person approves it) moves it aside; `list_sources` shows it as retired, with why and what replaced it. The knowledge base is then yours to update: find its summaries (`knowledge_index`, by `file`) and the passages that cite it (`knowledge_search` its file name). After a wrong one, `knowledge_retire` its summary (the person approves it) and correct or remove what it taught (`knowledge_edit`, or `knowledge_retire` for a page that was only about it). After a replaced one, ingest the new original, `knowledge_supersede` the old summary by the new one, and re-ground those passages on it.

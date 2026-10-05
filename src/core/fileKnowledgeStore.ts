@@ -56,11 +56,12 @@ function serialize(fields: Map<string, string>, body: string): string {
 
 /** Options of `createFileKnowledgeStore()`. */
 export interface FileKnowledgeStoreOptions {
-  /** The agent's own page types, besides the kit's four. */
+  /** The agent's own page types, besides the kit's. */
   pageTypes?: readonly PageType[];
-  /** The sources folder: a summary's `file` field is given relative to it. */
-  sourcesDir?: string;
 }
+
+/** When a summary was written from its original (ISO 8601, as `list_sources`' `changedAt`). */
+const stampNow = (): string => new Date().toISOString();
 
 /** A `KnowledgeStore` over the markdown files of `knowledgeDir`. */
 export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnowledgeStoreOptions = {}): KnowledgeStore {
@@ -165,8 +166,8 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
     for (const [i, page] of ready.entries()) {
       const fields = newPages[i].fields ?? {};
       page.body = toFile(page.body, page.file);
-      if (page.type.type === "summary" && !("ingested" in fields)) page.fields.set("ingested", today());
-      await applyFields(page, fields); // may refuse a summary's missing original, before anything is written
+      await applyFields(page, fields);
+      if (page.type.type === "summary") page.fields.set("ingested", stampNow());
     }
     for (const page of ready) {
       await mkdir(path.dirname(page.file), { recursive: true });
@@ -188,22 +189,17 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
     if (missing.length) throw new Error(`These links point to pages that don't exist: ${missing.join(", ")}. Create them first, or link existing ones (knowledge_search).`);
   }
 
-  /** A field given by the model, made ready to store: `file` (relative to sources/) becomes a link from the page. */
-  async function storedField(key: string, value: string, file: string): Promise<string> {
-    if (key !== "file" || !options.sourcesDir || /^[a-z]+:\/\//i.test(value)) return value;
-    // Relative to the sources folder; a leading "sources/" or the folder's own name is dropped.
-    let relative = value.replace(/\\/g, "/").replace(/^\.\//, "");
-    for (const prefix of ["sources/", `${path.basename(options.sourcesDir)}/`]) if (relative.startsWith(prefix)) relative = relative.slice(prefix.length);
-    const original = path.resolve(options.sourcesDir, relative);
-    if (!(await stat(original).catch(() => null))?.isFile()) throw new Error(`"${value}" isn't an original in sources/ (list_sources lists them).`);
-    return posix(path.relative(path.dirname(file), original));
-  }
-
+  /**
+   * Sets or removes the fields given. `type` is the page's, and a summary's `ingested` is the
+   * store's (when it was written from its original), so neither is taken from the caller.
+   * `file` is kept as given: the original's path relative to the sources folder, which the
+   * store doesn't check (the sources are another extension's data, #30).
+   */
   async function applyFields(page: StoredPage, changes: FieldChanges = {}): Promise<void> {
     for (const [key, value] of Object.entries(changes)) {
-      if (key === "type") continue;
+      if (key === "type" || key === "ingested") continue;
       if (value === null) page.fields.delete(key);
-      else page.fields.set(key, await storedField(key, value, page.file));
+      else page.fields.set(key, value);
     }
     page.fields.set("updated", today());
   }
@@ -298,6 +294,8 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
       await linksResolve(content, id);
       page.body = toFile(/^#\s/.test(content.trimStart()) ? content : `# ${titleOf(page)}\n\n${content}`, page.file);
       await applyFields(page, fields);
+      // A summary redone whole is redone from its original: written now.
+      if (page.type.type === "summary") page.fields.set("ingested", stampNow());
       await save(page);
     },
 
@@ -379,7 +377,7 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
       const reservedFiles = new Set([...RESERVED].map((name) => path.normalize(path.join(knowledgeDir, `${name}.md`))));
       const known = new Map(pages.map((p) => [p.id, p]));
       const inbound = new Map<string, number>();
-      const report: CheckReport = { brokenLinks: [], orphans: [], linksToRetired: [], missingOriginals: [] };
+      const report: CheckReport = { brokenLinks: [], orphans: [], linksToRetired: [] };
       for (const page of pages) {
         if (statusOf(page) === "retired") continue;
         const body = fromFile(page.body, page.file, byFile);
@@ -397,10 +395,6 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
           if (!target) report.brokenLinks.push({ page: page.id, target: id });
           else if (statusOf(target) === "retired") report.linksToRetired.push({ page: page.id, target: id });
           if (id !== page.id) inbound.set(id, (inbound.get(id) ?? 0) + 1);
-        }
-        const file = page.fields.get("file");
-        if (file && !/^[a-z]+:\/\//i.test(file) && !(await stat(path.resolve(path.dirname(page.file), file)).catch(() => null))) {
-          report.missingOriginals.push({ page: page.id, file });
         }
       }
       report.orphans = pages

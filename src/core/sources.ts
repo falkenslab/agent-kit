@@ -6,10 +6,11 @@ import path from "node:path";
 /**
  * The sources folder's bookkeeping: originals stay files (ADR-024), and the kit keeps a
  * manifest next to them (`.agent-kit/sources.json`, inside `sourcesDir`, where the agent's
- * file tools can't write) with each original's hash, size and provenance, the version it
- * replaces, and the hash it had when a summary page first pointed to it. From that it tells
- * new, ingested, changed and missing originals apart, refuses duplicates, and retires an
- * original into `.agent-kit/retired/` instead of deleting it.
+ * file tools can't write) with each original's hash, size, provenance, the version it replaces
+ * and when its content last changed. From that it refuses duplicates, tells present, missing
+ * and retired originals apart, and retires an original into `.agent-kit/retired/` instead of
+ * deleting it. It knows nothing of the knowledge base: each owns its data, and the model
+ * connects them through their tools (#30). Hashes never leave it.
  */
 
 export const KIT_DIR = ".agent-kit";
@@ -35,8 +36,8 @@ export interface SourceEntry {
   replaces?: string;
   /** The page this one was generated from (a web page's markdown, from its HTML). */
   derivedFrom?: string;
-  /** The hash when a summary page first pointed to it: a different hash now means it changed after its ingest. */
-  ingestedHash?: string;
+  /** When its content last changed (ISO 8601): when it was added, or when its hash last differed. Not when it was only touched. */
+  changedAt: string;
 }
 
 export interface RetiredSource {
@@ -55,19 +56,24 @@ export interface SourceManifest {
   retired: RetiredSource[];
 }
 
-export type SourceStatus = "new" | "ingested" | "changed" | "missing" | "present";
+/** Present in the folder; missing (in the manifest, deleted by hand); or retired with `retire_source`. */
+export type SourceStatus = "present" | "missing" | "retired";
 
 export interface SourceListing {
   path: string;
   status: SourceStatus;
   type: string;
+  /** When its content last changed (ISO 8601), to compare with when something was built from it. */
+  changedAt?: string;
   size?: number;
   pages?: number;
   slides?: number;
   origin?: SourceOrigin;
   replaces?: string;
-  /** The summary pages that point to it (paths relative to the project). */
-  summaries: string[];
+  /** For a retired one: when, why, and what replaced it. */
+  retiredAt?: string;
+  why?: "wrong" | "replaced";
+  replacedBy?: string;
 }
 
 const posix = (p: string): string => p.split(path.sep).join("/");
@@ -129,39 +135,19 @@ export async function scanSources(sourcesDir: string): Promise<string[]> {
   return found.sort();
 }
 
-/** An entry for `file`, reusing the recorded hash when its size and modification time haven't changed. */
+/**
+ * An entry for `file`, reusing the recorded hash when its size and modification time haven't
+ * changed; `changedAt` moves only when the content (its hash) did. Entries from before
+ * `changedAt` existed take their `addedAt`.
+ */
 async function freshEntry(file: string, known: SourceEntry | undefined, origin: SourceOrigin): Promise<SourceEntry> {
   const info = await stat(file);
-  if (known && known.size === info.size && known.mtimeMs === info.mtimeMs) return known;
-  return { ...(known ?? { addedAt: now(), origin }), hash: await hashFile(file), size: info.size, mtimeMs: info.mtimeMs };
-}
-
-/** The original a frontmatter `file:` value points to (a relative path or a markdown link), resolved from the page's folder. */
-function linkedFile(value: string, pageDir: string): string | undefined {
-  const link = /\]\(([^)]+)\)/.exec(value)?.[1] ?? value.trim().replace(/^["']|["']$/g, "");
-  if (!link || /^[a-z]+:\/\//i.test(link)) return undefined;
-  return path.resolve(pageDir, decodeURI(link));
-}
-
-/** The summary pages (knowledge base layout: `summaries/*.md`) by the absolute path of the original their frontmatter `file:` points to. */
-export async function summariesByOriginal(knowledgeDir: string): Promise<Map<string, string[]>> {
-  const byOriginal = new Map<string, string[]>();
-  const dir = path.join(knowledgeDir, "summaries");
-  let names: string[];
-  try {
-    names = await readdir(dir);
-  } catch {
-    return byOriginal;
-  }
-  for (const name of names.filter((n) => n.endsWith(".md"))) {
-    const page = path.join(dir, name);
-    const text = await readFile(page, "utf8");
-    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? "";
-    const value = /^file:\s*(.+)$/m.exec(frontmatter)?.[1];
-    const original = value ? linkedFile(value, dir) : undefined;
-    if (original) byOriginal.set(path.normalize(original), [...(byOriginal.get(path.normalize(original)) ?? []), page]);
-  }
-  return byOriginal;
+  const previous = known ? { ...known, changedAt: known.changedAt ?? known.addedAt } : undefined;
+  if (previous && previous.size === info.size && previous.mtimeMs === info.mtimeMs) return previous;
+  const hash = await hashFile(file);
+  const stamp = now();
+  const base = previous ?? { addedAt: stamp, origin, changedAt: stamp };
+  return { ...base, hash, size: info.size, mtimeMs: info.mtimeMs, changedAt: previous && previous.hash === hash ? previous.changedAt : stamp };
 }
 
 /** Pages of a PDF, read from its page tree without a parser; undefined when it can't tell (e.g. compressed object streams). */
@@ -184,31 +170,20 @@ export function pptxSlideCount(bytes: Buffer): number | undefined {
 const typeOf = (file: string): string => path.extname(file).slice(1).toLowerCase() || "file";
 
 /**
- * Every original with its status, recording in the manifest the ones copied in by hand and,
- * the first time a summary page points to one, its hash at ingest. Without a knowledge
- * folder there's no ingest to compare with: originals are "present".
+ * Every original with its status and when its content last changed, recording in the manifest
+ * the ones copied in by hand; then the missing ones and the retired ones.
  */
-export function listSources(sourcesDir: string, knowledgeDir: string | undefined, projectDir: string): Promise<SourceListing[]> {
-  return serialized(sourcesDir, () => listSourcesNow(sourcesDir, knowledgeDir, projectDir));
+export function listSources(sourcesDir: string): Promise<SourceListing[]> {
+  return serialized(sourcesDir, () => listSourcesNow(sourcesDir));
 }
 
-async function listSourcesNow(sourcesDir: string, knowledgeDir: string | undefined, projectDir: string): Promise<SourceListing[]> {
+async function listSourcesNow(sourcesDir: string): Promise<SourceListing[]> {
   const manifest = await loadManifest(sourcesDir);
-  const summaries = knowledgeDir ? await summariesByOriginal(knowledgeDir) : new Map<string, string[]>();
   const files = await scanSources(sourcesDir);
   const listing: SourceListing[] = [];
   for (const rel of files) {
     const full = path.join(sourcesDir, rel);
     const entry = await freshEntry(full, manifest.files[rel], { kind: "manual" });
-    const pagesOf = summaries.get(path.normalize(full)) ?? [];
-    let status: SourceStatus = "present";
-    if (knowledgeDir) {
-      if (pagesOf.length === 0) status = "new";
-      else {
-        entry.ingestedHash ??= entry.hash;
-        status = entry.ingestedHash === entry.hash ? "ingested" : "changed";
-      }
-    }
     manifest.files[rel] = entry;
     const type = typeOf(rel);
     const counts =
@@ -217,17 +192,27 @@ async function listSourcesNow(sourcesDir: string, knowledgeDir: string | undefin
         : {};
     listing.push({
       path: rel,
-      status,
+      status: "present",
       type,
+      changedAt: entry.changedAt,
       size: entry.size,
       ...counts,
       origin: entry.origin,
       ...(entry.replaces ? { replaces: entry.replaces } : {}),
-      summaries: pagesOf.map((page) => posix(path.relative(projectDir, page))),
     });
   }
   for (const [rel, entry] of Object.entries(manifest.files)) {
-    if (!files.includes(rel)) listing.push({ path: rel, status: "missing", type: typeOf(rel), origin: entry.origin, summaries: [] });
+    if (!files.includes(rel)) listing.push({ path: rel, status: "missing", type: typeOf(rel), origin: entry.origin });
+  }
+  for (const retired of manifest.retired) {
+    listing.push({
+      path: retired.path,
+      status: "retired",
+      type: typeOf(retired.path),
+      retiredAt: retired.retiredAt,
+      why: retired.why,
+      ...(retired.replacedBy ? { replacedBy: retired.replacedBy } : {}),
+    });
   }
   await saveManifest(sourcesDir, manifest);
   return listing;
@@ -297,11 +282,13 @@ async function addSourceNow(
   }
   const rel = posix(path.relative(sourcesDir, target));
   const info = await stat(target);
+  const stamp = now();
   manifest.files[rel] = {
     hash,
     size: info.size,
     mtimeMs: info.mtimeMs,
-    addedAt: now(),
+    addedAt: stamp,
+    changedAt: stamp,
     origin,
     ...(extra.replaces ? { replaces: posix(path.relative(sourcesDir, resolveWithin(sourcesDir, extra.replaces)!)) } : {}),
     ...(extra.derivedFrom ? { derivedFrom: extra.derivedFrom } : {}),
@@ -310,50 +297,22 @@ async function addSourceNow(
   return { path: rel };
 }
 
-/** What retiring an original did to its summary pages (paths relative to the project). */
+/** Where a retired original went. */
 export interface RetireResult {
+  /** Relative to `sourcesDir`. */
   movedTo: string;
-  summaries: { page: string; marked: "retired" | "superseded"; supersededBy?: string }[];
-}
-
-/** Adds frontmatter fields and a notice under the frontmatter of a markdown page. */
-async function markPage(page: string, fields: Record<string, string>, notice: string): Promise<void> {
-  const text = await readFile(page, "utf8");
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text);
-  const lines = Object.entries(fields).map(([key, value]) => `${key}: ${value}`);
-  const updated = match
-    ? `---\n${match[1].split(/\r?\n/).filter((line) => !Object.keys(fields).some((key) => line.startsWith(`${key}:`))).concat(lines).join("\n")}\n---\n\n> ${notice}\n\n${text.slice(match[0].length).replace(/^\s+/, "")}`
-    : `---\n${lines.join("\n")}\n---\n\n> ${notice}\n\n${text}`;
-  await writeFile(page, updated);
 }
 
 /**
- * Moves an original to `.agent-kit/retired/` (never deleted: the person empties that folder)
- * and records why. Its summary pages are marked: retired if the original was wrong (what it
- * taught was wrong), superseded if it was replaced, pointing to the replacement's summary
- * when there is one.
+ * Moves an original to `.agent-kit/retired/` (never deleted: the person empties that folder) and
+ * records why. What was built from it (summary pages) is the knowledge base's to update: the
+ * model does it with its tools.
  */
-export function retireSource(
-  sourcesDir: string,
-  knowledgeDir: string | undefined,
-  projectDir: string,
-  source: string,
-  why: "wrong" | "replaced",
-  reason: string,
-  replacedBy?: string,
-): Promise<RetireResult> {
-  return serialized(sourcesDir, () => retireSourceNow(sourcesDir, knowledgeDir, projectDir, source, why, reason, replacedBy));
+export function retireSource(sourcesDir: string, source: string, why: "wrong" | "replaced", reason: string, replacedBy?: string): Promise<RetireResult> {
+  return serialized(sourcesDir, () => retireSourceNow(sourcesDir, source, why, reason, replacedBy));
 }
 
-async function retireSourceNow(
-  sourcesDir: string,
-  knowledgeDir: string | undefined,
-  projectDir: string,
-  source: string,
-  why: "wrong" | "replaced",
-  reason: string,
-  replacedBy?: string,
-): Promise<RetireResult> {
+async function retireSourceNow(sourcesDir: string, source: string, why: "wrong" | "replaced", reason: string, replacedBy?: string): Promise<RetireResult> {
   const full = resolveWithin(sourcesDir, source);
   if (!full || !(await stat(full).catch(() => null))?.isFile()) throw new Error(`"${source}" isn't an original in sources/.`);
   const rel = posix(path.relative(sourcesDir, full));
@@ -361,7 +320,6 @@ async function retireSourceNow(
   const replacement = replacedBy ? resolveWithin(sourcesDir, replacedBy) : undefined;
   if (replacedBy && (!replacement || !(await stat(replacement).catch(() => null)))) throw new Error(`"${replacedBy}" isn't an original in sources/.`);
 
-  const summaries = knowledgeDir ? await summariesByOriginal(knowledgeDir) : new Map<string, string[]>();
   const manifest = await loadManifest(sourcesDir);
   const stamp = now();
   const movedTo = posix(path.join(KIT_DIR, RETIRED_DIR, `${stamp.replace(/[:.]/g, "-")}-${path.basename(rel)}`));
@@ -378,40 +336,5 @@ async function retireSourceNow(
   });
   delete manifest.files[rel];
   await saveManifest(sourcesDir, manifest);
-
-  const date = stamp.slice(0, 10);
-  const replacementSummary = replacement ? summaries.get(path.normalize(replacement))?.[0] : undefined;
-  const result: RetireResult = { movedTo, summaries: [] };
-  for (const page of summaries.get(path.normalize(full)) ?? []) {
-    if (why === "wrong") {
-      await markPage(page, { status: "retired", retired: date }, `Retired on ${date}: its original was wrong (${reason}). Don't rely on what it says.`);
-      result.summaries.push({ page: posix(path.relative(projectDir, page)), marked: "retired" });
-    } else {
-      const link = replacementSummary ? posix(path.relative(path.dirname(page), replacementSummary)) : undefined;
-      await markPage(
-        page,
-        { status: "superseded", superseded: date, ...(link ? { superseded_by: link } : {}) },
-        `Superseded on ${date}: its original was replaced (${reason})${link ? `; see [the new summary](${link})` : ""}.`,
-      );
-      result.summaries.push({ page: posix(path.relative(projectDir, page)), marked: "superseded", ...(replacementSummary ? { supersededBy: posix(path.relative(projectDir, replacementSummary)) } : {}) });
-    }
-  }
-  return result;
-}
-
-/**
- * Records `source` (relative to `sourcesDir`) as ingested now, with its current hash: a
- * summary page was just written from it, so "changed" means changed after this.
- */
-export function recordIngest(sourcesDir: string, source: string): Promise<void> {
-  return serialized(sourcesDir, async () => {
-    const full = resolveWithin(sourcesDir, source);
-    if (!full || !(await stat(full).catch(() => null))?.isFile()) return;
-    const rel = posix(path.relative(sourcesDir, full));
-    const manifest = await loadManifest(sourcesDir);
-    const entry = await freshEntry(full, manifest.files[rel], { kind: "manual" });
-    entry.ingestedHash = entry.hash;
-    manifest.files[rel] = entry;
-    await saveManifest(sourcesDir, manifest);
-  });
+  return { movedTo };
 }

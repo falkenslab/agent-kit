@@ -1,8 +1,6 @@
-import path from "node:path";
 import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import type { FieldChanges, KnowledgeStore } from "../knowledgeStore.js";
-import { listSources, loadManifest, recordIngest } from "../sources.js";
 import { askForDecision } from "../hooks/humanInput.js";
 import { t } from "../messages/index.js";
 
@@ -34,12 +32,6 @@ export interface KnowledgeToolsOptions {
   runDir: string;
   /** A person can be asked (not autonomous): adds `knowledge_retire`, which asks first. */
   interactive?: boolean;
-  /** The sources folder: summaries record their original's hash, and `knowledge_check` reports new, changed and missing originals. */
-  sourcesDir?: string;
-  /** The project root, for `list_sources`' paths. */
-  projectDir?: string;
-  /** The knowledge folder, for `list_sources`' ingest status. */
-  knowledgeDir?: string;
 }
 
 /** The `knowledge` MCP server over `store`. */
@@ -50,20 +42,9 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
   const fields = z
     .array(z.object({ name: z.string(), value: z.string().nullable() }))
     .optional()
-    .describe('Frontmatter fields to set (value null removes one), e.g. [{"name": "aliases", "value": "tide range, tidal range"}]; for a summary, "file" is its original relative to sources/');
+    .describe('Frontmatter fields to set (value null removes one), e.g. [{"name": "aliases", "value": "tide range, tidal range"}]; for a summary, "file" is its original as list_sources names it (its "ingested" is set for you)');
   const changes = (pairs?: { name: string; value: string | null }[]): FieldChanges | undefined =>
     pairs ? Object.fromEntries(pairs.map(({ name, value }) => [name, value])) : undefined;
-
-  /** A summary written from an original: record its hash, so "changed" means changed after this. */
-  async function ingested(id: string): Promise<void> {
-    if (!options.sourcesDir || !id.startsWith("summary/")) return;
-    const page = await store.read(id);
-    const file = page?.fields.file;
-    if (!file || /^[a-z]+:\/\//i.test(file)) return;
-    const knowledgeDir = options.knowledgeDir;
-    const original = knowledgeDir ? path.resolve(knowledgeDir, "summaries", file) : path.resolve(options.sourcesDir, file);
-    await recordIngest(options.sourcesDir, path.relative(options.sourcesDir, original));
-  }
 
   const index = tool(
     "knowledge_index",
@@ -138,7 +119,6 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
           { type: args.type, slug: args.slug, title: args.title, content: args.content, fields: changes(args.fields) },
           ...(args.also ?? []).map((page) => ({ ...page, fields: changes(page.fields) })),
         ]);
-        for (const id of ids) await ingested(id);
         return `Created ${ids.join(", ")}.`;
       }),
   );
@@ -150,7 +130,6 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
     async (args) =>
       attempt(async () => {
         await store.edit(args.page, args.oldText, args.newText, changes(args.fields));
-        await ingested(args.page);
         return `Edited ${args.page}.`;
       }),
   );
@@ -166,7 +145,6 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
           return "Rewrote the overview.";
         }
         await store.rewrite(args.page, args.content, changes(args.fields));
-        await ingested(args.page);
         return `Rewrote ${args.page}.`;
       }),
   );
@@ -215,32 +193,9 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
 
   const check = tool(
     "knowledge_check",
-    "The knowledge base's mechanical problems in one call: broken links, orphan pages, links to retired pages, summaries whose original is gone, originals that are new, changed or missing, and the passages that cite a retired original. Fix what's mechanical; report what needs the person.",
+    "The knowledge base's mechanical problems in one call: broken links, orphan pages and links to retired pages. Fix what's mechanical; report what needs the person. Whether its summaries are up to date with their originals is a comparison you make: list_sources' changedAt against each summary's ingested (knowledge_index shows them), with date_math.",
     {},
-    async () =>
-      attempt(async () => {
-        const report: Record<string, unknown> = { ...(await store.check()) };
-        if (options.sourcesDir) {
-          const sources = await listSources(options.sourcesDir, options.knowledgeDir, options.projectDir ?? path.dirname(options.sourcesDir));
-          report.newOriginals = sources.filter((s) => s.status === "new").map((s) => s.path);
-          report.changedOriginals = sources.filter((s) => s.status === "changed").map((s) => ({ path: s.path, summaries: s.summaries }));
-          report.missingFromSources = sources.filter((s) => s.status === "missing").map((s) => s.path);
-          const retired = (await loadManifest(options.sourcesDir)).retired;
-          if (retired.length) {
-            const citations: { original: string; page: string; passage: string }[] = [];
-            for (const info of await store.list()) {
-              const page = await store.read(info.id);
-              for (const original of retired) {
-                const name = path.basename(original.path);
-                for (const line of (page?.content ?? "").split(/\r?\n/)) if (line.includes(name)) citations.push({ original: original.path, page: info.id, passage: line.trim() });
-                if (page?.fields.file?.endsWith(name) && info.status === "active") citations.push({ original: original.path, page: info.id, passage: `file: ${page.fields.file}` });
-              }
-            }
-            report.citesRetiredOriginals = citations;
-          }
-        }
-        return JSON.stringify(report, null, 2);
-      }),
+    async () => attempt(async () => JSON.stringify(await store.check(), null, 2)),
     { annotations: { readOnlyHint: true } },
   );
 

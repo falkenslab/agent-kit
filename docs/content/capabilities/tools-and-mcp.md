@@ -30,7 +30,7 @@ Besides the built-in ones, the kit registers MCP tools of its own, each when it 
 | `present_plan` | Shows the plan; the person runs it (leaving plan mode), keeps planning or cancels | Only in plan mode |
 | `request_manual_login` | Waits for a person to act by hand. See [Manual intervention](../human-in-the-loop/manual-intervention.md) | With `manualInterventionTexts`, not in autonomous mode |
 | `knowledge_*` (10 tools) | The knowledge base, as pages: index, search, read, create, edit, rewrite, supersede, retire, log, check. See [Knowledge base](knowledge-base.md#the-tools) | With `knowledgeDir` (the built-in knowledge base) |
-| `list_sources`, `extract_text`, `save_to_sources`, `download_to_sources` | List the originals with their status; read a DOCX, PPTX or XLSX one; add one from the run's folder or a URL, never overwriting. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained) | With `sourcesDir` |
+| `list_sources`, `extract_text`, `save_to_sources`, `download_to_sources` | List the originals with their status and when each last changed; read a DOCX, PPTX or XLSX one; add one from the run's folder or a URL, never overwriting. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained) | With `sourcesDir` |
 | `request_file`, `retire_source` | Ask the person for a file; take out a wrong or superseded original, with approval | With `sourcesDir`, not in autonomous mode |
 
 ### Date and time

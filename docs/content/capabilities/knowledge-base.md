@@ -58,7 +58,7 @@ Pages link by id: `[Spring tides](concept/spring-tides)`. A link to a page that 
 
 | Type | What it holds | Fields |
 | --- | --- | --- |
-| `summary` | One per ingested source: what it says, key points, the pages it feeds | `file` or `url`, `ingested` |
+| `summary` | One per ingested source: what it says, key points, the pages it feeds | `file` (the original, as `list_sources` names it) or `url`; `ingested`, when it was written, set by the store itself. The index shows them |
 | `concept` | One idea: definition, explanation, connections, sources | `aliases` |
 | `entity` | A concrete thing: a system, a component, an organization, a document | `kind`, `aliases` |
 | `synthesis` | An answer worth keeping: a comparison, an analysis, a report | `question` |
@@ -69,11 +69,9 @@ Besides the pages there's the **overview**, a living synthesis of the whole know
 
 - broken links (to pages that don't exist, or relative links to missing files; a link to the overview, index or log file is fine when the file exists);
 - orphan pages (nothing links to them; summaries and syntheses aside, which the index reaches);
-- links to retired pages;
-- summaries whose original is gone;
-- with a sources folder: originals that are new (not ingested), changed after their ingest, or missing, and the passages that cite a retired original.
+- links to retired pages.
 
-The index and backlinks can't drift, so there's nothing to check there.
+The index and backlinks can't drift, so there's nothing to check there. How the knowledge base stands against its originals isn't `knowledge_check`'s: see [Knowledge base and sources](#knowledge-base-and-sources).
 
 ## Your own page types
 
@@ -151,7 +149,7 @@ The agent keeps it with the kit's tools (server `sourceFiles`), never with the f
 
 | Tool | What it does | Modes |
 | --- | --- | --- |
-| `list_sources` | Every original with its status, type, size, pages (PDF) or slides (PPTX), provenance, the version it replaces and its summary pages | All, plan included |
+| `list_sources` | Every original with its status, when its content last changed (`changedAt`), type, size, pages (PDF) or slides (PPTX), provenance and the version it replaces; the missing and retired ones too | All, plan included |
 | `extract_text` | A DOCX, PPTX or XLSX original as markdown, which `Read` can't read | All, plan included |
 | `save_to_sources` | Copies a file from this run's folder in | All but plan |
 | `download_to_sources` | Downloads an original from an http(s) URL straight in | All but plan |
@@ -160,17 +158,17 @@ The agent keeps it with the kit's tools (server `sourceFiles`), never with the f
 
 ### Status of each original
 
-`list_sources` tells the agent what to do next:
-
 | Status | Meaning |
 | --- | --- |
-| `new` | No summary page points to it: ingest it. Files the person copies in by hand show up here. |
-| `ingested` | A summary page points to it (its frontmatter `file:`), and it hasn't changed since. |
-| `changed` | It changed after its ingest (the person replaced it by hand): update its summary. |
-| `missing` | The kit knew it, but the file is gone (deleted by hand): its summary points nowhere. |
-| `present` | There's no knowledge folder to compare with. |
+| `present` | In the folder. Files the person copies in by hand show up here too. |
+| `missing` | The kit knew it, but the file is gone (deleted by hand). |
+| `retired` | Taken out with `retire_source`: with when, why (`wrong` or `replaced`) and what replaced it. |
 
-The kit keeps the bookkeeping in a manifest inside the folder, `sources/.agent-kit/sources.json`, where the file tools can't write: each original's hash, size, provenance (from the run, a URL, the person, or copied by hand) and the hash it had when a summary page first pointed to it. A PDF's pages and a PPTX's slides are counted without parsing them, so the agent can read a long one in parts.
+Each present original has `changedAt`, when its **content** last changed (ISO 8601): when it was added, or when its hash last differed. Touching a file without changing it doesn't move it.
+
+The kit keeps the bookkeeping in a manifest inside the folder, `sources/.agent-kit/sources.json`, where the file tools can't write: each original's hash, size, provenance (from the run, a URL, the person, or copied by hand) and `changedAt`. Hashes never leave it. A PDF's pages and a PPTX's slides are counted without parsing them, so the agent can read a long one in parts.
+
+The sources' own section of the system prompt (what the originals are, how they come and go) is there whenever `sourcesDir` is set, with or without a knowledge base.
 
 ### Adding originals
 
@@ -211,10 +209,20 @@ retire_source({ source: "topic-3/slides.pdf", why: "replaced", reason: "a newer 
 
 1. The person approves it in a panel; rejected, nothing changes.
 2. The file moves to `sources/.agent-kit/retired/`, and the manifest records why. Deleting it for good is the person's, by emptying that folder.
-3. Its summary page is marked: `status: retired` and a notice not to rely on it, if it was **wrong**; `status: superseded` with a link to the replacement's summary, if it was **replaced**.
-4. The tool reminds the agent to update the index and fix the pages that cite it; the `knowledge-ingest` skill says how.
+3. `list_sources` shows it as retired. Its summaries are the knowledge base's, so the tool doesn't touch them: it reminds the agent to review what it built from it, and the `knowledge-ingest` skill says how (`knowledge_retire` a wrong one's summary, `knowledge_supersede` a replaced one's by the new summary, each with the person's approval).
 
 The plan gate denies every tool here but `list_sources` and `extract_text`, and `request_file` and `retire_source` don't exist in autonomous mode.
+
+## Knowledge base and sources
+
+They're separate on purpose: **each owns its data, and the model connects them** with their tools. The sources know their originals and when each changed; the knowledge base knows its pages, which original each summary is about and when it was written. Neither reads nor writes the other's data, so the knowledge base's store can be anything (a database, a vector store) and the sources work without a knowledge base.
+
+The model matches them, as the `knowledge-ingest` and `knowledge-lint` skills tell it:
+
+- **To ingest**: an original that no summary is about needs ingesting; one whose `changedAt` (from `list_sources`) is after its summary's `ingested` (from `knowledge_index`) changed since, and its summary is redone with `knowledge_rewrite`, which sets `ingested` again. The dates are compared with `date_math`, one original at a time, not by eye.
+- **To retire**: after `retire_source`, the knowledge base's own tools retire or supersede the summaries, with the person's approval.
+
+The model only carries short identifiers (an original's path, a page id) and dates between them, never data that must be exact. The kit doesn't check that a summary's `file` exists, nor marks summaries when an original goes: a lint (`/knowledge:lint`) finds what was missed.
 
 ## Your own rules instead
 

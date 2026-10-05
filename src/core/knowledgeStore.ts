@@ -63,8 +63,6 @@ export interface CheckReport {
   orphans: string[];
   /** Links to retired pages. */
   linksToRetired: { page: string; target: string }[];
-  /** Summary pages whose original is gone from the sources folder. */
-  missingOriginals: { page: string; file: string }[];
 }
 
 /** A page to create. */
@@ -132,7 +130,8 @@ export const BUILT_IN_PAGE_TYPES: readonly PageType[] = [
     type: "summary",
     dir: "summaries",
     indexSection: "Summaries",
-    description: "One per ingested source: what it says, its key points and the pages it feeds. Fields: file (the original, relative to sources/) or url; ingested.",
+    description: "One per ingested source: what it says, its key points and the pages it feeds. Fields: file (the original, relative to the sources folder, as list_sources names it) or url; ingested (when it was written from its original, set by the knowledge base itself).",
+    indexFields: ["file", "url", "ingested"],
     template: `## Summary
 <Two to four paragraphs: what it actually says.>
 

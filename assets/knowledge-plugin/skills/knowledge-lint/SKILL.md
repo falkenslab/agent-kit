@@ -1,6 +1,6 @@
 ---
 name: knowledge-lint
-description: Health-check the knowledge base - broken links, orphan pages, links to retired pages, missing or changed originals, duplicated concepts, mentioned-but-missing concepts, contradictions, gaps - fix what's mechanical and report the rest.
+description: Health-check the knowledge base - broken links, orphan pages, links to retired pages, summaries behind their originals, duplicated concepts, mentioned-but-missing concepts, contradictions, gaps - fix what's mechanical and report the rest.
 ---
 
 # Linting the knowledge base
@@ -9,14 +9,21 @@ A knowledge base maintained across sessions drifts. Lint it when asked and after
 
 ## 1. The mechanical checks, in one call
 
-`knowledge_check` returns broken links, orphan pages, links to retired pages, summaries whose original is gone, originals that are new, changed or missing, and the passages that cite a retired original. The index and backlinks are kept by the store: there's nothing to fix there.
+`knowledge_check` returns broken links, orphan pages and links to retired pages. The index and backlinks are kept by the store: there's nothing to fix there.
 
 - **Broken links**: fix them with `knowledge_edit` when the right target is obvious (a typo, a page under a close name: `knowledge_search`); otherwise report them.
 - **Orphans**: link them from the pages where they belong, or report why they don't belong anywhere.
-- **Links to retired pages, passages citing a retired original**: correct or re-ground them.
-- **New or changed originals**: report them as what to ingest or update next (or do it, if asked).
+- **Links to retired pages**: correct or re-ground them.
 
-## 2. The checks that need judgement
+## 2. The knowledge base against its originals
+
+When there's a sources folder, match `list_sources` with `knowledge_index`:
+
+- **Not ingested**: present originals no summary is about. Report them as what to ingest next (or do it, if asked).
+- **Behind**: summaries whose original's `changedAt` is after their `ingested`, compared with `date_math` one at a time. Report them as what to update.
+- **Retired or missing originals**: summaries still active whose original is retired (retire or supersede them, with the person's approval, as it was wrong or replaced) or missing (report them); and the passages that cite them (`knowledge_search` the file name).
+
+## 3. The checks that need judgement
 
 Use `knowledge_index` and `knowledge_search`; read only the pages a check needs.
 

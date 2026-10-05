@@ -30,7 +30,7 @@ async function existing() {
 test("an existing knowledge base reads as pages: links as ids, titles, fields, what links to each page", async () => {
   const kb = await existing();
   try {
-    const store = createFileKnowledgeStore(kb.k, { sourcesDir: kb.s });
+    const store = createFileKnowledgeStore(kb.k);
     const tides = await store.read("concept/tides");
     assert.equal(tides?.title, "Tides");
     assert.equal(tides?.fields.aliases, "tidal movement");
@@ -47,7 +47,7 @@ test("an existing knowledge base reads as pages: links as ids, titles, fields, w
 test("creating pages: links must exist, slugs are checked, files get relative links, and the index is rewritten", async () => {
   const kb = await existing();
   try {
-    const store = createFileKnowledgeStore(kb.k, { sourcesDir: kb.s });
+    const store = createFileKnowledgeStore(kb.k);
     await assert.rejects(store.create("concept", "Spring Tides", "Spring tides", "x"), /valid slug/);
     await assert.rejects(store.create("concept", "tides", "Tides", "x"), /already exists/);
     await assert.rejects(store.create("concept", "spring-tides", "Spring tides", "See [neap](concept/neap-tides)."), /don't exist: concept\/neap-tides/);
@@ -61,10 +61,22 @@ test("creating pages: links must exist, slugs are checked, files get relative li
     assert.match(index, /## Summaries\n\n- \[Tides chapter\]\(summaries\/tides-chapter\.md\) — A chapter on tides\./);
     assert.match(index, /- \[Spring tides\]\(concepts\/spring-tides\.md\) — The biggest range\./);
 
-    // A summary's original is given relative to sources/ and stored as a link from the page.
-    await assert.rejects(store.create("summary", "nope", "Nope", "x", { file: "missing.pdf" }), /isn't an original/);
-    await store.create("summary", "tides-again", "Tides again", "Same.", { file: "tides.pdf" });
-    assert.match(await readFile(path.join(kb.k, "summaries", "tides-again.md"), "utf8"), /ingested: \d{4}-\d{2}-\d{2}\nfile: \.\.\/\.\.\/sources\/tides\.pdf\n/);
+    // A summary's original is kept as given (relative to the sources folder, unchecked: the
+    // sources are another extension's data, #30); when it was written is the store's, never the caller's.
+    await store.create("summary", "tides-again", "Tides again", "Same.", { file: "tides.pdf", ingested: "1999-01-01T00:00:00.000Z" });
+    const summary = await readFile(path.join(kb.k, "summaries", "tides-again.md"), "utf8");
+    assert.match(summary, /\nfile: tides\.pdf\n/);
+    const ingested = /\ningested: "?(\d{4}-\d{2}-\d{2}T[\d:.]+Z)"?\n/.exec(summary)?.[1];
+    assert.ok(ingested && Date.now() - Date.parse(ingested) < 60_000, summary);
+    // The index line shows both, so one knowledge_index and one list_sources give the model what to compare.
+    assert.match(await readFile(path.join(kb.k, "index.md"), "utf8"), /- \[Tides again\]\(summaries\/tides-again\.md\) — Same\. \(file: tides\.pdf, ingested: \d{4}-\d{2}-\d{2}T/);
+
+    // Rewriting a summary is redoing it from its original: ingested moves; editing a fragment doesn't.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await store.edit("summary/tides-again", "Same.", "Same, again.");
+    assert.ok((await readFile(path.join(kb.k, "summaries", "tides-again.md"), "utf8")).includes(ingested));
+    await store.rewrite("summary/tides-again", "Redone.");
+    assert.ok(!(await readFile(path.join(kb.k, "summaries", "tides-again.md"), "utf8")).includes(ingested));
   } finally {
     await kb.done();
   }
@@ -73,7 +85,7 @@ test("creating pages: links must exist, slugs are checked, files get relative li
 test("editing by fragment, rewriting, superseding and retiring", async () => {
   const kb = await existing();
   try {
-    const store = createFileKnowledgeStore(kb.k, { sourcesDir: kb.s });
+    const store = createFileKnowledgeStore(kb.k);
     await assert.rejects(store.edit("concept/tides", "not there", "x"), /isn't in/);
     await store.create("concept", "rise", "Rise", "Up. Up.");
     await assert.rejects(store.edit("concept/rise", "Up", "x"), /appears 2 times/);
@@ -103,16 +115,16 @@ test("editing by fragment, rewriting, superseding and retiring", async () => {
 test("search, check, the overview and the log", async () => {
   const kb = await existing();
   try {
-    const store = createFileKnowledgeStore(kb.k, { sourcesDir: kb.s });
+    const store = createFileKnowledgeStore(kb.k);
     const hits = await store.search("tidal");
     assert.equal(hits[0].id, "concept/tides"); // by alias
     assert.match((await store.search("sea"))[0].snippet, /rise and fall of the sea/);
 
-    await rm(path.join(kb.s, "tides.pdf"));
     const report = await store.check();
     assert.deepEqual(report.brokenLinks, [{ page: "concept/lonely", target: "concepts/ghost.md" }]);
     assert.deepEqual(report.orphans, ["concept/lonely"]);
-    assert.deepEqual(report.missingOriginals, [{ page: "summary/tides-chapter", file: "../../sources/tides.pdf" }]);
+    // Whether an original is still there is the sources' data, not the knowledge base's (#30).
+    assert.deepEqual(Object.keys(report).sort(), ["brokenLinks", "linksToRetired", "orphans"]);
     assert.doesNotMatch(await readFile(path.join(kb.k, "index.md"), "utf8"), /stale/); // check rewrites the index
 
     assert.equal(await store.overview(), "");
@@ -179,7 +191,7 @@ test("a search from above the knowledge folder is refused, one that starts elsew
 test("several pages at once may link to each other; if one is wrong, none is written", async () => {
   const kb = await existing();
   try {
-    const store = createFileKnowledgeStore(kb.k, { sourcesDir: kb.s });
+    const store = createFileKnowledgeStore(kb.k);
     await assert.rejects(
       store.createMany([
         { type: "concept", slug: "wind", title: "Wind", content: "See [Gust](concept/gust)." },

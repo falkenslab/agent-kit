@@ -62,6 +62,10 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 
 With `knowledgeDir` and/or `sourcesDir`, `cwd` = `projectDir`. With the built-in knowledge base reached through its tools (the default, ADR-024), `knowledgeDir` is tools-only: no file tool reaches it; `Read`/`Glob`/`Grep` are for `sourcesDir` and `extraWritableDirs`, `Write`/`Edit` for the latter. With `knowledgeBase: false` (`knowledgeDir` as the agent's own notes), all five, writes only in `knowledgeDir` + `extraWritableDirs`; `Grep` in those plus `sourcesDir`. `deniedPaths` never, nor the SDK's credentials. `Read`/`Glob` reach only the searchable folders (plus `extraReadableDirs`), the run folder, the plugin roots, the project's `.claude/` and the SDK's `tool-results/` for the project (ADR-007). `sourcesDir` grows only through the sources tools (never overwriting, no duplicates) and shrinks only through `retire_source`, which moves an original to `.agent-kit/retired/` with the person's approval.
 
+## Sources and the knowledge base
+
+Each owns its data, and the model connects them with their tools (#30): neither imports the other nor reads the other's files. The sources know their originals and when each one's content last changed (`changedAt`; hashes never leave `sources.ts`); the knowledge base knows its pages, which original a summary is about (`file`) and when it was written (`ingested`, set by the store). The model compares the dates with `date_math` and, after `retire_source`, retires or supersedes summaries with the knowledge tools. The sources have their own prompt section, with or without a knowledge base. The same rule holds for any two extensions (#29).
+
 ## Knowledge plugin
 
 `assets/knowledge-plugin/` (name `knowledge`): skills `knowledge-ingest`, `knowledge-query`, `knowledge-lint` over the `knowledge_*` tools; commands `/knowledge:ingest`, `/knowledge:query`, `/knowledge:lint`. Opt out with `spec.knowledgeBase: false`.

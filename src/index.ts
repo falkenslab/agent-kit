@@ -83,7 +83,7 @@ setInteractionPort(terminalInteractionPort);
 
 export { createHumanApprovalServer, DEFAULT_HUMAN_APPROVAL_TEXTS, type HumanApprovalTexts } from "./core/tools/humanApproval.js";
 export { createManualLoginServer, type ManualInterventionTexts } from "./core/tools/manualLogin.js";
-export { createSaveToSourcesServer, type SourceToolsOptions } from "./core/tools/saveToSources.js";
+export { createSaveToSourcesServer, sourcesPromptSection, type SourceToolsOptions } from "./core/tools/saveToSources.js";
 
 export { runChatTui, type ChatTuiOptions } from "./tui/chatTui.js";
 export type { SessionOpener } from "./tui/runs.js";

@@ -11,7 +11,7 @@ import { createFileScopeGate } from "./hooks/fileScopeGate.js";
 import { createPlanGate } from "./hooks/planGate.js";
 import { createHumanApprovalServer } from "./tools/humanApproval.js";
 import { createManualLoginServer } from "./tools/manualLogin.js";
-import { createSaveToSourcesServer } from "./tools/saveToSources.js";
+import { createSaveToSourcesServer, sourcesPromptSection } from "./tools/saveToSources.js";
 import { createTimeServer } from "./tools/time.js";
 import { TODO_TOOL } from "./todos.js";
 import { createModeControl, type ModeControl } from "./modeControl.js";
@@ -129,7 +129,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   ];
   const knowledgeStore: KnowledgeStore | undefined =
     includeKnowledgeBase && config.knowledgeDir
-      ? (spec.knowledgeStore?.(config) ?? createFileKnowledgeStore(config.knowledgeDir, { pageTypes: spec.knowledgePageTypes, sourcesDir: config.sourcesDir }))
+      ? (spec.knowledgeStore?.(config) ?? createFileKnowledgeStore(config.knowledgeDir, { pageTypes: spec.knowledgePageTypes }))
       : undefined;
   const includeSkillsAndPlugins = includeFileTools || pluginRoots.length > 0;
   // "plugins": the skills of the plugins loaded, named as the SDK names them.
@@ -168,8 +168,10 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const promptSections = [
     spec.buildSystemPrompt(config),
     ...(spec.identity ? [identityPromptSection(spec.identity)] : []),
+    // The sources' own section, with or without a knowledge base (#30).
+    ...(config.sourcesDir ? [sourcesPromptSection(config.projectDir, config.sourcesDir)] : []),
     ...(includeKnowledgeBase && config.knowledgeDir
-      ? [knowledgePromptSection(config.projectDir, config.sourcesDir, { pageTypes: knowledgeStore?.types() })]
+      ? [knowledgePromptSection({ withSources: Boolean(config.sourcesDir), pageTypes: knowledgeStore?.types() })]
       : []),
   ];
 
@@ -252,7 +254,6 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       ...(config.sourcesDir
         ? {
             sourceFiles: createSaveToSourcesServer(runDir, config.sourcesDir, spec.saveToSourcesDescription, {
-              knowledgeDir: config.knowledgeDir,
               projectDir: config.projectDir,
               interactive: mode !== "autonomous",
             }),
@@ -261,13 +262,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       // The knowledge base's own tools, over its store (tools/knowledgeTools.ts, ADR-024).
       ...(knowledgeStore
         ? {
-            knowledge: createKnowledgeServer(knowledgeStore, {
-              runDir,
-              interactive: mode !== "autonomous",
-              sourcesDir: config.sourcesDir,
-              projectDir: config.projectDir,
-              knowledgeDir: config.knowledgeDir,
-            }),
+            knowledge: createKnowledgeServer(knowledgeStore, { runDir, interactive: mode !== "autonomous" }),
           }
         : {}),
       // The date and date arithmetic, in every session and mode: only reads (tools/time.ts).

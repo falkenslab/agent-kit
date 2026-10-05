@@ -25,32 +25,34 @@ async function project() {
 
 const summary = (file: string) => `---\ntype: summary\nfile: ${file}\n---\n\n# Summary\n\nWhat it says.\n`;
 
-test("originals are new until a summary points to them, then ingested; changed after a change, missing when deleted", async () => {
+test("originals are present, with when their content last changed; missing when deleted by hand; and nothing about a knowledge base", async () => {
   const p = await project();
   try {
     await writeFile(path.join(p.sources, "a.txt"), "first version");
     await writeFile(path.join(p.sources, "b.txt"), "other");
-    let listing = await listSources(p.sources, p.knowledge, p.root);
+    let listing = await listSources(p.sources);
     assert.deepEqual(listing.map((s) => [s.path, s.status, s.origin?.kind]), [
-      ["a.txt", "new", "manual"],
-      ["b.txt", "new", "manual"],
+      ["a.txt", "present", "manual"],
+      ["b.txt", "present", "manual"],
     ]);
+    const first = listing[0].changedAt!;
+    assert.ok(Date.now() - Date.parse(first) < 60_000);
+    assert.ok(!("summaries" in listing[0]));
 
-    await writeFile(path.join(p.knowledge, "summaries", "a.md"), summary("../../sources/a.txt"));
-    listing = await listSources(p.sources, p.knowledge, p.root);
-    assert.equal(listing[0].status, "ingested");
-    assert.deepEqual(listing[0].summaries, ["knowledge/summaries/a.md"]);
-
+    // Touched with the same content: changedAt stays. Changed: it moves.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await writeFile(path.join(p.sources, "a.txt"), "first version");
+    assert.equal((await listSources(p.sources))[0].changedAt, first);
     await writeFile(path.join(p.sources, "a.txt"), "second version, replaced by hand");
     await rm(path.join(p.sources, "b.txt"));
-    listing = await listSources(p.sources, p.knowledge, p.root);
+    listing = await listSources(p.sources);
+    assert.ok(Date.parse(listing[0].changedAt!) > Date.parse(first));
     assert.deepEqual(listing.map((s) => [s.path, s.status]), [
-      ["a.txt", "changed"],
+      ["a.txt", "present"],
       ["b.txt", "missing"],
     ]);
-
-    // Without a knowledge folder there's nothing to compare with.
-    assert.equal((await listSources(p.sources, undefined, p.root))[0].status, "present");
+    // The manifest knows nothing of ingests.
+    assert.ok(!("ingestedHash" in (await loadManifest(p.sources)).files["a.txt"]));
   } finally {
     await p.done();
   }
@@ -83,33 +85,33 @@ test("adding never overwrites, keeps one copy of identical files, records proven
   }
 });
 
-test("retiring moves the original aside and marks its summary: retired if wrong, superseded if replaced", async () => {
+test("retiring moves the original aside, lists it as retired with why and what replaced it, and touches no knowledge base", async () => {
   const p = await project();
   try {
     await writeFile(path.join(p.sources, "old.txt"), "old");
     await writeFile(path.join(p.sources, "new.txt"), "new");
     await writeFile(path.join(p.sources, "bad.txt"), "bad");
-    await writeFile(path.join(p.knowledge, "summaries", "old.md"), summary("../../sources/old.txt"));
-    await writeFile(path.join(p.knowledge, "summaries", "new.md"), summary("../../sources/new.txt"));
-    await writeFile(path.join(p.knowledge, "summaries", "bad.md"), summary("[bad](../../sources/bad.txt)"));
+    await writeFile(path.join(p.knowledge, "summaries", "old.md"), summary("old.txt"));
+    const before = await readFile(path.join(p.knowledge, "summaries", "old.md"), "utf8");
 
-    const replaced = await retireSource(p.sources, p.knowledge, p.root, "old.txt", "replaced", "a newer edition", "new.txt");
+    const replaced = await retireSource(p.sources, "old.txt", "replaced", "a newer edition", "new.txt");
     assert.match(replaced.movedTo, /^\.agent-kit\/retired\/.+-old\.txt$/);
     assert.equal(await readFile(path.join(p.sources, replaced.movedTo), "utf8"), "old");
-    assert.deepEqual(replaced.summaries, [{ page: "knowledge/summaries/old.md", marked: "superseded", supersededBy: "knowledge/summaries/new.md" }]);
-    const oldPage = await readFile(path.join(p.knowledge, "summaries", "old.md"), "utf8");
-    assert.match(oldPage, /status: superseded\n/);
-    assert.match(oldPage, /superseded_by: new\.md\n/);
-    assert.match(oldPage, /> Superseded on .*a newer edition.*\[the new summary\]\(new\.md\)/);
+    await retireSource(p.sources, "bad.txt", "wrong", "it was the wrong course");
+    // The summaries are the knowledge base's: the model updates them with its tools.
+    assert.equal(await readFile(path.join(p.knowledge, "summaries", "old.md"), "utf8"), before);
 
-    const wrong = await retireSource(p.sources, p.knowledge, p.root, "bad.txt", "wrong", "it was the wrong course");
-    assert.deepEqual(wrong.summaries, [{ page: "knowledge/summaries/bad.md", marked: "retired" }]);
-    assert.match(await readFile(path.join(p.knowledge, "summaries", "bad.md"), "utf8"), /status: retired\n[\s\S]*> Retired on .*wrong course/);
-
-    const listing = await listSources(p.sources, p.knowledge, p.root);
-    assert.deepEqual(listing.map((s) => s.path), ["new.txt"]); // retired ones aren't listed, nor missing
-    assert.equal((await loadManifest(p.sources)).retired.length, 2);
-    await assert.rejects(retireSource(p.sources, p.knowledge, p.root, "nope.txt", "wrong", "x"), /isn't an original/);
+    const listing = await listSources(p.sources);
+    assert.deepEqual(
+      listing.map((s) => [s.path, s.status, s.why, s.replacedBy]),
+      [
+        ["new.txt", "present", undefined, undefined],
+        ["old.txt", "retired", "replaced", "new.txt"],
+        ["bad.txt", "retired", "wrong", undefined],
+      ],
+    );
+    assert.ok(listing[1].retiredAt);
+    await assert.rejects(retireSource(p.sources, "nope.txt", "wrong", "x"), /isn't an original/);
   } finally {
     await p.done();
   }

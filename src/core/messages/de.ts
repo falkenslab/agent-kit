@@ -80,7 +80,7 @@ export const de: Partial<Messages> = {
   planCommentQuestion: "Was soll sich ändern? (Enter zum Überspringen): ",
   retireLines: (source, why, reason, replacedBy, folder) => [
     `Quelle: ${source}`,
-    why === "wrong" ? "Warum: sie ist falsch; ihre Zusammenfassung wird zurückgezogen" : "Warum: sie wird ersetzt; ihre Zusammenfassung wird als ersetzt markiert",
+    why === "wrong" ? "Warum: sie ist falsch" : "Warum: eine bessere ersetzt sie",
     `Grund: ${reason}`,
     ...(replacedBy ? [`Ersetzt durch: ${replacedBy}`] : []),
     `Sie wird nach ${folder}.agent-kit/retired/ verschoben, nicht gelöscht.`,

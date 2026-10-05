@@ -16,23 +16,13 @@ export function knowledgePluginRoot(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", "knowledge-plugin");
 }
 
-/** A path as shown to the model: relative to the project, forward slashes, with a trailing slash. */
-function shown(projectDir: string, dir: string): string {
-  return `${path.relative(projectDir, dir).split(path.sep).join("/")}/`;
-}
-
-/** The originals' line of the prompt section, the same in both variants. */
-function originalsLine(originals: string): string {
-  return `- **Originals (read-only for you)**: \`${originals}\`. Never rewrite one; build pages *about* them. \`list_sources\` says which are new (not ingested yet), changed since their ingest or missing; add a file only with \`save_to_sources\`, \`download_to_sources\` or by asking the person (\`request_file\`), and take out a wrong or superseded one only with \`retire_source\`. \`Read\` reads PDFs and images; \`extract_text\` reads DOCX, PPTX (with speaker notes) and XLSX.\n`;
-}
-
 /** The section for a knowledge base reached through the `knowledge_*` tools (ADR-024). */
-function toolsSection(originals: string | undefined, pageTypes: readonly PageType[]): string {
+function toolsSection(withSources: boolean, pageTypes: readonly PageType[]): string {
   return `## Knowledge base
 Your memory across sessions is an interlinked knowledge base of pages that you write and maintain yourself — a wiki, not a pile of notes. A future session only knows what is written there, so anything worth remembering must end up in a page, not just in this turn's reply. You reach it only through the \`knowledge_*\` tools. Write page content in the language you are using with the human.
 
 ### Layers
-${originals ? originalsLine(originals) : ""}- **The knowledge base**: pages identified by type and slug (\`concept/spring-tides\`), plus the \`overview\`, a living synthesis of the whole, and the \`log\` of what was done to it (\`knowledge_read\` reads both). Page types: ${pageTypes.map((type) => `\`${type.type}\` (${type.description})`).join("; ")}.
+- **The knowledge base**: pages identified by type and slug (\`concept/spring-tides\`), plus the \`overview\`, a living synthesis of the whole, and the \`log\` of what was done to it (\`knowledge_read\` reads both). Page types: ${pageTypes.map((type) => `\`${type.type}\` (${type.description})`).join("; ")}.
 - **The schema**: these rules plus the \`knowledge-ingest\`, \`knowledge-query\` and \`knowledge-lint\` skills. \`knowledge_create\` without content gives a type's template.
 
 ### Working rules
@@ -40,7 +30,7 @@ ${originals ? originalsLine(originals) : ""}- **The knowledge base**: pages iden
 - Link pages by id, \`[Spring tides](concept/spring-tides)\`; links must point to existing pages. The index and the backlinks ("linked from") are kept for you.
 - Change a page with \`knowledge_edit\` (a fragment); \`knowledge_rewrite\` only to redo it whole. Pages are never deleted or renamed: \`knowledge_supersede\` one replaced by another; \`knowledge_retire\` one that was wrong.
 - When an operation is done, \`knowledge_log\` it: \`ingest\`, \`query\`, \`lint\` or \`update\`, with the pages touched.
-- Every claim must be traceable to a summary page, an original, or — clearly labelled as outside the knowledge base — the web.
+${withSources ? "- A summary records the original it's about (`file`, as `list_sources` names it) and when it was written (`ingested`, set for you); the index shows both. An original needs ingesting when no summary is about it, and again when its `changedAt` (from `list_sources`) is after its summary's `ingested`: compare them with `date_math`, one original at a time, not by eye. When an original is retired, retire (it was wrong) or supersede (it was replaced) its summaries, with the person's approval.\n" : ""}- Every claim must be traceable to a summary page, an original, or — clearly labelled as outside the knowledge base — the web.
 - Contradictions are kept, not overwritten: record both versions with attribution in the affected pages.
 - Short, focused, well-linked pages beat long ones: when a page mixes two things, split it.`;
 }
@@ -48,7 +38,9 @@ ${originals ? originalsLine(originals) : ""}- **The knowledge base**: pages iden
 /**
  * The "Knowledge base" section appended to the system prompt: the layers and the working rules,
  * listing `pageTypes`, for a knowledge base reached through the `knowledge_*` tools (ADR-024).
+ * With a sources folder, also how summaries and originals are matched (by the model, with the
+ * two extensions' tools: each owns its data, #30); the folder itself is the sources' section.
  */
-export function knowledgePromptSection(projectDir: string, sourcesDir?: string, options: { pageTypes?: readonly PageType[] } = {}): string {
-  return toolsSection(sourcesDir ? shown(projectDir, sourcesDir) : undefined, options.pageTypes ?? []);
+export function knowledgePromptSection(options: { withSources?: boolean; pageTypes?: readonly PageType[] } = {}): string {
+  return toolsSection(Boolean(options.withSources), options.pageTypes ?? []);
 }

@@ -52,7 +52,7 @@ His logbook (`logbook/`) is his memory across sessions: a wiki of pages he reach
 
 ### Set things right
 
-Told that a document was the wrong one, he asks before taking it out of the chest: [`retire_source`](../capabilities/knowledge-base.md#retiring-an-original) moves it aside instead of deleting it, and marks its summary page as retired so he no longer relies on it.
+Told that a document was the wrong one, he asks before taking it out of the chest: [`retire_source`](../capabilities/knowledge-base.md#retiring-an-original) moves it aside instead of deleting it, and then he retires its summary page with the logbook's own tools (asking again), so he no longer relies on it.
 
 ![An approval panel to retire the ship's rules document](/captain/retire.png)
 
@@ -266,10 +266,10 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 
 `logbook/` is his [knowledge base](../capabilities/knowledge-base.md), reached only through the `knowledge_*` tools; `treasure/` is his chest of [originals](../capabilities/knowledge-base.md#sources-originals-kept-as-obtained). His prompt and commands put them to work:
 
-- `/captain-whiskers:learn` ingests the chest: `list_sources`, `extract_text` on the PPTX (speaker notes included) and the DOCX, one `knowledge_create` call for a summary and the concepts it feeds, `knowledge_log`.
+- `/captain-whiskers:learn` ingests the chest: `list_sources` and `knowledge_index` to see what the logbook lacks, `extract_text` on the PPTX (speaker notes included) and the DOCX, one `knowledge_create` call for a summary and the concepts it feeds, `knowledge_log`.
 - A fresh joke the parrot scored becomes a `joke` page; `/captain-whiskers:best-jokes` ranks them and files the ranking as a synthesis.
 - `/captain-whiskers:stock-the-chest` downloads two pages (`download_to_sources`, kept as markdown too) and asks for a joke book (`request_file`).
-- "That document was the wrong one" ends in `retire_source`, with approval, and its summary marked retired.
+- "That document was the wrong one" ends in `retire_source`, with approval, and then `knowledge_retire` for its summary, with another.
 - `/captain-whiskers:logbook-check` runs `knowledge_check`.
 
 The optional libraries for DOCX, PPTX and web pages are in his `package.json` (see [Installation](../getting-started/installation.md#optional-libraries)).
