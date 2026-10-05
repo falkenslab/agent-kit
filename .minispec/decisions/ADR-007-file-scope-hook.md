@@ -10,4 +10,6 @@
 
 ## Consequences
 
-Bash is not covered, so Bash stays with opt-in subagents (ADR-003). `Glob` only lists names and is not gated. The pure decision `checkFileScope()` is unit-tested.
+Bash is not covered, so Bash stays with opt-in subagents (ADR-003). The pure decision `checkFileScope()` is unit-tested.
+
+`Read` and `Glob` were left open with a deny-list, which never names every secret: an agent could read `~/.ssh`, other projects' `.env` or the SDK's credentials (#28). With `AgentSpec.restrictReads` they become an allow-list (`readableDirs`): the searchable folders plus what only the kit knows (the run folder, the plugin roots, the project's `.claude/`, the SDK's `tool-results/` for the project). `Glob` follows `Read`'s rules from where it really starts, and the SDK's credentials are always denied. Opt-in so existing agents don't change; the default in the next breaking release.

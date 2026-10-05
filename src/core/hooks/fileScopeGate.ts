@@ -23,6 +23,21 @@ export interface FileScope {
    * when the agent has the `knowledge_*` tools (ADR-024). The denial says what to use instead.
    */
   toolOnlyDirs?: { dir: string; instead: string }[];
+  /**
+   * With it, `Read` and `Glob` are only allowed inside these (an allow-list, like
+   * `writableDirs` and `searchableDirs`), plus `alsoReadable` and the tool results under
+   * `toolResultsRoot`; `deniedPaths` still wins. Without it, they reach any path but the
+   * denied ones: any file the user can read, `~/.ssh` included.
+   */
+  readableDirs?: string[];
+  /** Readable too with `readableDirs`, but not named in a denial: the run folder, the plugin roots. */
+  alsoReadable?: string[];
+  /**
+   * The CLI's folder for this project (`~/.claude/projects/<project>`): with `readableDirs`,
+   * its sessions' `tool-results/` folders, where the SDK leaves large tool outputs for the
+   * agent to `Read`, are readable; nothing else in it.
+   */
+  toolResultsRoot?: string;
 }
 
 /** Whether `candidate` is `base` itself or somewhere inside it (case-insensitive on Windows, like path.relative). */
@@ -32,12 +47,35 @@ export function isWithin(base: string, candidate: string): boolean {
 }
 
 function describeDirs(scope: FileScope, dirs: string[]): string {
-  return dirs.map((dir) => `${path.relative(scope.projectDir, dir) || "."}/`).join(", ");
+  return dirs.map((dir) => (isWithin(scope.projectDir, dir) ? `${path.relative(scope.projectDir, dir) || "."}/` : `${dir}/`)).join(", ");
+}
+
+/** Where a `Glob` really starts: its path plus the pattern's fixed folders ("sources/**" starts in sources/). */
+function globStart(scope: FileScope, input: Record<string, unknown>): string {
+  const target = typeof input.path === "string" && input.path !== "" ? path.resolve(scope.projectDir, input.path) : scope.projectDir;
+  const pattern = typeof input.pattern === "string" ? input.pattern : "";
+  return path.resolve(target, pattern.replace(/[^/\\]*[*?[{].*$/, ""));
+}
+
+/** Whether `target` is readable under a scope with `readableDirs`. */
+function isReadable(scope: FileScope, target: string): boolean {
+  const dirs = [...(scope.readableDirs ?? []), ...(scope.alsoReadable ?? [])].map((dir) => path.resolve(scope.projectDir, dir));
+  if (dirs.some((dir) => isWithin(dir, target))) return true;
+  if (!scope.toolResultsRoot || !isWithin(scope.toolResultsRoot, target)) return false;
+  // <root>/<session>/tool-results/…, and nothing else of the CLI's (transcripts, other files).
+  return path.relative(scope.toolResultsRoot, target).split(path.sep)[1] === "tool-results";
+}
+
+/** The denial for reading or listing outside `readableDirs`. */
+function notReadable(scope: FileScope, shown: unknown, tool: "Read" | "Glob"): string {
+  const dirs = scope.readableDirs ?? [];
+  const what = tool === "Glob" ? `Glob can't list "${String(shown)}": listing` : `"${String(shown)}" can't be read: reading`;
+  return `${what} is only allowed inside ${dirs.length ? `${describeDirs(scope, dirs)} and ` : ""}your own plugins and run folder.`;
 }
 
 /**
  * The reason to deny `toolName` with `input` under `scope`, or `undefined` to let it
- * through. Tools other than Read/Write/Edit/Grep are never judged here, and a call
+ * through. Tools other than Read/Write/Edit/Grep/Glob are never judged here, and a call
  * without a path is left for the tool itself to reject.
  */
 export function checkFileScope(scope: FileScope, toolName: string, input: Record<string, unknown>): string | undefined {
@@ -56,19 +94,28 @@ export function checkFileScope(scope: FileScope, toolName: string, input: Record
     if (only) return viaTools(input.file_path, only);
   }
   if (toolName === "Grep" || toolName === "Glob") {
-    const target = resolve(input.path) ?? scope.projectDir;
-    const pattern = typeof input.pattern === "string" ? input.pattern : "";
-    // Where a search really starts: Grep's path, Glob's path plus the pattern's fixed folders
-    // ("sources/**" starts in sources/). From above the folder it would reach into it.
-    const start = toolName === "Glob" ? path.resolve(target, pattern.replace(/[^/\\]*[*?[{].*$/, "")) : target;
+    // Where a search really starts: Grep's path, Glob's path plus the pattern's fixed folders.
+    // From above the folder it would reach into it.
+    const start = toolName === "Glob" ? globStart(scope, input) : (resolve(input.path) ?? scope.projectDir);
     const only = toolOnly(start) ?? toolOnlyDirs.find(({ dir }) => isWithin(start, dir));
-    if (only) return viaTools(input.path ?? pattern, only);
+    if (only) return viaTools(input.path ?? input.pattern ?? "", only);
   }
 
   switch (toolName) {
     case "Read": {
       const target = resolve(input.file_path);
-      return target && isDenied(target) ? `"${input.file_path}" is off limits: it can't be read.` : undefined;
+      if (!target) return undefined;
+      if (isDenied(target)) return `"${input.file_path}" is off limits: it can't be read.`;
+      return scope.readableDirs && !isReadable(scope, target) ? notReadable(scope, input.file_path, "Read") : undefined;
+    }
+    case "Glob": {
+      const start = globStart(scope, input);
+      const shown = input.path ?? input.pattern;
+      if (isDenied(start)) return `"${String(shown)}" is off limits: it can't be listed.`;
+      if (!scope.readableDirs) return undefined;
+      // ".." in the pattern ("**/../../x") would climb out of where the search starts.
+      const climbs = typeof input.pattern === "string" && input.pattern.split(/[/\\]/).includes("..");
+      return climbs || !isReadable(scope, start) ? notReadable(scope, shown, "Glob") : undefined;
     }
     case "Write":
     case "Edit": {
@@ -94,7 +141,7 @@ export function checkFileScope(scope: FileScope, toolName: string, input: Record
 }
 
 /**
- * PreToolUse hook enforcing `scope` on Read/Write/Edit/Grep, for the main agent and its
+ * PreToolUse hook enforcing `scope` on Read/Write/Edit/Grep/Glob, for the main agent and its
  * subagents alike. Bash, when a subagent has it, is not covered: it can reach any path,
  * which is why Bash-granting features stay opt-in.
  */

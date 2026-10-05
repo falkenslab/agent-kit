@@ -95,6 +95,7 @@ Returning something here also gives the session the `Agent` tool, and `Bash` whe
 | --- | --- | --- |
 | `identity?: AgentIdentity` | none | Who the agent is (`name`, `version`, `description`): told to the model with agent-kit's version, and the `agent-help` skill. See [`identity` and `helpGuide`](#identity-and-helpguide). |
 | `helpGuide?: string` | none | Absolute path of a markdown guide to the agent's own domain, which the `agent-help` skill includes. Only with `identity`. |
+| `restrictReads?: boolean` | `false` | `Read` and `Glob` only inside the agent's own folders and what the kit knows it needs, instead of any file but `deniedPaths`. See [Restricting reads](../security/file-scope.md#restricting-reads). |
 | `disallowedTools?: string[]` | `[]` | Tools blocked whatever else allows them, e.g. an MCP tool you don't trust. Takes precedence over everything. A built-in tool also leaves the context; an MCP tool is blocked but its definition is still sent. |
 | `saveToSourcesDescription?: string` | a generic description | The description of the `save_to_sources` tool (registered with `sourcesDir`), in your domain's words. |
 | `knowledgeBase?: boolean` | `true` | With `knowledgeDir`, the built-in knowledge base (rules, plugin and tools). `false` for an agent with its own rules for its notes. |

@@ -70,3 +70,46 @@ test("the hook denies with the reason, and returns nothing when allowed", async 
   assert.equal(denied.hookSpecificOutput?.permissionDecision, "deny");
   assert.deepEqual(await call("Read", { file_path: "knowledge/index.md" }), {});
 });
+
+test("Glob is denied inside a denied path, even without an allow-list", () => {
+  const secrets: FileScope = { ...scope, deniedPaths: [path.join(projectDir, "secrets")] };
+  assert.match(checkFileScope(secrets, "Glob", { pattern: "*", path: "secrets" }) ?? "", /off limits/);
+  assert.match(checkFileScope(secrets, "Glob", { pattern: "secrets/**" }) ?? "", /off limits/);
+  assert.equal(checkFileScope(secrets, "Glob", { pattern: "**/*.md" }), undefined);
+});
+
+const home = path.resolve("/home/teacher");
+const runDir = path.join(projectDir, ".run", "2026-10-05");
+const pluginRoot = path.resolve("/opt/agent/plugin");
+const toolResultsRoot = path.join(home, ".claude", "projects", "-workspace");
+const restricted: FileScope = { ...scope, readableDirs: [knowledgeDir, sourcesDir], alsoReadable: [runDir, pluginRoot], toolResultsRoot };
+
+test("with readableDirs, Read only reaches the allow-list, the run folder, the plugins and the session's tool results", () => {
+  assert.equal(checkFileScope(restricted, "Read", { file_path: "sources/slides.pdf" }), undefined);
+  assert.equal(checkFileScope(restricted, "Read", { file_path: path.join(runDir, "agent-help", "skills", "agent-help", "SKILL.md") }), undefined);
+  assert.equal(checkFileScope(restricted, "Read", { file_path: path.join(pluginRoot, "skills", "joke", "SKILL.md") }), undefined);
+  assert.equal(checkFileScope(restricted, "Read", { file_path: path.join(toolResultsRoot, "5eaccb45", "tool-results", "big.txt") }), undefined);
+
+  for (const outside of [
+    path.join(home, ".ssh", "id_ed25519"),
+    path.resolve("/work/other-project/.env"),
+    path.join(home, ".claude", ".credentials.json"),
+    path.join(toolResultsRoot, "5eaccb45.jsonl"), // a transcript, not a tool result
+    "README.md", // the project root isn't readable
+    "sources/../config.json",
+  ]) {
+    assert.ok(checkFileScope(restricted, "Read", { file_path: outside }), outside);
+  }
+  assert.match(checkFileScope(restricted, "Read", { file_path: "README.md" }) ?? "", /only allowed inside knowledge\/, sources\/ and your own plugins and run folder/);
+  // deniedPaths still wins inside the allow-list.
+  assert.match(checkFileScope({ ...restricted, deniedPaths: [path.join(sourcesDir, "grades.xlsx")] }, "Read", { file_path: "sources/grades.xlsx" }) ?? "", /off limits/);
+});
+
+test("with readableDirs, Glob only lists from inside the allow-list, and can't climb out with ..", () => {
+  assert.equal(checkFileScope(restricted, "Glob", { pattern: "sources/**/*.pdf" }), undefined);
+  assert.equal(checkFileScope(restricted, "Glob", { pattern: "*.md", path: "sources" }), undefined);
+  assert.match(checkFileScope(restricted, "Glob", { pattern: "*", path: path.join(home, "Documents") }) ?? "", /Glob can't list/);
+  assert.ok(checkFileScope(restricted, "Glob", { pattern: "**/*" })); // from the project root
+  assert.ok(checkFileScope(restricted, "Glob", { pattern: "**/../../*", path: "sources" }));
+  assert.ok(checkFileScope(restricted, "Glob", { pattern: path.join(home, ".ssh", "*") }));
+});

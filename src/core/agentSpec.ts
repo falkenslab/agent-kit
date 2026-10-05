@@ -42,6 +42,11 @@ export interface BaseSessionConfig {
   sourcesDir?: string;
   /** Directories besides `knowledgeDir`/`sourcesDir` where Write/Edit are allowed (see hooks/fileScopeGate.ts). */
   extraWritableDirs?: string[];
+  /**
+   * Directories besides `sourcesDir`/`extraWritableDirs` the agent may read and search (Read,
+   * Glob, Grep), never write. With `AgentSpec.restrictReads`, the only other places it reads.
+   */
+  extraReadableDirs?: string[];
   /** Files or directories the agent must never read, search or write, e.g. a config file holding a password (see hooks/fileScopeGate.ts). */
   deniedPaths?: string[];
   /** Extra values (e.g. a password) to scrub out of the transcript log — see hooks/transcriptLogger.ts. */
@@ -122,6 +127,17 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    * over a permissive `canUseTool` — a disallowed tool never even reaches that callback.
    */
   disallowedTools?: string[];
+
+  /**
+   * Read and Glob only inside the agent's own folders (an allow-list, see
+   * hooks/fileScopeGate.ts): `sourcesDir`, `extraWritableDirs`, `extraReadableDirs`, plus what
+   * the kit knows the agent needs (the run folder, the plugins it loads, the project's
+   * `.claude/`, the SDK's large tool results). Off by default: then Read and Glob reach any
+   * file the user can read but `deniedPaths`, `~/.ssh` included, which an agent reading
+   * untrusted content (web pages, submissions) can be talked into. To become the default in
+   * the next breaking release.
+   */
+  restrictReads?: boolean;
 
   /** Overrides this kit's generic `save_to_sources` tool description (registered whenever `config.sourcesDir` is set) with domain-specific wording. */
   saveToSourcesDescription?: string;

@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import type { Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { createTranscriptLogger, type TranscriptLogger } from "./hooks/transcriptLogger.js";
@@ -85,20 +86,21 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const knowledgeViaStore = includeKnowledgeBase && (spec.knowledgeTools ?? "store") === "store";
   const notesDir = knowledgeViaStore ? undefined : config.knowledgeDir;
   const extraDirs = config.extraWritableDirs ?? [];
+  const readableExtras = config.extraReadableDirs ?? [];
   // With the store, the file tools are only for the originals (reading) and the extra writable
   // folders; without either, none.
   const fileTools = !includeFileTools
     ? []
     : !knowledgeViaStore
       ? ["Read", "Write", "Edit", "Glob", "Grep"]
-      : [...(config.sourcesDir || extraDirs.length ? ["Read", "Glob", "Grep"] : []), ...(extraDirs.length ? ["Write", "Edit"] : [])];
+      : [...(config.sourcesDir || extraDirs.length || readableExtras.length ? ["Read", "Glob", "Grep"] : []), ...(extraDirs.length ? ["Write", "Edit"] : [])];
   // Where Write/Edit may act and Grep may search (see hooks/fileScopeGate.ts): the
   // project's own folders, never the whole cwd — which would include whatever else the
   // project directory holds (the user's config...). `sourcesDir` is searchable but
   // deliberately NOT writable: originals stay as obtained, and the only way to add to it is
   // the `save_to_sources` tool (which never overwrites).
   const writableDirs = [notesDir, ...extraDirs].filter((d): d is string => Boolean(d));
-  const searchableDirs = [notesDir, config.sourcesDir, ...extraDirs].filter((d): d is string => Boolean(d));
+  const searchableDirs = [notesDir, config.sourcesDir, ...extraDirs, ...readableExtras].filter((d): d is string => Boolean(d));
   const readOnlyDirs = config.sourcesDir ? [config.sourcesDir] : [];
   // Skills/commands/plugins are a separate concern from the file tools: an agent that
   // wants a plugin-provided skill/command but has no notes or sources folder shouldn't have
@@ -269,7 +271,18 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
                     writableDirs,
                     searchableDirs,
                     readOnlyDirs,
-                    deniedPaths: config.deniedPaths ?? [],
+                    // The SDK's own credentials, whatever the agent denies.
+                    deniedPaths: [...(config.deniedPaths ?? []), path.join(claudeConfigDir(), ".credentials.json")],
+                    // With restrictReads, Read and Glob only in the agent's folders, plus what only
+                    // the kit knows it needs: the run folder, the plugins, the project's .claude/
+                    // (when loaded) and the SDK's large tool results.
+                    ...(spec.restrictReads
+                      ? {
+                          readableDirs: searchableDirs,
+                          alsoReadable: [runDir, ...pluginRoots, ...((spec.settingSources ?? ["project"]).includes("project") ? [path.join(config.projectDir, ".claude")] : [])],
+                          toolResultsRoot: claudeProjectDir(config.projectDir),
+                        }
+                      : {}),
                     ...(knowledgeViaStore && config.knowledgeDir ? { toolOnlyDirs: [{ dir: config.knowledgeDir, instead: "the knowledge_* tools" }] } : {}),
                   }),
                 ] }]
@@ -311,6 +324,20 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
 }
 
 export { createModeControl, togglePlanMode, type ModeControl } from "./modeControl.js";
+
+/** The Claude Code configuration folder the SDK's CLI uses: `CLAUDE_CONFIG_DIR`, or `~/.claude`. */
+function claudeConfigDir(): string {
+  return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
+}
+
+/**
+ * The CLI's folder for a project, where it keeps each session's transcript and large tool
+ * results (`<session>/tool-results/`): the project's path with every character but letters
+ * and digits as "-" (confirmed empirically).
+ */
+export function claudeProjectDir(projectDir: string): string {
+  return path.join(claudeConfigDir(), "projects", path.resolve(projectDir).replace(/[^a-zA-Z0-9]/g, "-"));
+}
 
 /** The knowledge plugin's skills, as the SDK names a plugin's skills ("plugin:skill"): the tools variant has no page templates skill (knowledge_create gives them). */
 const KNOWLEDGE_SKILLS = {
