@@ -26,7 +26,7 @@ interface Config extends BaseSessionConfig {
 | `knowledgeDir` | `string` | no | The agent's notes: by default, the [knowledge base](../capabilities/knowledge-base.md), reached through its own tools. |
 | `sourcesDir` | `string` | no | Originals, kept as obtained: readable and searchable, never writable. Gives the file tools and the [sources tools](../capabilities/knowledge-base.md#sources-originals-kept-as-obtained). |
 | `extraWritableDirs` | `string[]` | no | More folders where `Write`/`Edit` are allowed (and `Grep` searches). |
-| `extraReadableDirs` | `string[]` | no | More folders the agent may read and search (`Read`, `Glob`, `Grep`), never write. With [`restrictReads`](../security/file-scope.md#restricting-reads), the only other places it reads. |
+| `extraReadableDirs` | `string[]` | no | More folders the agent may read and search (`Read`, `Glob`, `Grep`), never write. Besides them and its own folders, the agent reads nothing on the disk (see [What the agent can read](../security/file-scope.md#what-the-agent-can-read)). |
 | `deniedPaths` | `string[]` | no | Files or folders the agent must never read, search or write, e.g. a config file holding a password. |
 | `secrets` | `string[]` | no | Values scrubbed from the transcript log, e.g. a password. |
 | `language` | `string` | no | The language of the kit's texts and of the agent's replies (`"en"`, `"es"`, `"fr"`, `"de"`). `--language` on the command line wins over it. |

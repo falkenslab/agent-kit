@@ -17,7 +17,7 @@ An agent remembers what it learns about the person it works for (how they like a
 
 - Opt-in, the agent's choice: a folder of its own outside any project (e.g. `AgentSpec.userMemoryDir`, `~/.miyagi/memory/`), never shared with another agent.
 - Kept like Claude Code's auto-memory, which works: one entry per fact (a name, a one-line description, a type: `user` for who the person is, `feedback` for how they want things done, with the why), and an index with one line per entry, always in the system prompt (bounded: past a size, the oldest lines are left out and the index says so).
-- Reached only through tools (as the knowledge base, ADR-024): `memory_save` (new or update), `memory_forget`, and the index in the prompt; the folder is tool-only for the file tools (`toolOnlyDirs`), and with `restrictReads` nothing else reads it.
+- Reached only through tools (as the knowledge base, ADR-024): `memory_save` (new or update), `memory_forget`, and the index in the prompt; the folder is tool-only for the file tools (`toolOnlyDirs`), and no other file tool reaches it.
 - Written only from what the person says in the chat, never from a document, page or tool result; the prompt says when to save (a correction, a stated preference, something about the person that will matter again) and when not (what the project's knowledge base holds, what's only for this task).
 - The person can see and correct it: `agent-help` tells them it exists; a command lists it and forgets an entry.
 - Docs: a guide page; padawan or Captain Whiskers tries it.

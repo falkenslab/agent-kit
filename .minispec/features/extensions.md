@@ -8,7 +8,7 @@ Every agent on the kit is "the kit + a set of built-in extensions + configuratio
 
 ## Context
 
-- Designed in miyagi (its ADR-020; falkenslab/miyagi#33, #36, #41), but almost nothing in it is domain-specific: built there, padawan would copy it. Same split as the file scope (#28, done: `restrictReads`): mechanism in the kit, policy in the agent.
+- Designed in miyagi (its ADR-020; falkenslab/miyagi#33, #36, #41), but almost nothing in it is domain-specific: built there, padawan would copy it. Same split as the file scope (#28, done: Read and Glob only reach the agent's folders): mechanism in the kit, policy in the agent.
 - Concepts decided: an **extension** is the package (installed, versioned, enabled per project); a **capability** is what it lets the agent do (`provides`), named and specified by the agent, never by the kit. Two extensions may provide the same capability. A skill may `requires:` a capability and is offered only when one is enabled.
 - Two levels: **built-in** (shipped with the agent; tools and hooks in-process, may hook into internals) and **from a repository** or the project's own (a plugin with files; tools as MCP servers in a separate process; never in-process code nor its own hooks).
 - Today the kit already loads local plugins (`AgentSpec.pluginRoots`, the knowledge and agent-help plugins) with `skipMcpDiscovery: true`; it has no installer, store, lock, capabilities nor trust prompts.

@@ -284,16 +284,13 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
                     readOnlyDirs,
                     // The SDK's own credentials, whatever the agent denies.
                     deniedPaths: [...(config.deniedPaths ?? []), path.join(claudeConfigDir(), ".credentials.json")],
-                    // With restrictReads, Read and Glob only in the agent's folders, plus what only
-                    // the kit knows it needs: the run folder, the plugins, the project's .claude/
-                    // (when loaded) and the SDK's large tool results.
-                    ...(spec.restrictReads
-                      ? {
-                          readableDirs: searchableDirs,
-                          alsoReadable: [runDir, ...pluginRoots, ...((spec.settingSources ?? ["project"]).includes("project") ? [path.join(config.projectDir, ".claude")] : [])],
-                          toolResultsRoot: claudeProjectDir(config.projectDir),
-                        }
-                      : {}),
+                    // Read and Glob only in the agent's folders, plus what only the kit knows it
+                    // needs: the run folder, the plugins, the project's .claude/ (when loaded) and
+                    // the SDK's large tool results. Never the rest of the disk (~/.ssh, other
+                    // projects' .env...), which an agent reading untrusted content could be talked into.
+                    readableDirs: searchableDirs,
+                    alsoReadable: [runDir, ...pluginRoots, ...((spec.settingSources ?? ["project"]).includes("project") ? [path.join(config.projectDir, ".claude")] : [])],
+                    toolResultsRoot: claudeProjectDir(config.projectDir),
                     ...(knowledgeViaStore && config.knowledgeDir ? { toolOnlyDirs: [{ dir: config.knowledgeDir, instead: "the knowledge_* tools" }] } : {}),
                   }),
                 ] }]

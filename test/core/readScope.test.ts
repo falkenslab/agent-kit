@@ -49,8 +49,8 @@ async function sessionHooks(spec: AgentSpec<BaseSessionConfig>) {
   return { hooks: options.hooks?.PreToolUse ?? [], runDir };
 }
 
-test("with restrictReads, the main agent and its subagents read only the agent's folders and what the kit knows they need", async () => {
-  const { hooks, runDir } = await sessionHooks(makeSpec({ restrictReads: true }));
+test("the main agent and its subagents read only the agent's folders and what the kit knows they need", async () => {
+  const { hooks, runDir } = await sessionHooks(makeSpec());
   for (const agent of [undefined, "subagent-1"]) {
     const read = (file_path: string) => verdict(hooks, "Read", { file_path }, agent);
     assert.equal(await read(path.join(sourcesDir, "syllabus.pdf")), undefined);
@@ -66,13 +66,6 @@ test("with restrictReads, the main agent and its subagents read only the agent's
     assert.ok(await verdict(hooks, "Glob", { pattern: "*", path: path.join(home, "Documents") }, agent), "~/Documents");
     assert.equal(await verdict(hooks, "Glob", { pattern: "**/*.pdf", path: sourcesDir }, agent), undefined);
   }
-});
-
-test("without restrictReads, Read still reaches the project, but never the SDK's credentials", async () => {
-  const { hooks } = await sessionHooks(makeSpec());
-  assert.equal(await verdict(hooks, "Read", { file_path: path.join(projectDir, "notes.md") }), undefined);
-  assert.equal(await verdict(hooks, "Glob", { pattern: "*", path: path.join(home, "Documents") }), undefined);
-  assert.match((await verdict(hooks, "Read", { file_path: path.join(claudeHome, ".credentials.json") })) ?? "", /off limits/);
 });
 
 test("extraReadableDirs gives the file tools with the knowledge base on its tools, and is searchable but not writable", async () => {

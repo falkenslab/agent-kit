@@ -166,9 +166,6 @@ const spec: AgentSpec<BaseSessionConfig> = {
   // El cuaderno (logbook/) se lleva con las herramientas knowledge_* del kit; Read, Glob y Grep
   // solo llegan al cofre (treasure/), y nada puede escribir en él.
   knowledgePageTypes: [JOKE_PAGE],
-  // Read y Glob solo en el cofre, sus plugins y su carpeta de ejecución: ni su .env (con el
-  // token) ni nada fuera del proyecto, aunque una página web le pida leerlo.
-  restrictReads: true,
   // Solo las skills de sus plugins (las suyas, las del cuaderno y agent-help), no la veintena
   // que trae el SDK, y ninguna configuración de Claude Code de quien lo ejecute.
   skills: "plugins",
