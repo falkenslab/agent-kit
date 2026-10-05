@@ -23,30 +23,23 @@ function makeSpec(overrides: Partial<AgentSpec<BaseSessionConfig>> = {}): AgentS
 
 const runDir = fs.mkdtempSync(path.join(os.tmpdir(), "knowledge-test-"));
 
-test("both knowledge base plugins ship their manifest, skills and commands; only the files one has page templates", () => {
-  for (const [variant, skills] of [
-    ["tools", ["knowledge-ingest", "knowledge-query", "knowledge-lint"]],
-    ["files", ["knowledge-pages", "knowledge-ingest", "knowledge-query", "knowledge-lint"]],
-  ] as const) {
-    const root = knowledgePluginRoot(variant);
-    assert.ok(fs.existsSync(path.join(root, ".claude-plugin", "plugin.json")), variant);
-    for (const skill of skills) assert.ok(fs.existsSync(path.join(root, "skills", skill, "SKILL.md")), `${variant} ${skill}`);
-    for (const command of ["ingest", "query", "lint"]) assert.ok(fs.existsSync(path.join(root, "commands", `${command}.md`)), `${variant} ${command}`);
-  }
-  assert.ok(!fs.existsSync(path.join(knowledgePluginRoot(), "skills", "knowledge-pages")));
+test("the knowledge base's plugin ships its manifest, skills and commands, and no page templates (knowledge_create gives them)", () => {
+  const root = knowledgePluginRoot();
+  assert.ok(fs.existsSync(path.join(root, ".claude-plugin", "plugin.json")));
+  for (const skill of ["knowledge-ingest", "knowledge-query", "knowledge-lint"]) assert.ok(fs.existsSync(path.join(root, "skills", skill, "SKILL.md")), skill);
+  for (const command of ["ingest", "query", "lint"]) assert.ok(fs.existsSync(path.join(root, "commands", `${command}.md`)), command);
+  assert.ok(!fs.existsSync(path.join(root, "skills", "knowledge-pages")));
 });
 
-test("the prompt section names the project's real folders, and only mentions originals when there are some", () => {
-  const withSources = knowledgePromptSection(projectDir, path.join(projectDir, "knowledge"), path.join(projectDir, "sources"));
-  assert.match(withSources, /## Knowledge base \(knowledge\/\)/);
+test("the prompt section names the sources folder as it really is, and only mentions originals when there are some", () => {
+  const withSources = knowledgePromptSection(projectDir, path.join(projectDir, "sources"));
   assert.match(withSources, /Originals \(read-only for you\)\*\*: `sources\/`/);
-  const withoutSources = knowledgePromptSection(projectDir, path.join(projectDir, "knowledge"));
+  const withoutSources = knowledgePromptSection(projectDir);
   assert.doesNotMatch(withoutSources, /Originals/);
 });
 
-test("the tools variant of the prompt section speaks of pages and tools, not files, and lists the page types", () => {
-  const section = knowledgePromptSection(projectDir, path.join(projectDir, "knowledge"), path.join(projectDir, "sources"), {
-    tools: true,
+test("the prompt section speaks of pages and tools, not files, and lists the page types", () => {
+  const section = knowledgePromptSection(projectDir, path.join(projectDir, "sources"), {
     pageTypes: [{ type: "topic", dir: "", indexSection: "Topics", description: "A course topic.", template: "" }],
   });
   assert.match(section, /^## Knowledge base\n/);
@@ -65,7 +58,7 @@ test("with knowledgeDir set, the knowledge base rules and plugin are added on to
   );
 });
 
-test("by default the knowledge base is reached through its tools; with knowledgeTools: \"files\", through the file tools", async () => {
+test("the knowledge base is reached through its tools, never the file tools", async () => {
   const knowledgeDir = path.join(projectDir, "knowledge");
   const sourcesDir = path.join(projectDir, "sources");
   const store = await buildSessionOptions({ mode: "guided", projectDir, knowledgeDir, sourcesDir }, runDir, makeSpec());
@@ -78,15 +71,9 @@ test("by default the knowledge base is reached through its tools; with knowledge
   // Only a knowledge folder: no file tools at all.
   const only = await buildSessionOptions({ mode: "autonomous", projectDir, knowledgeDir }, runDir, makeSpec());
   assert.deepEqual(only.options.tools?.filter((t) => ["Read", "Write", "Edit", "Glob", "Grep"].includes(t as string)), []);
-
-  const files = await buildSessionOptions({ mode: "guided", projectDir, knowledgeDir, sourcesDir }, runDir, makeSpec({ knowledgeTools: "files" }));
-  assert.equal(files.options.mcpServers?.knowledge, undefined);
-  assert.equal(files.knowledgeStore, undefined);
-  assert.deepEqual(files.options.plugins?.map((p) => p.path), [knowledgePluginRoot("files")]);
-  assert.ok(files.options.tools?.includes("Write"));
 });
 
-test("knowledgeBase: false, or no knowledgeDir, leaves the prompt and plugins alone", async () => {
+test("knowledgeBase: false, or no knowledgeDir, leaves the prompt and plugins alone; with knowledgeBase: false, knowledgeDir is the agent's own notes", async () => {
   const optedOut = await buildSessionOptions(
     { mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") },
     runDir,
@@ -94,6 +81,8 @@ test("knowledgeBase: false, or no knowledgeDir, leaves the prompt and plugins al
   );
   assert.equal(optedOut.options.systemPrompt, "BASE PROMPT");
   assert.deepEqual(optedOut.options.plugins, []);
+  assert.equal(optedOut.options.mcpServers?.knowledge, undefined);
+  assert.ok(["Read", "Write", "Edit", "Glob", "Grep"].every((tool) => optedOut.options.tools?.includes(tool)));
 
   const noKnowledge = await buildSessionOptions({ mode: "autonomous", projectDir, sourcesDir: path.join(projectDir, "sources") }, runDir, makeSpec());
   assert.equal(noKnowledge.options.systemPrompt, "BASE PROMPT");

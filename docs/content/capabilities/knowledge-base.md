@@ -216,14 +216,6 @@ retire_source({ source: "topic-3/slides.pdf", why: "replaced", reason: "a newer 
 
 The plan gate denies every tool here but `list_sources` and `extract_text`, and `request_file` and `retire_source` don't exist in autonomous mode.
 
-## With the file tools instead
-
-`knowledgeTools: "files"` keeps the knowledge base as it was before the tools: the file tools on `knowledgeDir`, the rules about `index.md`, links and the log in the prompt, and a fourth skill with the page templates (`knowledge:knowledge-pages`). Same layout on disk, so an agent can switch either way.
-
-```ts
-const spec: AgentSpec<Config> = { /* … */ knowledgeTools: "files" };
-```
-
 ## Your own rules instead
 
 An agent that wants plain notes, or rules entirely its own, turns the built-in knowledge base off and keeps `knowledgeDir` for the file tools:

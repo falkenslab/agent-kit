@@ -82,17 +82,17 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // The built-in knowledge base (rules in the system prompt + its skills/commands as a plugin) needs
   // somewhere to keep the wiki, so it follows `knowledgeDir`; `spec.knowledgeBase: false` opts out.
   const includeKnowledgeBase = Boolean(config.knowledgeDir) && spec.knowledgeBase !== false;
-  // By default the agent reaches it only through the `knowledge_*` tools, over a store, never
-  // with the file tools (ADR-024); `spec.knowledgeTools: "files"` keeps the file tools on it.
-  const knowledgeViaStore = includeKnowledgeBase && (spec.knowledgeTools ?? "store") === "store";
-  const notesDir = knowledgeViaStore ? undefined : config.knowledgeDir;
+  // The agent reaches it only through the `knowledge_*` tools, over a store, never with the file
+  // tools (ADR-024). Without it (`knowledgeBase: false`), `knowledgeDir` is a folder of the
+  // agent's own notes, kept with the file tools under its own rules.
+  const notesDir = includeKnowledgeBase ? undefined : config.knowledgeDir;
   const extraDirs = config.extraWritableDirs ?? [];
   const readableExtras = config.extraReadableDirs ?? [];
-  // With the store, the file tools are only for the originals (reading) and the extra writable
+  // With the knowledge base, the file tools are only for the originals (reading) and the extra
   // folders; without either, none.
   const fileTools = !includeFileTools
     ? []
-    : !knowledgeViaStore
+    : !includeKnowledgeBase
       ? ["Read", "Write", "Edit", "Glob", "Grep"]
       : [...(config.sourcesDir || extraDirs.length || readableExtras.length ? ["Read", "Glob", "Grep"] : []), ...(extraDirs.length ? ["Write", "Edit"] : [])];
   // Where Write/Edit may act and Grep may search (see hooks/fileScopeGate.ts): the
@@ -124,11 +124,11 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     : undefined;
   const pluginRoots = [
     ...spec.pluginRoots(config),
-    ...(includeKnowledgeBase ? [knowledgePluginRoot(knowledgeViaStore ? "tools" : "files")] : []),
+    ...(includeKnowledgeBase ? [knowledgePluginRoot()] : []),
     ...(helpPlugin ? [helpPlugin] : []),
   ];
   const knowledgeStore: KnowledgeStore | undefined =
-    knowledgeViaStore && config.knowledgeDir
+    includeKnowledgeBase && config.knowledgeDir
       ? (spec.knowledgeStore?.(config) ?? createFileKnowledgeStore(config.knowledgeDir, { pageTypes: spec.knowledgePageTypes, sourcesDir: config.sourcesDir }))
       : undefined;
   const includeSkillsAndPlugins = includeFileTools || pluginRoots.length > 0;
@@ -169,7 +169,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     spec.buildSystemPrompt(config),
     ...(spec.identity ? [identityPromptSection(spec.identity)] : []),
     ...(includeKnowledgeBase && config.knowledgeDir
-      ? [knowledgePromptSection(config.projectDir, config.knowledgeDir, config.sourcesDir, { tools: knowledgeViaStore, pageTypes: knowledgeStore?.types() })]
+      ? [knowledgePromptSection(config.projectDir, config.sourcesDir, { pageTypes: knowledgeStore?.types() })]
       : []),
   ];
 
@@ -236,7 +236,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           // SDK's own official skills (pdf/docx), the project's own custom ones, and the
           // plugin-provided built-ins below. A spec's own list gets the knowledge base's
           // skills and agent-help added, so it only names its own.
-          skills: skillList(offeredSkills, includeKnowledgeBase ? (knowledgeViaStore ? "tools" : "files") : null, Boolean(helpPlugin)),
+          skills: skillList(offeredSkills, includeKnowledgeBase, Boolean(helpPlugin)),
           plugins: pluginRoots.map((pluginPath) => ({ type: "local" as const, path: pluginPath, skipMcpDiscovery: true })),
         }
       : {}),
@@ -291,7 +291,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
                     readableDirs: searchableDirs,
                     alsoReadable: [runDir, ...pluginRoots, ...((spec.settingSources ?? ["project"]).includes("project") ? [path.join(config.projectDir, ".claude")] : [])],
                     toolResultsRoot: claudeProjectDir(config.projectDir),
-                    ...(knowledgeViaStore && config.knowledgeDir ? { toolOnlyDirs: [{ dir: config.knowledgeDir, instead: "the knowledge_* tools" }] } : {}),
+                    ...(includeKnowledgeBase && config.knowledgeDir ? { toolOnlyDirs: [{ dir: config.knowledgeDir, instead: "the knowledge_* tools" }] } : {}),
                   }),
                 ] }]
           : []),
@@ -347,11 +347,8 @@ export function claudeProjectDir(projectDir: string): string {
   return path.join(claudeConfigDir(), "projects", path.resolve(projectDir).replace(/[^a-zA-Z0-9]/g, "-"));
 }
 
-/** The knowledge plugin's skills, as the SDK names a plugin's skills ("plugin:skill"): the tools variant has no page templates skill (knowledge_create gives them). */
-const KNOWLEDGE_SKILLS = {
-  tools: ["knowledge-ingest", "knowledge-query", "knowledge-lint"].map((skill) => `knowledge:${skill}`),
-  files: ["knowledge-pages", "knowledge-ingest", "knowledge-query", "knowledge-lint"].map((skill) => `knowledge:${skill}`),
-};
+/** The knowledge plugin's skills, as the SDK names a plugin's skills ("plugin:skill"). */
+const KNOWLEDGE_SKILLS = ["knowledge-ingest", "knowledge-query", "knowledge-lint"].map((skill) => `knowledge:${skill}`);
 
 /**
  * The skills of the plugins in `roots`, as the SDK names them: `<plugin>:<folder>`, the
@@ -377,9 +374,9 @@ export async function pluginSkills(roots: readonly string[]): Promise<string[]> 
   return names;
 }
 
-function skillList(skills: string[] | "all" | undefined, knowledgeVariant: "tools" | "files" | null, agentHelp: boolean): string[] | "all" {
+function skillList(skills: string[] | "all" | undefined, knowledgeBase: boolean, agentHelp: boolean): string[] | "all" {
   if (skills === undefined || skills === "all") return "all";
-  return [...new Set([...skills, ...(knowledgeVariant ? KNOWLEDGE_SKILLS[knowledgeVariant] : []), ...(agentHelp ? [AGENT_HELP_SKILL] : [])])];
+  return [...new Set([...skills, ...(knowledgeBase ? KNOWLEDGE_SKILLS : []), ...(agentHelp ? [AGENT_HELP_SKILL] : [])])];
 }
 
 /**

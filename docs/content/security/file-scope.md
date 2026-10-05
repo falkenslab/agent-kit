@@ -12,7 +12,7 @@ Without it, the SDK's file tools can reach the whole working directory, and keep
 
 | Scope | Built from |
 | --- | --- |
-| Writable | `knowledgeDir` (only with `knowledgeTools: "files"`), `extraWritableDirs` |
+| Writable | `extraWritableDirs`, and `knowledgeDir` when it's the agent's own notes (`knowledgeBase: false`) |
 | Searchable (`Grep`) | `knowledgeDir` (likewise), `sourcesDir`, `extraWritableDirs`, `extraReadableDirs` |
 | Readable (`Read`, `Glob`) | the searchable folders, plus what the kit knows the agent needs: its run folder, the plugins it loads, the project's `.claude/` (with the `"project"` setting source) and the SDK's large tool results (`~/.claude/projects/<project>/<session>/tool-results/`) |
 | Read-only | `sourcesDir` (only changes the wording of the denial) |
@@ -71,7 +71,7 @@ const config: BaseSessionConfig = {
 
 | Call | Result |
 | --- | --- |
-| `Write knowledge/index.md` | allowed |
+| `Write knowledge/index.md` | denied: the knowledge folder is reached only through the `knowledge_*` tools |
 | `Edit drafts/newsletter.md` | allowed |
 | `Edit sources/syllabus.pdf` | denied: read-only |
 | `Write README.md` | denied: not writable |

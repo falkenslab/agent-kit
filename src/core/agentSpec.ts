@@ -134,21 +134,13 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
 
   /**
    * The built-in knowledge base (see knowledge.ts): when `config.knowledgeDir` is set, the kit
-   * appends its "Knowledge base" rules to the system prompt and loads its plugin (skills
+   * appends its "Knowledge base" rules to the system prompt, loads its plugin (skills
    * knowledge-ingest/knowledge-query/knowledge-lint, commands /knowledge:ingest, /knowledge:query,
-   * /knowledge:lint), so the agent maintains its notes as an interlinked wiki, through the
-   * `knowledge_*` tools by default (see `knowledgeTools`). On by default;
-   * set `false` for an agent that writes its own rules for `knowledgeDir` (or wants plain
-   * notes) — `knowledgePromptSection()`/`knowledgePluginRoot()` are exported to reuse the pieces.
+   * /knowledge:lint) and its `knowledge_*` tools, the only way into the knowledge base (ADR-024).
+   * On by default; `false` makes `knowledgeDir` a folder of the agent's own notes, kept with the
+   * file tools under rules it writes itself.
    */
   knowledgeBase?: boolean;
-  /**
-   * How the agent reaches the built-in knowledge base: `"store"` (the default), only through
-   * the kit's `knowledge_*` tools over a `KnowledgeStore`, never with the file tools, so the
-   * storage can change and the wiki's rules are kept by code (ADR-024); `"files"`, with the
-   * file tools on `knowledgeDir` and the rules in the prompt, as before.
-   */
-  knowledgeTools?: "store" | "files";
   /**
    * The agent's own page types for the built-in knowledge base, besides the kit's four
    * (summary, concept, entity, synthesis): each with its folder (`""` for the root), index

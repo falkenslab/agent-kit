@@ -60,11 +60,11 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 
 ## File tools
 
-With `knowledgeDir` and/or `sourcesDir`, `cwd` = `projectDir`. With the built-in knowledge base reached through its tools (the default, ADR-024), `knowledgeDir` is tools-only: no file tool reaches it; `Read`/`Glob`/`Grep` are for `sourcesDir` and `extraWritableDirs`, `Write`/`Edit` for the latter. With `knowledgeTools: "files"` or `knowledgeBase: false`, all five, writes only in `knowledgeDir` + `extraWritableDirs`; `Grep` in those plus `sourcesDir`. `deniedPaths` never, nor the SDK's credentials. `Read`/`Glob` reach only the searchable folders (plus `extraReadableDirs`), the run folder, the plugin roots, the project's `.claude/` and the SDK's `tool-results/` for the project (ADR-007). `sourcesDir` grows only through the sources tools (never overwriting, no duplicates) and shrinks only through `retire_source`, which moves an original to `.agent-kit/retired/` with the person's approval.
+With `knowledgeDir` and/or `sourcesDir`, `cwd` = `projectDir`. With the built-in knowledge base reached through its tools (the default, ADR-024), `knowledgeDir` is tools-only: no file tool reaches it; `Read`/`Glob`/`Grep` are for `sourcesDir` and `extraWritableDirs`, `Write`/`Edit` for the latter. With `knowledgeBase: false` (`knowledgeDir` as the agent's own notes), all five, writes only in `knowledgeDir` + `extraWritableDirs`; `Grep` in those plus `sourcesDir`. `deniedPaths` never, nor the SDK's credentials. `Read`/`Glob` reach only the searchable folders (plus `extraReadableDirs`), the run folder, the plugin roots, the project's `.claude/` and the SDK's `tool-results/` for the project (ADR-007). `sourcesDir` grows only through the sources tools (never overwriting, no duplicates) and shrinks only through `retire_source`, which moves an original to `.agent-kit/retired/` with the person's approval.
 
 ## Knowledge plugin
 
-`assets/knowledge-plugin/` (name `knowledge`): skills `knowledge-ingest`, `knowledge-query`, `knowledge-lint` over the `knowledge_*` tools; commands `/knowledge:ingest`, `/knowledge:query`, `/knowledge:lint`. `assets/knowledge-plugin-files/`, the same name, for `knowledgeTools: "files"`: the skills on files, plus `knowledge-pages` (templates). Opt out with `spec.knowledgeBase: false`.
+`assets/knowledge-plugin/` (name `knowledge`): skills `knowledge-ingest`, `knowledge-query`, `knowledge-lint` over the `knowledge_*` tools; commands `/knowledge:ingest`, `/knowledge:query`, `/knowledge:lint`. Opt out with `spec.knowledgeBase: false`.
 
 ## Agent help plugin
 
@@ -73,7 +73,7 @@ Generated per session in `<runDir>/agent-help/` (name `agent-kit`, skill `agent-
 ## Folder map
 
 - `src/core/`, `src/tui/`, `src/index.ts` — the library.
-- `assets/knowledge-plugin/`, `assets/knowledge-plugin-files/`, `assets/agent-help/` — shipped with the package.
+- `assets/knowledge-plugin/`, `assets/agent-help/` — shipped with the package.
 - `test/` — `node:test` suites mirroring `src/`.
 - `examples/captain-whiskers/` — toy consumer.
 - `docs/` — the documentation site (Docusaurus, its own npm project): guides in `content/`, the API reference generated from `src/` (ADR-022); published to GitHub Pages by `.github/workflows/docs.yml`.
