@@ -62,6 +62,11 @@ export type AgentEvent =
 export interface SessionUsage {
   /** Input tokens, cache reads and writes included, across every model the session used. */
   inputTokens: number;
+  /**
+   * The part of `inputTokens` read from the cache: the context sent again on every call. It
+   * grows with each call while the context barely does, so the chat shows it apart.
+   */
+  cacheReadTokens?: number;
   outputTokens: number;
   /** An estimate, not a billing statement. */
   costUsd: number;
@@ -185,6 +190,7 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
         const models = Object.values(message.modelUsage ?? {});
         const usage: SessionUsage = {
           inputTokens: models.reduce((sum, m) => sum + m.inputTokens + m.cacheReadInputTokens + m.cacheCreationInputTokens, 0),
+          cacheReadTokens: models.reduce((sum, m) => sum + m.cacheReadInputTokens, 0),
           outputTokens: models.reduce((sum, m) => sum + m.outputTokens, 0),
           costUsd: message.total_cost_usd,
         };

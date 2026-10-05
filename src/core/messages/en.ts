@@ -14,7 +14,8 @@ export interface Messages {
   escToInterrupt: string;
   workedFor(seconds: number): string;
   turns(count: number): string;
-  tokens(input: string, output: string): string;
+  /** The session's input tokens: new ones, and those read again from the cache (if any). */
+  tokens(input: string, output: string, cached?: string): string;
   context(percent: number): string;
   mode(mode: Mode): string;
   switchModeKey: string;
@@ -151,7 +152,7 @@ export const en: Messages = {
   escToInterrupt: "esc to interrupt",
   workedFor: (seconds) => `Worked for ${seconds}s`,
   turns: (count) => `${count} ${plural(count, "turn", "turns")}`,
-  tokens: (input, output) => `${input} in / ${output} out`,
+  tokens: (input, output, cached) => `${input} in${cached ? ` (+${cached} cached)` : ""} / ${output} out`,
   context: (percent) => `context ${percent}%`,
   mode: (mode) => mode,
   switchModeKey: "shift+tab",

@@ -94,7 +94,7 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 ╭───────────────────────────────────────────────╮
 │ you> █                                        │
 ╰───────────────────────────────────────────────╯
-⏵⏵ guided (shift+tab) · 3 turns · 45.2k in / 1.3k out · context 8%
+⏵⏵ guided (shift+tab) · 3 turns · 12.4k in (+32.8k cached) / 1.3k out · context 8%
 ```
 
 - **The agent's reply** follows a `●`, with its markdown rendered (bold, italics, inline code, lists, headings, quotes, code blocks, and tables as grids), also while it streams.
@@ -102,7 +102,7 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 - **The spinner** shows what the agent is doing, the seconds, and `esc to interrupt`; with a subagent working, a second line `↳` shows its action.
 - **The task list**: on a long job the agent keeps a list of tasks with the SDK's `TodoWrite` tool, and the chat draws it under the spinner, above the prompt: `☐` pending, `◼` in progress (in bold, and the spinner says what it's doing), `☑` done. It stays while any task is left, also between turns, and goes away when they're all done. The `TodoWrite` calls themselves don't show in the history, and at most eight tasks show (the rest are counted). The progress view draws it too.
 - **Each turn ends** with `✻ Worked for Ns`.
-- **The status bar** shows the mode (`(shift+tab)` if it can switch), the turns, the session's input and output tokens, and how full the context window is.
+- **The status bar** shows the mode (`(shift+tab)` if it can switch), the turns, the session's new input tokens with the ones read again from the cache apart (left out when the terminal is too narrow), its output tokens, and how full the context window is. See [Context and cost](../sessions/context-and-cost.md#watching-it).
 
 ## Keyboard
 

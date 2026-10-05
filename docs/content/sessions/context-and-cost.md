@@ -20,6 +20,8 @@ Measured on Captain Whiskers answering "hola" (input tokens of one API call):
 
 Most of the fixed part is the tools' definitions (about 6k tokens) and the skills listing (3.5k with every skill found, 0.1k with two). Memory files (CLAUDE.md files found up the directory tree) add the rest.
 
+Those figures predate the kit's later built-in tools. With the knowledge base's `knowledge_*` tools, the sources tools, the date tools, the task list, the human questions and `agent-help`, the last configuration's first call takes about 23k tokens today: the definitions of the tools a session gets are most of the fixed part.
+
 ## Making it smaller
 
 1. **List your skills**: `skills: ["my-agent:a", "my-agent:b"]`. The SDK's own and unrelated skills are no longer listed. Slash commands keep working. See [Skills and plugins](../capabilities/skills-and-plugins.md#choosing-which-skills-the-agent-offers).
@@ -30,7 +32,17 @@ Most of the fixed part is the tools' definitions (about 6k tokens) and the skill
 
 ## Watching it
 
-The Ink chat's status bar shows the session's input and output tokens and how full the context window is (`context 8%`) after each turn. From code:
+The Ink chat's status bar shows the session's tokens and how full the context window is after each turn:
+
+```text
+⏵⏵ guided (shift+tab) · 6 turns · 26.6k in (+126.7k cached) / 1.4k out · context 3%
+```
+
+- **`context 3%`** is what the conversation takes up now. It's the number that tells you when compaction is near.
+- **`26.6k in`** is the new input over the whole session: the first call's fixed part plus what each call added.
+- **`(+126.7k cached)`** is the context sent again from the cache, once per call. It grows fast because every call sends everything again, but it doesn't mean the context is growing, and cache reads cost a tenth of new input. In a terminal too narrow for it, it's left out.
+
+From code:
 
 ```ts
 const run = runQuery(input, options);
@@ -38,7 +50,7 @@ const run = runQuery(input, options);
 const usage = await run.contextUsage(); // { percentage, totalTokens, maxTokens } or null
 ```
 
-Each `turn-end` event carries the session's cumulative usage (`inputTokens` including cache reads and writes, `outputTokens`, and an estimated `costUsd`). See [Events](../advanced/events.md).
+Each `turn-end` event carries the session's cumulative usage (`inputTokens` including cache reads and writes, `cacheReadTokens`, the part of it read from the cache, `outputTokens`, and an estimated `costUsd`). See [Events](../advanced/events.md).
 
 ## Long conversations
 

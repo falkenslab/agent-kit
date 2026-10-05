@@ -9,7 +9,7 @@ export const de: Partial<Messages> = {
   escToInterrupt: "Esc zum Unterbrechen",
   workedFor: (seconds) => `${seconds}s gearbeitet`,
   turns: (count) => `${count} ${plural(count, "Runde", "Runden")}`,
-  tokens: (input, output) => `${input} ein / ${output} aus`,
+  tokens: (input, output, cached) => `${input} ein${cached ? ` (+${cached} Cache)` : ""} / ${output} aus`,
   context: (percent) => `Kontext ${percent}%`,
   mode: (mode) => MODES[mode],
   switchModeKey: "⇧Tab",

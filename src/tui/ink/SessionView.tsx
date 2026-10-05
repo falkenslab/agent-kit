@@ -1,4 +1,5 @@
 import wrapAnsi from "wrap-ansi";
+import stringWidth from "string-width";
 import { useEffect, useReducer, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, measureElement, Static, Text, useInput, useStdout, type DOMElement } from "ink";
 import { MultiSelect, Select, TextInput } from "@inkjs/ui";
@@ -181,15 +182,37 @@ export function statusText(
   mode: Mode | undefined,
   turns: number,
   usage: SessionUsage | null,
-  extra: { contextPercent?: number | null; modeSwitchable?: boolean } = {},
+  extra: { contextPercent?: number | null; modeSwitchable?: boolean; width?: number } = {},
 ): string {
-  const parts = [
+  const text = (withCached: boolean) => statusParts(mode, turns, usage, extra, withCached).join(" · ");
+  const full = text(true);
+  // The cached part goes first when the terminal is too narrow for it.
+  return extra.width !== undefined && stringWidth(full) > extra.width ? text(false) : full;
+}
+
+function statusParts(
+  mode: Mode | undefined,
+  turns: number,
+  usage: SessionUsage | null,
+  extra: { contextPercent?: number | null; modeSwitchable?: boolean },
+  withCached: boolean,
+): string[] {
+  return [
     ...(mode ? [`⏵⏵ ${t().mode(mode)}${extra.modeSwitchable ? ` (${t().switchModeKey})` : ""}`] : []),
     t().turns(turns),
-    ...(usage ? [t().tokens(formatTokens(usage.inputTokens), formatTokens(usage.outputTokens))] : []),
+    // The new input apart from what was read again from the cache: the total grows with every
+    // call (each one sends the whole context again), which looked like the context growing.
+    ...(usage
+      ? [
+          t().tokens(
+            formatTokens(usage.inputTokens - (usage.cacheReadTokens ?? 0)),
+            formatTokens(usage.outputTokens),
+            withCached && usage.cacheReadTokens ? formatTokens(usage.cacheReadTokens) : undefined,
+          ),
+        ]
+      : []),
     ...(extra.contextPercent != null ? [t().context(Math.round(extra.contextPercent))] : []),
   ];
-  return parts.join(" · ");
 }
 
 export interface SessionViewProps {
@@ -248,7 +271,9 @@ function Working({ label, startedAt, width }: { label: string; startedAt: number
 /** Line in progress, checkpoint panel or spinner, the input, and the status bar. */
 function LiveArea({ session, checkpoint, renderApproval, mode, width, statusExtra, modeSwitchable, reservedRows, children }: LiveAreaProps) {
   // The mode in the spinner's color; the rest dim.
-  const plain = statusText(mode, session.turns, session.usage, { contextPercent: session.contextPercent, modeSwitchable }) + (statusExtra ? ` · ${statusExtra}` : "");
+  const extraText = statusExtra ? ` · ${statusExtra}` : "";
+  const plain =
+    statusText(mode, session.turns, session.usage, { contextPercent: session.contextPercent, modeSwitchable, width: width - stringWidth(extraText) }) + extraText;
   const cut = mode ? plain.indexOf(" · ") : -1;
   const status = cut > 0 ? ui.working(plain.slice(0, cut)) + ui.dim(plain.slice(cut)) : ui.dim(plain);
   return (

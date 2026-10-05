@@ -23,7 +23,7 @@ afterEach(() => {
 test("the busiest status bar fits an 80-column terminal in every language", () => {
   for (const language of SUPPORTED_LANGUAGES) {
     setLanguage(language);
-    const text = statusText("interactive", 99, { inputTokens: 999_900, outputTokens: 99_900, costUsd: 0 }, { contextPercent: 100, modeSwitchable: true });
+    const text = statusText("interactive", 99, { inputTokens: 1_999_800, cacheReadTokens: 999_900, outputTokens: 99_900, costUsd: 0 }, { contextPercent: 100, modeSwitchable: true, width: liveWidth(80) });
     assert.ok(stringWidth(text) <= liveWidth(80), `${language}: ${text} (${stringWidth(text)})`);
   }
 });

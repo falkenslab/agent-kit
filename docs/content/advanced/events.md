@@ -51,6 +51,7 @@ type AgentEvent =
 ```ts
 interface SessionUsage {
   inputTokens: number; // including cache reads and writes, all models
+  cacheReadTokens?: number; // the part of inputTokens read from the cache: the context sent again on every call
   outputTokens: number;
   costUsd: number; // an estimate, not a bill
 }

@@ -119,6 +119,16 @@ test("a manual-intervention panel continues with Enter", async () => {
 test("statusText shows mode, turns and tokens, never the cost", () => {
   assert.equal(statusText(undefined, 1, null), "1 turn");
   assert.equal(statusText("autonomous", 3, { inputTokens: 12345, outputTokens: 678, costUsd: 0.04567 }), "⏵⏵ autonomous · 3 turns · 12.3k in / 678 out");
+  // What was read again from the cache, apart: the new input is what grows with the context.
+  assert.equal(
+    statusText("guided", 6, { inputTokens: 153_260, cacheReadTokens: 126_650, outputTokens: 1399, costUsd: 0.09 }),
+    "⏵⏵ guided · 6 turns · 26.6k in (+126.7k cached) / 1.4k out",
+  );
+  // Left out when the terminal is too narrow for it.
+  assert.equal(
+    statusText("guided", 6, { inputTokens: 153_260, cacheReadTokens: 126_650, outputTokens: 1399, costUsd: 0.09 }, { width: 50 }),
+    "⏵⏵ guided · 6 turns · 26.6k in / 1.4k out",
+  );
 });
 
 test("command completion", () => {
