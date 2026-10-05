@@ -41,6 +41,7 @@ The kit encodes several behaviors of the Claude Agent SDK (and the Claude Code C
 - **Without `settingSources`, every source is loaded**, the user's included, and a `language` setting there becomes a system prompt rule that outranks the agent's.
 - **The runner's auto-memory is loaded whatever `settingSources` says**; `settings.autoMemoryEnabled: false` keeps it out.
 - **The git context (with the runner's git user name) comes with the git instructions**; `settings.includeGitInstructions: false` drops it.
+- **The claude.ai connectors of the logged-in account are loaded whatever `settingSources` says** (a session with `settingSources: []` got a connector's eight tools); `settings.disableClaudeAiConnectors: true` keeps them out. An MCP server passed in `mcpServers` is unaffected.
 - **The logged-in account's name and e-mail are always in the context** (from `~/.claude.json`); only a separate `CLAUDE_CONFIG_DIR` avoids it.
 - **Plugin commands work without being in the `skills` list.**
 - **A plugin's skill is named after its folder**: `<plugin>:<folder>`, whatever its frontmatter's `name` says; a `SKILL.md` without frontmatter isn't loaded. A plugin's subagents (`agents/*.md`) are loaded too, as `<plugin>:<name>`.

@@ -184,8 +184,16 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     // whose own memory is the knowledge base. includeGitInstructions: false leaves out the
     // CLI's commit workflow and git context (the runner's git user name among it), which no
     // agent here needs and which pulled replies towards the runner's language (confirmed
-    // empirically, see ADR-018).
-    settings: { autoCompactEnabled: options.autoCompactEnabled ?? true, autoMemoryEnabled: false, includeGitInstructions: false },
+    // empirically, see ADR-018). disableClaudeAiConnectors: true keeps out the claude.ai
+    // connectors of the account the session runs with (Drive, Gmail…), which the CLI fetches
+    // whatever settingSources says (confirmed empirically): the runner's integrations, not the
+    // agent's. An MCP server the agent passes itself is unaffected.
+    settings: {
+      autoCompactEnabled: options.autoCompactEnabled ?? true,
+      autoMemoryEnabled: false,
+      includeGitInstructions: false,
+      disableClaudeAiConnectors: true,
+    },
     // No built-in tools except, if applicable, Read/Write/Edit/Glob/Grep scoped to the
     // project's own folders (fileScopeGate below), and WebFetch/WebSearch
     // with no domain restriction (not conditioned on includeFileTools: it's read-only,

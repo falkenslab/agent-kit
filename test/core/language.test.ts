@@ -73,8 +73,8 @@ test("replyInLanguage: false leaves the prompts as the agent wrote them", async 
 test("settingSources defaults to the project's only; a spec can choose its own", async () => {
   const byDefault = await buildSessionOptions({ mode: "autonomous", projectDir }, runDir, makeSpec());
   assert.deepEqual(byDefault.options.settingSources, ["project"]);
-  // Nor the runner's auto-memory or git context.
-  assert.deepEqual(byDefault.options.settings, { autoCompactEnabled: true, autoMemoryEnabled: false, includeGitInstructions: false });
+  // Nor the runner's auto-memory, git context or claude.ai connectors.
+  assert.deepEqual(byDefault.options.settings, { autoCompactEnabled: true, autoMemoryEnabled: false, includeGitInstructions: false, disableClaudeAiConnectors: true });
   const isolated = await buildSessionOptions({ mode: "autonomous", projectDir }, runDir, makeSpec({ settingSources: [] }));
   assert.deepEqual(isolated.options.settingSources, []);
 });

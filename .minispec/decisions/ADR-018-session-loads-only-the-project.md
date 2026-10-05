@@ -16,4 +16,5 @@
 
 - A behavior change for existing agents: the runner's personal settings, CLAUDE.md and skills no longer reach them. An agent that relied on them asks for `"user"`.
 - `skills` is a context filter, not a sandbox: unlisted skills stay on disk.
+- The claude.ai connectors of the logged-in account (Drive, Gmail…) are loaded whatever `settingSources` says (confirmed empirically): `settings.disableClaudeAiConnectors: true` keeps them out, like the runner's auto-memory and git context (#32).
 - Not controlled by any option: the CLI adds the logged-in Claude Code account's name and e-mail (`oauthAccount` in `~/.claude.json`) to the context, and the model may take the runner's language from them (confirmed empirically). Only a separate `CLAUDE_CONFIG_DIR` avoids it, which would also move the account's login.

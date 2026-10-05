@@ -93,6 +93,7 @@ Otherwise the SDK's defaults apply (the process's working directory, no plugins)
 | `settings.autoCompactEnabled` | `options.autoCompactEnabled ?? true` | long chats keep working |
 | `settings.autoMemoryEnabled` | `false` | the runner's Claude Code memory is not the agent's |
 | `settings.includeGitInstructions` | `false` | no kit agent commits code, and the git context skewed the reply language |
+| `settings.disableClaudeAiConnectors` | `true` | the claude.ai connectors of the account the session runs with (Drive, Gmail…) are the runner's integrations, not the agent's |
 | `includePartialMessages` | `true` | replies stream token by token |
 | `maxTurns` | `400` | a generous cap per query |
 

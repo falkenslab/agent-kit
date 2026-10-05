@@ -26,6 +26,7 @@ The SDK runs the Claude Code CLI, which by default loads the configuration of wh
 | `settingSources` | `["project"]` | The runner's `~/.claude/settings.json` (its `language`, output style, hooks, permissions), personal `CLAUDE.md` and skills reach the agent. A `"language": "Spanish"` there made a French agent answer in Spanish. |
 | `settings.autoMemoryEnabled` | `false` | The runner's Claude Code memory for the repository (`~/.claude/projects/<repo>/memory/MEMORY.md`) is loaded whatever `settingSources` says. |
 | `settings.includeGitInstructions` | `false` | The CLI's commit instructions and git context, including the runner's git user name, which pulled replies into the runner's language. |
+| `settings.disableClaudeAiConnectors` | `true` | The claude.ai connectors of the account the session runs with (Drive, Gmail, documents…), which the CLI loads whatever `settingSources` says: their tools would read and write the runner's own data, and cost context on every call. An MCP server the agent passes itself is unaffected. |
 
 ### Choosing setting sources
 
