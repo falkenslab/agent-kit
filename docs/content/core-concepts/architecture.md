@@ -38,10 +38,11 @@ The kit is split so the same agent can run in a terminal or inside another progr
 
 | Layer | Folder | Rule | What's in it |
 | --- | --- | --- | --- |
-| Core | `src/core/` | Never touches `console`, `process.stdout` or `readline` | `AgentSpec`, `buildSessionOptions()`, `runQuery()`, hooks, the kit's MCP tools, the knowledge base, runs, languages, the interaction port |
+| Core | `src/core/` | Never touches `console`, `process.stdout` or `readline` | `AgentSpec`, `buildSessionOptions()`, `runQuery()`, hooks, the kit's own MCP tools (approvals, the clock), runs, languages, the interaction port, the extension interface |
+| Extensions | `src/extensions/<name>/`, with their plugin in `extensions/<name>/` | Like the core, no terminal; they import the core, never each other | The knowledge base (`knowledge`) and the sources folder (`sources`): each one's store, tools and prompt section, which `buildSessionOptions()` puts together when they're on |
 | Terminal UI | `src/tui/` | The only code that assumes a terminal | The Ink chat, the plain chat, the progress view, the wizard, `ensureClaudeAuth()`, the terminal interaction port, the palette and themes |
 
-Both are exported from the package root; nothing forces a desktop app to load the terminal UI's code paths, and nothing in the core prints anything. A checkpoint (an approval, say) reaches the person through an [`InteractionPort`](../human-in-the-loop/interaction-port.md): the terminal installs its own by default, a desktop app installs one that opens a dialog.
+All are exported from the package root; nothing forces a desktop app to load the terminal UI's code paths, and nothing in the core prints anything. A checkpoint (an approval, say) reaches the person through an [`InteractionPort`](../human-in-the-loop/interaction-port.md): the terminal installs its own by default, a desktop app installs one that opens a dialog.
 
 ## Key pieces
 

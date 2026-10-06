@@ -1,5 +1,5 @@
 import type { AgentDefinition as SdkSubagentDefinition, McpServerConfig, SettingSource } from "@anthropic-ai/claude-agent-sdk";
-import type { KnowledgeStore, PageType } from "./knowledgeStore.js";
+import type { KnowledgeStore, PageType } from "../extensions/knowledge/knowledgeStore.js";
 
 /**
  * The human-supervision spectrum every agent built on this kit shares, independent of
@@ -133,7 +133,7 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
   saveToSourcesDescription?: string;
 
   /**
-   * The built-in knowledge base (see knowledge.ts): when `config.knowledgeDir` is set, the kit
+   * The built-in knowledge base (the knowledge extension, src/extensions/knowledge/): when `config.knowledgeDir` is set, the kit
    * appends its "Knowledge base" rules to the system prompt, loads its plugin (skills
    * knowledge-ingest/knowledge-query/knowledge-lint, commands /knowledge:ingest, /knowledge:query,
    * /knowledge:lint) and its `knowledge_*` tools, the only way into the knowledge base (ADR-024).

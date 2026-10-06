@@ -1,6 +1,6 @@
 ---
 name: update-docs
-description: Keep agent-kit's documentation site (docs/, Docusaurus) in step with the code - find what a change affects, update the matching guides and doc comments, and build the site. Use after ANY change to src/, examples/captain-whiskers/, assets/knowledge-plugin/ or the root package scripts, before every commit of such a change, and before a release. A change is not done until its documentation is.
+description: Keep agent-kit's documentation site (docs/, Docusaurus) in step with the code - find what a change affects, update the matching guides and doc comments, and build the site. Use after ANY change to src/, examples/captain-whiskers/, extensions/ or the root package scripts, before every commit of such a change, and before a release. A change is not done until its documentation is.
 ---
 
 # Keep docs/ up to date

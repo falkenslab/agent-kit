@@ -9,6 +9,8 @@ export interface PlanScope {
   isPlanFile?(filePath: string): boolean;
   /** Whether one of the agent's own MCP tools only reads. */
   isReadOnlyTool?(toolName: string, input: Record<string, unknown>): boolean;
+  /** The enabled extensions' MCP tools that only read (`mcp__<server>__<tool>`). */
+  readOnlyTools?: readonly string[];
 }
 
 /** Built-in tools that only read, search, load a skill, delegate or keep the task list (a subagent's own calls come through this gate too). */
@@ -16,16 +18,6 @@ const READING_TOOLS = new Set(["Read", "Glob", "Grep", "WebFetch", "WebSearch", 
 
 /** The kit's own MCP servers whose tools only ask a human (approvals, manual intervention) or only read (the date and time). */
 const ASKING_SERVERS = ["mcp__approvals__", "mcp__manualLogin__", "mcp__time__"];
-
-/** The kit's own MCP tools that only read, on servers that also have tools that write. */
-const READING_KIT_TOOLS = new Set([
-  "mcp__sourceFiles__list_sources",
-  "mcp__sourceFiles__extract_text",
-  "mcp__knowledge__knowledge_index",
-  "mcp__knowledge__knowledge_search",
-  "mcp__knowledge__knowledge_read",
-  "mcp__knowledge__knowledge_check",
-]);
 
 /** Why a call is denied in plan mode, and what the model should do instead. */
 const denial =
@@ -38,7 +30,7 @@ const denial =
  */
 export function checkPlanScope(scope: PlanScope, toolName: string, input: Record<string, unknown>): string | undefined {
   if (READING_TOOLS.has(toolName)) return undefined;
-  if (ASKING_SERVERS.some((prefix) => toolName.startsWith(prefix)) || READING_KIT_TOOLS.has(toolName)) return undefined;
+  if (ASKING_SERVERS.some((prefix) => toolName.startsWith(prefix)) || scope.readOnlyTools?.includes(toolName)) return undefined;
   if (toolName === "Write" || toolName === "Edit") {
     const target = typeof input.file_path === "string" && input.file_path !== "" ? path.resolve(scope.projectDir, input.file_path) : undefined;
     if (target && scope.isPlanFile?.(target)) return undefined;

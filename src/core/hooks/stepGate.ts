@@ -3,7 +3,7 @@ import { askForDecision } from "./humanInput.js";
 import { t } from "../messages/index.js";
 
 const SELF_ASKING_SERVERS = ["mcp__approvals__", "mcp__manualLogin__"];
-const SELF_ASKING_TOOLS = new Set(["mcp__sourceFiles__request_file", "mcp__sourceFiles__retire_source", "mcp__knowledge__knowledge_retire", "TodoWrite"]);
+const SELF_ASKING_TOOLS = new Set(["TodoWrite"]);
 
 /**
  * PreToolUse hook for "interactive" mode: pauses before every action and asks for
@@ -14,13 +14,13 @@ const SELF_ASKING_TOOLS = new Set(["mcp__sourceFiles__request_file", "mcp__sourc
  * session.ts's `ModeControl`): the hook stays registered and, while inactive, gives no
  * decision at all, so the tool call goes on exactly as if the hook weren't there.
  */
-export function createStepGate(runDir: string, isActive: () => boolean = () => true): HookCallback {
+export function createStepGate(runDir: string, isActive: () => boolean = () => true, selfAskingTools: readonly string[] = []): HookCallback {
   return async (input) => {
     if (!isActive()) return {};
     const pre = input as PreToolUseHookInput;
     // A tool that asks the person itself (an approval, a question, the plan, a file, retiring
     // a source) or only keeps the task list isn't asked about first: that would be asking to ask.
-    if (SELF_ASKING_SERVERS.some((prefix) => pre.tool_name.startsWith(prefix)) || SELF_ASKING_TOOLS.has(pre.tool_name)) return {};
+    if (SELF_ASKING_SERVERS.some((prefix) => pre.tool_name.startsWith(prefix)) || SELF_ASKING_TOOLS.has(pre.tool_name) || selfAskingTools.includes(pre.tool_name)) return {};
 
     const answer = await askForDecision(runDir, {
       title: t().proposedAction,

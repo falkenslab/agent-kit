@@ -73,7 +73,8 @@ test("the step gate doesn't ask before a tool that asks the person itself", asyn
   try {
     let asked = 0;
     setInteractionPort(port({ askDecision: async () => (asked++, "y") }));
-    const gate = createStepGate(runDir, () => true);
+    // The sources extension's own: the session passes the enabled extensions' self-asking tools.
+    const gate = createStepGate(runDir, () => true, ["mcp__sourceFiles__request_file"]);
     const call = (tool_name: string) => gate({ hook_event_name: "PreToolUse", tool_name, tool_input: {} } as unknown as PreToolUseHookInput, undefined, { signal: new AbortController().signal });
     for (const tool of ["mcp__approvals__ask_human", "mcp__approvals__present_plan", "mcp__sourceFiles__request_file", "TodoWrite"]) assert.deepEqual(await call(tool), {}, tool);
     assert.equal(asked, 0);

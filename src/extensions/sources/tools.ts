@@ -2,10 +2,10 @@ import path from "node:path";
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tool, createSdkMcpServer, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { addSource, listSources, resolveWithin, retireSource, type AddedSource } from "../sources.js";
-import { askForDecision, askForText } from "../hooks/humanInput.js";
-import { t } from "../messages/index.js";
-import { EXTRACTABLE, extractText } from "../extractText.js";
+import { addSource, listSources, resolveWithin, retireSource, type AddedSource } from "./sources.js";
+import { askForDecision, askForText } from "../../core/hooks/humanInput.js";
+import { t } from "../../core/messages/index.js";
+import { EXTRACTABLE, extractText } from "./extractText.js";
 
 /**
  * `resolvedPath` as given if it exists; otherwise, a same-directory sibling whose
@@ -131,7 +131,7 @@ export interface SourceToolsOptions {
  * are scoped to the notes folder, see hooks/fileScopeGate.ts): `save_to_sources`,
  * `list_sources` and `download_to_sources`, plus `request_file` and `retire_source` when a
  * person can be asked. Nothing is ever overwritten or deleted; the bookkeeping is in
- * sources.ts.
+ * sources.ts (this extension's).
  */
 export function createSaveToSourcesServer(runDir: string, sourcesDir: string, description = DEFAULT_DESCRIPTION, options: SourceToolsOptions = {}) {
   const projectDir = options.projectDir ?? path.dirname(sourcesDir);

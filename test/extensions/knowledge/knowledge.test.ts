@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { knowledgePluginRoot, knowledgePromptSection, PREFERENCES_IN_PROMPT } from "../../src/core/knowledge.js";
-import { createFileKnowledgeStore } from "../../src/core/fileKnowledgeStore.js";
-import { sourcesPromptSection } from "../../src/core/tools/saveToSources.js";
-import { buildSessionOptions } from "../../src/core/session.js";
-import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
+import { knowledgePluginRoot, knowledgePromptSection, PREFERENCES_IN_PROMPT } from "../../../src/extensions/knowledge/prompt.js";
+import { createFileKnowledgeStore } from "../../../src/extensions/knowledge/fileKnowledgeStore.js";
+import { sourcesPromptSection } from "../../../src/extensions/sources/tools.js";
+import { sourcesPluginRoot } from "../../../src/extensions/sources/index.js";
+import { buildSessionOptions } from "../../../src/core/session.js";
+import type { AgentSpec, BaseSessionConfig } from "../../../src/core/agentSpec.js";
 
 const projectDir = path.resolve("/workspace");
 
@@ -62,10 +63,18 @@ test("the sources' section is there with or without a knowledge base, before the
   assert.match(both.options.systemPrompt as string, /^BASE PROMPT\n\n## Sources\n[\s\S]*\n\n## Knowledge base\n/);
 });
 
-test("the sources and the knowledge base own their data: neither imports the other (#30)", async () => {
-  const read = (file: string) => fs.promises.readFile(path.resolve("src/core", file), "utf8");
-  for (const file of ["sources.ts", "tools/saveToSources.ts"]) assert.doesNotMatch(await read(file), /knowledge(Store|Tools)?\.js|fileKnowledgeStore/, file);
-  for (const file of ["knowledge.ts", "knowledgeStore.ts", "fileKnowledgeStore.ts", "tools/knowledgeTools.ts"]) assert.doesNotMatch(await read(file), /sources\.js|saveToSources/, file);
+test("the extensions own their data: none imports another, and the core only through its registry (#30, ADR-025)", async () => {
+  const sources = (dir: string) => fs.readdirSync(path.resolve(dir), { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".ts")).map((file) => path.join(dir, file));
+  const imports = (file: string) => [...fs.readFileSync(path.resolve(file), "utf8").matchAll(/^import(?! type)[^;]*from "([^"]+)"/gm)].map((m) => m[1]);
+  for (const extension of ["knowledge", "sources"]) {
+    for (const file of sources(`src/extensions/${extension}`)) {
+      for (const target of imports(file)) assert.ok(!/^\.\.\/(?!\.\.)/.test(target), `${file} imports another extension: ${target}`);
+    }
+  }
+  for (const file of sources("src/core")) {
+    if (file.endsWith("extensions.ts")) continue;
+    for (const target of imports(file)) assert.ok(!target.includes("extensions/"), `${file} imports an extension: ${target}`);
+  }
 });
 
 test("with knowledgeDir set, the knowledge base rules and plugin are added on top of the spec's own", async () => {
@@ -107,7 +116,8 @@ test("knowledgeBase: false, or no knowledgeDir, leaves the prompt and plugins al
   // Sources and no knowledge base: only the sources' own section.
   const noKnowledge = await buildSessionOptions({ mode: "autonomous", projectDir, sourcesDir: path.join(projectDir, "sources") }, runDir, makeSpec());
   assert.doesNotMatch(noKnowledge.options.systemPrompt as string, /## Knowledge base/);
-  assert.deepEqual(noKnowledge.options.plugins, []);
+  // Only the sources extension's plugin (its manifest).
+  assert.deepEqual(noKnowledge.options.plugins?.map((plugin) => plugin.path), [sourcesPluginRoot()]);
 });
 
 test("the person's preferences are listed by title in the knowledge base's section, up to a limit (#33)", () => {

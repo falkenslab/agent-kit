@@ -18,7 +18,7 @@ npm run docs:start    # the documentation site, live, at http://localhost:3000/a
 npm run docs:build    # build it (fails on broken links); the API reference is generated from src/
 ```
 
-The documentation site (Docusaurus, `docs/`) is part of every change: a change visible to agents updates its guides in `docs/content/` in the same change, and the public API's doc comments feed its API reference. After any change to `src/`, `examples/captain-whiskers/`, `assets/knowledge-plugin/` or the root scripts, and before committing it, run the `update-docs` skill: a change is not done until its documentation is.
+The documentation site (Docusaurus, `docs/`) is part of every change: a change visible to agents updates its guides in `docs/content/` in the same change, and the public API's doc comments feed its API reference. After any change to `src/`, `examples/captain-whiskers/`, `extensions/` or the root scripts, and before committing it, run the `update-docs` skill: a change is not done until its documentation is.
 
 Run a single test file directly instead of through the npm script filter:
 ```

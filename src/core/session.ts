@@ -11,15 +11,12 @@ import { createFileScopeGate } from "./hooks/fileScopeGate.js";
 import { createPlanGate } from "./hooks/planGate.js";
 import { createHumanApprovalServer } from "./tools/humanApproval.js";
 import { createManualLoginServer } from "./tools/manualLogin.js";
-import { createSaveToSourcesServer, sourcesPromptSection } from "./tools/saveToSources.js";
 import { createTimeServer } from "./tools/time.js";
 import { TODO_TOOL } from "./todos.js";
 import { createModeControl, type ModeControl } from "./modeControl.js";
-import { createFileKnowledgeStore } from "./fileKnowledgeStore.js";
-import type { KnowledgeStore } from "./knowledgeStore.js";
-import { createKnowledgeServer } from "./tools/knowledgeTools.js";
+import type { KnowledgeStore } from "../extensions/knowledge/knowledgeStore.js";
+import { contributions, type ExtensionContribution } from "./extensions.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
-import { knowledgePluginRoot, knowledgePromptSection } from "./knowledge.js";
 import { AGENT_HELP_SKILL, identityPromptSection, writeAgentHelpPlugin } from "./agentHelp.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 import { replyLanguageInstruction, type Language } from "./language.js";
@@ -33,9 +30,10 @@ import { createRunStore, type RunFolder } from "./runs.js";
  * one-shot run or an `AsyncIterable` for a multi-turn chat).
  *
  * Everything actually *about the domain* (which system prompt, which MCP servers besides
- * the generic human-in-the-loop/knowledge ones below, which plugin roots, which
- * subagents) is behind `spec` (see agentSpec.ts) — this function only knows the generic
- * fields on `BaseSessionConfig`.
+ * the generic human-in-the-loop ones below, which plugin roots, which subagents) is behind
+ * `spec` (see agentSpec.ts), and the kit's optional parts (the knowledge base, the sources
+ * folder) are extensions whose contributions this function puts together (extensions.ts,
+ * ADR-025): it names none of them.
  *
  * The per-mode behavioral differences (whether the approval/manual-intervention tools
  * exist, whether the interactive step gate or the plan gate decides) all fall out of
@@ -56,7 +54,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   transcriptPath: string;
   modeControl: ModeControl;
   language: Language;
-  /** The knowledge base's store, when the agent reaches it through the `knowledge_*` tools. */
+  /** The knowledge base's store, when the knowledge extension is on (for a host that reads the knowledge base). */
   knowledgeStore?: KnowledgeStore;
 }> {
   const { mode } = config;
@@ -75,63 +73,54 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // domain's own opt-in signal (see its doc comment in agentSpec.ts), not a generic
   // boolean this kit could infer on its own.
   const manualInterventionTexts = mode !== "autonomous" ? spec.manualInterventionTexts : undefined;
-  // The file tools exist as soon as the project has a place for the agent's notes
-  // (`knowledgeDir`) or for original files (`sourcesDir`) — there is no separate "context"
-  // folder: material the user provides is just more of `sourcesDir`.
-  const includeFileTools = Boolean(config.knowledgeDir || config.sourcesDir);
-  // The built-in knowledge base (rules in the system prompt + its skills/commands as a plugin) needs
-  // somewhere to keep the wiki, so it follows `knowledgeDir`; `spec.knowledgeBase: false` opts out.
-  const includeKnowledgeBase = Boolean(config.knowledgeDir) && spec.knowledgeBase !== false;
-  // The agent reaches it only through the `knowledge_*` tools, over a store, never with the file
-  // tools (ADR-024). Without it (`knowledgeBase: false`), `knowledgeDir` is a folder of the
-  // agent's own notes, kept with the file tools under its own rules.
-  const notesDir = includeKnowledgeBase ? undefined : config.knowledgeDir;
+  // What the enabled extensions bring (ADR-025): their tools, prompt sections, plugins and
+  // folders, put together here.
+  const added = await contributions({ config, spec, runDir, mode, interactive: mode !== "autonomous" });
+  const fromExtensions = <T>(pick: (contribution: ExtensionContribution) => readonly T[] | undefined): T[] => added.flatMap((contribution) => pick(contribution) ?? []);
+  const knowledgeStore = added.map((contribution) => contribution.api?.knowledgeStore).find(Boolean) as KnowledgeStore | undefined;
+  // Without the knowledge base (`knowledgeBase: false`), `knowledgeDir` is a folder of the
+  // agent's own notes, kept with the file tools under its own rules; with it, the knowledge
+  // extension has it, reached only through its tools (ADR-024).
+  const notesDir = spec.knowledgeBase === false ? config.knowledgeDir : undefined;
   const extraDirs = config.extraWritableDirs ?? [];
   const readableExtras = config.extraReadableDirs ?? [];
-  // With the knowledge base, the file tools are only for the originals (reading) and the extra
-  // folders; without either, none.
-  const fileTools = !includeFileTools
-    ? []
-    : !includeKnowledgeBase
-      ? ["Read", "Write", "Edit", "Glob", "Grep"]
-      : [...(config.sourcesDir || extraDirs.length || readableExtras.length ? ["Read", "Glob", "Grep"] : []), ...(extraDirs.length ? ["Write", "Edit"] : [])];
+  // The file tools the session needs: all five for the notes and the extra writable folders,
+  // the reading ones for the extra readable folders, and whatever the extensions ask for (the
+  // sources' reading ones); without any of them, none.
+  const wantedFileTools = new Set([
+    ...(notesDir || extraDirs.length ? FILE_TOOLS : []),
+    ...(readableExtras.length ? ["Read", "Glob", "Grep"] : []),
+    ...fromExtensions((contribution) => contribution.fileTools),
+  ]);
+  const fileTools = FILE_TOOLS.filter((tool) => wantedFileTools.has(tool));
   // Where Write/Edit may act and Grep may search (see hooks/fileScopeGate.ts): the
   // project's own folders, never the whole cwd — which would include whatever else the
-  // project directory holds (the user's config...). `sourcesDir` is searchable but
-  // deliberately NOT writable: originals stay as obtained, and the only way to add to it is
-  // the `save_to_sources` tool (which never overwrites).
+  // project directory holds (the user's config...). An extension's folders (the sources) are
+  // searchable but deliberately NOT writable: the only way to add to them is its tools.
+  const readOnlyDirs = fromExtensions((contribution) => contribution.readOnlyDirs);
+  const toolOnlyDirs = fromExtensions((contribution) => contribution.toolOnlyDirs);
   const writableDirs = [notesDir, ...extraDirs].filter((d): d is string => Boolean(d));
-  const searchableDirs = [notesDir, config.sourcesDir, ...extraDirs, ...readableExtras].filter((d): d is string => Boolean(d));
-  const readOnlyDirs = config.sourcesDir ? [config.sourcesDir] : [];
+  const searchableDirs = [notesDir, ...readOnlyDirs, ...extraDirs, ...readableExtras].filter((d): d is string => Boolean(d));
   // Skills/commands/plugins are a separate concern from the file tools: an agent that
   // wants a plugin-provided skill/command but has no notes or sources folder shouldn't have
   // to invent one just to get `cwd`/`skills: "all"`/`plugins` wired up. Gated on either
   // signal, not on `pluginRoots` alone, so an agent with file tools keeps getting the SDK's
   // own project-level `.claude/skills`/`.claude/commands` discovery.
   // With an identity, the agent-help skill (agentHelp.ts): written into the run's folder, since
-  // it carries this session's facts and the agent's own guide.
+  // it carries this session's facts (the extensions' among them) and the agent's own guide.
   const helpPlugin = spec.identity
     ? await writeAgentHelpPlugin(
         path.join(runDir, "agent-help"),
-        {
-          mode,
-          switchable: modeControl.switchable,
-          knowledgeBase: includeKnowledgeBase,
-          ...(config.sourcesDir ? { sourcesFolder: `${path.relative(config.projectDir, config.sourcesDir).split(path.sep).join("/")}/` } : {}),
-        },
+        { mode, switchable: modeControl.switchable, extensionLines: fromExtensions((contribution) => contribution.helpLines) },
         spec.helpGuide,
       )
     : undefined;
   const pluginRoots = [
     ...spec.pluginRoots(config),
-    ...(includeKnowledgeBase ? [knowledgePluginRoot()] : []),
+    ...fromExtensions((contribution) => (contribution.pluginRoot ? [contribution.pluginRoot] : [])),
     ...(helpPlugin ? [helpPlugin] : []),
   ];
-  const knowledgeStore: KnowledgeStore | undefined =
-    includeKnowledgeBase && config.knowledgeDir
-      ? (spec.knowledgeStore?.(config) ?? createFileKnowledgeStore(config.knowledgeDir, { pageTypes: spec.knowledgePageTypes }))
-      : undefined;
-  const includeSkillsAndPlugins = includeFileTools || pluginRoots.length > 0;
+  const includeSkillsAndPlugins = fileTools.length > 0 || pluginRoots.length > 0;
   // "plugins": the skills of the plugins loaded, named as the SDK names them.
   const offeredSkills = spec.skills === "plugins" ? await pluginSkills(pluginRoots) : spec.skills;
   const skillTools = includeSkillsAndPlugins ? ["Skill"] : [];
@@ -165,18 +154,11 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const transcriptPath = path.join(runDir, "transcript.jsonl");
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);
 
-  // The person's preferences, by title, for the knowledge base's section (#33).
-  const preferences = knowledgeStore
-    ? (await knowledgeStore.list()).filter((page) => page.type === "preference" && page.status === "active").map(({ id, title }) => ({ id, title }))
-    : [];
   const promptSections = [
     spec.buildSystemPrompt(config),
     ...(spec.identity ? [identityPromptSection(spec.identity)] : []),
-    // The sources' own section, with or without a knowledge base (#30).
-    ...(config.sourcesDir ? [sourcesPromptSection(config.projectDir, config.sourcesDir)] : []),
-    ...(includeKnowledgeBase && config.knowledgeDir
-      ? [knowledgePromptSection({ withSources: Boolean(config.sourcesDir), pageTypes: knowledgeStore?.types(), preferences })]
-      : []),
+    // The extensions' own sections, in their order (the sources' before the knowledge base's).
+    ...fromExtensions((contribution) => (contribution.promptSection ? [contribution.promptSection] : [])),
   ];
 
   const sdkOptions: Options = {
@@ -240,9 +222,9 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           additionalDirectories: searchableDirs,
           // "skills" acts as a name whitelist, not an addition: "all" enables both the
           // SDK's own official skills (pdf/docx), the project's own custom ones, and the
-          // plugin-provided built-ins below. A spec's own list gets the knowledge base's
-          // skills and agent-help added, so it only names its own.
-          skills: skillList(offeredSkills, includeKnowledgeBase, Boolean(helpPlugin)),
+          // plugin-provided built-ins below. A spec's own list gets the extensions' skills
+          // and agent-help added, so it only names its own.
+          skills: skillList(offeredSkills, [...fromExtensions((contribution) => contribution.skills), ...(helpPlugin ? [AGENT_HELP_SKILL] : [])]),
           plugins: pluginRoots.map((pluginPath) => ({ type: "local" as const, path: pluginPath, skipMcpDiscovery: true })),
         }
       : {}),
@@ -253,29 +235,15 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       ...spec.buildMcpServers(config, runDir),
       ...(includeApprovalTool ? { approvals: createHumanApprovalServer(runDir, spec.humanApprovalTexts, { modeControl }) } : {}),
       ...(manualInterventionTexts ? { manualLogin: createManualLoginServer(runDir, manualInterventionTexts) } : {}),
-      // The sources folder's tools (tools/saveToSources.ts); asking a person (request_file,
-      // retire_source) only where there is one.
-      ...(config.sourcesDir
-        ? {
-            sourceFiles: createSaveToSourcesServer(runDir, config.sourcesDir, spec.saveToSourcesDescription, {
-              projectDir: config.projectDir,
-              interactive: mode !== "autonomous",
-            }),
-          }
-        : {}),
-      // The knowledge base's own tools, over its store (tools/knowledgeTools.ts, ADR-024).
-      ...(knowledgeStore
-        ? {
-            knowledge: createKnowledgeServer(knowledgeStore, { runDir, interactive: mode !== "autonomous" }),
-          }
-        : {}),
+      // The extensions' tools (the knowledge base's, the sources').
+      ...Object.assign({}, ...added.map((contribution) => contribution.mcpServers ?? {})),
       // The date and date arithmetic, in every session and mode: only reads (tools/time.ts).
       time: createTimeServer(config.timeZone),
     },
     hooks: {
       PreToolUse: [
         { hooks: [transcriptLogger.preToolUse] },
-        ...(includeFileTools
+        ...(fileTools.length || toolOnlyDirs.length
           ? [{ hooks: [createFileScopeGate({
                     projectDir: config.projectDir,
                     writableDirs,
@@ -290,13 +258,13 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
                     readableDirs: searchableDirs,
                     alsoReadable: [runDir, ...pluginRoots, ...((spec.settingSources ?? ["project"]).includes("project") ? [path.join(config.projectDir, ".claude")] : [])],
                     toolResultsRoot: claudeProjectDir(config.projectDir),
-                    ...(includeKnowledgeBase && config.knowledgeDir ? { toolOnlyDirs: [{ dir: config.knowledgeDir, instead: "the knowledge_* tools" }] } : {}),
+                    toolOnlyDirs,
                   }),
                 ] }]
           : []),
         // Registered wherever the approval tool is, and asking only while the current mode is
         // "interactive": a guided session can switch to interactive and back (ModeControl).
-        ...(includeApprovalTool ? [{ hooks: [createStepGate(runDir, () => modeControl.mode === "interactive")] }] : []),
+        ...(includeApprovalTool ? [{ hooks: [createStepGate(runDir, () => modeControl.mode === "interactive", fromExtensions((contribution) => contribution.selfAskingTools))] }] : []),
         // Likewise for "plan", which any non-autonomous session can switch into: the agent
         // only reads and plans while it's on (hooks/planGate.ts).
         ...(includeApprovalTool
@@ -306,6 +274,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
                   createPlanGate(
                     {
                       projectDir: config.projectDir,
+                      readOnlyTools: fromExtensions((contribution) => contribution.readOnlyTools),
                       ...(spec.planMode?.isPlanFile ? { isPlanFile: (filePath: string) => spec.planMode!.isPlanFile!(filePath, config) } : {}),
                       ...(spec.planMode?.isReadOnlyTool ? { isReadOnlyTool: spec.planMode.isReadOnlyTool } : {}),
                     },
@@ -346,8 +315,8 @@ export function claudeProjectDir(projectDir: string): string {
   return path.join(claudeConfigDir(), "projects", path.resolve(projectDir).replace(/[^a-zA-Z0-9]/g, "-"));
 }
 
-/** The knowledge plugin's skills, as the SDK names a plugin's skills ("plugin:skill"). */
-const KNOWLEDGE_SKILLS = ["knowledge-ingest", "knowledge-query", "knowledge-lint"].map((skill) => `knowledge:${skill}`);
+/** The built-in file tools, in the order the session lists them. */
+const FILE_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep"];
 
 /**
  * The skills of the plugins in `roots`, as the SDK names them: `<plugin>:<folder>`, the
@@ -373,9 +342,9 @@ export async function pluginSkills(roots: readonly string[]): Promise<string[]> 
   return names;
 }
 
-function skillList(skills: string[] | "all" | undefined, knowledgeBase: boolean, agentHelp: boolean): string[] | "all" {
+function skillList(skills: string[] | "all" | undefined, added: readonly string[]): string[] | "all" {
   if (skills === undefined || skills === "all") return "all";
-  return [...new Set([...skills, ...(knowledgeBase ? KNOWLEDGE_SKILLS : []), ...(agentHelp ? [AGENT_HELP_SKILL] : [])])];
+  return [...new Set([...skills, ...added])];
 }
 
 /**

@@ -4,11 +4,22 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { addSource, listSources, loadManifest, pdfPageCount, pptxSlideCount, retireSource } from "../../src/core/sources.js";
-import { downloadToFile, htmlToMarkdown } from "../../src/core/tools/saveToSources.js";
-import { askForText } from "../../src/core/hooks/humanInput.js";
-import { setInteractionPort } from "../../src/core/interaction.js";
-import { checkPlanScope } from "../../src/core/hooks/planGate.js";
+import { addSource, listSources, loadManifest, pdfPageCount, pptxSlideCount, retireSource } from "../../../src/extensions/sources/sources.js";
+import { downloadToFile, htmlToMarkdown } from "../../../src/extensions/sources/tools.js";
+import { askForText } from "../../../src/core/hooks/humanInput.js";
+import { setInteractionPort } from "../../../src/core/interaction.js";
+import { checkPlanScope } from "../../../src/core/hooks/planGate.js";
+import os from "node:os";
+import { sourcesExtension } from "../../../src/extensions/sources/index.js";
+import type { Extension } from "../../../src/core/extensions.js";
+import type { BaseSessionConfig } from "../../../src/core/agentSpec.js";
+
+/** An extension's contribution, for a minimal session with `config`. */
+async function contributionOf(extension: Extension, config: BaseSessionConfig) {
+  const spec = { buildSystemPrompt: () => "", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined };
+  return extension.contribute({ config, spec, runDir: os.tmpdir(), mode: config.mode, interactive: true });
+}
+
 
 afterEach(() => setInteractionPort(null));
 
@@ -166,8 +177,10 @@ test("a text answer keeps its case, through askText or askDecision", async () =>
   }
 });
 
-test("plan mode lets list_sources through and denies the tools that add or retire", () => {
-  const scope = { projectDir: "/project" };
+test("plan mode lets list_sources and extract_text through, as the sources extension declares, and denies the tools that add or retire", async () => {
+  const { readOnlyTools } = await contributionOf(sourcesExtension, { mode: "guided", projectDir: path.resolve("/project"), sourcesDir: path.resolve("/project/sources") });
+  const scope = { projectDir: "/project", readOnlyTools };
+  assert.equal(checkPlanScope(scope, "mcp__sourceFiles__extract_text", {}), undefined);
   assert.equal(checkPlanScope(scope, "mcp__sourceFiles__list_sources", {}), undefined);
   for (const tool of ["save_to_sources", "download_to_sources", "request_file", "retire_source"]) {
     assert.match(checkPlanScope(scope, `mcp__sourceFiles__${tool}`, {}) ?? "", /Plan mode/, tool);
@@ -211,7 +224,7 @@ test("the sources tools name the folder as it really is, and take paths with eit
   try {
     const treasure = path.join(p.root, "treasure");
     await mkdir(treasure, { recursive: true });
-    const { createSaveToSourcesServer } = await import("../../src/core/tools/saveToSources.js");
+    const { createSaveToSourcesServer } = await import("../../../src/extensions/sources/tools.js");
     const server = createSaveToSourcesServer(p.run, treasure, undefined, { projectDir: p.root, interactive: true }) as unknown as {
       instance: { _registeredTools: Record<string, { description: string; handler: (args: unknown, extra: unknown) => Promise<{ content: { text: string }[] }> }> };
     };

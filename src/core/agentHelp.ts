@@ -32,10 +32,8 @@ export interface AgentHelpSession {
   mode: Mode;
   /** The modes Shift+Tab goes through (`ModeControl.switchable`). */
   switchable: readonly Mode[];
-  /** The built-in knowledge base is on: its slash commands exist. */
-  knowledgeBase: boolean;
-  /** The sources folder, as shown to the model (e.g. "sources/"). */
-  sourcesFolder?: string;
+  /** What the enabled extensions say about themselves here (their commands, their folders). */
+  extensionLines?: readonly string[];
 }
 
 /** The skill's "This session" section. */
@@ -46,12 +44,7 @@ function sessionSection(session: AgentHelpSession): string {
       ? `- \`Shift+Tab\` goes through: ${session.switchable.join(", ")}.`
       : "- The mode can't be switched during this session.",
   ];
-  if (session.knowledgeBase)
-    lines.push(
-      "- You keep a knowledge base (your memory across sessions). Its commands: `/knowledge:ingest` (learn the new or changed files of the sources folder), `/knowledge:query <question>` (answer from it), `/knowledge:lint` (check it and fix what's mechanical).",
-    );
-  if (session.sourcesFolder)
-    lines.push(`- Originals go in \`${session.sourcesFolder}\`: the person drops files there (or you ask for one, or download it), and you never change them.`);
+  for (const line of session.extensionLines ?? []) lines.push(`- ${line}`);
   return `## This session\n\n${lines.join("\n")}`;
 }
 

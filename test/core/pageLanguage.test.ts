@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { replyLanguageInstruction } from "../../src/core/language.js";
-import { knowledgePromptSection } from "../../src/core/knowledge.js";
-import { unescapedText } from "../../src/core/tools/knowledgeTools.js";
+import { knowledgePromptSection } from "../../src/extensions/knowledge/prompt.js";
+import { unescapedText } from "../../src/extensions/knowledge/tools.js";
 
 test("the language line covers what the agent keeps, not only its replies (found by a real session)", () => {
   // A preference page came out in Spanish while the chat was in English: the person's name was Spanish.
@@ -16,8 +16,8 @@ test("the language line covers what the agent keeps, not only its replies (found
 });
 
 test("no tool asks for \"the person's language\", which the model reads as the language of their name", () => {
-  for (const file of ["tools/humanApproval.ts", "tools/knowledgeTools.ts", "tools/saveToSources.ts", "knowledge.ts"]) {
-    assert.doesNotMatch(fs.readFileSync(path.resolve("src/core", file), "utf8"), /person's language/, file);
+  for (const file of ["src/core/tools/humanApproval.ts", "src/extensions/knowledge/tools.ts", "src/extensions/sources/tools.ts", "src/extensions/knowledge/prompt.ts"]) {
+    assert.doesNotMatch(fs.readFileSync(path.resolve(file), "utf8"), /person's language/, file);
   }
   assert.doesNotMatch(fs.readFileSync(path.resolve("assets/agent-help/SKILL.md"), "utf8"), /person's language/);
 });

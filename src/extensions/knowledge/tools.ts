@@ -1,8 +1,8 @@
 import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import type { FieldChanges, KnowledgeStore } from "../knowledgeStore.js";
-import { askForDecision } from "../hooks/humanInput.js";
-import { t } from "../messages/index.js";
+import type { FieldChanges, KnowledgeStore } from "./knowledgeStore.js";
+import { askForDecision } from "../../core/hooks/humanInput.js";
+import { t } from "../../core/messages/index.js";
 
 /**
  * The `knowledge_*` tools: the only way the agent reaches the built-in knowledge base

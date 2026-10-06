@@ -10,13 +10,15 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 ## Two layers (ADR-001)
 
 - `src/core/` — never touches `console.*`, `process.stdout` or `readline`; usable from any Node host.
+- `src/extensions/<name>/` — the kit's internal extensions (ADR-025): `knowledge`, `sources`. Like the core, no terminal. They import the core; the core imports them only through `src/core/extensions.ts`, and no extension imports another (an ESLint rule enforces both).
 - `src/tui/` — the only code that assumes a terminal (`readline`, `picocolors`, `@inquirer/prompts`, Ink).
 - `src/index.ts` — the only file importing from both, and the whole public API (ADR-011).
 
 ## Key pieces (`src/core/`)
 
 - `agentSpec.ts` — `AgentSpec<TConfig>`: system prompt, MCP servers, plugin roots, subagents, disallowed tools, approval/intervention texts. `BaseSessionConfig` + `Mode` (ADR-002).
-- `session.ts` — `buildSessionOptions()`: tools, hooks and MCP servers per mode, the session's `ModeControl` (guided, interactive and plan live, ADR-016, ADR-023), `settingSources`/`skills`/auto-memory defaults (ADR-018), the reply language line (ADR-019) and, with `run`, the run store (ADR-020); `createInputQueue()`.
+- `extensions.ts` — the extension interface (`Extension`, `ExtensionContribution`: MCP servers, plugin, skills, prompt section, file tools and folders, read-only and self-asking tools, agent-help lines, the host's API) and the registry of the internal ones; `contributions()` (ADR-025).
+- `session.ts` — `buildSessionOptions()`: puts the enabled extensions' contributions together (it names none of them); tools, hooks and MCP servers per mode, the session's `ModeControl` (guided, interactive and plan live, ADR-016, ADR-023), `settingSources`/`skills`/auto-memory defaults (ADR-018), the reply language line (ADR-019) and, with `run`, the run store (ADR-020); `createInputQueue()`.
 - `language.ts` — `resolveLanguage()`: `--language`, option, system, English; the reply language line.
 - `messages/` — the kit's texts per language (`en` complete, `es`/`fr`/`de` falling back to it), the process's current language (`chooseLanguage()`, `setLanguage()`, `t()`) (ADR-019).
 - `runs.ts` — run folders: `createRunStore()` (a `SessionStore` in the run folder), `listRuns()`, `readConversation()` (ADR-020).
@@ -30,15 +32,18 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `modeControl.ts` — `ModeControl` (`subscribe()` for UIs), `createModeControl()`, `togglePlanMode()`.
 - `tools/manualLogin.ts` — `request_manual_login`, only with `manualInterventionTexts` (ADR-005).
 - `mcpPermissions.ts` — `allowAnyMcpTool` as `canUseTool` (ADR-006).
-- `hooks/fileScopeGate.ts` — file tool boundary (ADR-007); `tools/saveToSources.ts` — the sources folder's tools (`list_sources`, `save_to_sources`, `download_to_sources`; `request_file`, `retire_source` outside autonomous); `extractText.ts` — DOCX/PPTX/XLSX to markdown for `extract_text` (optional `mammoth`, `fflate`); `sources.ts` — their manifest (`sources/.agent-kit/sources.json`), statuses, duplicates, versions and retiring.
+- `hooks/fileScopeGate.ts` — file tool boundary (ADR-007).
 - `todos.ts` — the SDK's `TodoWrite` task list, in every session: `parseTodos()`, `todoChanges()`; the chats draw the list instead of the calls.
 - `tools/time.ts` — `current_time`, `date_math` (server `time`), in every session and mode; `config.timeZone` or the system's.
-- `knowledge.ts` — knowledge base prompt section (tools or files variant) and plugin roots (ADR-008).
 - `agentHelp.ts` — with `spec.identity`: the "Who you are" prompt section (name, version, agent-kit's version) and the `agent-help` plugin, written into the run's folder from `assets/agent-help/SKILL.md` (the chat's part, checked against the chat's commands and keys by a test), this session's facts and `spec.helpGuide`.
-- `knowledgeStore.ts` — `KnowledgeStore`, `PageType`, the kit's page types (summary, concept, entity, synthesis, preference) and their templates; `fileKnowledgeStore.ts` — the store over markdown files (index generated, backlinks computed, links as ids to the tools and relative paths on disk); `tools/knowledgeTools.ts` — the `knowledge_*` tools (ADR-024).
 - `hooks/transcriptLogger.ts` — `transcript.jsonl`: secrets and the OAuth token redacted, long strings and base64 payloads summarized.
 - `claudeAuth.ts` — `resolveClaudeAuth()`: pure lookup, no I/O (ADR-009).
 - `toolLabels.ts`, `promptTemplate.ts` — friendly tool labels, prompt loading.
+
+## Key pieces (`src/extensions/`)
+
+- `knowledge/` — `index.ts` (the extension: on with `knowledgeDir` unless `knowledgeBase: false`); `prompt.ts` (its prompt section, with the person's preferences, and its plugin root); `knowledgeStore.ts` (`KnowledgeStore`, `PageType`, the kit's page types: summary, concept, entity, synthesis, preference); `fileKnowledgeStore.ts` (the store over markdown files: index generated, backlinks computed, links as ids to the tools and relative paths on disk); `tools.ts` (the `knowledge_*` tools, ADR-024).
+- `sources/` — `index.ts` (the extension: on with `sourcesDir`); `tools.ts` (the sources folder's tools, `list_sources`, `save_to_sources`, `download_to_sources`, `extract_text`, and `request_file`, `retire_source` outside autonomous; its prompt section); `sources.ts` (their manifest, `sources/.agent-kit/sources.json`: statuses, `changedAt`, duplicates, versions and retiring); `extractText.ts` (DOCX/PPTX/XLSX to markdown, optional `mammoth`, `fflate`).
 
 ## Key pieces (`src/tui/`)
 
@@ -66,9 +71,9 @@ With `knowledgeDir` and/or `sourcesDir`, `cwd` = `projectDir`. With the built-in
 
 Each owns its data, and the model connects them with their tools (#30): neither imports the other nor reads the other's files. The sources know their originals and when each one's content last changed (`changedAt`; hashes never leave `sources.ts`); the knowledge base knows its pages, which original a summary is about (`file`) and when it was written (`ingested`, set by the store). The model compares the dates with `date_math` and, after `retire_source`, retires or supersedes summaries with the knowledge tools. The sources have their own prompt section, with or without a knowledge base. The same rule holds for any two extensions (ADR-025).
 
-## Knowledge plugin
+## The extensions' plugins
 
-`assets/knowledge-plugin/` (name `knowledge`): skills `knowledge-ingest`, `knowledge-query`, `knowledge-lint` over the `knowledge_*` tools; commands `/knowledge:ingest`, `/knowledge:query`, `/knowledge:lint`. Opt out with `spec.knowledgeBase: false`.
+Each internal extension's plugin is in `extensions/<name>/`, shipped as is (`tsc` copies no markdown); every one has at least its manifest (ADR-025). `extensions/sources/` (name `sources`): only the manifest. `extensions/knowledge/` (name `knowledge`): skills `knowledge-ingest`, `knowledge-query`, `knowledge-lint` over the `knowledge_*` tools; commands `/knowledge:ingest`, `/knowledge:query`, `/knowledge:lint`. Opt out with `spec.knowledgeBase: false`.
 
 ## Agent help plugin
 
@@ -77,7 +82,7 @@ Generated per session in `<runDir>/agent-help/` (name `agent-kit`, skill `agent-
 ## Folder map
 
 - `src/core/`, `src/tui/`, `src/index.ts` — the library.
-- `assets/knowledge-plugin/`, `assets/agent-help/` — shipped with the package.
+- `src/extensions/` — the internal extensions' code; `extensions/` — their plugins; `assets/agent-help/` — agent-help's skill template. All shipped with the package.
 - `test/` — `node:test` suites mirroring `src/`.
 - `examples/captain-whiskers/` — toy consumer.
 - `docs/` — the documentation site (Docusaurus, its own npm project): guides in `content/`, the API reference generated from `src/` (ADR-022); published to GitHub Pages by `.github/workflows/docs.yml`.

@@ -4,8 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { strToU8, zipSync } from "fflate";
-import { extractText } from "../../src/core/extractText.js";
-import { checkPlanScope } from "../../src/core/hooks/planGate.js";
+import { extractText } from "../../../src/extensions/sources/extractText.js";
 
 const zip = (files: Record<string, string>) => zipSync(Object.fromEntries(Object.entries(files).map(([name, text]) => [name, strToU8(text)])));
 
@@ -63,6 +62,3 @@ test("a DOCX, a PPTX with speaker notes and an XLSX come out as markdown", async
   }
 });
 
-test("plan mode lets extract_text through", () => {
-  assert.equal(checkPlanScope({ projectDir: "/p" }, "mcp__sourceFiles__extract_text", {}), undefined);
-});

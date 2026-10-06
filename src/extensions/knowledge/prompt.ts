@@ -13,7 +13,7 @@ import type { PageType } from "./knowledgeStore.js";
 
 /** Absolute path of the knowledge base's plugin shipped with the kit, next to `dist/` (or `src/` under tsx). */
 export function knowledgePluginRoot(): string {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", "knowledge-plugin");
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "extensions", "knowledge");
 }
 
 /** The most preferences listed in the prompt by title; past it, the index lists the rest. */

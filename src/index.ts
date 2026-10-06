@@ -17,7 +17,7 @@ export {
 export type { Mode, BaseSessionConfig, AgentSpec, AgentIdentity, PlanModeSpec } from "./core/agentSpec.js";
 export { buildSessionOptions, createInputQueue, createDeferred, createModeControl, togglePlanMode, type ModeControl } from "./core/session.js";
 export { runQuery, type AgentEvent, type AgentRun, type SessionUsage, type ContextUsage } from "./core/runner.js";
-export { knowledgePluginRoot, knowledgePromptSection } from "./core/knowledge.js";
+export { knowledgePluginRoot, knowledgePromptSection } from "./extensions/knowledge/prompt.js";
 export { agentKitVersion } from "./core/version.js";
 export {
   BUILT_IN_PAGE_TYPES,
@@ -32,9 +32,9 @@ export {
   type CheckReport,
   type FieldChanges,
   type NewPage,
-} from "./core/knowledgeStore.js";
-export { createFileKnowledgeStore, type FileKnowledgeStoreOptions } from "./core/fileKnowledgeStore.js";
-export { createKnowledgeServer, type KnowledgeToolsOptions } from "./core/tools/knowledgeTools.js";
+} from "./extensions/knowledge/knowledgeStore.js";
+export { createFileKnowledgeStore, type FileKnowledgeStoreOptions } from "./extensions/knowledge/fileKnowledgeStore.js";
+export { createKnowledgeServer, type KnowledgeToolsOptions } from "./extensions/knowledge/tools.js";
 export {
   resolveLanguage,
   detectLanguage,
@@ -83,7 +83,7 @@ setInteractionPort(terminalInteractionPort);
 
 export { createHumanApprovalServer, DEFAULT_HUMAN_APPROVAL_TEXTS, type HumanApprovalTexts } from "./core/tools/humanApproval.js";
 export { createManualLoginServer, type ManualInterventionTexts } from "./core/tools/manualLogin.js";
-export { createSaveToSourcesServer, sourcesPromptSection, type SourceToolsOptions } from "./core/tools/saveToSources.js";
+export { createSaveToSourcesServer, sourcesPromptSection, type SourceToolsOptions } from "./extensions/sources/tools.js";
 
 export { runChatTui, type ChatTuiOptions } from "./tui/chatTui.js";
 export type { SessionOpener } from "./tui/runs.js";
