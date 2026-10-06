@@ -64,7 +64,7 @@ With `knowledgeDir` and/or `sourcesDir`, `cwd` = `projectDir`. With the built-in
 
 ## Sources and the knowledge base
 
-Each owns its data, and the model connects them with their tools (#30): neither imports the other nor reads the other's files. The sources know their originals and when each one's content last changed (`changedAt`; hashes never leave `sources.ts`); the knowledge base knows its pages, which original a summary is about (`file`) and when it was written (`ingested`, set by the store). The model compares the dates with `date_math` and, after `retire_source`, retires or supersedes summaries with the knowledge tools. The sources have their own prompt section, with or without a knowledge base. The same rule holds for any two extensions (#29).
+Each owns its data, and the model connects them with their tools (#30): neither imports the other nor reads the other's files. The sources know their originals and when each one's content last changed (`changedAt`; hashes never leave `sources.ts`); the knowledge base knows its pages, which original a summary is about (`file`) and when it was written (`ingested`, set by the store). The model compares the dates with `date_math` and, after `retire_source`, retires or supersedes summaries with the knowledge tools. The sources have their own prompt section, with or without a knowledge base. The same rule holds for any two extensions (ADR-025).
 
 ## Knowledge plugin
 
