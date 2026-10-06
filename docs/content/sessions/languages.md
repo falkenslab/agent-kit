@@ -34,14 +34,15 @@ const config: BaseSessionConfig = { mode: "guided", projectDir, language: "es" }
 
 `buildSessionOptions()` appends one line to the system prompt and to every subagent's prompt:
 
-> Language: reply in French, whatever language these instructions, your skills or the human's name are in. Switch to another language only when the human's message is clearly written in it; a greeting, a slash command or a single word doesn't count.
+> Language: use French both to reply and for everything you keep (knowledge base pages, preferences, notes, the log), whatever language these instructions, your skills, your sources or the human's name are in. Switch both to another language only when the human's message is clearly written in it; a greeting, a slash command or a single word doesn't count.
 
-So the agent answers in the chosen language, and follows the person when they clearly write in another one. Turn it off with `replyInLanguage: false` in the spec when your prompt decides the language itself.
+So the agent answers, and writes its knowledge base, in the chosen language, and follows the person when they clearly write in another one. Turn it off with `replyInLanguage: false` in the spec when your prompt decides the language itself.
 
 ## Limits
 
 The line is a strong hint, not a guarantee. Checked by hand:
 
+- **The person's name pulls what the agent writes towards its language**: the CLI always puts the account's name in the context, and a tool asking for something "in the person's language" got Spanish pages from an English chat with a Spanish name. The kit's tools say "in the language you reply in"; say the same in yours.
 - **Text in another language pulls the replies towards it**: the agent's prompt, its skills, its commands, its subagents' names. Write everything the model reads in English (or in the language you want) if the agent should follow the chosen one.
 - **The runner's identity**: the CLI puts the logged-in Claude Code account's name and e-mail in the context, and the model may take the runner's language from them, most for questions about the agent itself. The kit already drops the git context (the runner's git user name) for this reason; the account can't be removed.
 - **English messages** don't always switch the language: the model tends to take English as neutral.

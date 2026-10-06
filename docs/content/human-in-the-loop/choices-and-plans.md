@@ -20,7 +20,7 @@ ask_human({
 
 | Parameter | Type | Description |
 | --- | --- | --- |
-| `question` | `string` | The question, in the person's language. |
+| `question` | `string` | The question, in the language the agent replies in. |
 | `options` | `string[]` | 2 to 8 short options. The panel adds a last one, "Other", to type an answer of one's own. |
 | `multiple` | `boolean` | Whether several can be picked (default: one). |
 
