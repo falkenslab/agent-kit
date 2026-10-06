@@ -75,6 +75,13 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
 
 ## Consequences
 
+- **Layout of the internal extensions** (decided 6 October 2026):
+  - Each extension's code goes in `src/extensions/<name>/` (knowledge, sources, memory), compiled by `tsc`.
+  - Its plugin goes in `extensions/<name>/`, shipped as is (`tsc` copies no markdown).
+  - Every extension has a plugin, at least its manifest: the manifest is what makes it an extension. Today `sources` has only the manifest; `knowledge` has its skills and commands (today's `assets/knowledge-plugin/`); `memory` has its commands for the person (`/memory:list`, `/memory:forget`) and, at first, no skills (its rules are short and go in its prompt section).
+  - `src/core/` keeps the core plus the extension interface and the registry of the internal extensions (`src/core/extensions.ts`); it imports no extension but through that registry, and no extension imports another. An ESLint rule (`no-restricted-imports`) enforces both.
+  - The move and the interface come together, as the first commit of phase 2: moving the files alone would change imports and nothing else.
+
 - Phases, each with its own note:
   1. this ADR;
   2. knowledge and sources (then memory) as internal extensions, with the manifest, enabling and the project file;
