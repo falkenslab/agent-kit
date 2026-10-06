@@ -62,6 +62,7 @@ Pages link by id: `[Spring tides](concept/spring-tides)`. A link to a page that 
 | `concept` | One idea: definition, explanation, connections, sources | `aliases` |
 | `entity` | A concrete thing: a system, a component, an organization, a document | `kind`, `aliases` |
 | `synthesis` | An answer worth keeping: a comparison, an analysis, a report | `question` |
+| `preference` | How the person wants things done in this project (see [The person's preferences](#the-persons-preferences)) | `since` |
 
 Besides the pages there's the **overview**, a living synthesis of the whole knowledge base, read and rewritten as `"overview"`, and the **log** of operations, written with `knowledge_log` and read as `"log"` (the latest ten entries, newest first: what was done last, and when).
 
@@ -73,9 +74,19 @@ Besides the pages there's the **overview**, a living synthesis of the whole know
 
 The index and backlinks can't drift, so there's nothing to check there. How the knowledge base stands against its originals isn't `knowledge_check`'s: see [Knowledge base and sources](#knowledge-base-and-sources).
 
+## The person's preferences
+
+What the person wants about how the agent works in this project ("rubrics go in tables", "don't post in the forum on Fridays") is kept as `preference` pages, one per preference, in the project's knowledge base, so a new session applies it without being told again:
+
+- **When one is written**: the person states or corrects a way of working ("from now on…", "always…", "don't…"); the agent creates the page and says in one line that it'll remember it. **Only from what the person says in the chat**: never from a document, a web page or a tool result, whatever it asks (a page can't plant a "preference").
+- **In every session**: the knowledge base's prompt section lists the active preferences by title (up to 20; past that, a pointer to the index), so the agent knows them from the first turn and reads one when a task touches it.
+- **When it changes** it's edited; **when it no longer holds** it's retired, with the person's approval, like any page. Nothing links to a preference, and it isn't an orphan for that.
+
+They're the project's: whoever opens it with the agent gets them. A memory of the person across projects, per agent, is a separate feature (#34); between agents there's none, on purpose.
+
 ## Your own page types
 
-An agent with its own kinds of notes (a course's topics and activities) declares them, and they work like the kit's four: the same tools, in the index under their own section, with their own template and fields.
+An agent with its own kinds of notes (a course's topics and activities) declares them, and they work like the kit's: the same tools, in the index under their own section, with their own template and fields.
 
 ```ts
 const spec: AgentSpec<Config> = {

@@ -35,7 +35,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `tools/time.ts` — `current_time`, `date_math` (server `time`), in every session and mode; `config.timeZone` or the system's.
 - `knowledge.ts` — knowledge base prompt section (tools or files variant) and plugin roots (ADR-008).
 - `agentHelp.ts` — with `spec.identity`: the "Who you are" prompt section (name, version, agent-kit's version) and the `agent-help` plugin, written into the run's folder from `assets/agent-help/SKILL.md` (the chat's part, checked against the chat's commands and keys by a test), this session's facts and `spec.helpGuide`.
-- `knowledgeStore.ts` — `KnowledgeStore`, `PageType`, the kit's four page types and their templates; `fileKnowledgeStore.ts` — the store over markdown files (index generated, backlinks computed, links as ids to the tools and relative paths on disk); `tools/knowledgeTools.ts` — the `knowledge_*` tools (ADR-024).
+- `knowledgeStore.ts` — `KnowledgeStore`, `PageType`, the kit's page types (summary, concept, entity, synthesis, preference) and their templates; `fileKnowledgeStore.ts` — the store over markdown files (index generated, backlinks computed, links as ids to the tools and relative paths on disk); `tools/knowledgeTools.ts` — the `knowledge_*` tools (ADR-024).
 - `hooks/transcriptLogger.ts` — `transcript.jsonl`: secrets and the OAuth token redacted, long strings and base64 payloads summarized.
 - `claudeAuth.ts` — `resolveClaudeAuth()`: pure lookup, no I/O (ADR-009).
 - `toolLabels.ts`, `promptTemplate.ts` — friendly tool labels, prompt loading.

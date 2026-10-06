@@ -398,7 +398,7 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
         }
       }
       report.orphans = pages
-        .filter((p) => statusOf(p) !== "retired" && p.type.type !== "summary" && p.type.type !== "synthesis" && !inbound.get(p.id))
+        .filter((p) => statusOf(p) !== "retired" && !["summary", "synthesis", "preference"].includes(p.type.type) && !inbound.get(p.id))
         .map((p) => p.id);
       return report;
     },

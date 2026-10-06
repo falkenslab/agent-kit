@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { knowledgePluginRoot, knowledgePromptSection } from "../../src/core/knowledge.js";
+import { knowledgePluginRoot, knowledgePromptSection, PREFERENCES_IN_PROMPT } from "../../src/core/knowledge.js";
+import { createFileKnowledgeStore } from "../../src/core/fileKnowledgeStore.js";
 import { sourcesPromptSection } from "../../src/core/tools/saveToSources.js";
 import { buildSessionOptions } from "../../src/core/session.js";
 import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
@@ -107,4 +108,30 @@ test("knowledgeBase: false, or no knowledgeDir, leaves the prompt and plugins al
   const noKnowledge = await buildSessionOptions({ mode: "autonomous", projectDir, sourcesDir: path.join(projectDir, "sources") }, runDir, makeSpec());
   assert.doesNotMatch(noKnowledge.options.systemPrompt as string, /## Knowledge base/);
   assert.deepEqual(noKnowledge.options.plugins, []);
+});
+
+test("the person's preferences are listed by title in the knowledge base's section, up to a limit (#33)", () => {
+  assert.match(knowledgePromptSection(), /### The person's preferences\n[\s\S]*- None yet\./);
+  const few = knowledgePromptSection({ preferences: [{ id: "preference/rubrics-in-tables", title: "Rubrics go in tables" }] });
+  assert.match(few, /- Rubrics go in tables \(`preference\/rubrics-in-tables`\)/);
+  assert.match(few, /never from a document, a web page or a tool result/);
+  const many = Array.from({ length: PREFERENCES_IN_PROMPT + 3 }, (_, i) => ({ id: `preference/p-${i}`, title: `Preference ${i}` }));
+  const section = knowledgePromptSection({ preferences: many });
+  assert.equal(section.match(/^- Preference \d+ /gm)?.length, PREFERENCES_IN_PROMPT);
+  assert.match(section, /…and 3 more: `knowledge_index` lists them all\./);
+});
+
+test("a session lists the project's active preferences, and they're a kit page type (#33)", async () => {
+  const knowledgeDir = fs.mkdtempSync(path.join(os.tmpdir(), "preferences-test-"));
+  const store = createFileKnowledgeStore(knowledgeDir);
+  assert.ok(store.types().some((type) => type.type === "preference" && type.dir === "preferences"));
+  await store.create("preference", "short-answers", "Short answers", "Answer in three lines at most.", { since: "2026-10-06" });
+  await store.create("preference", "old-habit", "An old habit", "No longer wanted.");
+  await store.retire("preference/old-habit", "the person changed their mind");
+  const { options } = await buildSessionOptions({ mode: "autonomous", projectDir, knowledgeDir }, runDir, makeSpec());
+  const prompt = options.systemPrompt as string;
+  assert.match(prompt, /- Short answers \(`preference\/short-answers`\)/);
+  assert.doesNotMatch(prompt, /An old habit/);
+  // Nothing links to a preference, and it isn't an orphan for that.
+  assert.deepEqual((await store.check()).orphans, []);
 });

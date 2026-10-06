@@ -165,13 +165,17 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const transcriptPath = path.join(runDir, "transcript.jsonl");
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);
 
+  // The person's preferences, by title, for the knowledge base's section (#33).
+  const preferences = knowledgeStore
+    ? (await knowledgeStore.list()).filter((page) => page.type === "preference" && page.status === "active").map(({ id, title }) => ({ id, title }))
+    : [];
   const promptSections = [
     spec.buildSystemPrompt(config),
     ...(spec.identity ? [identityPromptSection(spec.identity)] : []),
     // The sources' own section, with or without a knowledge base (#30).
     ...(config.sourcesDir ? [sourcesPromptSection(config.projectDir, config.sourcesDir)] : []),
     ...(includeKnowledgeBase && config.knowledgeDir
-      ? [knowledgePromptSection({ withSources: Boolean(config.sourcesDir), pageTypes: knowledgeStore?.types() })]
+      ? [knowledgePromptSection({ withSources: Boolean(config.sourcesDir), pageTypes: knowledgeStore?.types(), preferences })]
       : []),
   ];
 

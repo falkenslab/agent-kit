@@ -286,4 +286,5 @@ His README has a test script that goes through every feature in order. A few:
 - `CAPTAIN_MODE=plan npm start` and ask for something: the crew can search, read the clock and the logbook, and anything else is denied until the plan is approved or you leave plan mode.
 - "How do I resume a conversation?" or "What does Shift+Tab do?": he answers from the `agent-help` skill.
 - Ctrl+O to fold the tool calls; drag and right-click to copy; `?` for the shortcuts.
+- "From now on, always end your answers with: Yo-ho, landlubber!", then `/exit` and `npm start`: a `preference` page, and the new session follows it.
 - `/exit`, then `npm start -- --continue`.

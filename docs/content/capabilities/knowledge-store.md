@@ -60,7 +60,7 @@ What a store must keep, whatever it stores the pages in:
 - **`check()`** returns broken links, orphans and links to retired pages.
 - **A summary's `ingested`** is the store's: set when it's created or rewritten, never taken from the caller. Its `file` is kept as given. A store knows nothing of the sources folder (see [Knowledge base and sources](knowledge-base.md#knowledge-base-and-sources)).
 
-`BUILT_IN_PAGE_TYPES` are the kit's four types with their templates; a store gets the agent's declared ones too, and should treat a page's type as a label, so it can hold any type.
+`BUILT_IN_PAGE_TYPES` are the kit's types (summary, concept, entity, synthesis, preference) with their templates; a store gets the agent's declared ones too, and should treat a page's type as a label, so it can hold any type.
 
 ## Plugging in your own
 

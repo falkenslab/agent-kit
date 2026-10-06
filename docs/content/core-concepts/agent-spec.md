@@ -98,7 +98,7 @@ Returning something here also gives the session the `Agent` tool, and `Bash` whe
 | `disallowedTools?: string[]` | `[]` | Tools blocked whatever else allows them, e.g. an MCP tool you don't trust. Takes precedence over everything. A built-in tool also leaves the context; an MCP tool is blocked but its definition is still sent. |
 | `saveToSourcesDescription?: string` | a generic description | The description of the `save_to_sources` tool (registered with `sourcesDir`), in your domain's words. |
 | `knowledgeBase?: boolean` | `true` | With `knowledgeDir`, the built-in knowledge base (rules, plugin and tools). `false` for an agent with its own rules for its notes. |
-| `knowledgePageTypes?: PageType[]` | none | The agent's own page types, besides the kit's four. See [Your own page types](../capabilities/knowledge-base.md#your-own-page-types). |
+| `knowledgePageTypes?: PageType[]` | none | The agent's own page types, besides the kit's. See [Your own page types](../capabilities/knowledge-base.md#your-own-page-types). |
 | `knowledgeStore?(config): KnowledgeStore` | the kit's store over `knowledgeDir`'s files | Another store (a database, a vector store). See [Knowledge store](../capabilities/knowledge-store.md). |
 | `humanApprovalTexts?` | generic texts | `{ description, approved, rejected }` of the approval tool (guided mode). |
 | `manualInterventionTexts?` | none | Its texts, and the opt-in, of the manual-intervention tool. |

@@ -142,7 +142,7 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    */
   knowledgeBase?: boolean;
   /**
-   * The agent's own page types for the built-in knowledge base, besides the kit's four
+   * The agent's own page types for the built-in knowledge base, besides the kit's
    * (summary, concept, entity, synthesis): each with its folder (`""` for the root), index
    * section, description (told to the model) and template.
    */
