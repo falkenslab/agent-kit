@@ -255,7 +255,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
     "request_file",
     "Ask the person for a file you need (a syllabus, a document they have) and copy it into sources/ with its provenance. They give a path or say they don't have it; never overwrites, and doesn't copy a file identical to one already there.",
     {
-      description: z.string().describe("What file you need and why, in one or two sentences, in the person's language"),
+      description: z.string().describe("What file you need and why, in one or two sentences, in the language you reply in"),
       destination: z.string().optional().describe("Path to save it under, relative to sources/; the file's own name if omitted"),
       replaces,
     },
@@ -280,7 +280,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
     {
       source: z.string().describe("The original, relative to sources/"),
       why: z.enum(["wrong", "replaced"]),
-      reason: z.string().describe("Why, in one sentence, in the person's language"),
+      reason: z.string().describe("Why, in one sentence, in the language you reply in"),
       replacedBy: z.string().optional().describe('For "replaced": the original that replaces it, relative to sources/'),
     },
     async (args) => {

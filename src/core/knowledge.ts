@@ -33,7 +33,7 @@ ${listed.length ? `${listed.join("\n")}${more > 0 ? `\n- …and ${more} more: \`
 /** The section for a knowledge base reached through the `knowledge_*` tools (ADR-024). */
 function toolsSection(withSources: boolean, pageTypes: readonly PageType[], preferences: readonly { id: string; title: string }[]): string {
   return `## Knowledge base
-Your memory across sessions is an interlinked knowledge base of pages that you write and maintain yourself — a wiki, not a pile of notes. A future session only knows what is written there, so anything worth remembering must end up in a page, not just in this turn's reply. You reach it only through the \`knowledge_*\` tools. Write page content in the language you are using with the human.
+Your memory across sessions is an interlinked knowledge base of pages that you write and maintain yourself — a wiki, not a pile of notes. A future session only knows what is written there, so anything worth remembering must end up in a page, not just in this turn's reply. You reach it only through the \`knowledge_*\` tools. Write page content in the language you reply in, not in the language of your sources or of the person's name.
 
 ${preferencesSection(preferences)}
 

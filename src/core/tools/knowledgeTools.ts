@@ -23,6 +23,15 @@ async function attempt(work: () => Promise<string>) {
   }
 }
 
+/**
+ * Text as the model meant it: a body that arrives with escaped newlines ("\\n") and no real
+ * one gets them back. A model sometimes double-escapes a long markdown argument, and the page
+ * would be stored as one line with literal "\n"s (found by a real session).
+ */
+export function unescapedText(text: string): string {
+  return !text.includes("\n") && text.includes("\\n") ? text.replace(/\\r\\n|\\n/g, "\n").replace(/\\t/g, "\t") : text;
+}
+
 const OVERVIEW = "overview";
 const LOG = "log";
 
@@ -95,7 +104,7 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
     {
       type: z.enum(typeNames as [string, ...string[]]),
       slug: z.string().describe('Lowercase ASCII words joined by hyphens, e.g. "spring-tides"'),
-      title: z.string().describe("The page's title, in the person's language"),
+      title: z.string().describe("The page's title, in the language you reply in"),
       content: z.string().optional().describe("The page's markdown body (under its title), following the type's template"),
       fields,
       also: z
@@ -114,10 +123,10 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
     async (args) =>
       attempt(async () => {
         const type = store.types().find((t) => t.type === args.type)!;
-        if (!args.content) return `Template for a ${type.type} page (${type.description}):\n\n${type.template}\n\nFill it in the person's language and call knowledge_create again with content.`;
+        if (!args.content) return `Template for a ${type.type} page (${type.description}):\n\n${type.template}\n\nFill it in the language you reply in and call knowledge_create again with content.`;
         const ids = await store.createMany([
-          { type: args.type, slug: args.slug, title: args.title, content: args.content, fields: changes(args.fields) },
-          ...(args.also ?? []).map((page) => ({ ...page, fields: changes(page.fields) })),
+          { type: args.type, slug: args.slug, title: args.title, content: unescapedText(args.content), fields: changes(args.fields) },
+          ...(args.also ?? []).map((page) => ({ ...page, content: unescapedText(page.content), fields: changes(page.fields) })),
         ]);
         return `Created ${ids.join(", ")}.`;
       }),
@@ -129,7 +138,7 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
     { page: z.string(), oldText: z.string(), newText: z.string(), fields },
     async (args) =>
       attempt(async () => {
-        await store.edit(args.page, args.oldText, args.newText, changes(args.fields));
+        await store.edit(args.page, unescapedText(args.oldText), unescapedText(args.newText), changes(args.fields));
         return `Edited ${args.page}.`;
       }),
   );
@@ -141,10 +150,10 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
     async (args) =>
       attempt(async () => {
         if (args.page === OVERVIEW) {
-          await store.writeOverview(args.content);
+          await store.writeOverview(unescapedText(args.content));
           return "Rewrote the overview.";
         }
-        await store.rewrite(args.page, args.content, changes(args.fields));
+        await store.rewrite(args.page, unescapedText(args.content), changes(args.fields));
         return `Rewrote ${args.page}.`;
       }),
   );
@@ -163,7 +172,7 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
   const retire = tool(
     "knowledge_retire",
     "Retire a page whose knowledge was wrong (e.g. learned from a wrong original), after the person approves: it leaves the index and the search but is kept. Then fix the pages that link to it (knowledge_check lists them).",
-    { page: z.string(), reason: z.string().describe("Why, in one sentence, in the person's language") },
+    { page: z.string(), reason: z.string().describe("Why, in one sentence, in the language you reply in") },
     async (args) =>
       attempt(async () => {
         const page = await store.read(args.page);

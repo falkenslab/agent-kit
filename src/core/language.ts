@@ -80,5 +80,5 @@ export function detectLanguage(option?: string): ResolvedLanguage {
  */
 export function replyLanguageInstruction(language: Language): string {
   const name = LANGUAGE_NAMES[language];
-  return `Language: reply in ${name}, whatever language these instructions, your skills or the human's name are in. Switch to another language only when the human's message is clearly written in it; a greeting, a slash command or a single word doesn't count.`;
+  return `Language: use ${name} both to reply and for everything you keep (knowledge base pages, preferences, notes, the log), whatever language these instructions, your skills, your sources or the human's name are in. Switch both to another language only when the human's message is clearly written in it; a greeting, a slash command or a single word doesn't count.`;
 }

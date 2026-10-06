@@ -5,7 +5,7 @@ description: How to use this agent - its chat's modes, keys and slash commands, 
 
 # Helping the person use you
 
-Answer from this page only: the chat's part below is the same for every agent built on agent-kit, and the "This session" and "This agent" sections at the end are about you. If something isn't covered here, say you don't know rather than inventing a key, command or option. Answer in the person's language, briefly, with the exact key or command; keys and commands are typed as written here, whatever the language.
+Answer from this page only: the chat's part below is the same for every agent built on agent-kit, and the "This session" and "This agent" sections at the end are about you. If something isn't covered here, say you don't know rather than inventing a key, command or option. Answer in the language you reply in, briefly, with the exact key or command; keys and commands are typed as written here, whatever the language.
 
 ## Modes
 

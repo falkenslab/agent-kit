@@ -56,8 +56,8 @@ export function createHumanApprovalServer(runDir: string, texts: HumanApprovalTe
     "ask_human",
     "Ask the person to choose between options, in a panel, and get the answer in this same turn, instead of ending your turn with a written question. Use it when you need their decision to go on (which approach, which of several items). They can also type their own answer.",
     {
-      question: z.string().describe("The question, in one sentence, in the person's language"),
-      options: z.array(z.string()).min(2).max(8).describe("The options, short, in the person's language (2 to 8; an \"Other\" for their own answer is added)"),
+      question: z.string().describe("The question, in one sentence, in the language you reply in"),
+      options: z.array(z.string()).min(2).max(8).describe("The options, short, in the language you reply in (2 to 8; an \"Other\" for their own answer is added)"),
       multiple: z.boolean().optional().describe("Whether they can pick several (default: one)"),
     },
     async (args) => {
@@ -74,7 +74,7 @@ export function createHumanApprovalServer(runDir: string, texts: HumanApprovalTe
   const presentPlan = tool(
     "present_plan",
     "In plan mode, when the plan is ready: show it to the person, who decides to run it (plan mode ends and you carry it out right away, in this turn), to keep planning (with a comment on what to change) or to cancel. Outside plan mode it's refused.",
-    { plan: z.string().describe("The whole plan, in markdown, in the person's language: steps, what changes, what to check") },
+    { plan: z.string().describe("The whole plan, in markdown, in the language you reply in: steps, what changes, what to check") },
     async (args) => {
       if (!control || control.mode !== "plan") return { ...ok("present_plan only works in plan mode: you aren't in it, so just go ahead."), isError: true };
       const choices = [t().runPlan, t().keepPlanning, t().cancelPlan];
