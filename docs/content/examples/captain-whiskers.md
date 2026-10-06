@@ -86,6 +86,10 @@ Asked how to do something, he loads the kit's `agent-help` skill: the chat's par
 
 ![The captain explains /resume and how to make him learn a document](/captain/agent-help.png)
 
+### Bring his own extension
+
+Besides the kit's `sources` and `knowledge`, he runs with one of his own, `jokebook`: a plugin in his project and the code that says what it brings. Its tool, `classic_joke`, tells a classic from his jokebook; its skill, `rank-jokes`, ranks his logbook's jokes, and requires the `knowledge-base` capability, so it's only offered with the logbook on. See [Extensions](../capabilities/extensions.md).
+
 ### Speak your language
 
 He speaks the kit's language, the system's or the one given with `--language`: his name, his texts, the kit's own and his replies. Here as Capitán Bigotes. See [Languages](../sessions/languages.md).
@@ -117,6 +121,8 @@ It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment or 
 examples/captain-whiskers/
 ├── agent.ts                    everything: texts, tools, crew, spec, chat
 ├── guide.md                    his own help guide (commands, folders, settings)
+├── jokebook.ts                 his own extension: what it brings
+├── extensions/jokebook/        its plugin: manifest and the rank-jokes skill
 ├── package.json                "@falkenslab/agent-kit": "file:../.."
 ├── plugin/
 │   ├── .claude-plugin/plugin.json   { "name": "captain-whiskers" }
@@ -220,6 +226,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildMcpServers: () => ({}),
   pluginRoots: () => [path.join(__dirname, "plugin")],
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
+  extensions: ["sources", "knowledge", jokebookExtension],
   knowledgePageTypes: [JOKE_PAGE],
   skills: "plugins",
   settingSources: [],
@@ -227,6 +234,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
 ```
 
 - `identity` and `helpGuide`: the model knows his name, his version and agent-kit's, and the `agent-help` skill answers how to use him, from the kit's chat and his `guide.md`. See [`identity` and `helpGuide`](../core-concepts/agent-spec.md#identity-and-helpguide).
+- `extensions`: the kit's `sources` (his chest, `treasure/`) and `knowledge` (his logbook, `logbook/`), enabled by name, and his own `jokebook` as an object. See [Extensions](../capabilities/extensions.md).
 - `knowledgePageTypes`: his logbook has a page type of its own, `joke`, kept in `logbook/jokes/` with the parrot's score in its index line. See [Your own page types](../capabilities/knowledge-base.md#your-own-page-types).
 - `skills: "plugins"` and `settingSources: []`: only the skills of his plugins (his two, the logbook's and agent-help), not the twenty the SDK brings, and nothing from the machine's Claude Code configuration. See [Context and cost](../sessions/context-and-cost.md).
 

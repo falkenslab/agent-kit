@@ -12,7 +12,7 @@ Without it, the SDK's file tools can reach the whole working directory, and keep
 
 | Scope | Built from |
 | --- | --- |
-| Writable | `extraWritableDirs`, and `knowledgeDir` when it's the agent's own notes (`knowledgeBase: false`) |
+| Writable | `extraWritableDirs`, and `knowledgeDir` when it's the agent's own notes (without the `knowledge` extension) |
 | Searchable (`Grep`) | `knowledgeDir` (likewise), `sourcesDir`, `extraWritableDirs`, `extraReadableDirs` |
 | Readable (`Read`, `Glob`) | the searchable folders, plus what the kit knows the agent needs: its run folder, the plugins it loads, the project's `.claude/` (with the `"project"` setting source) and the SDK's large tool results (`~/.claude/projects/<project>/<session>/tool-results/`) |
 | Read-only | `sourcesDir` (only changes the wording of the denial) |

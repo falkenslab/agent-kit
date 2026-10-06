@@ -19,6 +19,7 @@ import {
   type PageType,
   type ToolDetail,
 } from "@falkenslab/agent-kit";
+import { jokebookExtension } from "./jokebook.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -165,6 +166,9 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
   // El cuaderno (logbook/) se lleva con las herramientas knowledge_* del kit; Read, Glob y Grep
   // solo llegan al cofre (treasure/), y nada puede escribir en él.
+  // Las extensiones con las que navega (ADR-025): el cofre (sources, en treasure/) y el cuaderno
+  // (knowledge, en logbook/), que son del kit, y su libro de chistes, que es suyo.
+  extensions: ["sources", "knowledge", jokebookExtension],
   knowledgePageTypes: [JOKE_PAGE],
   // Solo las skills de sus plugins (las suyas, las del cuaderno y agent-help), no la veintena
   // que trae el SDK, y ninguna configuración de Claude Code de quien lo ejecute.

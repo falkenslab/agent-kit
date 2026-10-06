@@ -17,9 +17,14 @@ const config: BaseSessionConfig = {
   knowledgeDir: path.join(workspace, "knowledge"),
   sourcesDir: path.join(workspace, "sources"), // optional
 };
+
+const spec: AgentSpec<BaseSessionConfig> = {
+  // …
+  extensions: ["sources", "knowledge"],
+};
 ```
 
-With `knowledgeDir` set, and unless the spec says `knowledgeBase: false`:
+It's the kit's `knowledge` [extension](extensions.md): enabled in the spec (`extensions: ["knowledge"]`, with `"sources"` for the originals), with `knowledgeDir` set:
 
 - the agent gets the **`knowledge_*` tools** (an MCP server, `knowledge`) and reaches the knowledge base only through them: the file tools can't read, write or search `knowledgeDir` (the [file scope](../security/file-scope.md) says so, pointing to the tools);
 - a **"Knowledge base" section** is appended to the system prompt, with the page types and the working rules;
@@ -237,14 +242,14 @@ The model only carries short identifiers (an original's path, a page id) and dat
 
 ## Your own rules instead
 
-An agent that wants plain notes, or rules entirely its own, turns the built-in knowledge base off and keeps `knowledgeDir` for the file tools:
+An agent that wants plain notes, or rules entirely its own, leaves `"knowledge"` out of its extensions: `knowledgeDir` is then a folder of its own notes, kept with the file tools (all five, writing included):
 
 ```ts
 const spec: AgentSpec<Config> = {
   buildSystemPrompt: (config) => `${loadPrompt("system.md")}\n\n${myNotesRules(config)}`,
   // …
-  knowledgeBase: false,
+  extensions: ["sources"], // no "knowledge"
 };
 ```
 
-The pieces are exported to reuse them selectively: `knowledgePromptSection(projectDir, knowledgeDir, sourcesDir?, { tools?, pageTypes? })`, `knowledgePluginRoot("tools" | "files")`, and the store and its tools (see [Knowledge store](knowledge-store.md)).
+The pieces are exported to reuse them selectively: `knowledgePromptSection({ withSources?, pageTypes?, preferences? })`, `knowledgePluginRoot()`, and the store and its tools (see [Knowledge store](knowledge-store.md)).

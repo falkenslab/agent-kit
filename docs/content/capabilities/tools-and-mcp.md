@@ -11,7 +11,7 @@ description: The tools an agent gets, how to give it its own with in-process or 
 `buildSessionOptions()` only grants the built-in tools a configuration needs (see [Session options](../core-concepts/session-options.md#tools)):
 
 - **always**: `WebFetch`, `WebSearch` and `TodoWrite` (a task list for long jobs, which the chats show above the prompt);
-- **with `knowledgeDir` or `sourcesDir`**: `Read`, `Write`, `Edit`, `Glob`, `Grep`, all [scoped](../security/file-scope.md);
+- **with folders**: `Read`, `Glob`, `Grep` for the sources (the `sources` extension) and `extraReadableDirs`; `Write`, `Edit` too for `extraWritableDirs` and a `knowledgeDir` of the agent's own notes; all [scoped](../security/file-scope.md);
 - **with file tools or plugins**: `Skill`;
 - **with subagents**: `Agent`, and `Bash` (for subagents only) when one of them lists it or has no `tools`.
 
@@ -29,9 +29,9 @@ Besides the built-in ones, the kit registers MCP tools of its own, each when it 
 | `ask_human` | Asks the person to choose between options, within the turn. See [Choices and plans](../human-in-the-loop/choices-and-plans.md) | Not in autonomous mode |
 | `present_plan` | Shows the plan; the person runs it (leaving plan mode), keeps planning or cancels | Only in plan mode |
 | `request_manual_login` | Waits for a person to act by hand. See [Manual intervention](../human-in-the-loop/manual-intervention.md) | With `manualInterventionTexts`, not in autonomous mode |
-| `knowledge_*` (10 tools) | The knowledge base, as pages: index, search, read, create, edit, rewrite, supersede, retire, log, check. See [Knowledge base](knowledge-base.md#the-tools) | With `knowledgeDir` (the built-in knowledge base) |
-| `list_sources`, `extract_text`, `save_to_sources`, `download_to_sources` | List the originals with their status and when each last changed; read a DOCX, PPTX or XLSX one; add one from the run's folder or a URL, never overwriting. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained) | With `sourcesDir` |
-| `request_file`, `retire_source` | Ask the person for a file; take out a wrong or superseded original, with approval | With `sourcesDir`, not in autonomous mode |
+| `knowledge_*` (10 tools) | The knowledge base, as pages: index, search, read, create, edit, rewrite, supersede, retire, log, check. See [Knowledge base](knowledge-base.md#the-tools) | The `knowledge` extension |
+| `list_sources`, `extract_text`, `save_to_sources`, `download_to_sources` | List the originals with their status and when each last changed; read a DOCX, PPTX or XLSX one; add one from the run's folder or a URL, never overwriting. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained) | The `sources` extension |
+| `request_file`, `retire_source` | Ask the person for a file; take out a wrong or superseded original, with approval | The `sources` extension, not in autonomous mode |
 
 ### Date and time
 

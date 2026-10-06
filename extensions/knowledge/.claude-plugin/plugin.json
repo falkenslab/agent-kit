@@ -1,4 +1,10 @@
 {
   "name": "knowledge",
-  "description": "Built-in knowledge base workflows (an LLM wiki) over the kit's knowledge_* tools: ingesting sources, querying the knowledge base and health-checking it."
+  "description": "Built-in knowledge base workflows (an LLM wiki) over the kit's knowledge_* tools: ingesting sources, querying the knowledge base and health-checking it.",
+  "agent-kit": {
+    "provides": [
+      "knowledge-base"
+    ],
+    "requires": []
+  }
 }

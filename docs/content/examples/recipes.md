@@ -75,6 +75,7 @@ const spec: AgentSpec<Config> = {
   },
   saveToSourcesDescription:
     "Keep a document you downloaded from the site (it lands in this run's folder) in sources/, to study it in later sessions.",
+  extensions: ["sources", "knowledge"],
 };
 
 const config: Config = {

@@ -116,7 +116,7 @@ Tool schemas use [zod](https://zod.dev) (`npm install zod`); a tool without para
 
 ## Step 4: notes that survive the session
 
-Give the agent a `knowledgeDir` and it gets the kit's [knowledge base](../capabilities/knowledge-base.md): its own tools, rules and skills to keep its notes as an interlinked wiki.
+Enable the kit's `knowledge` and `sources` [extensions](../capabilities/extensions.md) and give them their folders: the agent gets the [knowledge base](../capabilities/knowledge-base.md), its own tools, rules and skills to keep its notes as an interlinked wiki, and a folder of originals.
 
 ```ts
 const config: BaseSessionConfig = {
@@ -125,9 +125,14 @@ const config: BaseSessionConfig = {
   knowledgeDir: path.resolve("knowledge"), // the agent's notes, through the knowledge_* tools
   sourcesDir: path.resolve("sources"), // originals: readable, never modified
 };
+
+const spec: AgentSpec<BaseSessionConfig> = {
+  // …the same as before, plus:
+  extensions: ["sources", "knowledge"],
+};
 ```
 
-Now Scout keeps its notes with the `knowledge_*` tools (search, read, create, edit, log…), reads the originals in `sources/` with `Read` but never modifies them (it adds files there with the sources tools, which never overwrite, and `list_sources` tells it what isn't ingested yet). Try `/knowledge:ingest` after dropping a PDF in `sources/`.
+Now Scout keeps its notes with the `knowledge_*` tools (search, read, create, edit, log…), reads the originals in `sources/` with `Read` but never modifies them (it adds files there with the sources tools, which never overwrite, and `list_sources` with `knowledge_index` tells it what isn't ingested yet). Try `/knowledge:ingest` after dropping a PDF in `sources/`.
 
 ## Step 5: resume a conversation
 

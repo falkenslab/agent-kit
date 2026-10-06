@@ -89,6 +89,7 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
   4. hot reloading.
 
   The agents adopt each on their own; no backward compatibility is kept while 0.x.
+- A skill's `requires:` is honoured with the `skills` list: the SDK's `skillOverrides` doesn't reach plugin skills (confirmed empirically: an "off" plugin skill is still listed and launched), so leaving one out turns `"all"` into a list of the plugins' and the project's skills.
 - `skills: "plugins"` computes its list at start: it stays for now, and hot reloading moves it to `"all"` with `disableBundledSkills`.
 - The kit's rules (the file scope's folders, plan mode's read-only tools, labels, the `Bash` decision, the subagent allow-list) are computed when a session opens. Hot reloading will need them in a registry the hooks read on every call.
 - The file scope and plan gates stay hooks (ADR-007, ADR-023). The SDK's `deny` rules may be added as a second layer for `deniedPaths` and the SDK's credentials: a `Grep` from above would then skip them instead of being refused.

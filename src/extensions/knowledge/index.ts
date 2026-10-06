@@ -3,18 +3,16 @@ import { createFileKnowledgeStore } from "./fileKnowledgeStore.js";
 import { knowledgePluginRoot, knowledgePromptSection } from "./prompt.js";
 import { createKnowledgeServer } from "./tools.js";
 
-/** The knowledge base's plugin's skills, as the SDK names a plugin's skills ("plugin:folder"). */
-const KNOWLEDGE_SKILLS = ["knowledge-ingest", "knowledge-query", "knowledge-lint"].map((skill) => `knowledge:${skill}`);
-
 /**
  * The built-in knowledge base (`config.knowledgeDir`, ADR-008, ADR-024): an interlinked wiki the
  * agent keeps only through its `knowledge_*` tools, over a `KnowledgeStore` (the kit's over
- * markdown files, or the agent's own). Off with `spec.knowledgeBase: false`, which leaves
- * `knowledgeDir` to the core as a folder of the agent's own notes.
+ * markdown files, or the agent's own). Not enabled, `knowledgeDir` is left to the core as a
+ * folder of the agent's own notes.
  */
 export const knowledgeExtension: Extension = {
   name: "knowledge",
-  enabled: ({ config, spec }) => Boolean(config.knowledgeDir) && spec.knowledgeBase !== false,
+  plugin: knowledgePluginRoot(),
+  missing: ({ config }) => (config.knowledgeDir ? undefined : "needs `knowledgeDir` in the config"),
   async contribute({ config, spec, runDir, interactive }) {
     const knowledgeDir = config.knowledgeDir!;
     const store = spec.knowledgeStore?.(config) ?? createFileKnowledgeStore(knowledgeDir, { pageTypes: spec.knowledgePageTypes });
@@ -23,8 +21,6 @@ export const knowledgeExtension: Extension = {
     return {
       // knowledge_retire asks a person, so it exists only where there is one.
       mcpServers: { knowledge: createKnowledgeServer(store, { runDir, interactive }) },
-      pluginRoot: knowledgePluginRoot(),
-      skills: KNOWLEDGE_SKILLS,
       promptSection: knowledgePromptSection({ withSources: Boolean(config.sourcesDir), pageTypes: store.types(), preferences }),
       // Never the file tools on the knowledge folder (ADR-024): the denial points to the tools.
       toolOnlyDirs: [{ dir: knowledgeDir, instead: "the knowledge_* tools" }],

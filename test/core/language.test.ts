@@ -87,7 +87,7 @@ test("skills: every one by default; a spec's list gets the knowledge base's adde
   const withKnowledge = await buildSessionOptions(
     { mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") },
     runDir,
-    makeSpec({ skills: ["own:joke"] }),
+    makeSpec({ skills: ["own:joke"], extensions: ["knowledge"] }),
   );
-  assert.deepEqual(withKnowledge.options.skills, ["own:joke", "knowledge:knowledge-ingest", "knowledge:knowledge-query", "knowledge:knowledge-lint"]);
+  assert.deepEqual([...(withKnowledge.options.skills as string[])].sort(), ["knowledge:knowledge-ingest", "knowledge:knowledge-lint", "knowledge:knowledge-query", "own:joke"]);
 });

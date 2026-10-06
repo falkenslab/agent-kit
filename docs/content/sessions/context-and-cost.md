@@ -26,9 +26,9 @@ Those figures predate the kit's later built-in tools. Today the same configurati
 | --- | --- | --- |
 | `Agent` (with the list of subagents) | 4.1k | no subagents |
 | `TodoWrite` (the task list) | 3.4k | `disallowedTools: ["TodoWrite"]` |
-| The knowledge base: ten `knowledge_*` tools, its prompt section and skills | 3.4k | no `knowledgeDir`, or `knowledgeBase: false` |
+| The knowledge base: ten `knowledge_*` tools, its prompt section and skills | 3.4k | without the `knowledge` extension |
 | `Read`, `Glob`, `Grep` (`Grep` alone 1.4k) | 2.7k | no `sourcesDir` nor `extraWritableDirs` (with the knowledge base on its tools) |
-| The sources tools | 2.2k | no `sourcesDir` |
+| The sources tools | 2.2k | without the `sources` extension |
 | `Bash` | 1.9k | no subagent listing it (the kit leaves it out then) |
 | The approval and question tools | 1.5k | autonomous mode |
 | `WebFetch`, `WebSearch` | 1.4k | `disallowedTools` |

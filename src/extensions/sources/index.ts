@@ -15,14 +15,14 @@ export function sourcesPluginRoot(): string {
  */
 export const sourcesExtension: Extension = {
   name: "sources",
-  enabled: ({ config }) => Boolean(config.sourcesDir),
+  plugin: sourcesPluginRoot(),
+  missing: ({ config }) => (config.sourcesDir ? undefined : "needs `sourcesDir` in the config"),
   async contribute({ config, spec, runDir, interactive }) {
     const sourcesDir = config.sourcesDir!;
     const folder = `${path.relative(config.projectDir, sourcesDir).split(path.sep).join("/")}/`;
     return {
       // Asking a person (request_file, retire_source) only where there is one.
       mcpServers: { sourceFiles: createSaveToSourcesServer(runDir, sourcesDir, spec.saveToSourcesDescription, { projectDir: config.projectDir, interactive }) },
-      pluginRoot: sourcesPluginRoot(),
       promptSection: sourcesPromptSection(config.projectDir, sourcesDir),
       // The originals are read and searched, never written: the only way in is its tools.
       fileTools: ["Read", "Glob", "Grep"],

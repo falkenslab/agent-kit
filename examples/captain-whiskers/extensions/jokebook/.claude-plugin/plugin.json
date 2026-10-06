@@ -1,0 +1,8 @@
+{
+  "name": "jokebook",
+  "description": "The captain's own jokebook: the classic pirate jokes, and ranking the jokes in his logbook.",
+  "agent-kit": {
+    "provides": ["jokes"],
+    "requires": []
+  }
+}

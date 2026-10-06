@@ -31,7 +31,7 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 
 ### System prompt
 
-`spec.buildSystemPrompt(config)`, then the [knowledge base section](../capabilities/knowledge-base.md) if `config.knowledgeDir` is set and `spec.knowledgeBase !== false`, then the [reply language line](../sessions/languages.md) unless `spec.replyInLanguage === false`.
+`spec.buildSystemPrompt(config)`, then the identity (with `spec.identity`), then the [extensions](../capabilities/extensions.md)' list and each active one's own section (the sources', the knowledge base's), then the [reply language line](../sessions/languages.md) unless `spec.replyInLanguage === false`.
 
 ### Tools
 
@@ -54,9 +54,9 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 | --- | --- | --- |
 | `approvals` | `request_human_approval`, `ask_human`, `present_plan` | mode is not `autonomous` |
 | `manualLogin` | `request_manual_login` | mode is not `autonomous` and `spec.manualInterventionTexts` is set |
-| `sourceFiles` | `list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode | `config.sourcesDir` is set |
+| `sourceFiles` | `list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode | the `sources` extension (with `config.sourcesDir`) |
 | `time` | `current_time`, `date_math` | always (in `config.timeZone`, or the system's) |
-| `knowledge` | the `knowledge_*` tools (`knowledge_retire` outside autonomous mode) | the built-in knowledge base (`knowledgeDir`, unless `knowledgeBase: false`) |
+| `knowledge` | the `knowledge_*` tools (`knowledge_retire` outside autonomous mode) | the `knowledge` extension (with `config.knowledgeDir`) |
 
 `canUseTool` is `allowAnyMcpTool`: every `mcp__*` call is approved, anything else is denied (the built-in tools above are already pre-approved, so they never reach it). `disallowedTools` is `spec.disallowedTools ?? []` and wins over everything.
 

@@ -27,6 +27,7 @@ function makeSpec(overrides: Partial<AgentSpec<BaseSessionConfig>> = {}): AgentS
     pluginRoots: () => [pluginRoot],
     buildSubagents: () => ({ agents: { reader: { description: "Reads.", prompt: "…", tools: ["Read", "Glob"] } }, allowedSubagentTypes: ["reader"] }),
     replyInLanguage: false,
+    extensions: ["sources", "knowledge"],
     ...overrides,
   };
 }

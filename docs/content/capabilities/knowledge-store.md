@@ -74,7 +74,7 @@ const spec: AgentSpec<Config> = {
 };
 ```
 
-With `knowledgeStore`, the kit doesn't touch `knowledgeDir`'s files; it still needs `knowledgeDir` set, since that's what turns the knowledge base on (and keeps the file tools out of that folder).
+With `knowledgeStore`, the kit doesn't touch `knowledgeDir`'s files; the `knowledge` extension still needs `knowledgeDir` set (it keeps the file tools out of that folder).
 
 A vector store usually keeps the curated pages as the source of truth and indexes them for `search()`: similarity search on embeddings of each page (or each section), with the same `SearchHit` result. Anthropic has no embeddings API; Voyage AI is the usual choice, and local options exist (LanceDB or sqlite-vec with a local model). `index()` and `check()` don't change.
 

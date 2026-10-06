@@ -113,7 +113,6 @@ test("buildSessionOptions returns the session's mode control", async () => {
       buildMcpServers: () => ({}),
       pluginRoots: () => [],
       buildSubagents: () => undefined,
-      knowledgeBase: false,
     };
     const guided = await buildSessionOptions({ mode: "guided", projectDir: runDir }, runDir, spec);
     assert.equal(guided.modeControl.mode, "guided");

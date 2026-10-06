@@ -50,7 +50,7 @@ test("with an identity, the agent-help skill is offered, with this session's fac
   const guide = path.join(runDir, "guide.md");
   fs.writeFileSync(guide, "## Commands\n\n- `/padawan:enrol` signs up for a course.\n");
   const config: BaseSessionConfig = { mode: "guided", projectDir, knowledgeDir: path.join(projectDir, "notes"), sourcesDir: path.join(projectDir, "course") };
-  const { options } = await buildSessionOptions(config, runDir, makeSpec({ identity, helpGuide: guide, skills: ["own:skill"] }));
+  const { options } = await buildSessionOptions(config, runDir, makeSpec({ identity, helpGuide: guide, skills: ["own:skill"], extensions: ["sources", "knowledge"] }));
 
   const root = path.join(runDir, "agent-help");
   assert.ok(options.plugins?.some((plugin) => plugin.path === root));

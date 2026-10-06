@@ -8,7 +8,7 @@ import type { PageType } from "./knowledgeStore.js";
  * plus the plugin's skills (knowledge-ingest, knowledge-query, knowledge-lint) and commands
  * (/knowledge:ingest, /knowledge:query, /knowledge:lint) are the schema that tells it how.
  * Domain-agnostic on purpose: an agent adds its own page types (`AgentSpec.knowledgePageTypes`),
- * or opts out with `AgentSpec.knowledgeBase: false` and writes its own rules.
+ * or leaves it out of `AgentSpec.extensions` and writes its own rules for `knowledgeDir`.
  */
 
 /** Absolute path of the knowledge base's plugin shipped with the kit, next to `dist/` (or `src/` under tsx). */

@@ -53,7 +53,7 @@ buildSystemPrompt: (config) =>
 
 Don't repeat these in your prompt; they're appended for you:
 
-- the [knowledge base section](knowledge-base.md#the-rules-the-agent-follows), with `knowledgeDir`;
+- with [extensions](extensions.md), their list and each one's section (the [knowledge base](knowledge-base.md#the-rules-the-agent-follows)'s, the sources');
 - the [reply language](../sessions/languages.md) line.
 
 The approval tool's description (guided mode) already tells the model when to call it; your prompt can say what counts as "publishing" in your domain, or set that in [`humanApprovalTexts`](../core-concepts/agent-spec.md#humanapprovaltexts).

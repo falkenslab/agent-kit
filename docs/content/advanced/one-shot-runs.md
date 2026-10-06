@@ -40,6 +40,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildMcpServers: () => ({}),
   pluginRoots: () => [],
   buildSubagents: () => undefined,
+  extensions: ["sources", "knowledge"],
 };
 
 const { options } = await buildSessionOptions(config, runDir, spec);

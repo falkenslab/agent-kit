@@ -20,6 +20,7 @@ function makeSpec(overrides: Partial<AgentSpec<BaseSessionConfig>> = {}): AgentS
     buildSubagents: () => undefined,
     // The reply language line would depend on the machine's language (see language.test.ts).
     replyInLanguage: false,
+    extensions: ["sources", "knowledge"],
     ...overrides,
   };
 }
@@ -57,10 +58,10 @@ test("the knowledge base's section speaks of pages and tools, not files, lists t
 test("the sources' section is there with or without a knowledge base, before the knowledge base's", async () => {
   const sourcesDir = path.join(projectDir, "sources");
   const alone = await buildSessionOptions({ mode: "autonomous", projectDir, sourcesDir }, runDir, makeSpec());
-  assert.match(alone.options.systemPrompt as string, /^BASE PROMPT\n\n## Sources\n/);
+  assert.match(alone.options.systemPrompt as string, /^BASE PROMPT\n\n## Extensions\n[\s\S]*\n\n## Sources\n/);
   assert.doesNotMatch(alone.options.systemPrompt as string, /## Knowledge base/);
   const both = await buildSessionOptions({ mode: "autonomous", projectDir, sourcesDir, knowledgeDir: path.join(projectDir, "knowledge") }, runDir, makeSpec());
-  assert.match(both.options.systemPrompt as string, /^BASE PROMPT\n\n## Sources\n[\s\S]*\n\n## Knowledge base\n/);
+  assert.match(both.options.systemPrompt as string, /^BASE PROMPT\n\n## Extensions\n[\s\S]*\n\n## Sources\n[\s\S]*\n\n## Knowledge base\n/);
 });
 
 test("the extensions own their data: none imports another, and the core only through its registry (#30, ADR-025)", async () => {
@@ -80,7 +81,7 @@ test("the extensions own their data: none imports another, and the core only thr
 test("with knowledgeDir set, the knowledge base rules and plugin are added on top of the spec's own", async () => {
   const config: BaseSessionConfig = { mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") };
   const { options } = await buildSessionOptions(config, runDir, makeSpec({ pluginRoots: () => ["/own/plugin"] }));
-  assert.match(options.systemPrompt as string, /^BASE PROMPT\n\n## Knowledge base/);
+  assert.match(options.systemPrompt as string, /^BASE PROMPT\n\n## Extensions\n[\s\S]*\n\n## Knowledge base/);
   assert.deepEqual(
     options.plugins?.map((p) => p.path),
     ["/own/plugin", knowledgePluginRoot()],
@@ -102,11 +103,11 @@ test("the knowledge base is reached through its tools, never the file tools", as
   assert.deepEqual(only.options.tools?.filter((t) => ["Read", "Write", "Edit", "Glob", "Grep"].includes(t as string)), []);
 });
 
-test("knowledgeBase: false, or no knowledgeDir, leaves the prompt and plugins alone; with knowledgeBase: false, knowledgeDir is the agent's own notes", async () => {
+test("without the knowledge extension, or without knowledgeDir, there's no knowledge base; knowledgeDir alone is the agent's own notes", async () => {
   const optedOut = await buildSessionOptions(
     { mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") },
     runDir,
-    makeSpec({ knowledgeBase: false }),
+    makeSpec({ extensions: [] }),
   );
   assert.equal(optedOut.options.systemPrompt, "BASE PROMPT");
   assert.deepEqual(optedOut.options.plugins, []);

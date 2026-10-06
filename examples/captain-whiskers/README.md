@@ -29,7 +29,7 @@ Type as usual, and `/exit` to leave. His commands:
 | `/captain-whiskers:fresh-joke` | A new joke found on the web by the crew, scored by the parrot and noted in the logbook |
 | `/captain-whiskers:stock-the-chest` | Downloads two pages of pirate lore into the chest and asks you for a joke book |
 | `/captain-whiskers:learn` | Reads every new original in the chest and writes what it teaches into the logbook |
-| `/captain-whiskers:best-jokes` | The best jokes in the logbook by the parrot's score, filed back as a synthesis |
+| `/captain-whiskers:best-jokes` | The best jokes in the logbook by the parrot's score (his jokebook's `rank-jokes` skill), filed back as a synthesis |
 | `/captain-whiskers:logbook-check` | Checks the logbook (broken links, orphans, originals not learned yet) |
 
 The kit's own `/knowledge:ingest`, `/knowledge:query` and `/knowledge:lint` work too.
@@ -43,6 +43,10 @@ In a terminal it uses the kit's Ink interface (`runChatInk`) full screen: the pr
 It runs in `guided` mode by default, so it can ask you things: which kind of joke, a file, whether to retire an original. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=autonomous` it asks nothing. With `CAPTAIN_MODE=plan` it only reads and plans: its crew can still search the web, read the ship's clock and the logbook, and anything else is denied until the plan is approved (`present_plan`) or you leave plan mode. Started in any mode but `autonomous`, Shift+Tab cycles through `guided`, `interactive` and `plan`. `/plan` goes into plan mode and back.
 
 It shows every tool call with its result (`toolDetail: "full"`, the kit's default); `CAPTAIN_TOOL_DETAIL=calls` shows the calls without their results, and `CAPTAIN_TOOL_DETAIL=summary` one line per group. Ctrl+O unfolds them either way.
+
+## Extensions
+
+He runs with three ([agent-kit's Extensions](https://falkenslab.github.io/agent-kit/docs/capabilities/extensions)): the kit's `sources` (his chest) and `knowledge` (his logbook), and his own `jokebook`, in `jokebook.ts` with its plugin in `extensions/jokebook/`. The jokebook brings the `classic_joke` tool (a classic from his book) and the `rank-jokes` skill, which requires the `knowledge-base` capability: without the logbook, it isn't offered.
 
 ## Logbook and treasure chest
 
@@ -79,5 +83,6 @@ A walk through every feature, in a fresh start (`rm -rf logbook treasure`, then 
 | 12 | `CAPTAIN_TOOL_DETAIL=summary npm start`, then step 6 again | Tool calls as one line per group; Ctrl+O unfolds them. |
 | 13 | `How do I pick up yesterday's conversation, and how do I make you learn a document?` | He applies the `agent-kit:agent-help` skill and answers `/resume` (or `--continue`), and `treasure/` plus `/captain-whiskers:learn` from his guide. |
 | 14 | `From now on, always end your answers with: Yo-ho, landlubber!`, then `/exit` and `npm start` again, and ask anything | He saves it first (`knowledge_create`, a `preference` page in `logbook/preferences/`), and the new session ends its answers that way without being told. |
+| 15 | `Tell me a classic pirate joke from your jokebook.`, then `What extensions do you have?` | `classic_joke` (his own extension's tool); then `agent-help`, naming sources, knowledge and jokebook. |
 
 The model decides some of it: if a step doesn't happen (he lists the steps in his reply instead of keeping a task list, say), ask for it in other words.

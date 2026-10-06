@@ -15,7 +15,7 @@ import { createTimeServer } from "./tools/time.js";
 import { TODO_TOOL } from "./todos.js";
 import { createModeControl, type ModeControl } from "./modeControl.js";
 import type { KnowledgeStore } from "../extensions/knowledge/knowledgeStore.js";
-import { contributions, type ExtensionContribution } from "./extensions.js";
+import { extensionsPromptSection, resolveExtensions, skillsMissingCapabilities, type ExtensionContribution } from "./extensions.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { AGENT_HELP_SKILL, identityPromptSection, writeAgentHelpPlugin } from "./agentHelp.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
@@ -75,13 +75,17 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const manualInterventionTexts = mode !== "autonomous" ? spec.manualInterventionTexts : undefined;
   // What the enabled extensions bring (ADR-025): their tools, prompt sections, plugins and
   // folders, put together here.
-  const added = await contributions({ config, spec, runDir, mode, interactive: mode !== "autonomous" });
+  const extensionContext = { config, spec, runDir, mode, interactive: mode !== "autonomous" };
+  const resolved = resolveExtensions(spec.extensions ?? [], extensionContext);
+  const added = await Promise.all(resolved.active.map(({ extension }) => extension.contribute(extensionContext)));
+  const extensionPlugins = resolved.active.map(({ extension }) => extension.plugin);
   const fromExtensions = <T>(pick: (contribution: ExtensionContribution) => readonly T[] | undefined): T[] => added.flatMap((contribution) => pick(contribution) ?? []);
   const knowledgeStore = added.map((contribution) => contribution.api?.knowledgeStore).find(Boolean) as KnowledgeStore | undefined;
-  // Without the knowledge base (`knowledgeBase: false`), `knowledgeDir` is a folder of the
-  // agent's own notes, kept with the file tools under its own rules; with it, the knowledge
-  // extension has it, reached only through its tools (ADR-024).
-  const notesDir = spec.knowledgeBase === false ? config.knowledgeDir : undefined;
+  // An extension may claim `knowledgeDir` as reached only through its tools (the knowledge base,
+  // ADR-024); otherwise it's a folder of the agent's own notes, kept with the file tools under
+  // its own rules.
+  const claimed = (dir: string) => fromExtensions((contribution) => contribution.toolOnlyDirs).some((only) => path.resolve(only.dir) === path.resolve(dir));
+  const notesDir = config.knowledgeDir && !claimed(config.knowledgeDir) ? config.knowledgeDir : undefined;
   const extraDirs = config.extraWritableDirs ?? [];
   const readableExtras = config.extraReadableDirs ?? [];
   // The file tools the session needs: all five for the notes and the extra writable folders,
@@ -111,18 +115,33 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const helpPlugin = spec.identity
     ? await writeAgentHelpPlugin(
         path.join(runDir, "agent-help"),
-        { mode, switchable: modeControl.switchable, extensionLines: fromExtensions((contribution) => contribution.helpLines) },
+        {
+          mode,
+          switchable: modeControl.switchable,
+          extensionLines: [
+            ...fromExtensions((contribution) => contribution.helpLines),
+            ...resolved.inactive.map(({ name, reason }) => `The ${name} extension isn't available here: it ${reason}.`),
+          ],
+        },
         spec.helpGuide,
       )
     : undefined;
   const pluginRoots = [
     ...spec.pluginRoots(config),
-    ...fromExtensions((contribution) => (contribution.pluginRoot ? [contribution.pluginRoot] : [])),
+    ...extensionPlugins,
     ...(helpPlugin ? [helpPlugin] : []),
   ];
   const includeSkillsAndPlugins = fileTools.length > 0 || pluginRoots.length > 0;
-  // "plugins": the skills of the plugins loaded, named as the SDK names them.
-  const offeredSkills = spec.skills === "plugins" ? await pluginSkills(pluginRoots) : spec.skills;
+  // "plugins": the skills of the plugins loaded, named as the SDK names them. A skill that
+  // `requires` a capability no active extension provides is left out; since the SDK's
+  // `skillOverrides` doesn't reach plugin skills (confirmed empirically), leaving one out takes
+  // a list: the plugins' skills and the project's, without it.
+  const missingCapabilities = await skillsMissingCapabilities(pluginRoots, resolved.capabilities);
+  const requested = spec.skills === "plugins" ? await pluginSkills(pluginRoots) : spec.skills;
+  const offeredSkills =
+    missingCapabilities.length && (requested === undefined || requested === "all")
+      ? [...(await pluginSkills(pluginRoots)), ...((spec.settingSources ?? ["project"]).includes("project") ? await projectSkills(config.projectDir) : [])]
+      : requested;
   const skillTools = includeSkillsAndPlugins ? ["Skill"] : [];
   // Whatever opt-in subagents `spec` wants for this config, or undefined if none apply.
   // Subagents need the Agent tool (to delegate to them), and Bash when one of them uses it
@@ -157,6 +176,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const promptSections = [
     spec.buildSystemPrompt(config),
     ...(spec.identity ? [identityPromptSection(spec.identity)] : []),
+    // What's on and what isn't, then the extensions' own sections.
+    ...(resolved.active.length || resolved.inactive.length ? [extensionsPromptSection(resolved)] : []),
     // The extensions' own sections, in their order (the sources' before the knowledge base's).
     ...fromExtensions((contribution) => (contribution.promptSection ? [contribution.promptSection] : [])),
   ];
@@ -224,7 +245,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           // SDK's own official skills (pdf/docx), the project's own custom ones, and the
           // plugin-provided built-ins below. A spec's own list gets the extensions' skills
           // and agent-help added, so it only names its own.
-          skills: skillList(offeredSkills, [...fromExtensions((contribution) => contribution.skills), ...(helpPlugin ? [AGENT_HELP_SKILL] : [])]),
+          skills: skillList(offeredSkills, [...(await pluginSkills(extensionPlugins)), ...(helpPlugin ? [AGENT_HELP_SKILL] : [])], missingCapabilities),
           plugins: pluginRoots.map((pluginPath) => ({ type: "local" as const, path: pluginPath, skipMcpDiscovery: true })),
         }
       : {}),
@@ -342,9 +363,15 @@ export async function pluginSkills(roots: readonly string[]): Promise<string[]> 
   return names;
 }
 
-function skillList(skills: string[] | "all" | undefined, added: readonly string[]): string[] | "all" {
+function skillList(skills: string[] | "all" | undefined, added: readonly string[], leftOut: readonly string[]): string[] | "all" {
   if (skills === undefined || skills === "all") return "all";
-  return [...new Set([...skills, ...added])];
+  return [...new Set([...skills, ...added])].filter((skill) => !leftOut.includes(skill));
+}
+
+/** The project's own skills (`<projectDir>/.claude/skills/<name>/SKILL.md`), by name. */
+async function projectSkills(projectDir: string): Promise<string[]> {
+  const folders = await readdir(path.join(projectDir, ".claude", "skills"), { withFileTypes: true }).catch(() => []);
+  return folders.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 }
 
 /**

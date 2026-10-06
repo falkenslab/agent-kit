@@ -36,6 +36,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "capabilities/tools-and-mcp",
         "capabilities/skills-and-plugins",
+        "capabilities/extensions",
         "capabilities/subagents",
         "capabilities/knowledge-base",
         "capabilities/knowledge-store",
