@@ -230,7 +230,7 @@ They're separate on purpose: **each owns its data, and the model connects them**
 
 The model matches them, as the `knowledge-ingest` and `knowledge-lint` skills tell it:
 
-- **To ingest**: an original that no summary is about needs ingesting; one whose `changedAt` (from `list_sources`) is after its summary's `ingested` (from `knowledge_index`) changed since, and its summary is redone with `knowledge_rewrite`, which sets `ingested` again. The dates are compared with `date_math`, one original at a time, not by eye.
+- **To ingest**: an original that no summary is about needs ingesting; one whose `changedAt` (from `list_sources`) is after its summary's `ingested` (from `knowledge_index`) changed since, and its summary is redone with `knowledge_rewrite`, which sets `ingested` again. Both dates are ISO 8601 in UTC, so the later one sorts after as text; `date_math` is there if in doubt. (A rule to always use `date_math` was dropped: in real sessions the model compared them as text, correctly, and skipped the tool.)
 - **To retire**: after `retire_source`, the knowledge base's own tools retire or supersede the summaries, with the person's approval.
 
 The model only carries short identifiers (an original's path, a page id) and dates between them, never data that must be exact. The kit doesn't check that a summary's `file` exists, nor marks summaries when an original goes: a lint (`/knowledge:lint`) finds what was missed.

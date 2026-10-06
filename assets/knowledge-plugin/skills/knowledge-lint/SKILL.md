@@ -20,7 +20,7 @@ A knowledge base maintained across sessions drifts. Lint it when asked and after
 When there's a sources folder, match `list_sources` with `knowledge_index`:
 
 - **Not ingested**: present originals no summary is about. Report them as what to ingest next (or do it, if asked).
-- **Behind**: summaries whose original's `changedAt` is after their `ingested`, compared with `date_math` one at a time. Report them as what to update.
+- **Behind**: summaries whose original's `changedAt` is after their `ingested`, (ISO 8601 in UTC: the later one sorts after as text). Report them as what to update.
 - **Retired or missing originals**: summaries still active whose original is retired (`knowledge_retire` them if it was wrong, which asks the person itself, or `knowledge_supersede` them if it was replaced) or missing (report them); and the passages that cite them (`knowledge_search` the file name).
 
 ## 3. The checks that need judgement

@@ -14,7 +14,7 @@ The sources and the knowledge base each keep their own data; you match them:
 - `list_sources` gives each original with `changedAt`, when its content last changed.
 - `knowledge_index` gives each summary with `file`, the original it's about, and `ingested`, when it was written.
 
-An original with no summary needs ingesting. One whose `changedAt` is after its summary's `ingested` changed since: update its summary (`knowledge_rewrite`, which sets `ingested` again). Compare the two dates with `date_math`, one original at a time, never by eye. For a document from elsewhere, `knowledge_search` its title or URL.
+An original with no summary needs ingesting. One whose `changedAt` is after its summary's `ingested` changed since: update its summary (`knowledge_rewrite`, which sets `ingested` again). Both dates are ISO 8601 in UTC, so the later one sorts after as text; use `date_math` if in doubt. For a document from elsewhere, `knowledge_search` its title or URL.
 
 ## 2. Read it for real
 

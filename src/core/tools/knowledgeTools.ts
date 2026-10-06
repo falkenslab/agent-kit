@@ -202,7 +202,7 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
 
   const check = tool(
     "knowledge_check",
-    "The knowledge base's mechanical problems in one call: broken links, orphan pages and links to retired pages. Fix what's mechanical; report what needs the person. Whether its summaries are up to date with their originals is a comparison you make: list_sources' changedAt against each summary's ingested (knowledge_index shows them), with date_math.",
+    "The knowledge base's mechanical problems in one call: broken links, orphan pages and links to retired pages. Fix what's mechanical; report what needs the person. Whether its summaries are up to date with their originals is a comparison you make: list_sources' changedAt against each summary's ingested (knowledge_index shows them): both ISO 8601 in UTC, the later one sorts after as text.",
     {},
     async () => attempt(async () => JSON.stringify(await store.check(), null, 2)),
     { annotations: { readOnlyHint: true } },

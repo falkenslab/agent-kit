@@ -176,7 +176,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
 
   const listSourcesTool = tool(
     "list_sources",
-    "List the originals in sources/: present, missing (deleted by hand) or retired (when, why, what replaced it); with changedAt (when its content last changed, ISO 8601: compare it with when something was built from it, using date_math), type, size, pages of a PDF or slides of a PPTX (read long ones in parts), provenance and the version it replaces. Use it instead of listing the folder.",
+    "List the originals in sources/: present, missing (deleted by hand) or retired (when, why, what replaced it); with changedAt (when its content last changed, ISO 8601 in UTC: a later date sorts after as text, to compare with when something was built from it), type, size, pages of a PDF or slides of a PPTX (read long ones in parts), provenance and the version it replaces. Use it instead of listing the folder.",
     {},
     async () => {
       try {

@@ -49,7 +49,7 @@ test("the knowledge base's section speaks of pages and tools, not files, lists t
   assert.match(section, /knowledge_search/);
   assert.match(section, /`topic` \(A course topic\.\)/);
   assert.doesNotMatch(section, /index\.md|`Grep`|`Write`|`Edit`|Originals/);
-  assert.match(section, /`changedAt`[\s\S]*`ingested`[\s\S]*`date_math`/);
+  assert.match(section, /`changedAt`[\s\S]*`ingested`[\s\S]*sorts after as text/);
   assert.doesNotMatch(knowledgePromptSection(), /changedAt|list_sources/);
 });
 
