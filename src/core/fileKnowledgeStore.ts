@@ -213,7 +213,8 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
   /** The notice under the frontmatter of a superseded or retired page. */
   const withNotice = (body: string, notice: string): string => `> ${notice}\n\n${body.replace(/^> (Superseded|Retired) on [^\n]*\n\n/, "")}`;
 
-  async function indexText(): Promise<string> {
+  /** The catalog: with links as ids (`summary/kitchen`) for the tools, or as files for `index.md`. */
+  async function indexText(links: "ids" | "files" = "ids"): Promise<string> {
     const pages = (await allPages()).filter((p) => statusOf(p) !== "retired");
     const lines = ["# Index", ""];
     for (const type of types) {
@@ -223,7 +224,7 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
       for (const page of own) {
         const extras = (type.indexFields ?? []).filter((f) => page.fields.get(f)).map((f) => `${f}: ${page.fields.get(f)}`);
         const status = statusOf(page) === "superseded" ? " (superseded)" : "";
-        lines.push(`- [${titleOf(page)}](${posix(path.relative(knowledgeDir, page.file))}) — ${descriptionOf(page)}${extras.length ? ` (${extras.join(", ")})` : ""}${status}`);
+        lines.push(`- [${titleOf(page)}](${links === "ids" ? page.id : posix(path.relative(knowledgeDir, page.file))}) — ${descriptionOf(page)}${extras.length ? ` (${extras.join(", ")})` : ""}${status}`);
       }
       lines.push("");
     }
@@ -232,7 +233,7 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
 
   async function writeIndex(): Promise<void> {
     await mkdir(knowledgeDir, { recursive: true });
-    await writeFile(path.join(knowledgeDir, "index.md"), await indexText());
+    await writeFile(path.join(knowledgeDir, "index.md"), await indexText("files"));
   }
 
   async function pagesByFile(): Promise<{ pages: StoredPage[]; byFile: Map<string, string> }> {
@@ -354,7 +355,7 @@ export function createFileKnowledgeStore(knowledgeDir: string, options: FileKnow
         .map(({ id, title, snippet }) => ({ id, title, snippet }));
     },
 
-    index: indexText,
+    index: () => indexText("ids"),
 
     async recentLog(limit = 10) {
       const text = await readFile(path.join(knowledgeDir, "log.md"), "utf8").catch(() => "");

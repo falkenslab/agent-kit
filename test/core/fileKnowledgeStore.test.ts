@@ -148,7 +148,10 @@ test("declared page types: at the root, with their index section and fields", as
     await assert.rejects(store.create("topic", "index", "Index", "x"), /reserved/);
     await store.create("topic", "knots", "Knots", "Tie a [bowline](topic/knots).", { mastery: "2" });
     assert.ok(await readFile(path.join(kb.k, "knots.md"), "utf8"));
-    assert.match(await store.index(), /## Topics\n\n- \[Knots\]\(knots\.md\) — Tie a bowline\. \(mastery: 2\)/);
+    // The tools get the catalog by id, as everything the model reads (found by a real session:
+    // with file paths it called knowledge_read("summaries/kitchen.md")); index.md keeps file links.
+    assert.match(await store.index(), /## Topics\n\n- \[Knots\]\(topic\/knots\) — Tie a bowline\. \(mastery: 2\)/);
+    assert.match(await readFile(path.join(kb.k, "index.md"), "utf8"), /## Topics\n\n- \[Knots\]\(knots\.md\) — Tie a bowline\. \(mastery: 2\)/);
     assert.equal((await store.read("topic/knots"))?.title, "Knots");
     // A markdown file at the root of another type isn't a topic.
     await writeFile(path.join(kb.k, "notes.md"), "---\ntype: other\n---\n\n# Notes\n");

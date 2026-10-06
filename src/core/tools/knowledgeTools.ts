@@ -171,7 +171,7 @@ export function createKnowledgeServer(store: KnowledgeStore, options: KnowledgeT
 
   const retire = tool(
     "knowledge_retire",
-    "Retire a page whose knowledge was wrong (e.g. learned from a wrong original), after the person approves: it leaves the index and the search but is kept. Then fix the pages that link to it (knowledge_check lists them).",
+    "Retire a page whose knowledge was wrong (e.g. learned from a wrong original). It asks the person itself, with a panel: don't ask them first. Retired, it leaves the index and the search but is kept. Then fix the pages that link to it (knowledge_check lists them).",
     { page: z.string(), reason: z.string().describe("Why, in one sentence, in the language you reply in") },
     async (args) =>
       attempt(async () => {

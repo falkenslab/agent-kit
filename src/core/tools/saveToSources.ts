@@ -276,7 +276,7 @@ export function createSaveToSourcesServer(runDir: string, sourcesDir: string, de
 
   const retire = tool(
     "retire_source",
-    'Retire an original that was wrong ("wrong") or replaced by a better one ("replaced"), after the person approves it: it\'s moved to sources/.agent-kit/retired/ (never deleted), and list_sources shows it as retired. What you built from it is yours to review afterwards.',
+    'Retire an original that was wrong ("wrong") or replaced by a better one ("replaced"). It asks the person itself, with a panel: don\'t ask them first. Approved, it\'s moved to sources/.agent-kit/retired/ (never deleted), and list_sources shows it as retired. What you built from it is yours to review afterwards.',
     {
       source: z.string().describe("The original, relative to sources/"),
       why: z.enum(["wrong", "replaced"]),

@@ -41,7 +41,7 @@ interface KnowledgeStore {
   supersede(id: string, by: string, reason?: string): Promise<void>;
   retire(id: string, reason: string): Promise<void>;
   search(query: string, limit?: number): Promise<SearchHit[]>;
-  index(): Promise<string>;
+  index(): Promise<string>; // the catalog, linked by id
   log(operation: string, what: string, pages?: readonly string[]): Promise<void>;
   recentLog?(limit?: number): Promise<string[]>; // optional: the latest log entries, newest first
   check(): Promise<CheckReport>;
@@ -52,7 +52,7 @@ interface KnowledgeStore {
 
 What a store must keep, whatever it stores the pages in:
 
-- **Ids are `type/slug`**, and links in content are `[text](type/slug)`: return them that way from `read()`, whatever you keep internally. `parseId()` and `linkedIds()` are exported to help.
+- **Ids are `type/slug`**, and links in content are `[text](type/slug)`: return them that way from `read()` and `index()`, whatever you keep internally (the kit's store writes file links in `index.md` on disk, but the tools get ids). `parseId()` and `linkedIds()` are exported to help.
 - **Links must resolve**: `create`, `createMany`, `edit`, `rewrite` and `writeOverview` refuse a link to a page that doesn't exist, with a message the model can act on (the tools pass errors through as they are).
 - **Pages are never deleted or renamed.** `supersede` and `retire` mark them (`fields.status`: `superseded` or `retired`); a retired page leaves `list()`, `index()` and `search()`, but `read()` still returns it.
 - **`edit` replaces exactly one occurrence**, and fails if there's none or several.

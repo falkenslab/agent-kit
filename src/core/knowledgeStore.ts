@@ -107,7 +107,7 @@ export interface KnowledgeStore {
   retire(id: string, reason: string): Promise<void>;
   /** Pages matching words of `query` in their title, aliases or body, best first. */
   search(query: string, limit?: number): Promise<SearchHit[]>;
-  /** The catalog: every active or superseded page, one line each, by section. */
+  /** The catalog: every active or superseded page, one line each, by section, linked by id (`concept/bowline`), as everything the model reads. */
   index(): Promise<string>;
   /** Adds an entry to the operation log, dated today. */
   log(operation: string, what: string, pages?: readonly string[]): Promise<void>;
