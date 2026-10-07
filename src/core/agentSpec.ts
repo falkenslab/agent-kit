@@ -44,7 +44,7 @@ export interface BaseSessionConfig {
   /**
    * The memory of the person (the `memory` extension, #34): a folder of the agent's own outside
    * any project, e.g. `~/.miyagi/memory`, kept across all the person's projects. Never share it
-   * with another agent. The extension needs it; only its `memory_*` tools reach it.
+   * with another agent. The extension needs it; only its tools (`recall`, `remember`, `forget`) reach it.
    */
   memoryDir?: string;
   /** Directories besides `knowledgeDir`/`sourcesDir` where Write/Edit are allowed (see hooks/fileScopeGate.ts). */

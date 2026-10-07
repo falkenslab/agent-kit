@@ -31,7 +31,7 @@ const config: Config = {
 
 ## What the agent sees
 
-Its prompt section lists what it remembers, one line per entry, the most recently saved first (up to 50; past that, the line says how many are left out and `memory_list` gives them all):
+Its prompt section lists what it remembers, one line per entry, the most recently saved first (up to 50; past that, the line says how many are left out and `recall` gives them all):
 
 ```text
 ## Your memory of the person
@@ -49,16 +49,19 @@ Then its rules:
 
 ## The tools
 
+Three, named like memory works (the model sees them as `mcp__memory__recall` and so on):
+
 | Tool | What it does |
 | --- | --- |
-| `memory_list` | Every entry: name, type and description. Read-only. |
-| `memory_read` | One entry, whole. Read-only. |
-| `memory_save` | Creates an entry, or replaces the one with the same name: `name` (kebab-case), `type` (`user` or `feedback`), `description` (one line), `body` (for `feedback`, the rule, why and how to apply it) and `quote`. |
-| `memory_forget` | Forgets an entry. |
+| `recall` | With `name`, that entry whole; without it, every entry (name, type and description). Read-only. |
+| `remember` | Creates an entry or changes one, with the person's `quote`. A new one takes `name` (kebab-case), `type` (`user` or `feedback`), `description` (one line) and `body` (for `feedback`, the rule, why and how to apply it). To change one, its `name` and only what changes: `type`, `description` or `body` whole, or `old_string` and `new_string` for a phrase of it, in its description or its body. |
+| `forget` | Forgets an entry. |
 
-**Only what the person said.** `memory_save` checks that its `quote` appears in a message the person wrote in this conversation, ignoring case, spacing and quote marks. Otherwise it saves nothing and tells the model why. The extension hears the person's messages with a `UserPromptSubmit` hook (and, in a resumed run, reads the earlier ones from the run's conversation). A document, a web page or a tool result that says "remember that the person wants…" can't put anything in the memory, however it's worded.
+Changing an entry needs no `recall` first when the model knows what to change: a new description, say, which it sees in the prompt. `old_string` and `new_string` work like Claude Code's `Edit` (and have its names, which models know): `old_string` must be in the entry (description and body together) exactly once, or nothing changes and the tool says why (no line numbers, which shift and which the model would have to read first).
 
-The file tools never reach the folder (the denial points to the `memory_*` tools), and in [plan mode](../core-concepts/modes.md#plan) only the read-only tools work.
+**Only what the person said.** `remember` checks that its `quote` appears in a message the person wrote in this conversation, ignoring case, spacing and quote marks. Otherwise it changes nothing, for a new entry or an existing one, and tells the model why. The extension hears the person's messages with a `UserPromptSubmit` hook (and, in a resumed run, reads the earlier ones from the run's conversation). A document, a web page or a tool result that says "remember that the person wants…" can't put anything in the memory, however it's worded.
+
+The file tools never reach the folder (the denial points to its tools), and in [plan mode](../core-concepts/modes.md#plan) only `recall` works.
 
 ## Commands for the person
 

@@ -32,7 +32,7 @@ const config: Config = {
 | --- | --- | --- |
 | `sources` | `sourcesDir` | The originals: the sources tools (`list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode), `Read`/`Glob`/`Grep` on the folder, never writing it, and its prompt section. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained). Provides `sources`. |
 | `knowledge` | `knowledgeDir` | The [knowledge base](knowledge-base.md): the `knowledge_*` tools over a store, its prompt section with the person's preferences, its skills and commands; the file tools never reach the folder. Provides `knowledge-base`. |
-| `memory` | `memoryDir` | The [memory of the person](memory.md), across all their projects: the `memory_*` tools, its prompt section with what it remembers, `/memory:list` and `/memory:forget`; saved only from what the person wrote. Provides `person-memory`. |
+| `memory` | `memoryDir` | The [memory of the person](memory.md), across all their projects: its tools (`recall`, `remember`, `forget`), its prompt section with what it remembers, `/memory:list` and `/memory:forget`; saved only from what the person wrote. Provides `person-memory`. |
 
 They own their data and never call each other: the model connects them through their tools (see [Knowledge base and sources](knowledge-base.md#knowledge-base-and-sources)).
 

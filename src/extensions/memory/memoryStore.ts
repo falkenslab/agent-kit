@@ -5,7 +5,7 @@ import { frontmatter } from "../../core/pluginAgents.js";
 /**
  * The memory of the person (#34): one markdown file per entry in the agent's own folder, outside
  * any project, like Claude Code's auto-memory (a name, a one-line description, a type, the body).
- * Only the `memory_*` tools reach it.
+ * Only its tools (`recall`, `remember`, `forget`) reach it.
  */
 
 /** What an entry is about: who the person is, or how they want things done. */
@@ -24,6 +24,18 @@ export interface MemoryEntry {
   body: string;
   /** When it was last saved, ISO 8601 in UTC. */
   updated: string;
+}
+
+/**
+ * What `remember` changes: everything for a new entry; for an existing one, only what's given
+ * (a field whole, or `replace`, an exact text of its description or body, found once in the two,
+ * and its replacement).
+ */
+export interface MemoryChanges {
+  type?: MemoryType;
+  description?: string;
+  body?: string;
+  replace?: { old: string; new: string };
 }
 
 /** How many entries the system prompt lists, the most recently saved first (#34). */
@@ -60,15 +72,35 @@ export function createMemoryStore(dir: string) {
       return entries.sort((a, b) => (a.updated < b.updated ? 1 : a.updated > b.updated ? -1 : a.name.localeCompare(b.name)));
     },
     read,
-    /** Creates or replaces an entry; says which. */
-    async save(entry: Omit<MemoryEntry, "updated">): Promise<"created" | "updated"> {
-      const target = file(entry.name);
-      const existed = Boolean(await read(entry.name));
+    /**
+     * Creates an entry (it needs its type, description and body) or changes one (only what's
+     * given); says which. Throws, changing nothing, when something is missing or `replace.old`
+     * isn't in the description and body exactly once.
+     */
+    async remember(name: string, changes: MemoryChanges): Promise<"created" | "updated"> {
+      const target = file(name);
+      const current = await read(name);
+      if (changes.body !== undefined && changes.replace) throw new Error("Give the body whole or `old_string` and `new_string`, not both.");
+      let body = changes.body ?? current?.body;
+      let description = changes.description ?? current?.description;
+      if (changes.replace) {
+        if (!current) throw new Error(`There's no entry "${name}" to replace text in.`);
+        const { old, new: replacement } = changes.replace;
+        if (!old) throw new Error("`old_string` is empty: give the text to replace.");
+        const count = (text: string): number => text.split(old).length - 1;
+        const found = count(description ?? "") + count(body ?? "");
+        if (found !== 1) throw new Error(found ? `"${old}" is in the entry ${found} times: give a longer text that's there once.` : `"${old}" isn't in the entry: recall it to see its text.`);
+        if (count(description ?? "")) description = description!.replace(old, () => replacement);
+        else body = body!.replace(old, () => replacement);
+      }
+      const type = changes.type ?? current?.type;
+      if (!type || !description || body === undefined) throw new Error(`There's no entry "${name}" yet: a new one needs its type, description and body.`);
+      const entry = { name, type, description, body };
       const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
       await mkdir(dir, { recursive: true });
       const text = `---\nname: ${entry.name}\ndescription: ${oneLine(entry.description)}\ntype: ${entry.type}\nupdated: ${new Date().toISOString()}\n---\n\n${entry.body.trim()}\n`;
       await writeFile(target, text, "utf8");
-      return existed ? "updated" : "created";
+      return current ? "updated" : "created";
     },
     /** Forgets an entry; false when there was none. */
     async forget(name: string): Promise<boolean> {

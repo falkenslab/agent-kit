@@ -53,10 +53,9 @@ An [extension](../capabilities/extensions.md) brings its tools' labels with what
 | `knowledge` | `knowledge_retire` | `Retiring <page>` |
 | `knowledge` | `knowledge_log` | `Updating the knowledge base's log` |
 | `knowledge` | `knowledge_check` | `Checking the knowledge base` |
-| `memory` | `memory_list` | `Looking through what it remembers of you` |
-| `memory` | `memory_read` | `Recalling "<entry>"` |
-| `memory` | `memory_save` | `Remembering "<entry>"` |
-| `memory` | `memory_forget` | `Forgetting "<entry>"` |
+| `memory` | `recall` | `Looking through what it remembers of you`, or `Recalling "<entry>"` with a name |
+| `memory` | `remember` | `Remembering "<entry>"` |
+| `memory` | `forget` | `Forgetting "<entry>"` |
 
 For your own extension, give each tool, by its full name, a `label` from its input and, optionally, the `phrase` it counts with in a [folded summary](#folded-summaries), in the kit's language (`getLanguage()`, already chosen when `contribute()` runs):
 
