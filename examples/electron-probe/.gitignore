@@ -1,0 +1,7 @@
+node_modules/
+dist/
+logs*/
+agent-kit.tgz
+# Pins the packed kit's hash, which changes with every pack.
+package-lock.json
+falkenslab-agent-kit-*.tgz

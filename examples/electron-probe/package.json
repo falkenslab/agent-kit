@@ -1,0 +1,33 @@
+{
+  "name": "agent-kit-electron-probe",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Does a packaged Electron app run an agent-kit agent through the SDK? The probe of ADR-026.",
+  "author": "Falkenslab",
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "pack-kit": "node scripts/pack-kit.mjs",
+    "patch": "node scripts/patch-asar-paths.mjs",
+    "start": "electron .",
+    "dist": "electron-builder --win --dir"
+  },
+  "dependencies": {
+    "@falkenslab/agent-kit": "file:./agent-kit.tgz"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "dev.falkenslab.agentkit.probe",
+    "productName": "Agent Kit Probe",
+    "files": ["main.mjs", "package.json", "node_modules/**/*"],
+    "asarUnpack": [
+      "node_modules/@anthropic-ai/claude-agent-sdk-*/**",
+      "node_modules/@falkenslab/agent-kit/assets/**",
+      "node_modules/@falkenslab/agent-kit/extensions/**"
+    ],
+    "win": { "target": "dir" }
+  }
+}
