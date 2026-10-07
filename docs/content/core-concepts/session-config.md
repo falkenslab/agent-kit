@@ -25,6 +25,7 @@ interface Config extends BaseSessionConfig {
 | `projectDir` | `string` | yes | The project root: the session's working directory when the agent has file tools or plugins, and the base for relative paths in the file scope. |
 | `knowledgeDir` | `string` | no | The agent's notes: with the `knowledge` [extension](../capabilities/extensions.md), the [knowledge base](../capabilities/knowledge-base.md), reached through its own tools; without it, a folder of its own notes with the file tools. |
 | `sourcesDir` | `string` | no | Originals, kept as obtained: readable and searchable, never writable. With the `sources` [extension](../capabilities/extensions.md), the [sources tools](../capabilities/knowledge-base.md#sources-originals-kept-as-obtained) and the reading file tools. |
+| `memoryDir` | `string` | no | The agent's [memory of the person](../capabilities/memory.md), with the `memory` extension: a folder of its own outside any project, never shared with another agent, reached only through its tools. |
 | `extraWritableDirs` | `string[]` | no | More folders where `Write`/`Edit` are allowed (and `Grep` searches). |
 | `extraReadableDirs` | `string[]` | no | More folders the agent may read and search (`Read`, `Glob`, `Grep`), never write. Besides them and its own folders, the agent reads nothing on the disk (see [What the agent can read](../security/file-scope.md#what-the-agent-can-read)). |
 | `deniedPaths` | `string[]` | no | Files or folders the agent must never read, search or write, e.g. a config file holding a password. |

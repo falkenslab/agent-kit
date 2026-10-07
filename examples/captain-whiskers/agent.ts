@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { appendFile, copyFile, mkdir, readdir, readFile, stat } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pc from "picocolors";
@@ -159,7 +160,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
   // solo llegan al cofre (treasure/), y nada puede escribir en él.
   // Las extensiones con las que navega (ADR-025): el cofre (sources, en treasure/) y el cuaderno
   // (knowledge, en logbook/), que son del kit, y su libro de chistes, que es suyo.
-  extensions: ["sources", "knowledge", jokebookExtension],
+  extensions: ["sources", "knowledge", "memory", jokebookExtension],
   knowledgePageTypes: [JOKE_PAGE],
   // Solo las skills de sus plugins (las suyas, las del cuaderno y agent-help), no la veintena
   // que trae el SDK, y ninguna configuración de Claude Code de quien lo ejecute.
@@ -209,6 +210,9 @@ async function main(): Promise<void> {
     projectDir: __dirname,
     knowledgeDir: logbook,
     sourcesDir: treasure,
+    // Lo que recuerda de quien navega con él, en todos sus proyectos: fuera de este, en su
+    // carpeta de usuario y solo suya (CAPTAIN_MEMORY_DIR la cambia, p. ej. para probar).
+    memoryDir: process.env.CAPTAIN_MEMORY_DIR || path.join(os.homedir(), ".captain-whiskers", "memory"),
   };
 
   // Cuánto de las herramientas enseña el chat: CAPTAIN_TOOL_DETAIL=full (por defecto), calls

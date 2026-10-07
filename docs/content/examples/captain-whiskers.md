@@ -88,7 +88,7 @@ Asked how to do something, he loads the kit's `agent-help` skill: the chat's par
 
 ### Bring his own extension
 
-Besides the kit's `sources` and `knowledge`, he runs with one of his own, `jokebook`: a plugin in his project and the code that says what it brings. Its tool, `classic_joke`, tells a classic from his jokebook; its skill, `rank-jokes`, ranks his logbook's jokes, and requires the `knowledge-base` capability, so it's only offered with the logbook on. See [Extensions](../capabilities/extensions.md).
+Besides the kit's `sources`, `knowledge` and `memory` (what he remembers of whoever sails with him, in `~/.captain-whiskers/memory/`, across all their projects: see [Memory of the person](../capabilities/memory.md)), he runs with one of his own, `jokebook`: a plugin in his project and the code that says what it brings. Its tool, `classic_joke`, tells a classic from his jokebook; its skill, `rank-jokes`, ranks his logbook's jokes, and requires the `knowledge-base` capability, so it's only offered with the logbook on. See [Extensions](../capabilities/extensions.md).
 
 ### Speak your language
 
@@ -219,7 +219,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildMcpServers: () => ({}),
   pluginRoots: () => [path.join(__dirname, "plugin")],
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
-  extensions: ["sources", "knowledge", jokebookExtension],
+  extensions: ["sources", "knowledge", "memory", jokebookExtension],
   knowledgePageTypes: [JOKE_PAGE],
   skills: "plugins",
   settingSources: [],
@@ -238,7 +238,13 @@ const runsDir = path.join(__dirname, ".run");
 const modes: Mode[] = ["autonomous", "guided", "interactive", "plan"];
 const mode = modes.find((m) => m === process.env.CAPTAIN_MODE) ?? "guided";
 await stockTheChest(treasure); // the samples, on the first start
-const config: BaseSessionConfig = { mode, projectDir: __dirname, knowledgeDir: logbook, sourcesDir: treasure };
+const config: BaseSessionConfig = {
+  mode,
+  projectDir: __dirname,
+  knowledgeDir: logbook,
+  sourcesDir: treasure,
+  memoryDir: process.env.CAPTAIN_MEMORY_DIR || path.join(os.homedir(), ".captain-whiskers", "memory"),
+};
 const toolDetail = details.find((d) => d === process.env.CAPTAIN_TOOL_DETAIL) ?? "full";
 
 await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {

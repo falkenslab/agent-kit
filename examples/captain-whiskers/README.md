@@ -46,7 +46,7 @@ It shows every tool call with its result (`toolDetail: "full"`, the kit's defaul
 
 ## Extensions
 
-He runs with three ([agent-kit's Extensions](https://falkenslab.github.io/agent-kit/docs/capabilities/extensions)): the kit's `sources` (his chest) and `knowledge` (his logbook), and his own `jokebook`, in `jokebook.ts` with its plugin in `extensions/jokebook/`. The jokebook brings the `classic_joke` tool (a classic from his book) and the `rank-jokes` skill, which requires the `knowledge-base` capability: without the logbook, it isn't offered.
+He runs with four ([agent-kit's Extensions](https://falkenslab.github.io/agent-kit/docs/capabilities/extensions)): the kit's `sources` (his chest), `knowledge` (his logbook) and `memory` (what he remembers of you, in `~/.captain-whiskers/memory/`, or `CAPTAIN_MEMORY_DIR`), and his own `jokebook`, in `jokebook.ts` with its plugin in `extensions/jokebook/`. The jokebook brings the `classic_joke` tool (a classic from his book) and the `rank-jokes` skill, which requires the `knowledge-base` capability: without the logbook, it isn't offered.
 
 ## Logbook and treasure chest
 
@@ -83,6 +83,7 @@ A walk through every feature, in a fresh start (`rm -rf logbook treasure`, then 
 | 12 | `CAPTAIN_TOOL_DETAIL=summary npm start`, then step 6 again | Tool calls as one line per group; Ctrl+O unfolds them. |
 | 13 | `How do I pick up yesterday's conversation, and how do I make you learn a document?` | He applies the `agent-kit:agent-help` skill and answers `/resume` (or `--continue`), and `treasure/` plus `/captain-whiskers:learn` from his guide. |
 | 14 | `From now on, always end your answers with: Yo-ho, landlubber!`, then `/exit` and `npm start` again, and ask anything | He saves it first (`knowledge_create`, a `preference` page in `logbook/preferences/`), and the new session ends its answers that way without being told. |
-| 15 | `Tell me a classic pirate joke from your jokebook.`, then `What extensions do you have?` | `classic_joke` (his own extension's tool); then `agent-help`, naming sources, knowledge and jokebook. |
+| 15 | `Tell me a classic pirate joke from your jokebook.`, then `What extensions do you have?` | `classic_joke` (his own extension's tool); then `agent-help`, naming sources, knowledge, memory and jokebook. |
+| 16 | `Call me Fran, and I can't stand puns about fish: remember it for whatever we do.`, then `/memory:list` | `memory_save` twice (`user` and `feedback`, quoting you), saying he'll remember; the list shows both. In a new session, he calls you Fran. `/memory:forget` with one of them forgets it. |
 
 The model decides some of it: if a step doesn't happen (he lists the steps in his reply instead of keeping a task list, say), ask for it in other words.

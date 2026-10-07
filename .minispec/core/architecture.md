@@ -10,7 +10,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 ## Two layers (ADR-001)
 
 - `src/core/` — never touches `console.*`, `process.stdout` or `readline`; usable from any Node host.
-- `src/extensions/<name>/` — the kit's internal extensions (ADR-025): `knowledge`, `sources`. Like the core, no terminal. They import the core; the core imports them only through `src/core/extensions.ts`, and no extension imports another (an ESLint rule enforces both).
+- `src/extensions/<name>/` — the kit's internal extensions (ADR-025): `knowledge`, `sources`, `memory`. Like the core, no terminal. They import the core; the core imports them only through `src/core/extensions.ts`, and no extension imports another (an ESLint rule enforces both).
 - `src/tui/` — the only code that assumes a terminal (`readline`, `picocolors`, `@inquirer/prompts`, Ink).
 - `src/index.ts` — the only file importing from both, and the whole public API (ADR-011).
 
@@ -18,7 +18,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 
 - `agentSpec.ts` — `AgentSpec<TConfig>`: system prompt, MCP servers, plugin roots, subagents, disallowed tools, approval/intervention texts. `BaseSessionConfig` + `Mode` (ADR-002).
 - `pluginAgents.ts` — a plugin's subagents (`agents/*.md`, named `<plugin>:<frontmatter name>` by the SDK), read so the session registers them like `buildSubagents()`'s: allowed, counted for `Agent`/`Bash`, with the reply line (a definition under the same key in `options.agents` replaces the plugin's, confirmed empirically).
-- `extensions.ts` — the extension interface (`Extension`: its name, its plugin, `missing()`, `contribute()`; `ExtensionContribution`: MCP servers, prompt section, file tools and folders, read-only and self-asking tools, agent-help lines, the host's API), the manifest (`plugin.json`'s `"agent-kit"` key: `provides`, `requires`), the registry of the kit's (`knowledge`, `sources`), `resolveExtensions()` (the spec's `extensions`, minus those missing something or requiring a capability nothing active provides), the prompt's Extensions section, and skills left out by their `requires:` (ADR-025).
+- `extensions.ts` — the extension interface (`Extension`: its name, its plugin, `missing()`, `contribute()`; `ExtensionContribution`: MCP servers, prompt section, file tools and folders, read-only and self-asking tools, hooks, chat labels, agent-help lines, the host's API), the manifest (`plugin.json`'s `"agent-kit"` key: `provides`, `requires`), the registry of the kit's (`knowledge`, `sources`, `memory`), `resolveExtensions()` (the spec's `extensions`, minus those missing something or requiring a capability nothing active provides), the prompt's Extensions section, and skills left out by their `requires:` (ADR-025).
 - `session.ts` — `buildSessionOptions()`: resolves `spec.extensions` and puts the active ones' contributions together (it names none of them); `knowledgeDir` no extension claims is the agent's own notes; tools, hooks and MCP servers per mode, the session's `ModeControl` (guided, interactive and plan live, ADR-016, ADR-023), `settingSources`/`skills`/auto-memory defaults (ADR-018), the reply language line (ADR-019) and, with `run`, the run store (ADR-020); `createInputQueue()`.
 - `language.ts` — `resolveLanguage()`: `--language`, option, system, English; the reply language line.
 - `messages/` — the kit's texts per language (`en` complete, `es`/`fr`/`de` falling back to it), the process's current language (`chooseLanguage()`, `setLanguage()`, `t()`) (ADR-019).
@@ -43,8 +43,10 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 
 ## Key pieces (`src/extensions/`)
 
-- `knowledge/` — `index.ts` (the extension: on with `knowledgeDir` unless `knowledgeBase: false`); `prompt.ts` (its prompt section, with the person's preferences, and its plugin root); `knowledgeStore.ts` (`KnowledgeStore`, `PageType`, the kit's page types: summary, concept, entity, synthesis, preference); `fileKnowledgeStore.ts` (the store over markdown files: index generated, backlinks computed, links as ids to the tools and relative paths on disk); `tools.ts` (the `knowledge_*` tools, ADR-024).
-- `sources/` — `index.ts` (the extension: on with `sourcesDir`); `tools.ts` (the sources folder's tools, `list_sources`, `save_to_sources`, `download_to_sources`, `extract_text`, and `request_file`, `retire_source` outside autonomous; its prompt section); `sources.ts` (their manifest, `sources/.agent-kit/sources.json`: statuses, `changedAt`, duplicates, versions and retiring); `extractText.ts` (DOCX/PPTX/XLSX to markdown, optional `mammoth`, `fflate`).
+- `knowledge/` — `index.ts` (the extension: needs `knowledgeDir`); `prompt.ts` (its prompt section, with the person's preferences, and its plugin root); `knowledgeStore.ts` (`KnowledgeStore`, `PageType`, the kit's page types: summary, concept, entity, synthesis, preference); `fileKnowledgeStore.ts` (the store over markdown files: index generated, backlinks computed, links as ids to the tools and relative paths on disk); `tools.ts` (the `knowledge_*` tools, ADR-024).
+- `sources/` — `index.ts` (the extension: needs `sourcesDir`); `tools.ts` (the sources folder's tools, `list_sources`, `save_to_sources`, `download_to_sources`, `extract_text`, and `request_file`, `retire_source` outside autonomous; its prompt section); `sources.ts` (their manifest, `sources/.agent-kit/sources.json`: statuses, `changedAt`, duplicates, versions and retiring); `extractText.ts` (DOCX/PPTX/XLSX to markdown, optional `mammoth`, `fflate`).
+- `memory/` — the memory of the person (#34): `index.ts` (the extension: needs `memoryDir`, a folder of the agent's own outside any project; its prompt section with the index; a `UserPromptSubmit` hook that hears the person); `memoryStore.ts` (one markdown file per entry: name, description, type `user`/`feedback`, `updated`); `tools.ts` (`memory_list`, `memory_read`, `memory_save`, which takes a quote that must be in the person's messages, `memory_forget`).
+- Each has `labels.ts`: its tools' chat labels in the kit's languages.
 
 ## Key pieces (`src/tui/`)
 

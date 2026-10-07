@@ -32,6 +32,7 @@ const config: Config = {
 | --- | --- | --- |
 | `sources` | `sourcesDir` | The originals: the sources tools (`list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode), `Read`/`Glob`/`Grep` on the folder, never writing it, and its prompt section. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained). Provides `sources`. |
 | `knowledge` | `knowledgeDir` | The [knowledge base](knowledge-base.md): the `knowledge_*` tools over a store, its prompt section with the person's preferences, its skills and commands; the file tools never reach the folder. Provides `knowledge-base`. |
+| `memory` | `memoryDir` | The [memory of the person](memory.md), across all their projects: the `memory_*` tools, its prompt section with what it remembers, `/memory:list` and `/memory:forget`; saved only from what the person wrote. Provides `person-memory`. |
 
 They own their data and never call each other: the model connects them through their tools (see [Knowledge base and sources](knowledge-base.md#knowledge-base-and-sources)).
 
@@ -66,7 +67,7 @@ requires: knowledge-base
 
 `requires: a`, `requires: [a, b]` and a YAML list all work. A skill left out this way isn't listed to the model and is refused by the `Skill` tool. Since the SDK's `skillOverrides` doesn't reach plugin skills, leaving one out makes the session's `skills` a list (the plugins' skills and the project's) even when the spec says `"all"`.
 
-The kit's capabilities are `sources` and `knowledge-base`; an agent names its own (miyagi's classroom capabilities, say), and two extensions may provide the same one.
+The kit's capabilities are `sources`, `knowledge-base` and `person-memory`; an agent names its own (miyagi's classroom capabilities, say), and two extensions may provide the same one.
 
 ## Writing your own
 
@@ -124,6 +125,7 @@ What a contribution may carry (every part optional):
 | `readOnlyTools` | Its tools that only read: [plan mode](../core-concepts/modes.md#plan) lets them through; every other MCP tool is denied there. |
 | `selfAskingTools` | Its tools that ask the person themselves (a panel): interactive mode doesn't ask before them. |
 | `toolLabels` | How the chat shows its tools, by full name: each one's line and how it counts in a folded summary, in the kit's language. See [An extension's labels](../terminal-ui/tool-labels.md#an-extensions-labels). |
+| `hooks` | Its SDK hooks, by event, run after the kit's own (the memory hears the person's messages with `UserPromptSubmit`). |
 | `helpLines` | What `agent-help` says about it in this session. |
 | `api` | What `buildSessionOptions()` hands back to the host (the knowledge extension returns its store as `knowledgeStore`). |
 

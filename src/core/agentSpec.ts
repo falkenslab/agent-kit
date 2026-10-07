@@ -41,6 +41,12 @@ export interface BaseSessionConfig {
    * Edit are scoped to `knowledgeDir` — and `save_to_sources` never overwrites.
    */
   sourcesDir?: string;
+  /**
+   * The memory of the person (the `memory` extension, #34): a folder of the agent's own outside
+   * any project, e.g. `~/.miyagi/memory`, kept across all the person's projects. Never share it
+   * with another agent. The extension needs it; only its `memory_*` tools reach it.
+   */
+  memoryDir?: string;
   /** Directories besides `knowledgeDir`/`sourcesDir` where Write/Edit are allowed (see hooks/fileScopeGate.ts). */
   extraWritableDirs?: string[];
   /**

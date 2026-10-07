@@ -87,7 +87,7 @@ What the person wants about how the agent works in this project ("rubrics go in 
 - **In every session**: the knowledge base's prompt section lists the active preferences by title (up to 20; past that, a pointer to the index), so the agent knows them from the first turn and reads one when a task touches it.
 - **When it changes** it's edited; **when it no longer holds** it's retired, with the person's approval, like any page. Nothing links to a preference, and it isn't an orphan for that.
 
-They're the project's: whoever opens it with the agent gets them. A memory of the person across projects, per agent, is a separate feature (#34); between agents there's none, on purpose.
+They're the project's: whoever opens it with the agent gets them. What's about the person wherever they work (their name, how they like any answer) goes in the agent's [memory of the person](memory.md), across all their projects; between agents there's none, on purpose.
 
 ## Your own page types
 

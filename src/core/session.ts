@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { HookCallbackMatcher, HookEvent, Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { createTranscriptLogger, type TranscriptLogger } from "./hooks/transcriptLogger.js";
 import { createStepGate } from "./hooks/stepGate.js";
 import { createSubagentBashGate } from "./hooks/subagentBashGate.js";
@@ -325,6 +325,13 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       PostToolUse: [{ hooks: [transcriptLogger.postToolUse] }],
     },
   };
+
+  // The extensions' own hooks (the memory hears the person's messages), after the kit's.
+  for (const contribution of added) {
+    for (const [event, matchers] of Object.entries(contribution.hooks ?? {}) as [HookEvent, HookCallbackMatcher[]][]) {
+      sdkOptions.hooks![event] = [...(sdkOptions.hooks![event] ?? []), ...matchers];
+    }
+  }
 
   const toolLabels: ToolLabels = Object.assign({}, ...added.map((contribution) => contribution.toolLabels ?? {}));
   return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, ...(knowledgeStore ? { knowledgeStore } : {}) };

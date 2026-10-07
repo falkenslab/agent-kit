@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
+import type { HookCallbackMatcher, HookEvent, McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
 import { frontmatter } from "./pluginAgents.js";
 import type { ToolLabels } from "./toolLabels.js";
 import { sourcesExtension } from "../extensions/sources/index.js";
 import { knowledgeExtension } from "../extensions/knowledge/index.js";
+import { memoryExtension } from "../extensions/memory/index.js";
 
 /**
  * Extensions (ADR-025): what an agent is besides the kit's core. An extension is a Claude Code
@@ -14,7 +15,7 @@ import { knowledgeExtension } from "../extensions/knowledge/index.js";
  * the capabilities it `provides` and `requires`), plus, for an internal one, the code that
  * says what it brings to a session. An agent enables the ones it wants (`AgentSpec.extensions`),
  * the kit's by name, its own as objects; `buildSessionOptions()` puts the contributions of the
- * active ones together, so the core names none of them. The kit's own (knowledge, sources) live
+ * active ones together, so the core names none of them. The kit's own (knowledge, sources, memory) live
  * in `src/extensions/<name>/`, their plugin in `extensions/<name>/`; this file is the only place
  * in the core that imports them (an ESLint rule keeps it so), and no extension imports another:
  * each owns its data, and the model connects them through their tools (#30).
@@ -49,6 +50,11 @@ export interface ExtensionContribution {
   selfAskingTools?: string[];
   /** How the chat shows its tools, by full name, in the kit's language: its line and how it counts in a folded group. */
   toolLabels?: ToolLabels;
+  /**
+   * Its hooks, by event, run after the kit's own: an internal extension's only (the memory
+   * hears the person's messages with `UserPromptSubmit`).
+   */
+  hooks?: Partial<Record<HookEvent, HookCallbackMatcher[]>>;
   /** Lines about it for agent-help's "This session" (its commands, its folder). */
   helpLines?: string[];
   /** What the session hands back to the host (e.g. the knowledge base's store), by name. */
@@ -89,7 +95,7 @@ export function readExtensionManifest(pluginRoot: string): ExtensionManifest {
 }
 
 /** The kit's internal extensions, by name. */
-export const BUILT_IN_EXTENSIONS: readonly Extension[] = [sourcesExtension, knowledgeExtension];
+export const BUILT_IN_EXTENSIONS: readonly Extension[] = [sourcesExtension, knowledgeExtension, memoryExtension];
 
 /** The extensions a session runs with, and the ones it can't, with why. */
 export interface ResolvedExtensions {

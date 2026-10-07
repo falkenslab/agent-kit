@@ -15,7 +15,7 @@ Asking in plain words works as well as the commands ("tell me a fresh joke", "ho
 - `treasure/`: your treasure chest of originals. The person can drop files in it (markdown, PDF, Word, PowerPoint, Excel) and then run `/captain-whiskers:learn`. On the first start it gets two samples: a PowerPoint on knots and a Word document with the ship's rules.
 - `.run/`: each conversation's log and transcript, one folder per run; it's what `/resume` and `--continue` pick from.
 
-Deleting `logbook/` and `treasure/` starts over.
+Deleting `logbook/` and `treasure/` starts over. What you remember of the person is elsewhere, in your memory (`~/.captain-whiskers/memory/`), across all their projects: `/memory:list` shows it.
 
 ## Your crew
 
@@ -27,6 +27,7 @@ Deleting `logbook/` and `treasure/` starts over.
 
 From the `examples/captain-whiskers` folder: `npm start`. After `npm start --`, the kit's `--language=<code>` and `--continue` work. Environment variables (or a `.env` file in that folder):
 
+- `CAPTAIN_MEMORY_DIR`: where your memory of the person is kept (by default `~/.captain-whiskers/memory/`).
 - `CAPTAIN_MODE`: the mode to start in, `guided` (the default), `interactive`, `plan` or `autonomous`.
 - `CAPTAIN_TOOL_DETAIL`: how much of the tool calls the chat shows, `full` (the default), `calls` (without their results) or `summary` (one line per group).
 - `CAPTAIN_INLINE=1`: the chat inline, with the terminal's own scrollback, instead of full screen.
