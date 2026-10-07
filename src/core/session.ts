@@ -19,6 +19,7 @@ import { extensionsPromptSection, resolveExtensions, skillsMissingCapabilities, 
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { AGENT_HELP_SKILL, identityPromptSection, writeAgentHelpPlugin } from "./agentHelp.js";
 import { pluginAgents } from "./pluginAgents.js";
+import { outsideArchive, unpackedClaudeExecutable } from "./packaged.js";
 import { listInstalled, loadExternalExtensions, type ExtensionDirs, type InstalledExtension } from "./externalExtensions.js";
 import type { ToolLabels } from "./toolLabels.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
@@ -143,11 +144,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
         spec.helpGuide,
       )
     : undefined;
-  const pluginRoots = [
-    ...spec.pluginRoots(config),
-    ...extensionPlugins,
-    ...(helpPlugin ? [helpPlugin] : []),
-  ];
+  // Outside the archive when the agent runs packaged (Electron's app.asar): the CLI reads them (#42).
+  const pluginRoots = [...spec.pluginRoots(config), ...extensionPlugins, ...(helpPlugin ? [helpPlugin] : [])].map(outsideArchive);
   const includeSkillsAndPlugins = fileTools.length > 0 || pluginRoots.length > 0;
   // "plugins": the skills of the plugins loaded, named as the SDK names them. A skill that
   // `requires` a capability no active extension provides is left out; since the SDK's
@@ -210,7 +208,10 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     ...fromExtensions((contribution) => (contribution.promptSection ? [contribution.promptSection] : [])),
   ];
 
+  // Packaged, the SDK would look for its CLI binary inside the archive, and hang (#42).
+  const claudeExecutable = unpackedClaudeExecutable();
   const sdkOptions: Options = {
+    ...(claudeExecutable ? { pathToClaudeCodeExecutable: claudeExecutable } : {}),
     systemPrompt: withReplyLine(promptSections.join("\n\n")),
     // Not the SDK's default (every source): "user" hands the agent the runner's own Claude
     // Code configuration, and its `language` setting outranked the agent's prompt.

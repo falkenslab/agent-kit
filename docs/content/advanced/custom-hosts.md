@@ -90,6 +90,33 @@ export async function startAgent(window: BrowserWindow, workspace: string): Prom
 
 The renderer draws `chat:state`: the transcript, a spinner while `busy`, the mode, and a dialog for `panel`.
 
+## Packaging an Electron app
+
+The agent runs inside the application, packaged by `electron-builder` into an `asar` archive. Electron reads files inside it for its own process, but another process can't: the Claude Code CLI, which the SDK starts as a native binary (`@anthropic-ai/claude-agent-sdk-<platform>-<arch>`, 209 MB on Windows), and which reads the agent's plugins. So the build unpacks them:
+
+```json title="package.json"
+{
+  "build": {
+    "asarUnpack": [
+      "node_modules/@anthropic-ai/claude-agent-sdk-*/**",
+      "node_modules/@falkenslab/agent-kit/assets/**",
+      "node_modules/@falkenslab/agent-kit/extensions/**",
+      "plugin/**"
+    ]
+  }
+}
+```
+
+The last line is the agent's own plugin folder, wherever it is. The kit does the rest: when it runs from inside `app.asar`, every path it hands to another process (the plugins, the extension launcher) points at `app.asar.unpacked`, and it gives the SDK the unpacked CLI binary (`pathToClaudeCodeExecutable`). Without them, a packaged agent fails silently: its first turn hangs, or its skills are missing.
+
+Also:
+
+- **`ELECTRON_RUN_AS_NODE`**: with it in the environment (VS Code's terminal sets it), Electron runs as plain Node and the app fails at its first `import { app } from "electron"`. Unset it when you start the app from such a terminal.
+- **Size**: about 630 MB unpacked on Windows (Electron about 250 MB, the CLI binary 209 MB).
+- **Signing**: `electron-builder` signs every executable it packs, the CLI binary included.
+
+`examples/electron-probe/` in the repository is a minimal packaged app that checks all this.
+
 ## Things to take care of
 
 - **Don't import the terminal UI at startup if you don't need it.** Everything is exported from the package root; importing it installs the terminal interaction port, which `panels: "state"` (or your own `setInteractionPort()`) replaces. The terminal port does nothing without a TTY anyway.

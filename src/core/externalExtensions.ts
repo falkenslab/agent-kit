@@ -11,6 +11,7 @@ import type { Language } from "./language.js";
 import { getLanguage, type ToolPhrase } from "./messages/index.js";
 import { truncate, type ToolLabels } from "./toolLabels.js";
 import { agentKitVersion } from "./version.js";
+import { outsideArchive } from "./packaged.js";
 
 /**
  * External extensions (ADR-025, #37): installed into an agent, for all its projects (the
@@ -282,7 +283,8 @@ export async function listInstalled(dirs: ExtensionDirs): Promise<InstalledExten
 
 /** The launcher that starts an external extension's server with a clean environment. */
 export function extensionLauncherPath(): string {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", "extension-launcher.mjs");
+  // Node runs it as another process: outside the archive when packaged (#42).
+  return outsideArchive(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", "extension-launcher.mjs"));
 }
 
 /** Its tools' chat labels in the kit's language, from its manifest: `{field}` takes the input; for each of its servers. */
