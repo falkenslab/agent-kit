@@ -13,7 +13,8 @@ An agent on the kit can be installed and used as a desktop application by people
 
 ## Changes
 
-- **Probe first**: a packaged Electron app (Windows, then macOS) that starts Captain Whiskers through the SDK and completes a turn with tools. If it fails, ADR-026 changes before anything else.
+- **Probe**: done on Windows (7 October 2026, see ADR-026): a packaged app runs an agent through the chat controller, with two fixes. Left: macOS (and its notarization with the CLI binary inside).
+- **Paths outside the archive**: when the kit runs inside an `asar` archive, every path it hands to another process is rewritten to `app.asar.unpacked`: the CLI binary (`pathToClaudeCodeExecutable`, resolved from the SDK's platform package), its extensions' plugins, the extension launcher, an agent's plugins. The template unpacks them (`asarUnpack`). The shell clears `ELECTRON_RUN_AS_NODE` for the processes it starts.
 - The kit's application shell: an Electron main process that starts the agent's web host on a free local port with a token and loads it in its window (the token never leaves the process); native folder and file pickers and notifications through a preload bridge; the agent's name, icon and theme.
 - Signing in without a terminal: pasting an API key or signing in with the account, kept in the operating system's credential store.
 - A guided first start: language, the working folder, what the agent does.
