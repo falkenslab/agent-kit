@@ -95,7 +95,6 @@ export interface Messages {
   labels: {
     askingApproval(summary: string): string;
     waitingManual: string;
-    savingToSources(destination: string): string;
     checkingTime: string;
     calculatingDates: string;
     reading(file: string): string;
@@ -114,21 +113,6 @@ export interface Messages {
     applyingSkill(skill: string): string;
     aSkill: string;
     updatingTasks: string;
-    listingSources: string;
-    extractingText(source: string): string;
-    downloading(url: string): string;
-    requestingFile(description: string): string;
-    retiringSource(source: string): string;
-    knowledgeIndex: string;
-    knowledgeSearch(query: string): string;
-    knowledgeRead(page: string): string;
-    knowledgeCreate(page: string): string;
-    knowledgeEdit(page: string): string;
-    knowledgeRewrite(page: string): string;
-    knowledgeSupersede(page: string): string;
-    knowledgeRetire(page: string): string;
-    knowledgeLog: string;
-    knowledgeCheck: string;
     askingHuman(question: string): string;
     presentingPlan: string;
   };
@@ -243,22 +227,6 @@ export const en: Messages = {
     Task: ["ran {n} subagent", "ran {n} subagents"],
     mcp__time__current_time: ["checked the time", "checked the time {n} times"],
     mcp__time__date_math: ["calculated dates", "calculated dates {n} times"],
-    mcp__sourceFiles__list_sources: ["listed the sources", "listed the sources {n} times"],
-    mcp__sourceFiles__extract_text: ["read {n} document", "read {n} documents"],
-    mcp__sourceFiles__save_to_sources: ["saved {n} source", "saved {n} sources"],
-    mcp__sourceFiles__download_to_sources: ["downloaded {n} source", "downloaded {n} sources"],
-    mcp__sourceFiles__request_file: ["asked for {n} file", "asked for {n} files"],
-    mcp__sourceFiles__retire_source: ["retired {n} source", "retired {n} sources"],
-    mcp__knowledge__knowledge_index: ["read the index", "read the index {n} times"],
-    mcp__knowledge__knowledge_search: ["searched the knowledge base", "searched the knowledge base {n} times"],
-    mcp__knowledge__knowledge_read: ["read {n} page", "read {n} pages"],
-    mcp__knowledge__knowledge_create: ["created {n} page", "created {n} pages"],
-    mcp__knowledge__knowledge_edit: ["edited {n} page", "edited {n} pages"],
-    mcp__knowledge__knowledge_rewrite: ["rewrote {n} page", "rewrote {n} pages"],
-    mcp__knowledge__knowledge_supersede: ["superseded {n} page", "superseded {n} pages"],
-    mcp__knowledge__knowledge_retire: ["retired {n} page", "retired {n} pages"],
-    mcp__knowledge__knowledge_log: ["updated the log", "updated the log {n} times"],
-    mcp__knowledge__knowledge_check: ["checked the knowledge base", "checked the knowledge base {n} times"],
     mcp__approvals__ask_human: ["asked {n} question", "asked {n} questions"],
     mcp__approvals__present_plan: ["presented the plan", "presented the plan {n} times"],
   },
@@ -272,7 +240,6 @@ export const en: Messages = {
   labels: {
     askingApproval: (summary) => `Asking for human approval: ${summary}`,
     waitingManual: "Waiting for a human to intervene manually",
-    savingToSources: (destination) => `Saving ${destination} to the sources`,
     checkingTime: "Checking the date and time",
     calculatingDates: "Calculating dates",
     reading: (file) => `Reading ${file}`,
@@ -291,21 +258,6 @@ export const en: Messages = {
     applyingSkill: (skill) => `Applying the "${skill}" skill`,
     aSkill: "a skill",
     updatingTasks: "Updating the task list",
-    listingSources: "Listing the sources",
-    extractingText: (source) => `Reading ${source}`,
-    downloading: (url) => `Downloading ${url} to the sources`,
-    requestingFile: (description) => `Asking for a file: ${description}`,
-    retiringSource: (source) => `Retiring the source ${source}`,
-    knowledgeIndex: "Reading the knowledge base's index",
-    knowledgeSearch: (query) => `Searching the knowledge base for "${query}"`,
-    knowledgeRead: (page) => `Reading ${page}`,
-    knowledgeCreate: (page) => `Creating ${page}`,
-    knowledgeEdit: (page) => `Editing ${page}`,
-    knowledgeRewrite: (page) => `Rewriting ${page}`,
-    knowledgeSupersede: (page) => `Marking ${page} superseded`,
-    knowledgeRetire: (page) => `Retiring ${page}`,
-    knowledgeLog: "Updating the knowledge base's log",
-    knowledgeCheck: "Checking the knowledge base",
     askingHuman: (question) => `Asking: ${question}`,
     presentingPlan: "Presenting the plan",
   },

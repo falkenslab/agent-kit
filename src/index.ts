@@ -12,7 +12,11 @@ export {
   createFriendlyToolLabel,
   truncate,
   truncatePath,
+  withToolLabels,
+  withToolPhrases,
   type ToolDescriber,
+  type ToolLabel,
+  type ToolLabels,
 } from "./core/toolLabels.js";
 export type { Mode, BaseSessionConfig, AgentSpec, AgentIdentity, PlanModeSpec } from "./core/agentSpec.js";
 export { buildSessionOptions, createInputQueue, createDeferred, createModeControl, togglePlanMode, type ModeControl } from "./core/session.js";

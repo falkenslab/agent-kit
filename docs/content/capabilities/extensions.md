@@ -105,6 +105,7 @@ export const jokebookExtension: Extension = {
       mcpServers: { jokebook: createSdkMcpServer({ name: "jokebook", version: "1.0.0", tools: [classicJoke] }) },
       promptSection: "## Your jokebook\nThe classics are in your own jokebook: `classic_joke` gives one.",
       readOnlyTools: ["mcp__jokebook__classic_joke"], // plan mode lets it through
+      toolLabels: { mcp__jokebook__classic_joke: { label: () => "Opening the jokebook", phrase: ["opened the jokebook", "opened the jokebook {n} times"] } },
       helpLines: ["Your jokebook: `classic_joke` gives a classic pirate joke."],
     };
   },
@@ -122,6 +123,7 @@ What a contribution may carry (every part optional):
 | `toolOnlyDirs` | Folders reached only through its own tools, never the file tools, with what to use instead (the denial says it). |
 | `readOnlyTools` | Its tools that only read: [plan mode](../core-concepts/modes.md#plan) lets them through; every other MCP tool is denied there. |
 | `selfAskingTools` | Its tools that ask the person themselves (a panel): interactive mode doesn't ask before them. |
+| `toolLabels` | How the chat shows its tools, by full name: each one's line and how it counts in a folded summary, in the kit's language. See [An extension's labels](../terminal-ui/tool-labels.md#an-extensions-labels). |
 | `helpLines` | What `agent-help` says about it in this session. |
 | `api` | What `buildSessionOptions()` hands back to the host (the knowledge extension returns its store as `knowledgeStore`). |
 

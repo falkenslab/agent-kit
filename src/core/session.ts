@@ -19,6 +19,7 @@ import { extensionsPromptSection, resolveExtensions, skillsMissingCapabilities, 
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { AGENT_HELP_SKILL, identityPromptSection, writeAgentHelpPlugin } from "./agentHelp.js";
 import { pluginAgents } from "./pluginAgents.js";
+import type { ToolLabels } from "./toolLabels.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 import { replyLanguageInstruction, type Language } from "./language.js";
 import { chooseLanguage } from "./messages/index.js";
@@ -55,6 +56,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   transcriptPath: string;
   modeControl: ModeControl;
   language: Language;
+  /** How the chat shows the extensions' tools (`runChatInk()` takes them from a session opener). */
+  toolLabels: ToolLabels;
   /** The knowledge base's store, when the knowledge extension is on (for a host that reads the knowledge base). */
   knowledgeStore?: KnowledgeStore;
 }> {
@@ -323,7 +326,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     },
   };
 
-  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, ...(knowledgeStore ? { knowledgeStore } : {}) };
+  const toolLabels: ToolLabels = Object.assign({}, ...added.map((contribution) => contribution.toolLabels ?? {}));
+  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, ...(knowledgeStore ? { knowledgeStore } : {}) };
 }
 
 export { createModeControl, togglePlanMode, type ModeControl } from "./modeControl.js";

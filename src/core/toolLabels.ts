@@ -1,14 +1,14 @@
-import { t } from "./messages/index.js";
+import { t, type ToolPhrase } from "./messages/index.js";
 
 /**
  * Turns a raw tool name + input into a short, readable console description, instead of
  * the tool's technical name (e.g. "mcp__playwright__browser_click"). Covers the tools
  * this kit itself provides (Read/Write/Edit/Glob/Grep/Bash/Agent/WebFetch/WebSearch/Skill,
- * plus its own human-approval/manual-intervention/save-to-sources MCP tools)
- * generically; a
- * concrete agent supplies a `describe` callback for its own domain-specific tools (e.g.
- * Playwright's browser_* cases) via `createFriendlyToolLabel()`. The kit's own labels are in
- * the current language (see messages/).
+ * plus its own human-approval/manual-intervention/clock MCP tools) generically; an extension
+ * brings its tools' labels with its contribution (`ToolLabels`, ADR-025), and a concrete agent
+ * supplies a `describe` callback for its own domain-specific tools (e.g. Playwright's
+ * browser_* cases) via `createFriendlyToolLabel()`. The kit's own labels are in the current
+ * language (see messages/).
  */
 
 /** Cuts `text` to `max` characters, with "…" at the end. */
@@ -41,38 +41,6 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
       return labels.checkingTime;
     case "date_math":
       return labels.calculatingDates;
-    case "knowledge_index":
-      return labels.knowledgeIndex;
-    case "knowledge_search":
-      return labels.knowledgeSearch(truncate(text(input.query, ""), 60));
-    case "knowledge_read":
-      return labels.knowledgeRead(text(input.page, labels.aPage));
-    case "knowledge_create":
-      return labels.knowledgeCreate(`${text(input.type, "")}/${text(input.slug, "")}`);
-    case "knowledge_edit":
-      return labels.knowledgeEdit(text(input.page, labels.aPage));
-    case "knowledge_rewrite":
-      return labels.knowledgeRewrite(text(input.page, labels.aPage));
-    case "knowledge_supersede":
-      return labels.knowledgeSupersede(text(input.page, labels.aPage));
-    case "knowledge_retire":
-      return labels.knowledgeRetire(text(input.page, labels.aPage));
-    case "knowledge_log":
-      return labels.knowledgeLog;
-    case "knowledge_check":
-      return labels.knowledgeCheck;
-    case "list_sources":
-      return labels.listingSources;
-    case "extract_text":
-      return labels.extractingText(truncatePath(text(input.source, labels.aFile), 70));
-    case "download_to_sources":
-      return labels.downloading(truncate(text(input.url, labels.aPage), 80));
-    case "request_file":
-      return labels.requestingFile(truncate(text(input.description, ""), 100));
-    case "retire_source":
-      return labels.retiringSource(truncatePath(text(input.source, ""), 70));
-    case "save_to_sources":
-      return labels.savingToSources(truncatePath(text(input.destination, ""), 70));
     case "Read":
       return labels.reading(truncatePath(text(input.file_path, labels.aFile), 80));
     case "Write":
@@ -108,6 +76,41 @@ function describeCore(shortName: string, input: Record<string, unknown>): string
   }
 }
 
+/** How the chat shows one tool: an extension's, by its full name (`ExtensionContribution.toolLabels`). */
+export interface ToolLabel {
+  /** Its line in the chat, from its input, in the kit's language: "Reading concept/llm-wiki". */
+  label(input: Record<string, unknown>): string;
+  /** How it counts in a folded group's summary, `[one, many]` with `{n}`: `["read {n} page", "read {n} pages"]`. */
+  phrase?: ToolPhrase;
+}
+
+/** Tools' labels by full name (`mcp__<server>__<tool>`): what the extensions of a session bring. */
+export type ToolLabels = Readonly<Record<string, ToolLabel>>;
+
+/**
+ * A `formatAction` that shows the tools in `labels()` with their label, and any other with
+ * `formatAction` (the kit's by default). `labels` is read on every call, so it can follow the
+ * session in use (`/resume` opens another).
+ */
+export function withToolLabels(
+  labels: () => ToolLabels | undefined,
+  formatAction: (toolName: string, toolInput: unknown) => string = createFriendlyToolLabel(),
+): (toolName: string, toolInput: unknown) => string {
+  return (toolName, toolInput) => {
+    const own = labels()?.[toolName];
+    if (!own) return formatAction(toolName, toolInput);
+    return own.label(toolInput && typeof toolInput === "object" ? (toolInput as Record<string, unknown>) : {});
+  };
+}
+
+/** A `toolPhrase` that counts the tools in `labels()` with their phrase, and any other with `toolPhrase`. */
+export function withToolPhrases(
+  labels: () => ToolLabels | undefined,
+  toolPhrase?: (toolName: string) => ToolPhrase | undefined,
+): (toolName: string) => ToolPhrase | undefined {
+  return (toolName) => labels()?.[toolName]?.phrase ?? toolPhrase?.(toolName);
+}
+
 /** An agent's labels for its own tools: the tool's short name and input, to a label, or `undefined` for the kit's default. */
 export type ToolDescriber = (shortName: string, input: Record<string, unknown>) => string | undefined;
 
@@ -115,11 +118,11 @@ export type ToolDescriber = (shortName: string, input: Record<string, unknown>) 
  * Builds a `friendlyToolLabel(toolName, toolInput)` — `describe` lets the host agent
  * layer its own domain-specific cases (e.g. Playwright's browser_* tools) on top of this
  * kit's generic ones; `extraLocalServers` names any *additional* MCP server (beyond this
- * kit's own "approvals"/"manualLogin"/"sourceFiles"/"time") whose tools should be unwrapped
+ * kit's own "approvals"/"manualLogin"/"time") whose tools should be unwrapped
  * without a "[server] " prefix, e.g. "playwright".
  */
 export function createFriendlyToolLabel(options: { describe?: ToolDescriber; extraLocalServers?: readonly string[] } = {}): (toolName: string, toolInput: unknown) => string {
-  const localServers = new Set(["approvals", "manualLogin", "sourceFiles", "time", "knowledge", ...(options.extraLocalServers ?? [])]);
+  const localServers = new Set(["approvals", "manualLogin", "time", ...(options.extraLocalServers ?? [])]);
 
   const describe = (shortName: string, input: Record<string, unknown>): string =>
     options.describe?.(shortName, input) ?? describeCore(shortName, input) ?? shortName.replace(/_/g, " ");

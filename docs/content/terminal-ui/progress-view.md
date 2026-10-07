@@ -27,7 +27,7 @@ Without a TTY, or with `plain: true`, it's `createConsoleRenderer()` (plain line
 
 | Option | Description |
 | --- | --- |
-| `formatAction` | Tool call labels. See [Tool labels](tool-labels.md). |
+| `formatAction` | Tool call labels. See [Tool labels](tool-labels.md); `withToolLabels()` adds the extensions' ([An extension's labels](tool-labels.md#an-extensions-labels)). |
 | `toolPhrase` | How your tools count in a folded summary. |
 | `toolDetail` | How much of the tool calls shows: `"full"` (default), `"calls"` or `"summary"`. See [Tool labels](tool-labels.md#how-much-shows). |
 | `formatResult` | Your own result line per tool, or none. See [Tool labels](tool-labels.md#results-for-your-tools). |

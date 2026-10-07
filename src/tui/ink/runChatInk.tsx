@@ -16,6 +16,7 @@ import { t } from "../../core/messages/index.js";
 import { applyLanguage } from "../language.js";
 import { applyTheme, inkColor } from "../theme.js";
 import { KitTheme } from "./inkTheme.js";
+import { withToolLabels, withToolPhrases, type ToolLabels } from "../../core/toolLabels.js";
 import { firstRun, openSession, runDate, runFolderOf, runLabel, type SessionOpener } from "../runs.js";
 import { createInkInteraction, type InkInteraction } from "./inkInteraction.js";
 import { PromptInput } from "./PromptInput.js";
@@ -361,7 +362,7 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
   let historyEntries = tuiOptions.historyPath ? capHistory(await loadHistory(tuiOptions.historyPath), historyLimit) : [];
 
   // The session in use: with runs, the run's folder, rebuilt on /resume.
-  let current: { options: Options; modeControl?: ModeControl; run: RunFolder | null } =
+  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; run: RunFolder | null } =
     opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
   const modeControl = (): ModeControl | undefined => current.modeControl ?? tuiOptions.modeControl;
 
@@ -376,8 +377,8 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
   const mirror = (text: string): void => void sessionLog?.write(stripAnsi(text));
 
   const model = createSessionModel({
-    formatAction: tuiOptions.formatAction,
-    toolPhrase: tuiOptions.toolPhrase,
+    formatAction: withToolLabels(() => current.toolLabels ?? tuiOptions.toolLabels, tuiOptions.formatAction),
+    toolPhrase: withToolPhrases(() => current.toolLabels ?? tuiOptions.toolLabels, tuiOptions.toolPhrase),
     toolDetail: tuiOptions.toolDetail,
     formatResult: tuiOptions.formatResult,
     agentLabel: tuiOptions.agentLabel,

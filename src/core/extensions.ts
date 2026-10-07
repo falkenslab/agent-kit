@@ -4,6 +4,7 @@ import path from "node:path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
 import { frontmatter } from "./pluginAgents.js";
+import type { ToolLabels } from "./toolLabels.js";
 import { sourcesExtension } from "../extensions/sources/index.js";
 import { knowledgeExtension } from "../extensions/knowledge/index.js";
 
@@ -46,6 +47,8 @@ export interface ExtensionContribution {
   readOnlyTools?: string[];
   /** Its MCP tools that ask the person themselves: interactive mode's step gate doesn't ask first. */
   selfAskingTools?: string[];
+  /** How the chat shows its tools, by full name, in the kit's language: its line and how it counts in a folded group. */
+  toolLabels?: ToolLabels;
   /** Lines about it for agent-help's "This session" (its commands, its folder). */
   helpLines?: string[];
   /** What the session hands back to the host (e.g. the knowledge base's store), by name. */

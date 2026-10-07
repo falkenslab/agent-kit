@@ -24,7 +24,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 });
 ```
 
-The opener is called with the run folder to use (a new one, the latest with `--continue`, or the one picked in `/resume`) and returns either `Options` or `buildSessionOptions()`'s whole result, whose `modeControl` the chat picks up.
+The opener is called with the run folder to use (a new one, the latest with `--continue`, or the one picked in `/resume`) and returns either `Options` or `buildSessionOptions()`'s whole result, whose `modeControl` and `toolLabels` the chat picks up.
 
 **With fixed options**: one session, logs wherever you say, no resuming.
 
@@ -60,6 +60,7 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 | `language` | `string` | | The kit's language. See [Languages](../sessions/languages.md). |
 | `formatAction` | `(toolName, input) => string` | `createFriendlyToolLabel()` | Tool call labels. See [Tool labels](tool-labels.md). |
 | `toolPhrase` | `(toolName) => ToolPhrase \| undefined` | | How your tools count in a folded summary. See [Tool labels](tool-labels.md#folded-summaries). |
+| `toolLabels` | `ToolLabels` | | The extensions' labels (`buildSessionOptions()`'s `toolLabels`), before `formatAction` and `toolPhrase`, for plain `Options`: with a session opener, the ones it returns. See [Tool labels](tool-labels.md#an-extensions-labels). |
 | `toolDetail` | `"full" \| "calls" \| "summary"` | `"full"` | How much of the tool calls shows until Ctrl+O. See [Tool labels](tool-labels.md#how-much-shows). |
 | `formatResult` | `ResultFormatter` | | Your own result line per tool, or none. See [Tool labels](tool-labels.md#results-for-your-tools). |
 | `renderApproval` | `(prompt) => ReactNode` | | Replaces the preview of the approval panels. See [Approval panels](#approval-panels). |

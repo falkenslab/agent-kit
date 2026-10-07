@@ -45,6 +45,7 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
   - its skills (procedures, loaded on demand);
   - a short "active extensions" section the kit composes from the manifests.
 - **A plugin's subagents** (`agents/*.md`, loaded by the SDK as `<plugin>:<name>`, the name from the frontmatter, not the file) are registered like the code's (re-declared in `options.agents`, which replaces the plugin's definition, confirmed empirically): in the type gate's allow-list, in the `Agent`/`Bash` decision, and with the reply-language line. An external extension's get no `Bash` unless the person accepted it.
+- **An extension labels its own tools** for the chat (`ExtensionContribution.toolLabels`, by full tool name: a line from the input and the phrase for a folded group), in the kit's languages; the core's catalogs name none of its tools. `buildSessionOptions()` hands them back, and the chats take them from the session opener, before the agent's `formatAction`. An external extension's will come from its manifest.
 - **Enabling or disabling an extension reopens the session**, keeping the conversation. Hot reloading comes later.
 - **SDK first**: before building a mechanism, check the SDK and Claude Code. If it exists, use it; if it exists only in the CLI, adopt its format and build only the missing part.
 

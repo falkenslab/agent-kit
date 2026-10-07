@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Extension } from "../../core/extensions.js";
+import { sourcesToolLabels } from "./labels.js";
 import { createSaveToSourcesServer, sourcesPromptSection } from "./tools.js";
 
 /** Absolute path of the sources extension's plugin, next to `dist/` (or `src/` under tsx). */
@@ -29,6 +30,7 @@ export const sourcesExtension: Extension = {
       readOnlyDirs: [sourcesDir],
       readOnlyTools: ["mcp__sourceFiles__list_sources", "mcp__sourceFiles__extract_text"],
       selfAskingTools: ["mcp__sourceFiles__request_file", "mcp__sourceFiles__retire_source"],
+      toolLabels: sourcesToolLabels(),
       helpLines: [`Originals go in \`${folder}\`: the person drops files there (or you ask for one, or download it), and you never change them.`],
     };
   },

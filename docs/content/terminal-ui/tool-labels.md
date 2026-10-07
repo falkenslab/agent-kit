@@ -24,22 +24,71 @@ A tool call is shown as a short sentence instead of its technical name: `Reading
 | `request_manual_login` | `Waiting for a human to intervene manually` |
 | `ask_human` | `Asking: <question>` |
 | `present_plan` | `Presenting the plan` |
-| `save_to_sources` | `Saving <destination> to the sources` |
-| `list_sources` | `Listing the sources` |
-| `knowledge_index`, `knowledge_search` | `Reading the knowledge base's index`, `Searching the knowledge base for "<query>"` |
-| `knowledge_read`, `knowledge_create`, `knowledge_edit`, `knowledge_rewrite` | `Reading <page>`, `Creating <page>`, `Editing <page>`, `Rewriting <page>` |
-| `knowledge_supersede`, `knowledge_retire` | `Marking <page> superseded`, `Retiring <page>` |
-| `knowledge_log`, `knowledge_check` | `Updating the knowledge base's log`, `Checking the knowledge base` |
-| `extract_text` | `Reading <source>` |
-| `download_to_sources` | `Downloading <url> to the sources` |
-| `request_file` | `Asking for a file: <description>` |
-| `retire_source` | `Retiring the source <source>` |
 | `current_time`, `date_math` | `Checking the date and time`, `Calculating dates` |
 | `TodoWrite` | `Updating the task list` (not shown in the chats, which draw the list) |
 
 Labels follow the [kit's language](../sessions/languages.md). Long paths keep their end (`…/course/knowledge/index.md`), long text its start.
 
 Any other tool gets its name with underscores as spaces. An MCP tool from a server that isn't local is prefixed with the server: `[inventory] find product`.
+
+## An extension's labels
+
+An [extension](../capabilities/extensions.md) brings its tools' labels with what it contributes (`toolLabels`), so the chat shows them without the agent doing anything. The kit's own:
+
+| Extension | Tool | Label |
+| --- | --- | --- |
+| `sources` | `list_sources` | `Listing the sources` |
+| `sources` | `extract_text` | `Reading <source>` |
+| `sources` | `save_to_sources` | `Saving <destination> to the sources` |
+| `sources` | `download_to_sources` | `Downloading <url> to the sources` |
+| `sources` | `request_file` | `Asking for a file: <description>` |
+| `sources` | `retire_source` | `Retiring the source <source>` |
+| `knowledge` | `knowledge_index` | `Reading the knowledge base's index` |
+| `knowledge` | `knowledge_search` | `Searching the knowledge base for "<query>"` |
+| `knowledge` | `knowledge_read` | `Reading <page>` |
+| `knowledge` | `knowledge_create` | `Creating <type>/<slug>` |
+| `knowledge` | `knowledge_edit` | `Editing <page>` |
+| `knowledge` | `knowledge_rewrite` | `Rewriting <page>` |
+| `knowledge` | `knowledge_supersede` | `Marking <page> superseded` |
+| `knowledge` | `knowledge_retire` | `Retiring <page>` |
+| `knowledge` | `knowledge_log` | `Updating the knowledge base's log` |
+| `knowledge` | `knowledge_check` | `Checking the knowledge base` |
+
+For your own extension, give each tool, by its full name, a `label` from its input and, optionally, the `phrase` it counts with in a [folded summary](#folded-summaries), in the kit's language (`getLanguage()`, already chosen when `contribute()` runs):
+
+```ts
+import { getLanguage, type Extension, type Language, type ToolPhrase } from "@falkenslab/agent-kit";
+
+const LABELS: Record<Language, { label: string; phrase: ToolPhrase }> = {
+  en: { label: "Opening the jokebook", phrase: ["opened the jokebook", "opened the jokebook {n} times"] },
+  es: { label: "Abriendo el libro de chistes", phrase: ["abrió el libro de chistes", "abrió el libro de chistes {n} veces"] },
+  fr: { label: "Ouverture du recueil de blagues", phrase: ["a ouvert le recueil de blagues", "a ouvert le recueil de blagues {n} fois"] },
+  de: { label: "Witzebuch aufschlagen", phrase: ["Witzebuch aufgeschlagen", "Witzebuch {n}-mal aufgeschlagen"] },
+};
+
+export const jokebookExtension: Extension = {
+  // …
+  async contribute() {
+    const { label, phrase } = LABELS[getLanguage()];
+    return {
+      // …
+      toolLabels: { mcp__jokebook__classic_joke: { label: () => label, phrase } },
+    };
+  },
+};
+```
+
+`buildSessionOptions()` hands back the active extensions' labels as `toolLabels`. `runChatInk()` and `runChatTui()` take them from a session opener (one that returns its whole result), and they come before `formatAction` and `toolPhrase`. With plain `Options`, pass them yourself (`toolLabels: built.toolLabels`); for the [progress view](progress-view.md) or a host of your own, `withToolLabels()` and `withToolPhrases()` put them in front of a `formatAction` and a `toolPhrase`:
+
+```ts
+import { buildSessionOptions, createProgressView, withToolLabels, withToolPhrases } from "@falkenslab/agent-kit";
+
+const built = await buildSessionOptions(config, runDir, spec);
+const view = createProgressView({
+  formatAction: withToolLabels(() => built.toolLabels),
+  toolPhrase: withToolPhrases(() => built.toolLabels),
+});
+```
 
 ## Labels for your tools
 
