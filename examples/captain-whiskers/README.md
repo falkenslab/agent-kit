@@ -36,11 +36,11 @@ The kit's own `/knowledge:ingest`, `/knowledge:query` and `/knowledge:lint` work
 
 He knows who he is and how he's used: the spec's `identity` gives the model his name, his version and agent-kit's, and the kit's `agent-help` skill answers questions such as "how do I resume a conversation?" from the kit's chat and from his own [guide.md](guide.md) (his commands, folders and settings).
 
-↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each run keeps its session log, its transcript and the conversation in `.run/<date-time>/` (ignored by git): `npm start -- --continue` picks up the latest one, and `/resume` lists them to pick one. The ↑/↓ history lives in `.run/history.jsonl`.
+↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each run keeps its session log, its transcript and the conversation in `workspace/.run/<date-time>/`: `npm start -- --continue` picks up the latest one, and `/resume` lists them to pick one. The ↑/↓ history lives in `workspace/.run/history.jsonl`.
 
 In a terminal it uses the kit's Ink interface (`runChatInk`) full screen: the prompt stays at the bottom, PageUp/PageDown and the mouse wheel scroll through the conversation and Ctrl+End (or typing) goes back to the bottom; drag with the mouse to select and right-click to copy to the clipboard. With `CAPTAIN_INLINE=1` it uses the inline mode (with the terminal's own scrollback), and without a TTY, or with `CAPTAIN_PLAIN=1`, the plain readline chat.
 
-It runs in `guided` mode by default, so it can ask you things: which kind of joke, a file, whether to retire an original. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=autonomous` it asks nothing. With `CAPTAIN_MODE=plan` it only reads and plans: its crew can still search the web, read the ship's clock and the logbook, and anything else is denied until the plan is approved (`present_plan`) or you leave plan mode. Started in any mode but `autonomous`, Shift+Tab cycles through `guided`, `interactive` and `plan`. `/plan` goes into plan mode and back.
+It runs in `guided` mode by default, so it can ask you things: which kind of joke, a file, whether to retire an original. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `workspace/.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=autonomous` it asks nothing. With `CAPTAIN_MODE=plan` it only reads and plans: its crew can still search the web, read the ship's clock and the logbook, and anything else is denied until the plan is approved (`present_plan`) or you leave plan mode. Started in any mode but `autonomous`, Shift+Tab cycles through `guided`, `interactive` and `plan`. `/plan` goes into plan mode and back.
 
 It shows every tool call with its result (`toolDetail: "full"`, the kit's default); `CAPTAIN_TOOL_DETAIL=calls` shows the calls without their results, and `CAPTAIN_TOOL_DETAIL=summary` one line per group. Ctrl+O unfolds them either way.
 
@@ -50,10 +50,12 @@ He runs with four ([agent-kit's Extensions](https://falkenslab.github.io/agent-k
 
 ## Logbook and treasure chest
 
+Everything he keeps lives in `workspace/` (ignored by git), which is his project (`projectDir`): his folder holds only his code. Paths below are inside it.
+
 - `logbook/` is his knowledge base (`knowledgeDir`), kept only through the kit's `knowledge_*` tools. Besides the kit's page types it has one of his own, `joke` (in `logbook/jokes/`), with the parrot's score shown in the index.
 - `treasure/` is his chest of originals (`sourcesDir`). On the first start it gets the two samples in `treasure-samples/`: a PowerPoint on knots (with speaker notes) and a Word document with the ship's rules, which he reads with `extract_text`.
 
-Both are ignored by git: delete them to start over. Reading DOCX and PPTX and keeping web pages as markdown use the kit's optional libraries, already in this project's `package.json`.
+Delete `workspace/` to start over (his memory of you is elsewhere: see Extensions). Reading DOCX and PPTX and keeping web pages as markdown use the kit's optional libraries, already in this project's `package.json`.
 
 ## Crew (subagents)
 
@@ -65,7 +67,7 @@ All of them use `haiku`. While they work, the interface shows their tool calls u
 
 ## Test script
 
-A walk through every feature, in a fresh start (`rm -rf logbook treasure`, then `npm start -- --language=en`). What you type, and what should show:
+A walk through every feature, in a fresh start (`rm -rf workspace`, then `npm start -- --language=en`). What you type, and what should show:
 
 | # | Type | What should show |
 | --- | --- | --- |

@@ -189,9 +189,11 @@ async function main(): Promise<void> {
     console.log(ui.dim(text.tokenSaved(envPath)));
   }
 
-  // Cada ejecución en su carpeta de .run/ (ignorada por git): su log, su transcripción y la
-  // conversación, para retomarla con --continue (la última) o /resume (a elegir).
-  const runsDir = path.join(__dirname, ".run");
+  // Todo lo que guarda vive en workspace/ (ignorado por git), su proyecto: así la carpeta del
+  // capitán solo tiene su código. Cada ejecución en su carpeta de workspace/.run/: su log, su
+  // transcripción y la conversación, para retomarla con --continue (la última) o /resume.
+  const workspace = path.join(__dirname, "workspace");
+  const runsDir = path.join(workspace, ".run");
 
   // Guiado por defecto, para que pueda preguntar (ask_human, request_file, retirar);
   // CAPTAIN_MODE=interactive pide permiso antes de cada herramienta, CAPTAIN_MODE=plan solo lee
@@ -199,15 +201,16 @@ async function main(): Promise<void> {
   const modes: Mode[] = ["autonomous", "guided", "interactive", "plan"];
   const mode = modes.find((m) => m === process.env.CAPTAIN_MODE) ?? "guided";
 
-  // Su cuaderno de bitácora (la base de conocimiento) y su cofre (los originales), ignorados
-  // por git. La primera vez, el cofre recibe las muestras de treasure-samples/.
-  const logbook = path.join(__dirname, "logbook");
-  const treasure = path.join(__dirname, "treasure");
+  // Su cuaderno de bitácora (la base de conocimiento) y su cofre (los originales), en el
+  // espacio de trabajo. La primera vez, el cofre recibe las muestras de treasure-samples/.
+  const logbook = path.join(workspace, "logbook");
+  const treasure = path.join(workspace, "treasure");
   await stockTheChest(treasure);
 
   const config: BaseSessionConfig = {
     mode,
-    projectDir: __dirname,
+    // El proyecto es el espacio de trabajo: el modelo ve logbook/ y treasure/, como siempre.
+    projectDir: workspace,
     knowledgeDir: logbook,
     sourcesDir: treasure,
     // Lo que recuerda de quien navega con él, en todos sus proyectos: fuera de este, en su

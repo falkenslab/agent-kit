@@ -135,9 +135,10 @@ examples/captain-whiskers/
 │   ├── commands/best-jokes.md       /captain-whiskers:best-jokes
 │   └── commands/logbook-check.md    /captain-whiskers:logbook-check
 ├── treasure-samples/            a PPTX on knots and a DOCX of the ship's rules
-├── logbook/                     his knowledge base (git-ignored)
-├── treasure/                    his chest of originals (git-ignored)
-└── .run/                        one folder per run (git-ignored)
+└── workspace/                   his project, git-ignored: everything he keeps
+    ├── logbook/                 his knowledge base
+    ├── treasure/                his chest of originals
+    └── .run/                    one folder per run
 ```
 
 ## 1. Environment and language
@@ -234,13 +235,16 @@ const spec: AgentSpec<BaseSessionConfig> = {
 ## 6. The chat
 
 ```ts
-const runsDir = path.join(__dirname, ".run");
+const workspace = path.join(__dirname, "workspace"); // everything he keeps, git-ignored
+const runsDir = path.join(workspace, ".run");
+const logbook = path.join(workspace, "logbook");
+const treasure = path.join(workspace, "treasure");
 const modes: Mode[] = ["autonomous", "guided", "interactive", "plan"];
 const mode = modes.find((m) => m === process.env.CAPTAIN_MODE) ?? "guided";
 await stockTheChest(treasure); // the samples, on the first start
 const config: BaseSessionConfig = {
   mode,
-  projectDir: __dirname,
+  projectDir: workspace, // the model sees logbook/ and treasure/
   knowledgeDir: logbook,
   sourcesDir: treasure,
   memoryDir: process.env.CAPTAIN_MEMORY_DIR || path.join(os.homedir(), ".captain-whiskers", "memory"),
@@ -263,7 +267,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 });
 ```
 
-- **A session opener with `runsDir`**: every run in `.run/<timestamp>/`, resumable with `--continue` or `/resume`.
+- **A session opener with `runsDir`**: every run in `workspace/.run/<timestamp>/`, resumable with `--continue` or `/resume`.
 - **The header**: the translated name, the mode in the kit's language, the version of agent-kit he runs on (`agentKitVersion()`), and a logo in single-column block characters.
 - **A theme**: the approval panels' border and the focused option in doubloon gold; everything else keeps the kit's colors.
 - **The first suggestion**: Tab takes it before the first turn.
