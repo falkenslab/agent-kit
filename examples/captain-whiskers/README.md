@@ -29,7 +29,6 @@ Type as usual, and `/exit` to leave. His commands:
 | `/captain-whiskers:fresh-joke` | A new joke found on the web by the crew, scored by the parrot and noted in the logbook |
 | `/captain-whiskers:stock-the-chest` | Downloads two pages of pirate lore into the chest and asks you for a joke book |
 | `/captain-whiskers:learn` | Reads every new original in the chest and writes what it teaches into the logbook |
-| `/captain-whiskers:best-jokes` | The best jokes in the logbook by the parrot's score (his jokebook's `rank-jokes` skill), filed back as a synthesis |
 | `/captain-whiskers:logbook-check` | Checks the logbook (broken links, orphans, originals not learned yet) |
 
 The kit's own `/knowledge:ingest`, `/knowledge:query` and `/knowledge:lint` work too.
@@ -48,7 +47,7 @@ It shows every tool call with its result (`toolDetail: "full"`, the kit's defaul
 
 He runs with the kit's `sources` (his chest), `knowledge` (his logbook) and `memory` (what he remembers of you, in `~/.captain-whiskers/memory/`), enabled in his code ([agent-kit's Extensions](https://falkenslab.github.io/agent-kit/docs/capabilities/extensions)).
 
-His `jokebook` is installed instead: `extensions/jokebook/` is an extension any agent on the kit could use, with its manifest, its own MCP server (`server/index.mjs`, a small Node script with no dependencies that the kit runs in a separate process), the `rank-jokes` skill (which requires the `knowledge-base` capability: without the logbook, it isn't offered) and the parrot. Install it once:
+His `jokebook` is installed instead: `extensions/jokebook/` is an extension any agent on the kit could use, with its manifest, its own MCP server (`server/index.mjs`, a small Node script with no dependencies that the kit runs in a separate process), the `rank-jokes` skill (which requires the `knowledge-base` capability: without the logbook, it isn't offered) with its command `/jokebook:best-jokes`, and the parrot. It declares its server in a `.mcp.json`, as any Claude Code plugin does. Nothing of the captain's names it: without it, his commands still work (`fresh-joke` just skips the parrot). Install it once:
 
 ```
 npm start -- extension add ./extensions/jokebook            # for all his projects: ~/.captain-whiskers/extensions/
@@ -85,7 +84,7 @@ A walk through every feature, in a fresh start (`rm -rf workspace`, then `npm st
 | 1 | `/captain-whiskers:learn` | `list_sources` shows `knots.pptx` and `ship-rules.docx` with their `changedAt`, and `knowledge_index` no summary of them; `extract_text` reads both (the speaker notes too); one `knowledge_create` call makes a summary and the concepts it feeds together; `knowledge_log` closes. `logbook/index.md` lists them. |
 | 2 | `tell me a joke` | A panel asks which kind (classic, fresh, from the logbook), with "Other" to type your own (`ask_human`). |
 | 3 | `tell me a fresh joke` | The kitten searches the web, the parrot scores it, and a page appears in `logbook/jokes/`; the index shows it with `(score: N)`. |
-| 4 | `/captain-whiskers:best-jokes` | A ranking from the logbook, filed as a page in `logbook/syntheses/`. |
+| 4 | `/jokebook:best-jokes` (with the jokebook installed) | A ranking from the logbook, filed as a page in `logbook/syntheses/`. |
 | 5 | `/captain-whiskers:stock-the-chest` | Two Wikipedia pages downloaded into `treasure/lore/`, each with a `.md` copy of its main content; then a panel asks for a file: give the path of any text file (dragging it into the terminal pastes it), and it lands in `treasure/books/`. |
 | 6 | `/captain-whiskers:logbook-check` | `knowledge_check` finds nothing broken; matching `list_sources` with `knowledge_index`, he reports the chest's originals not learned yet (the lore and the joke book from step 5). |
 | 7 | `The ship-rules document was the wrong one: retire it from the chest.` | An approval panel (`retire_source`); approved, `ship-rules.docx` moves to `treasure/.agent-kit/retired/`. Then, with the knowledge tools, he retires its summary (`knowledge_retire`, with its own approval), and maybe the pages that only came from it. |

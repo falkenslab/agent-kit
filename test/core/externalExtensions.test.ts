@@ -42,7 +42,6 @@ function makeExtension(name = "dice", kit: Record<string, unknown> = {}): string
       keywords: ["dice", 7],
       "agent-kit": {
         provides: ["dice"],
-        server: { entry: "server/index.mjs", env: ["DICE_SEED"] },
         readOnlyTools: ["roll"],
         labels: { roll: { en: { label: "Rolling {sides}", phrase: ["rolled once", "rolled {n} times"] }, es: { label: "Tirando un dado de {sides}" } } },
         help: "Dice: `roll` rolls one.",
@@ -51,6 +50,11 @@ function makeExtension(name = "dice", kit: Record<string, unknown> = {}): string
     }),
   );
   fs.writeFileSync(path.join(dir, "server", "index.mjs"), "// a server\n");
+  // Its server, as any Claude Code plugin declares it.
+  fs.writeFileSync(
+    path.join(dir, ".mcp.json"),
+    JSON.stringify({ mcpServers: { dice: { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server/index.mjs", "--fair"], env: { DICE_SEED: "${DICE_SEED}" } } } }),
+  );
   fs.writeFileSync(path.join(dir, "README.md"), "# dice\n");
   fs.writeFileSync(path.join(dir, "agents", "croupier.md"), "---\nname: croupier\ndescription: Deals.\ntools: [Bash, Read]\n---\n\nYou deal.");
   return dir;
@@ -88,7 +92,10 @@ test("add copies a folder into a scope, locks it by hash and enables it; remove,
   await assert.rejects(addExtension(temp(), scope), /isn't an extension/);
   const noServer = makeExtension("broken");
   fs.rmSync(path.join(noServer, "server"), { recursive: true });
-  await assert.rejects(addExtension(noServer, scope), /server at server\/index.mjs/);
+  await assert.rejects(addExtension(noServer, scope), /no script at server[\\/]index\.mjs/);
+  const python = makeExtension("snake");
+  fs.writeFileSync(path.join(python, ".mcp.json"), JSON.stringify({ mcpServers: { snake: { command: "python", args: ["server.py"] } } }));
+  await assert.rejects(addExtension(python, scope), /with "python": only Node servers can be installed/);
 });
 
 test("add clones a git repository at a ref and records its commit", async () => {
@@ -124,17 +131,41 @@ test("the project's scope wins; a changed file, a disabled one or a kit range le
   assert.match(loaded.off.find((off) => off.name === "dice")?.reason ?? "", /changed since it was installed/);
 });
 
+test("a plain Claude Code plugin is an extension: its servers from .mcp.json or plugin.json, no kit key needed", async () => {
+  const scope = path.join(temp(), "extensions");
+  const plain = path.join(temp(), "plain");
+  fs.mkdirSync(path.join(plain, ".claude-plugin"), { recursive: true });
+  fs.writeFileSync(path.join(plain, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "plain", description: "Just a plugin." }));
+  fs.writeFileSync(path.join(plain, "s.mjs"), "");
+  // A .mcp.json without the mcpServers key works too.
+  fs.writeFileSync(path.join(plain, ".mcp.json"), JSON.stringify({ tools: { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/s.mjs"] } }));
+  await addExtension(plain, scope);
+  let [extension] = (await loadExternalExtensions({ agent: scope })).extensions;
+  let contribution = await extension!.contribute({} as never);
+  assert.deepEqual(Object.keys(contribution.mcpServers ?? {}), ["tools"]);
+  assert.deepEqual(contribution.readOnlyTools, []);
+
+  // mcpServers inline in plugin.json, and a script outside the folder refused.
+  fs.writeFileSync(path.join(plain, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "plain", mcpServers: { inline: { command: "node", args: ["s.mjs"] } } }));
+  await addExtension(plain, scope);
+  [extension] = (await loadExternalExtensions({ agent: scope })).extensions;
+  contribution = await extension!.contribute({} as never);
+  assert.deepEqual(Object.keys(contribution.mcpServers ?? {}), ["inline"]);
+  fs.writeFileSync(path.join(plain, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "plain", mcpServers: { out: { command: "node", args: ["../elsewhere.mjs"] } } }));
+  await assert.rejects(addExtension(plain, scope), /from outside its folder/);
+});
+
 test("the launcher leaves the server only the system's variables and those it declares", () => {
   const dir = temp();
   const entry = path.join(dir, "env.mjs");
   fs.writeFileSync(entry, "process.stdout.write(JSON.stringify({ names: Object.keys(process.env), argv: process.argv.slice(2) }));");
-  const out = execFileSync(process.execPath, [extensionLauncherPath(), entry, JSON.stringify(["DICE_SEED"])], {
+  const out = execFileSync(process.execPath, [extensionLauncherPath(), entry, JSON.stringify(["DICE_SEED"]), "--fair"], {
     env: { ...process.env, DICE_SEED: "7", CLAUDE_CODE_OAUTH_TOKEN: "secret", ANTHROPIC_API_KEY: "secret", SOMETHING_ELSE: "x" },
   }).toString();
   const { names, argv } = JSON.parse(out) as { names: string[]; argv: string[] };
   assert.ok(names.includes("DICE_SEED"));
   for (const hidden of ["CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "SOMETHING_ELSE"]) assert.equal(names.includes(hidden), false, hidden);
-  assert.deepEqual(argv, []);
+  assert.deepEqual(argv, ["--fair"]);
 });
 
 test("a session runs an installed extension: its server through the launcher, its rules from its manifest, no Bash, no plugin hooks", async () => {
@@ -144,9 +175,10 @@ test("a session runs an installed extension: its server through the launcher, it
   setLanguage("es");
   try {
     const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, temp(), spec);
-    const server = (built.options.mcpServers as Record<string, { type: string; command: string; args: string[] }>).dice!;
+    const server = (built.options.mcpServers as Record<string, { type: string; command: string; args: string[]; env: Record<string, string> }>).dice!;
     assert.equal(server.command, process.execPath);
-    assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server/index.mjs"), '["DICE_SEED"]']);
+    assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server", "index.mjs"), '["DICE_SEED"]', "--fair"]);
+    assert.deepEqual(server.env, { DICE_SEED: process.env.DICE_SEED ?? "" });
     assert.equal(built.toolLabels.mcp__dice__roll?.label({ sides: 6 }), "Tirando un dado de 6");
     assert.deepEqual(built.toolLabels.mcp__dice__roll?.phrase, undefined);
     assert.match(String(built.options.systemPrompt), /\*\*dice\*\*: Rolls dice\. Provides: dice\./);

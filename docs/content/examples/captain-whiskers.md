@@ -46,7 +46,7 @@ His chest (`treasure/`) holds the original documents he learns from, which he ca
 
 ### Remember
 
-His logbook (`logbook/`) is his memory across sessions: a wiki of pages he reaches only through the knowledge tools. Besides the kit's page types it has one of his own, `joke`, with the parrot's score shown in the index ([your own page types](../capabilities/knowledge-base.md#your-own-page-types)). `/captain-whiskers:best-jokes` ranks them and files the ranking back as a page.
+His logbook (`logbook/`) is his memory across sessions: a wiki of pages he reaches only through the knowledge tools. Besides the kit's page types it has one of his own, `joke`, with the parrot's score shown in the index ([your own page types](../capabilities/knowledge-base.md#your-own-page-types)). With his jokebook installed, `/jokebook:best-jokes` ranks them and files the ranking back as a page.
 
 ![The captain ranks the jokes in his logbook by the parrot's score](/captain/remember.png)
 
@@ -121,7 +121,7 @@ It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment or 
 examples/captain-whiskers/
 ├── agent.ts                    everything: texts, tools, crew, spec, chat
 ├── guide.md                    his own help guide (commands, folders, settings)
-├── extensions/jokebook/        an installable extension: manifest, MCP server, skill, parrot
+├── extensions/jokebook/        an installable extension: manifest, .mcp.json and its server, skill, command, parrot
 ├── package.json                "@falkenslab/agent-kit": "file:../.."
 ├── plugin/
 │   ├── .claude-plugin/plugin.json   { "name": "captain-whiskers" }
@@ -131,7 +131,6 @@ examples/captain-whiskers/
 │   ├── commands/fresh-joke.md       /captain-whiskers:fresh-joke
 │   ├── commands/stock-the-chest.md  /captain-whiskers:stock-the-chest
 │   ├── commands/learn.md            /captain-whiskers:learn
-│   ├── commands/best-jokes.md       /captain-whiskers:best-jokes
 │   └── commands/logbook-check.md    /captain-whiskers:logbook-check
 ├── treasure-samples/            a PPTX on knots and a DOCX of the ship's rules
 └── workspace/                   his project, git-ignored: everything he keeps
@@ -278,7 +277,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 `logbook/` is his [knowledge base](../capabilities/knowledge-base.md), reached only through the `knowledge_*` tools; `treasure/` is his chest of [originals](../capabilities/knowledge-base.md#sources-originals-kept-as-obtained). His prompt and commands put them to work:
 
 - `/captain-whiskers:learn` ingests the chest: `list_sources` and `knowledge_index` to see what the logbook lacks, `extract_text` on the PPTX (speaker notes included) and the DOCX, one `knowledge_create` call for a summary and the concepts it feeds, `knowledge_log`.
-- A fresh joke the parrot scored becomes a `joke` page; `/captain-whiskers:best-jokes` ranks them and files the ranking as a synthesis.
+- A fresh joke becomes a `joke` page, with the parrot's score when the jokebook is installed; `/jokebook:best-jokes` ranks them and files the ranking as a synthesis.
 - `/captain-whiskers:stock-the-chest` downloads two pages (`download_to_sources`, kept as markdown too) and asks for a joke book (`request_file`).
 - "That document was the wrong one" ends in `retire_source`, with approval, and then `knowledge_retire` for its summary, with another.
 - `/captain-whiskers:logbook-check` runs `knowledge_check`.

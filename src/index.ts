@@ -40,6 +40,7 @@ export {
   type ExtensionScope,
   type ExternalManifest,
   type ExternalToolLabel,
+  type PluginServer,
   type InstalledExtension,
   type LockEntry,
 } from "./core/externalExtensions.js";

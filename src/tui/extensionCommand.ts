@@ -135,8 +135,9 @@ async function info(extension: InstalledExtension): Promise<string[]> {
     ...field("Works with", manifest.kit && `agent-kit ${manifest.kit}`),
     ...field("Provides", manifest.provides.join(", ") || undefined),
     ...field("Requires", manifest.requires.join(", ") || undefined),
-    ...field("Tools", manifest.server ? `its own server (${manifest.server.entry})${manifest.readOnlyTools.length ? `; only read: ${manifest.readOnlyTools.join(", ")}` : ""}` : undefined),
-    ...field("Variables", manifest.server?.env?.length ? manifest.server.env.join(", ") : undefined),
+    ...field("Servers", Object.keys(manifest.servers).join(", ") || undefined),
+    ...field("Only read", manifest.readOnlyTools.join(", ") || undefined),
+    ...field("Variables", Object.values(manifest.servers).flatMap((server) => Object.keys(server.env ?? {})).join(", ") || undefined),
     ...field("Installed", `${extension.scope} scope, ${extension.lock.enabled ? "enabled" : "disabled"}, on ${extension.lock.installed}, from ${describe(extension).split("  from ")[1]}`),
     ...field("README", (await stat(readme).catch(() => null))?.isFile() ? readme : undefined),
   ];

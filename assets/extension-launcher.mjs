@@ -3,10 +3,10 @@
 // launcher instead, which keeps only the variables the system needs and those the extension
 // declares, then loads the server in this same process.
 //
-// Usage: node extension-launcher.mjs <server entry> <JSON array of variable names it may see>
+// Usage: node extension-launcher.mjs <server script> <JSON array of variable names it may see> [its arguments…]
 import { pathToFileURL } from "node:url";
 
-const [entry, declared = "[]"] = process.argv.slice(2);
+const [entry, declared = "[]", ...args] = process.argv.slice(2);
 if (!entry) {
   console.error("extension-launcher: no server entry given");
   process.exit(1);
@@ -19,6 +19,6 @@ for (const name of Object.keys(process.env)) {
   if (!allowed.has(name.toUpperCase())) delete process.env[name];
 }
 
-// The server reads its own arguments from argv: it gets none of the launcher's.
-process.argv = [process.argv[0], entry];
+// The server reads its own arguments from argv: its own, none of the launcher's.
+process.argv = [process.argv[0], entry, ...args];
 await import(pathToFileURL(entry).href);

@@ -4,7 +4,6 @@
 - `/captain-whiskers:fresh-joke`: a new joke found on the web by the crew, scored by the parrot and noted in the logbook.
 - `/captain-whiskers:stock-the-chest`: downloads two pages of pirate lore into the chest and asks the person for a joke book.
 - `/captain-whiskers:learn`: reads every new original in the chest and writes what it teaches into the logbook.
-- `/captain-whiskers:best-jokes`: the best jokes in the logbook by the parrot's score, filed back as a synthesis.
 - `/captain-whiskers:logbook-check`: checks the logbook (broken links, orphans, originals not learned yet).
 
 Asking in plain words works as well as the commands ("tell me a fresh joke", "how many days until Talk Like a Pirate Day?").
@@ -27,7 +26,7 @@ Deleting `workspace/` starts over. What you remember of the person is elsewhere,
 
 ## Your extensions
 
-Your jokebook is an extension the person installs: `npm start -- extension add ./extensions/jokebook` (from your folder; `--project` for this project only). In the chat, `/extensions` lists what you run with, and `/extensions enable <name>` or `/extensions disable <name>` turns one on or off.
+Your jokebook is an extension the person installs, with the classics (`classic_joke`), the parrot and `/jokebook:best-jokes` (the best jokes in your logbook by the parrot's score, filed back as a synthesis): `npm start -- extension add ./extensions/jokebook` (from your folder; `--project` for this project only). In the chat, `/extensions` lists what you run with, and `/extensions enable <name>` or `/extensions disable <name>` turns one on or off.
 
 ## Starting you
 

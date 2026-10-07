@@ -128,14 +128,16 @@ The kit's capabilities are `sources`, `knowledge-base` and `person-memory`; an a
 
 ## Writing an installable extension
 
-A folder any agent on the kit can install. Captain Whiskers' `jokebook` is one:
+**Any Claude Code plugin is one**, as it is: its skills, commands and subagents load as they do in Claude Code, and its MCP servers start from its own `.mcp.json`. The kit's key in its manifest, `"agent-kit"`, is optional: it adds what the kit's gates and chat can use. Captain Whiskers' `jokebook` is one:
 
 ```text
 jokebook/
 ├── README.md                     for people: what it does, what it offers, how to install it
 ├── .claude-plugin/plugin.json    its manifest
+├── .mcp.json                     its MCP servers, as Claude Code declares them
 ├── server/index.mjs              its MCP server, run with Node
-├── skills/rank-jokes/SKILL.md    its skills and commands, if any
+├── skills/rank-jokes/SKILL.md    its skills, if any
+├── commands/best-jokes.md        its commands, if any (/jokebook:best-jokes)
 └── agents/loro-critico.md        its subagents, if any
 ```
 
@@ -155,7 +157,6 @@ The manifest is the plugin's: its metadata in [Claude Code's fields](https://cod
     "kit": ">=0.18.0 <0.20.0",
     "provides": ["jokes"],
     "requires": [],
-    "server": { "entry": "server/index.mjs", "env": [] },
     "readOnlyTools": ["classic_joke"],
     "labels": {
       "classic_joke": {
@@ -172,16 +173,28 @@ The manifest is the plugin's: its metadata in [Claude Code's fields](https://cod
 - **The kit's data** goes under `"agent-kit"`, the only key the kit reads. Claude Code ignores it: `claude plugin validate` passes with a warning ("Unknown field 'agent-kit'"). Anything else you add is ignored by both: keep your own data out of the manifest.
 - Check it with `claude plugin validate <folder>`.
 
-Under `"agent-kit"`:
+Its servers, in `.mcp.json` (or under `mcpServers` in `plugin.json`, inline or as a path), as Claude Code reads them:
+
+```json
+{
+  "mcpServers": {
+    "jokebook": { "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.mjs"] }
+  }
+}
+```
+
+- Each server's name gives its tools': `mcp__jokebook__classic_joke`.
+- **Only Node servers**: `command` is `node`, and the first of `args` its script, inside the extension (`${CLAUDE_PLUGIN_ROOT}` is its folder); the rest of `args` reach the script. Any other command (`python`, `npx`, `docker`) leaves the extension off, saying why: the kit runs installed code only through its launcher.
+- **Its environment**: the system's variables (`PATH`, `TEMP`, `HOME`…) and those in its `env`, where `${VAR}` takes the agent's (`"JOKES_API_KEY": "${JOKES_API_KEY}"`, from its `.env`). Nothing else of the agent's: not its credentials.
+
+Under `"agent-kit"`, all optional:
 
 | Field | What it does |
 | --- | --- |
 | `kit` | The agent-kit versions it works with: comparators separated by spaces, all of which must hold (`>=0.19.0 <0.21.0`, `0.19.2`). Outside them, it's off. |
 | `provides`, `requires` | Its [capabilities](#capabilities). |
-| `server.entry` | Its MCP server, relative to the extension: a JavaScript file Node runs (stdio). Its tools are `mcp__<name>__<tool>`. |
-| `server.env` | The environment variables it may see (an API key from the agent's `.env`, say). It gets those and the system's (`PATH`, `TEMP`, `HOME`…), never the agent's credentials. |
-| `readOnlyTools` | Its tools that only read (short names): [plan mode](../core-concepts/modes.md#plan) lets them through; every other one is denied there. |
-| `labels` | How the chat shows each tool, per language (English when the kit's isn't there): `label` (`{field}` takes the call's input, e.g. `"Rolling {sides}"`) and `phrase`, how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
+| `readOnlyTools` | Its tools that only read (short names, of any of its servers): [plan mode](../core-concepts/modes.md#plan) lets them through; every other one is denied there. Without it, plan mode denies them all. |
+| `labels` | How the chat shows each tool (short names), per language (English when the kit's isn't there): `label` (`{field}` takes the call's input, e.g. `"Rolling {sides}"`) and `phrase`, how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
 | `help` | What `agent-help` says about it. |
 
 **A `README.md`** at its root is for people: what it does, what it offers (its tools, skills, subagents, capabilities), what it requires, how to install it. The model never reads it; `extension info` says where it is. The jokebook's is an example.

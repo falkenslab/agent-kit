@@ -13,6 +13,7 @@ An [agent-kit](https://falkenslab.github.io/agent-kit/) extension: a book of cla
 | --- | --- | --- |
 | Tool | `classic_joke` | A classic pirate joke from the book, word for word, picked at random. Only reads: plan mode lets it through. |
 | Skill | `jokebook:rank-jokes` | Ranks the jokes in the knowledge base by their score and files the ranking back as a synthesis page. |
+| Command | `/jokebook:best-jokes` | Applies `rank-jokes` right away: the top three jokes. |
 | Subagent | `jokebook:loro-critico` | A grumpy parrot who scores a joke from 1 to 10 and suggests how to improve it. Uses no tools, on `haiku`. |
 
 - **Provides**: the `jokes` capability.
@@ -32,9 +33,10 @@ In the chat, `/extensions` shows it, and `/extensions disable jokebook` or `enab
 
 ## How it's built
 
-- `.claude-plugin/plugin.json`: its manifest. The plugin's fields (name, version, author…) plus agent-kit's under `"agent-kit"`: the capabilities, its server, the tools that only read, the chat labels in English, Spanish, French and German, and the help line.
+- `.claude-plugin/plugin.json`: its manifest. The plugin's fields (name, version, author…) plus agent-kit's under `"agent-kit"`: the capabilities, the tools that only read, the chat labels in English, Spanish, French and German, and the help line.
+- `.mcp.json`: its MCP server, declared as any Claude Code plugin does.
 - `server/index.mjs`: its MCP server. A Node script with no dependencies (it's installed by copying the folder), speaking MCP over stdio by hand. agent-kit starts it in its own process, with none of the agent's environment variables but the system's. It tells the model what the book is for in its `instructions`.
-- `skills/rank-jokes/SKILL.md`: the ranking.
+- `skills/rank-jokes/SKILL.md` and `commands/best-jokes.md`: the ranking.
 - `agents/loro-critico.md`: the parrot.
 
 Nothing in it is in English by accident: everything the model reads is in English, and the agent tells the jokes in the language of the conversation.
