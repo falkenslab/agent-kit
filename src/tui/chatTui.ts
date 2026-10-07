@@ -1,31 +1,19 @@
 import readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { createWriteStream, type WriteStream } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
-import { createInputQueue, togglePlanMode, type ModeControl } from "../core/session.js";
-import { runQuery, type AgentEvent, type AgentRun } from "../core/runner.js";
-import { listRuns, readConversation, readRunSession, type RunFolder } from "../core/runs.js";
+import type { ModeControl } from "../core/session.js";
+import type { AgentEvent } from "../core/runner.js";
 import { isSharedQuestionActive, setSharedReadline } from "./terminalInteraction.js";
 import * as ui from "./ui.js";
 import { t } from "../core/messages/index.js";
 import { applyLanguage } from "./language.js";
 import { applyTheme, type Theme } from "./theme.js";
 import { createConsoleRenderer } from "./consoleRenderer.js";
-import { withToolLabels, type ToolLabels } from "../core/toolLabels.js";
-import { chatExtensionsCommand } from "./extensionCommand.js";
-import type { ExtensionsStatus } from "../core/session.js";
-import { firstRun, openSession, runDate, runFolderOf, runLabel, type SessionOpener } from "./runs.js";
+import type { ToolLabels } from "../core/toolLabels.js";
+import { runDate, type SessionOpener } from "../chat/runs.js";
+import { createChatController, type NoticeTone } from "../chat/chatController.js";
 
-// Only strips picocolors' own SGR sequences (`\x1b[<codes>m`) — the only kind this file
-// ever writes to the console — not a general-purpose ANSI stripper for arbitrary escape
-// sequences (cursor movement, OSC, ...) this kit never emits.
-// eslint-disable-next-line no-control-regex -- \x1b is the ESC byte SGR sequences start with, not an accident
-const ANSI_SGR = /\x1b\[[0-9;]*m/g;
-function stripAnsi(text: string): string {
-  return text.replace(ANSI_SGR, "");
-}
+export { capHistory, loadHistory, saveHistory, slashCommandToken } from "../chat/history.js";
 
 /** Options of the chats (`runChatTui()`, and `runChatInk()` through `InkChatOptions`). */
 export interface ChatTuiOptions {
@@ -118,52 +106,9 @@ export interface ChatTuiOptions {
   theme?: Partial<Theme>;
 }
 
-interface HistoryEntry {
-  text: string;
-  timestamp: string;
-}
-
 const DEFAULT_PROMPT_LABEL = "\n> ";
 const DEFAULT_EXIT_COMMANDS: readonly string[] = ["/exit", "/quit"];
 const DEFAULT_HISTORY_LIMIT = 100;
-
-/** Keeps only the most recent `limit` entries (oldest-first order in, oldest-first out). */
-export function capHistory(entries: readonly HistoryEntry[], limit: number): HistoryEntry[] {
-  return entries.length > limit ? entries.slice(-limit) : entries.slice();
-}
-
-/** Oldest-first. Missing file reads as empty — nothing to load yet is the normal case. */
-export async function loadHistory(filePath: string): Promise<HistoryEntry[]> {
-  let raw: string;
-  try {
-    raw = await readFile(filePath, "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
-  return raw
-    .split("\n")
-    .filter((line) => line.trim().length > 0)
-    .map((line) => JSON.parse(line) as HistoryEntry);
-}
-
-/** Overwrites the whole file (not appended) so a prior prune (oldest entries dropped) sticks. */
-export async function saveHistory(filePath: string, entries: readonly HistoryEntry[]): Promise<void> {
-  await mkdir(path.dirname(filePath), { recursive: true });
-  const body = entries.map((entry) => JSON.stringify(entry)).join("\n");
-  await writeFile(filePath, entries.length > 0 ? `${body}\n` : "", "utf8");
-}
-
-/**
- * The command name a typed line would invoke (e.g. "chiste" for both "/chiste" and
- * "/chiste con salsa"), or `null` for a line that isn't a slash command at all (doesn't
- * start with "/") or is just a bare "/" with nothing after it.
- */
-export function slashCommandToken(line: string): string | null {
-  if (!line.startsWith("/")) return null;
-  const token = line.slice(1).split(/\s/, 1)[0];
-  return token ? token : null;
-}
 
 /**
  * Reads `events` one turn at a time — up to and including a `turn-end` — via manual
@@ -211,70 +156,51 @@ export async function drainTurn(events: AsyncIterator<AgentEvent>, onEvent: (eve
 export async function runChatTui(options: Options | SessionOpener, tuiOptions: ChatTuiOptions = {}): Promise<void> {
   applyLanguage(tuiOptions.language);
   applyTheme(tuiOptions.theme);
-  const exitCommands = new Set((tuiOptions.exitCommands ?? DEFAULT_EXIT_COMMANDS).map((c) => c.toLowerCase()));
   const promptLabel = tuiOptions.promptLabel ?? DEFAULT_PROMPT_LABEL;
-
-  const opener = typeof options === "function" ? options : null;
-  const runsDir = opener ? tuiOptions.runsDir : undefined;
-  if (opener && !runsDir) throw new Error("runChatTui(): a session opener needs `runsDir`.");
-  // The session in use: with runs, the run's folder, rebuilt on /resume.
-  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; run: RunFolder | null } =
-    opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
-  const modeControl = (): ModeControl | undefined => current.modeControl ?? tuiOptions.modeControl;
-
-  let queue = createInputQueue({ modeControl: modeControl() });
-  let run: AgentRun = runQuery(queue.iterable, current.options);
-  let events = run.events[Symbol.asyncIterator]();
-
   const historyLimit = tuiOptions.historyLimit ?? DEFAULT_HISTORY_LIMIT;
-  let historyEntries: HistoryEntry[] = tuiOptions.historyPath ? capHistory(await loadHistory(tuiOptions.historyPath), historyLimit) : [];
+
+  // The readline interface and its writer, set below once the history it starts with is loaded.
+  const late = {} as { rl: readline.Interface; writeLine: (text: string) => void };
+  const controller = await createChatController(options, {
+    exitCommands: tuiOptions.exitCommands ?? DEFAULT_EXIT_COMMANDS,
+    initialPrompt: tuiOptions.initialPrompt,
+    sessionLogPath: tuiOptions.sessionLogPath,
+    promptLabel,
+    agentLabel: tuiOptions.agentLabel,
+    historyPath: tuiOptions.historyPath,
+    historyLimit,
+    runsDir: tuiOptions.runsDir,
+    modeControl: tuiOptions.modeControl,
+    toolLabels: tuiOptions.toolLabels,
+    formatAction: tuiOptions.formatAction,
+    // Nothing here shows them.
+    promptSuggestions: false,
+    // /resume: a numbered list, and a number typed.
+    async pick(title, choices) {
+      late.writeLine(ui.heading(title));
+      choices.forEach((choice) => late.writeLine(`  ${choice.label}`));
+      const answer = (await late.rl.question(t().resumeQuestion)).trim();
+      return choices[Number(answer) - 1]?.value ?? null;
+    },
+  });
 
   const rl = readline.createInterface({
     input: stdin,
     output: stdout,
-    // readline wants most-recent-first (↑ shows historyEntries' last/newest entry first);
-    // this file is stored oldest-first (append-friendly, reads top-to-bottom like a log).
-    history: historyEntries.map((entry) => entry.text).reverse(),
+    // readline wants most-recent-first (↑ shows the newest entry first); the history is oldest-first.
+    history: [...controller.getState().history].reverse(),
     historySize: historyLimit,
   });
   setSharedReadline(rl);
 
-  // With runs, the session log is the run's own; it moves with /resume.
-  let sessionLog = null as WriteStream | null;
-  function openLog(): void {
-    sessionLog?.end();
-    const file = current.run ? path.join(current.run.dir, "session.log") : tuiOptions.sessionLogPath;
-    sessionLog = file ? createWriteStream(file, { flags: "a" }) : null;
-  }
-  openLog();
-  // Mirrors to the log file only — for text already visible on the terminal some other
-  // way (readline's own prompt + the human's local echo), so it isn't printed twice.
-  function mirror(text: string): void {
-    sessionLog?.write(stripAnsi(text));
-  }
-  // Prints to the console *and* mirrors to the log file — the normal case for anything
-  // this loop itself puts on screen (streamed reply text, action/error lines, ...).
-  // Tracks whether the terminal cursor currently sits at column 0 of a fresh row — true
-  // right after any write ending in "\n" (writeLine's normal case), false right after a
-  // streamed text delta that doesn't (the common case: deltas rarely end mid-sentence on a
-  // newline). Confirmed empirically (against a working chat loop that
-  // ends its streamed text block with an explicit newline): even with `prevRows` reset to 0 above, if the
-  // cursor is left *mid-row* when the next prompt redraws, `[kRefreshLine]`'s `cursorTo(0)`
-  // moves it to column 0 of that *same* row — the row still holding the tail of what we
-  // just wrote — and the following `clearScreenDown` wipes the row from there on, eating
-  // whatever was on it (for a short reply, potentially the whole thing, since "that row" is
-  // its only row). Ending every turn's output on a fresh blank row (see below, after
-  // `drainTurn()`) sidesteps this entirely: `clearScreenDown` then only ever clears blank
-  // space, on any row.
   // Every write goes through the shared console renderer (./consoleRenderer.ts), which
   // tracks whether the cursor sits at the start of a line and never emits a blank line
-  // between consecutive action lines.
+  // between consecutive action lines. The session log is the controller's.
   const renderer = createConsoleRenderer({
-    formatAction: withToolLabels(() => current.toolLabels ?? tuiOptions.toolLabels, tuiOptions.formatAction),
+    formatAction: controller.formatAction,
     agentLabel: tuiOptions.agentLabel,
     output: (text) => void stdout.write(text),
-    onWrite: (text) => {
-      mirror(text);
+    onWrite: () => {
       // node:readline's `Interface` tracks, on itself, how many terminal rows its own last
       // rendered prompt+line took (`prevRows`), so that the *next* time it redraws (the next
       // `rl.question()` for the following turn, but — confirmed empirically — also any
@@ -296,43 +222,44 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
     },
   });
   const { writeLine } = renderer;
-  // The mode can change from inside the session (the agent leaving plan mode with
-  // present_plan): say so, as /plan does.
-  let unsubscribeMode: (() => void) | undefined;
-  const watchMode = (): void => {
-    unsubscribeMode?.();
-    unsubscribeMode = modeControl()?.subscribe?.((mode) => writeLine(ui.dim(`⏵⏵ ${t().mode(mode)}`)));
-  };
-  watchMode();
+  Object.assign(late, { rl, writeLine });
 
-  // Cached lazily (not fetched until the first "/..." line, and only once — the SDK docs
-  // don't promise this list changes mid-session, and re-fetching per line would add a
-  // round-trip to the CLI subprocess for every turn): every registered command name/alias,
-  // built-ins (`/compact`, ...) included, so `/exit`-style local ones never false-flag.
-  let knownCommandTokens: Set<string> | null = null;
-  async function isKnownSlashCommand(token: string): Promise<boolean> {
-    if (!knownCommandTokens) {
-      const commands = await run.supportedCommands();
-      knownCommandTokens = new Set(commands.flatMap((c) => [c.name, ...(c.aliases ?? [])]));
+  const toned = (text: string, tone: NoticeTone): string => (tone === "plain" ? text : tone === "dim" ? ui.dim(text) : tone === "warn" ? ui.warn(text) : ui.error(text));
+  controller.onEvent((event) => {
+    switch (event.type) {
+      case "agent":
+        if (event.event.type !== "prompt-suggestion") renderer.render(event.event);
+        return;
+      case "notice":
+        writeLine(toned(event.text, event.tone));
+        return;
+      case "turn-start":
+        renderer.startTurn();
+        return;
+      case "turn-end":
+        // Every turn ends on a fresh row, so readline's redraw only ever clears blank space.
+        renderer.endLine();
+        return;
+      case "conversation":
+        for (const message of event.messages) {
+          // Printed, not logged: the run's session log already has it.
+          stdout.write(message.role === "user" ? `${promptLabel}${message.text}\n` : `\n${tuiOptions.agentLabel ? `${tuiOptions.agentLabel} ` : ""}${message.text}\n`);
+        }
+        writeLine(ui.dim(`\n${t().resumed(runDate(event.updatedAt))}`));
+        return;
+      case "mode":
+        // The mode changed (/plan, or the agent leaving plan mode with present_plan): say so.
+        writeLine(ui.dim(`⏵⏵ ${t().mode(event.mode)}`));
+        return;
+      case "user":
+      case "session":
+        return; // readline already echoed the line; nothing to draw for a reopened session
     }
-    return knownCommandTokens.has(token);
-  }
+  });
 
-  let turnInFlight = false;
-  let turnInterrupted = false;
-  function interruptTurn(): void {
-    if (turnInterrupted) return;
-    turnInterrupted = true;
-    void run.interrupt();
-    writeLine(ui.warn(t().interrupted));
-  }
   rl.on("SIGINT", () => {
-    if (turnInFlight) {
-      interruptTurn();
-    } else {
-      queue.end();
-      rl.close();
-    }
+    if (controller.getState().busy) controller.interrupt();
+    else rl.close();
   });
   // Esc interrupts the turn in flight too, like Ctrl+C — but, unlike it, never ends the
   // chat, and does nothing while a human-in-the-loop checkpoint is asking on this same
@@ -340,137 +267,27 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
   // already emits "keypress" on stdin, and only reports name "escape" for a lone Esc, not
   // for the Esc-prefixed sequences of arrow/function keys.
   const onKeypress = (_chunk: string | undefined, key: { name?: string } | undefined): void => {
-    if (key?.name === "escape" && turnInFlight && !isSharedQuestionActive()) interruptTurn();
+    if (key?.name === "escape" && controller.getState().busy && !isSharedQuestionActive()) controller.interrupt();
   };
   stdin.on("keypress", onKeypress);
 
-  /** Prints the run's earlier conversation (when it has one) and says it was resumed. */
-  async function showConversation(folder: RunFolder): Promise<void> {
-    if (!folder.sessionId) return;
-    for (const message of await readConversation(folder.dir)) {
-      // Printed, not logged: the run's session log already has it.
-      stdout.write(message.role === "user" ? `${promptLabel}${message.text}\n` : `\n${tuiOptions.agentLabel ? `${tuiOptions.agentLabel} ` : ""}${message.text}\n`);
-    }
-    const [summary] = (await listRuns(path.dirname(folder.dir))).filter((r) => path.resolve(r.dir) === path.resolve(folder.dir));
-    writeLine(ui.dim(`\n${t().resumed(runDate(summary?.updatedAt ?? new Date()))}`));
-  }
-
-  /** /resume: lists the runs, asks for one and switches the session to it. */
-  async function resume(): Promise<void> {
-    if (!opener || !runsDir) return;
-    const runs = await listRuns(runsDir);
-    if (runs.length === 0) {
-      writeLine(ui.dim(t().noEarlierRuns));
-      return;
-    }
-    writeLine(ui.heading(t().resumeTitle));
-    runs.forEach((summary, i) => writeLine(`  ${i + 1}. ${runLabel(summary, current.run ?? undefined)}`));
-    const answer = (await rl.question(t().resumeQuestion)).trim();
-    const summary = runs[Number(answer) - 1];
-    if (!answer || !summary || (current.run && path.resolve(summary.dir) === path.resolve(current.run.dir))) return;
-    queue.end();
-    run.close();
-    current = await openSession(opener, await runFolderOf(summary));
-    openLog();
-    queue = createInputQueue({ modeControl: modeControl() });
-    run = runQuery(queue.iterable, current.options);
-    events = run.events[Symbol.asyncIterator]();
-    watchMode();
-    knownCommandTokens = null;
-    await showConversation(current.run as RunFolder);
-  }
-
-  /** Opens the current run's session again (an extension enabled or disabled), keeping its conversation. */
-  async function reopen(): Promise<void> {
-    if (!opener || !current.run) return;
-    queue.end();
-    run.close();
-    current = await openSession(opener, { dir: current.run.dir, sessionId: await readRunSession(current.run.dir) });
-    queue = createInputQueue({ modeControl: modeControl() });
-    run = runQuery(queue.iterable, current.options);
-    events = run.events[Symbol.asyncIterator]();
-    watchMode();
-    knownCommandTokens = null;
-  }
-
-  if (tuiOptions.welcomeMessage) writeLine(tuiOptions.welcomeMessage);
+  if (tuiOptions.welcomeMessage) controller.notice(tuiOptions.welcomeMessage, "plain");
 
   try {
-    if (current.run) await showConversation(current.run);
-    if (tuiOptions.initialPrompt && !current.run?.sessionId) {
-      mirror(`${promptLabel}${tuiOptions.initialPrompt}\n`);
-      queue.push(tuiOptions.initialPrompt);
-      turnInFlight = true;
-      turnInterrupted = false;
-      renderer.startTurn();
-      await drainTurn(events, renderer.render);
-      turnInFlight = false;
-      renderer.endLine();
-    }
-
+    await controller.start();
     while (true) {
       let line: string;
       try {
-        line = (await rl.question(promptLabel)).trim();
+        line = await rl.question(promptLabel);
       } catch {
         break; // the interface closed underneath us (SIGINT/EOF while idle)
       }
-
-      if (!line) continue;
-      mirror(`${promptLabel}${line}\n`);
-      if (tuiOptions.historyPath) {
-        historyEntries = capHistory([...historyEntries, { text: line, timestamp: new Date().toISOString() }], historyLimit);
-        await saveHistory(tuiOptions.historyPath, historyEntries);
-      }
-      if (exitCommands.has(line.toLowerCase())) break;
-      if (runsDir && line.toLowerCase() === "/resume") {
-        await resume();
-        continue;
-      }
-      // /extensions: what the session runs with; enabling or disabling one reopens it.
-      const extensionsCommand = await chatExtensionsCommand(line, current.extensions, Boolean(opener && current.run));
-      if (extensionsCommand) {
-        for (const text of extensionsCommand.lines) writeLine(ui.dim(text));
-        if (extensionsCommand.reopen) await reopen();
-        continue;
-      }
-      // Plan mode on and off (the Ink chat also has Shift+Tab); the line says where it is now.
-      if (line.toLowerCase() === "/plan") {
-        const control = modeControl();
-        const next = control ? togglePlanMode(control) : null;
-        // The new mode's line comes from watchMode(); a control without subscribe() says it here.
-        if (!next) writeLine(ui.dim(t().modeLocked(control?.mode)));
-        else if (!control?.subscribe) writeLine(ui.dim(`⏵⏵ ${t().mode(next)}`));
-        continue;
-      }
-
-      // A line that *looks* like a slash command but matches nothing registered (a typo,
-      // an unnamespaced plugin command, ...) would otherwise reach the model as literal
-      // text with no special handling — confirmed empirically (captain-whiskers'
-      // /chiste before it was renamed /captain-whiskers:chiste) that this can look
-      // exactly like nothing happened at all. Caught here, before the turn even starts,
-      // so it's an immediate, unambiguous message instead of a guess at what the model's
-      // silence on unrecognized input might mean.
-      const commandToken = slashCommandToken(line);
-      if (commandToken && !(await isKnownSlashCommand(commandToken))) {
-        writeLine(ui.warn(t().unknownCommand(commandToken)));
-        continue;
-      }
-
-      queue.push(line);
-      turnInFlight = true;
-      turnInterrupted = false;
-      renderer.startTurn();
-      await drainTurn(events, renderer.render);
-      turnInFlight = false;
-      renderer.endLine();
+      if ((await controller.send(line)) === "exit") break;
     }
   } finally {
     stdin.off("keypress", onKeypress);
-    queue.end();
-    run.close();
+    controller.close();
     setSharedReadline(null);
     rl.close();
-    sessionLog?.end();
   }
 }

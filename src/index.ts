@@ -113,7 +113,19 @@ export { createManualLoginServer, type ManualInterventionTexts } from "./core/to
 export { createSaveToSourcesServer, sourcesPromptSection, type SourceToolsOptions } from "./extensions/sources/tools.js";
 
 export { runChatTui, type ChatTuiOptions } from "./tui/chatTui.js";
-export type { SessionOpener } from "./tui/runs.js";
+export type { SessionOpener } from "./chat/runs.js";
+export {
+  createChatController,
+  type ChatController,
+  type ChatSettings,
+  type ChatState,
+  type ChatEvent,
+  type ChatPanel,
+  type ChatQuestion,
+  type TranscriptEntry,
+  type TranscriptCall,
+  type NoticeTone,
+} from "./chat/chatController.js";
 export { createConsoleRenderer, type ConsoleRenderer, type ConsoleRendererOptions } from "./tui/consoleRenderer.js";
 export { runChatInk, type InkChatOptions, type HeaderInfo } from "./tui/ink/runChatInk.js";
 export type { ToolPhrase, ToolDetail, ResultFormatter } from "./tui/ink/toolGroup.js";

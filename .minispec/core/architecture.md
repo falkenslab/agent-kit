@@ -4,12 +4,13 @@
 
 ```
 consumer's AgentSpec + config -> buildSessionOptions() -> SDK Options (tools, hooks, MCP, plugins, agents)
-createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's UI (runChatInk/runChatTui, progress view/console renderer, desktop app)
+createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> chat controller (src/chat) -> its views (runChatInk/runChatTui; web and desktop next), or the caller's own UI (progress view/console renderer)
 ```
 
 ## Two layers (ADR-001)
 
 - `src/core/` — never touches `console.*`, `process.stdout` or `readline`; usable from any Node host.
+- `src/chat/` — the chat's logic without an interface (ADR-026): the chat controller, the runs, the history, `/extensions`. No terminal: the terminal chats in `src/tui/` are views of it, and so will be the web and desktop ones.
 - `src/extensions/<name>/` — the kit's internal extensions (ADR-025): `knowledge`, `sources`, `memory`. Like the core, no terminal. They import the core; the core imports them only through `src/core/extensions.ts`, and no extension imports another (an ESLint rule enforces both).
 - `src/tui/` — the only code that assumes a terminal (`readline`, `picocolors`, `@inquirer/prompts`, Ink).
 - `src/index.ts` — the only file importing from both, and the whole public API (ADR-011).
@@ -49,17 +50,23 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> caller's U
 - `memory/` — the memory of the person (#34): `index.ts` (the extension: needs `memoryDir`, a folder of the agent's own outside any project; its prompt section with the index; a `UserPromptSubmit` hook that hears the person); `memoryStore.ts` (one markdown file per entry: name, description, type `user`/`feedback`, `updated`; `remember()` creates one or changes only what's given, a field or one exact phrase of the body); `tools.ts` (`recall`, `remember`, which takes a quote that must be in the person's messages, and `forget`, #36).
 - Each has `labels.ts`: its tools' chat labels in the kit's languages.
 
+## Key pieces (`src/chat/`)
+
+- `chatController.ts` — `createChatController()` (#39): opens the session (the first run, `--continue`), reopens it (`/extensions`) or switches to another (`/resume`), one event reader per session (ADR-010), the person's lines (exit, the chat's commands, the view's own, unknown slash commands, turns), the mode, the session log (the console's text) and the history. It publishes a plain-data `ChatState` (the transcript in blocks, busy, mode, todos, context, commands, a `panel` with `panels: "state"`, a `choice` without `pick`) and `ChatEvent`s for views that draw as they go. `runQuery` can be replaced (tests).
+- `runs.ts` — `SessionOpener`, the first run (`--continue`), run labels for `/resume`.
+- `history.ts` — the history file, `slashCommandToken()`.
+- `extensions.ts` — `/extensions` (`chatExtensionsCommand()`), an installed extension's line.
+
 ## Key pieces (`src/tui/`)
 
 - `extensionCommand.ts` — `runExtensionCommand()` (the `extension list|add|remove|enable|disable` command an agent mounts in its binary) and `chatExtensionsCommand()` (`/extensions` in both chats: enabling or disabling reopens the session on the same run).
-- `chatTui.ts` — `runChatTui()`: multi-turn chat on `createInputQueue()` + `runQuery()`, history, Esc to interrupt, session log; registers its readline via `setSharedReadline()`; `drainTurn()` (ADR-010). Takes options or, with `runsDir`, a session opener, for `--continue` and `/resume` (ADR-020).
-- `runs.ts` — `SessionOpener`, the first run (`--continue`), run labels for `/resume`.
+- `chatTui.ts` — `runChatTui()`: the plain view of the chat controller (readline, the console renderer, Esc to interrupt, `/resume` as a numbered list); registers its readline via `setSharedReadline()`; `drainTurn()` (ADR-010).
 - `language.ts` — `applyLanguage()`: chooses the kit's language for an entry point and shows the warnings.
 - `consoleRenderer.ts` — `createConsoleRenderer()`: prints events, shared by chat and one-shot runs.
 - `terminalInteraction.ts` — `terminalInteractionPort`, the default port installed by `index.ts`; `setSharedReadline()` for the chat's interface.
 - `claudeAuth.ts` — `ensureClaudeAuth()`: offers `claude setup-token`, returns a new token for the caller to persist.
 - `theme.ts` — the color theme by roles, its defaults and `setTheme()`; `ui.ts` — the palette (`ui` namespace), each function drawing its role in the current theme (ADR-021). `ink/inkTheme.tsx` — `KitTheme`, `@inkjs/ui`'s components in the theme.
-- `ink/` — the Ink UI (ADR-014): `runChatInk()` (with `runsDir`, as `runChatTui()`; `/resume` picks in place of the prompt), `createProgressView()`, `runWizard()`; `sessionModel.ts` (the screen built from events, the log through the console renderer), `markdown.ts` (markdown to terminal lines), `toolGroup.ts` (folded tool calls), `inkInteraction.ts` (the Ink port), `SessionView.tsx` (history, live line, spinner, approval panel, status bar; inline or full screen), `PromptInput.tsx`, `fullscreen.ts` (alternate screen, mouse, scroll view; ADR-015), `header.ts` (title, fields and logo).
+- `ink/` — the Ink UI (ADR-014): `runChatInk()` (the Ink view of the chat controller: `/resume` picks in place of the prompt, `/copy`, Shift+Tab), `createProgressView()`, `runWizard()`; `sessionModel.ts` (the screen built from the controller's events), `markdown.ts` (markdown to terminal lines), `toolGroup.ts` (folded tool calls), `inkInteraction.ts` (the Ink port), `SessionView.tsx` (history, live line, spinner, approval panel, status bar; inline or full screen), `PromptInput.tsx`, `fullscreen.ts` (alternate screen, mouse, scroll view; ADR-015), `header.ts` (title, fields and logo).
 
 ## Modes
 
