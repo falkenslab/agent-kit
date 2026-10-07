@@ -58,7 +58,7 @@ Both are ignored by git: delete them to start over. Reading DOCX and PPTX and ke
 ## Crew (subagents)
 
 - `minino-buscachistes` — looks for new jokes on the web (`WebSearch`, `WebFetch`) and brings back 2 or 3 candidates with their source. The captain sends it when you ask for a new joke, or with `/captain-whiskers:fresh-joke`.
-- `loro-critico` — rates the chosen joke from 1 to 10, with no tools; if it fails, the captain asks for another batch, once.
+- `jokebook:loro-critico` — rates the chosen joke from 1 to 10, with no tools; if it fails, the captain asks for another batch, once. It comes from his `jokebook` extension (`extensions/jokebook/agents/loro-critico.md`), registered by the kit like the others.
 - `grumete-del-reloj` — tells the time, the date or how long until something. It reads the ship's clock and counts days with the kit's own `current_time` and `date_math` tools, not with `Bash`.
 
 All of them use `haiku`. While they work, the interface shows their tool calls under the call that started them, and with `CAPTAIN_MODE=interactive` their tools also go through the approval panel.

@@ -77,7 +77,8 @@ my-agent/
 ├── jokebook.ts                       the extension: what it brings
 └── extensions/jokebook/
     ├── .claude-plugin/plugin.json    its manifest
-    └── skills/rank-jokes/SKILL.md    its skills and commands, if any
+    ├── skills/rank-jokes/SKILL.md    its skills and commands, if any
+    └── agents/loro-critico.md        its subagents, if any
 ```
 
 ```json
@@ -126,7 +127,7 @@ What a contribution may carry (every part optional):
 
 `missing(context)` says why the extension can't run in this session (a folder it needs), or `undefined`. The context has the config, the spec, the run folder, the mode and whether a person can be asked.
 
-Its plugin is loaded like any of the agent's, so its skills and commands are named after it (`jokebook:rank-jokes`); with `skills: "plugins"` they're offered without naming them.
+Its plugin is loaded like any of the agent's, so its skills, commands and subagents are named after it (`jokebook:rank-jokes`, `jokebook:loro-critico`); with `skills: "plugins"` its skills are offered without naming them, and its subagents (`agents/*.md`) are registered like the agent's own (see [Subagents in a plugin](subagents.md#subagents-in-a-plugin)).
 
 ## Where they run
 

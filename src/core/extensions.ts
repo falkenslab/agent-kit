@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
+import { frontmatter } from "./pluginAgents.js";
 import { sourcesExtension } from "../extensions/sources/index.js";
 import { knowledgeExtension } from "../extensions/knowledge/index.js";
 
@@ -162,16 +163,9 @@ export async function skillsMissingCapabilities(roots: readonly string[], capabi
   return missing;
 }
 
-/** A SKILL.md's `requires:` from its frontmatter: `requires: a`, `requires: [a, b]` or a YAML list. */
+/** A SKILL.md's `requires:` from its frontmatter: `requires: a`, `requires: [a, b]`, `a, b` or a YAML list. */
 export function requiredCapabilities(skill: string): string[] {
-  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(skill)?.[1];
-  if (!frontmatter) return [];
-  const lines = frontmatter.split(/\r?\n/);
-  const at = lines.findIndex((line) => /^requires:/.test(line));
-  if (at < 0) return [];
-  const inline = lines[at].slice("requires:".length).trim();
-  const items = inline
-    ? inline.replace(/^\[|\]$/g, "").split(",")
-    : lines.slice(at + 1).filter((line, i, rest) => rest.slice(0, i + 1).every((l) => /^\s+-\s/.test(l))).map((line) => line.replace(/^\s+-\s*/, ""));
-  return items.map((item) => item.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+  const value = frontmatter(skill).fields.requires;
+  if (value === undefined) return [];
+  return (Array.isArray(value) ? value : value.split(",")).map((item) => item.trim()).filter(Boolean);
 }

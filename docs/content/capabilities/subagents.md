@@ -64,7 +64,7 @@ The kit appends the [reply language](../sessions/languages.md) line to each suba
 
 When `buildSubagents()` returns something (not `undefined`):
 
-1. The session gets the `Agent` tool, to delegate, and `Bash` when a subagent can use it: one that lists it in its `tools`, or one without `tools` (it inherits every session tool). Otherwise `Bash` is left out, saving about 1.9k input tokens on every call.
+1. The session gets the `Agent` tool, to delegate (also when only a [plugin brings subagents](#subagents-in-a-plugin)), and `Bash` when a subagent can use it: one that lists it in its `tools`, or one without `tools` (it inherits every session tool). Otherwise `Bash` is left out, saving about 1.9k input tokens on every call.
 2. `agents` is set to your definitions.
 3. Three `PreToolUse` hooks are registered, the [subagent gates](../security/subagent-gates.md):
    - **type gate**: `Agent` may only spawn the types in `allowedSubagentTypes`;
@@ -76,6 +76,24 @@ Return `undefined` for a configuration that doesn't need subagents, so neither t
 ```ts
 buildSubagents: (config) => (config.withResearch ? { agents: { researcher }, allowedSubagentTypes: ["researcher"] } : undefined),
 ```
+
+## Subagents in a plugin
+
+A plugin can bring subagents too, as markdown files in its `agents/` folder: your own plugins (`pluginRoots`) and your [extensions](extensions.md)'. The frontmatter gives the subagent's name, description, tools, model and turns; the body is its prompt:
+
+```markdown
+---
+name: loro-critico
+description: Grumpy parrot who scores a joke from 1 to 10 and suggests how to improve it. Uses no tools.
+tools: []
+model: haiku
+maxTurns: 1
+---
+
+You are Perico, the captain's grumpy parrot. You're given a joke: score it from 1 to 10…
+```
+
+The SDK names it after the plugin and its frontmatter `name` (not its file): `jokebook:loro-critico`. The kit registers it like one from `buildSubagents()`: in `agents` with the reply-language line added, allowed to be spawned by the type gate, and counted in the `Agent` and `Bash` decision (`tools` listing `Bash`, or none at all, brings `Bash`). It's how an extension ships its subagents. Its prompt is fixed text: one that needs the agent's config (its name in the chosen language, a folder) stays in `buildSubagents()`.
 
 ## Tools of a subagent
 

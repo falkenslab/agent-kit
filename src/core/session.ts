@@ -18,6 +18,7 @@ import type { KnowledgeStore } from "../extensions/knowledge/knowledgeStore.js";
 import { extensionsPromptSection, resolveExtensions, skillsMissingCapabilities, type ExtensionContribution } from "./extensions.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { AGENT_HELP_SKILL, identityPromptSection, writeAgentHelpPlugin } from "./agentHelp.js";
+import { pluginAgents } from "./pluginAgents.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 import { replyLanguageInstruction, type Language } from "./language.js";
 import { chooseLanguage } from "./messages/index.js";
@@ -152,23 +153,28 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // anything not already present here — which is why the hook, not just omitting "Bash"
   // from this list, is what actually confines it to subagent use).
   const subagents = spec.buildSubagents(config);
+  // The plugins' subagents too (agents/*.md, the agent's and its extensions'), registered as the
+  // spec's are: allowed to be spawned, counted in the Agent and Bash decision, and given the
+  // reply line (pluginAgents.ts; ADR-025).
+  const fromPlugins = await pluginAgents(pluginRoots);
+  const allAgents = { ...fromPlugins, ...(subagents?.agents ?? {}) };
   // Each subagent gets the reply line too: its prompt doesn't include the main one's.
-  const subagentDefinitions = subagents
-    ? Object.fromEntries(Object.entries(subagents.agents).map(([name, agent]) => [name, { ...agent, prompt: withReplyLine(agent.prompt) }]))
+  const subagentDefinitions = Object.keys(allAgents).length
+    ? Object.fromEntries(Object.entries(allAgents).map(([name, agent]) => [name, { ...agent, prompt: withReplyLine(agent.prompt) }]))
     : undefined;
-  const includeSubagentTools = subagents !== undefined;
+  const includeSubagentTools = subagentDefinitions !== undefined;
   // Bash only when a subagent can use it: one that lists it, or one without `tools`, which
   // inherits every session tool. Its definition costs about 1.9k input tokens on every call
   // (measured), and the main agent can't use it anyway.
   const subagentTools = includeSubagentTools
-    ? ["Agent", ...(Object.values(subagents.agents).some((agent) => !agent.tools || agent.tools.includes("Bash")) ? ["Bash"] : [])]
+    ? ["Agent", ...(Object.values(allAgents).some((agent) => !agent.tools || agent.tools.includes("Bash")) ? ["Bash"] : [])]
     : [];
   // The exact set of subagent_type values the Agent tool may spawn in this session — see
   // createSubagentTypeGate() below for why this can't just be "whatever's in `agents`
   // below": the SDK's own built-in "general-purpose" type is spawnable regardless of that
   // map, and inherits the full session tools (Bash included) rather than the narrow list
   // each declared subagent actually declares.
-  const allowedSubagentTypes = subagents?.allowedSubagentTypes ?? [];
+  const allowedSubagentTypes = [...new Set([...(subagents?.allowedSubagentTypes ?? []), ...Object.keys(fromPlugins)])];
 
   const transcriptPath = path.join(runDir, "transcript.jsonl");
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);

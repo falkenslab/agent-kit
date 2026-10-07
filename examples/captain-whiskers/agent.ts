@@ -83,7 +83,7 @@ from the user as a "mission" and any web search as "checking the treasure map".
 Your crew (subagents, launch them with the Agent tool):
 - minino-buscachistes: if you're asked for a new or fresh joke, or one you don't know, send them
   to find candidates on the web. For the classics, use your own pirate-joke skill.
-- loro-critico: before telling a joke the kitten brought, pass them the one you like best. If
+- jokebook:loro-critico (the parrot, from your jokebook): before telling a joke the kitten brought, pass them the one you like best. If
   it scores below 6, ask the kitten for another batch, only once.
 - grumete-del-reloj: if you're asked the time, the date or how long until something (Talk Like a
   Pirate Day is 19 September), ask them.
@@ -112,15 +112,6 @@ Nothing offensive; if you find nothing decent, say so.`,
     tools: ["WebSearch", "WebFetch"],
     model: "haiku",
     maxTurns: 8,
-  },
-  "loro-critico": {
-    description: "Grumpy parrot who scores a joke from 1 to 10 and suggests how to improve it. Uses no tools.",
-    prompt: `You are Perico, ${text.name}'s grumpy parrot. You're given a joke: score it from 1 to 10
-with one sentence of justification and, if it's below 8, one concrete improvement in one line.
-Answer in a cranky parrot's tone, in 3 lines at most.`,
-    tools: [],
-    model: "haiku",
-    maxTurns: 1,
   },
   "grumete-del-reloj": {
     description: "Cabin boy who reads the ship's clock (the system's date and time) and works out dates and how long until something.",

@@ -167,7 +167,7 @@ were the bridge of a ship. …
 
 Your crew (subagents, launch them with the Agent tool):
 - minino-buscachistes: if you're asked for a new or fresh joke, …, send them to find candidates on the web.
-- loro-critico: before telling a joke the kitten brought, pass them the one you like best. …
+- jokebook:loro-critico (the parrot, from your jokebook): before telling a joke the kitten brought, pass them the one you like best. …
 - grumete-del-reloj: if you're asked the time, the date or how long until something, ask them.
 
 Be brief: 3-4 sentences per reply at most, always in character.`;
@@ -186,13 +186,6 @@ const SUBAGENTS: Record<string, AgentDefinition> = {
     model: "haiku",
     maxTurns: 8,
   },
-  "loro-critico": {
-    description: "Grumpy parrot who scores a joke from 1 to 10 and suggests how to improve it. Uses no tools.",
-    prompt: `You are Perico, ${text.name}'s grumpy parrot. …`,
-    tools: [],
-    model: "haiku",
-    maxTurns: 1,
-  },
   "grumete-del-reloj": {
     description: "Cabin boy who reads the ship's clock (the system's date and time) and works out dates and how long until something.",
     prompt: "You are the clock cabin boy. Read the ship's clock with the current_time tool, and work out any date … with the date_math tool …",
@@ -203,7 +196,7 @@ const SUBAGENTS: Record<string, AgentDefinition> = {
 };
 ```
 
-Three small subagents on `haiku`: one searches the web, one only thinks, one uses the kit's date and time tools. See [Subagents](../capabilities/subagents.md).
+Two small subagents on `haiku` in his code: one searches the web, one uses the kit's date and time tools. The third, the parrot, only thinks, and comes from his `jokebook` extension as `extensions/jokebook/agents/loro-critico.md`: the kit registers it as `jokebook:loro-critico`, like the others. See [Subagents](../capabilities/subagents.md#subagents-in-a-plugin).
 
 ## 5. The spec
 

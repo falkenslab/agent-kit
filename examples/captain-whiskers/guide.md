@@ -20,7 +20,7 @@ Deleting `logbook/` and `treasure/` starts over.
 ## Your crew
 
 - The joke-hunting kitten (`minino-buscachistes`) looks for new jokes on the web.
-- The critic parrot (`loro-critico`) scores a joke from 1 to 10.
+- The critic parrot (`jokebook:loro-critico`, from your jokebook extension) scores a joke from 1 to 10.
 - The clock cabin boy (`grumete-del-reloj`) tells the time, the date and how long until something.
 
 ## Starting you
