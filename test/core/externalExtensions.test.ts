@@ -34,7 +34,12 @@ function makeExtension(name = "dice", kit: Record<string, unknown> = {}): string
     path.join(dir, ".claude-plugin", "plugin.json"),
     JSON.stringify({
       name,
+      version: "2.1.0",
       description: "Rolls dice.",
+      author: { name: "Ada", email: "ada@example.com" },
+      license: "MIT",
+      repository: { url: "https://example.com/dice.git" },
+      keywords: ["dice", 7],
       "agent-kit": {
         provides: ["dice"],
         server: { entry: "server/index.mjs", env: ["DICE_SEED"] },
@@ -46,6 +51,7 @@ function makeExtension(name = "dice", kit: Record<string, unknown> = {}): string
     }),
   );
   fs.writeFileSync(path.join(dir, "server", "index.mjs"), "// a server\n");
+  fs.writeFileSync(path.join(dir, "README.md"), "# dice\n");
   fs.writeFileSync(path.join(dir, "agents", "croupier.md"), "---\nname: croupier\ndescription: Deals.\ntools: [Bash, Read]\n---\n\nYou deal.");
   return dir;
 }
@@ -151,7 +157,7 @@ test("a session runs an installed extension: its server through the launcher, it
 
     // /extensions lists it; disabling it changes the lock and asks to reopen.
     const listed = await chatExtensionsCommand("/extensions", built.extensions, true);
-    assert.match(listed?.lines.join("\n") ?? "", /dice {2}\[project\] {2}enabled/);
+    assert.match(listed?.lines.join("\n") ?? "", /dice 2\.1\.0 {2}\[project\] {2}enabled {2}by Ada/);
     const disabled = await chatExtensionsCommand("/extensions disable dice", built.extensions, true);
     assert.equal(disabled?.reopen, true);
     assert.equal((await readLock(dirs.project)).dice?.enabled, false);
@@ -173,8 +179,17 @@ test("the command installs, lists, disables and removes, and says what it did", 
   assert.match(lines.join("\n"), /Installed dice in the agent scope[\s\S]*Installed dice in the project scope/);
   lines.length = 0;
   await run("list");
-  assert.match(lines[0]!, /^dice {2}\[project\] {2}enabled/);
-  assert.match(lines[1]!, /^dice {2}\[agent\] {2}not used/);
+  assert.match(lines[0]!, /^dice 2\.1\.0 {2}\[project\] {2}enabled {2}by Ada {2}from /);
+  assert.match(lines[1]!, /^dice 2\.1\.0 {2}\[agent\] {2}not used/);
+  lines.length = 0;
+  await run("info", "dice");
+  const info = lines.join("\n");
+  assert.match(info, /^dice 2\.1\.0: Rolls dice\./);
+  assert.match(info, /Author {7}Ada <ada@example\.com>/);
+  assert.match(info, /Repository {3}https:\/\/example\.com\/dice\.git/);
+  assert.match(info, /Keywords {5}dice\n/);
+  assert.match(info, /Variables {4}DICE_SEED/);
+  assert.match(info, /README {7}.*README\.md/);
   lines.length = 0;
   const before = process.exitCode;
   await run("disable", "dice");

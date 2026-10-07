@@ -39,11 +39,26 @@ export interface ExternalToolLabel {
   phrase?: ToolPhrase;
 }
 
-/** An external extension's manifest: the kit's key of its `plugin.json`. */
+/** Who made an extension, as Claude Code's `plugin.json` has it. */
+export interface ExtensionAuthor {
+  name: string;
+  email?: string;
+  url?: string;
+}
+
+/**
+ * An external extension's manifest: its `plugin.json`, the plugin's own metadata (Claude Code's
+ * fields, which its validator checks) and the kit's key (`"agent-kit"`, which it ignores).
+ */
 export interface ExternalManifest {
   name: string;
   description: string;
   version?: string;
+  author?: ExtensionAuthor;
+  homepage?: string;
+  repository?: string;
+  license?: string;
+  keywords?: string[];
   provides: string[];
   requires: string[];
   /** The agent-kit versions it works with, e.g. `">=0.19.0 <0.21.0"`. */
@@ -101,10 +116,21 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
   const name = raw.name;
   if (typeof name !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) throw new Error(`${file}: "name" must be kebab-case.`);
   const kit = (raw["agent-kit"] ?? {}) as Partial<ExternalManifest>;
+  const text = (key: string): Record<string, string> => (typeof raw[key] === "string" ? { [key]: raw[key] as string } : {});
+  const author = raw.author as Partial<ExtensionAuthor> | undefined;
+  // `repository` may be a URL or `{ url }`, as in package.json.
+  const repository = typeof raw.repository === "string" ? raw.repository : (raw.repository as { url?: unknown } | undefined)?.url;
   return {
     name,
     description: typeof raw.description === "string" ? raw.description : "",
-    ...(typeof raw.version === "string" ? { version: raw.version } : {}),
+    ...text("version"),
+    ...(author && typeof author === "object" && typeof author.name === "string"
+      ? { author: { name: author.name, ...(author.email ? { email: author.email } : {}), ...(author.url ? { url: author.url } : {}) } }
+      : {}),
+    ...text("homepage"),
+    ...(typeof repository === "string" ? { repository } : {}),
+    ...text("license"),
+    ...(Array.isArray(raw.keywords) ? { keywords: raw.keywords.filter((keyword): keyword is string => typeof keyword === "string") } : {}),
     provides: kit.provides ?? [],
     requires: kit.requires ?? [],
     ...(kit.kit ? { kit: kit.kit } : {}),
@@ -171,6 +197,8 @@ export interface InstalledExtension {
   lock: LockEntry;
   /** Also installed in the project's scope, which wins: this one isn't used. */
   shadowed: boolean;
+  /** Its manifest, when it can be read. */
+  manifest?: ExternalManifest;
 }
 
 /** Every extension installed in the scopes, the project's first. */
@@ -180,7 +208,9 @@ export async function listInstalled(dirs: ExtensionDirs): Promise<InstalledExten
     const scopeDir = dirs[scope];
     if (!scopeDir) continue;
     for (const [name, lock] of Object.entries(await readLock(scopeDir))) {
-      installed.push({ name, scope, dir: path.join(scopeDir, name), lock, shadowed: installed.some((other) => other.name === name) });
+      const dir = path.join(scopeDir, name);
+      const manifest = await readExternalManifest(dir).catch(() => undefined);
+      installed.push({ name, scope, dir, lock, shadowed: installed.some((other) => other.name === name), ...(manifest ? { manifest } : {}) });
     }
   }
   return installed;

@@ -1,3 +1,4 @@
+import { stat } from "node:fs/promises";
 import path from "node:path";
 import {
   addExtension,
@@ -18,6 +19,7 @@ import { t } from "../core/messages/index.js";
  * `process.exitCode` to 1 on an error.
  *
  * - `extension list`
+ * - `extension info <name>`: its metadata, what it offers and where its README is
  * - `extension add <folder | git URL[#ref]> [--project] [--path <subfolder>]`
  * - `extension remove|enable|disable <name> [--project | --agent]`
  *
@@ -57,6 +59,14 @@ export async function runExtensionCommand(
         for (const extension of installed) write(describe(extension));
         return true;
       }
+      case "info": {
+        const name = positional[0];
+        if (!name) return fail(`Usage: ${command} extension info <name>`);
+        const found = (await listInstalled(options.dirs)).find((extension) => extension.name === name && !extension.shadowed);
+        if (!found) return fail(`${name} isn't installed. \`${command} extension list\` lists them.`);
+        for (const line of await info(found)) write(line);
+        return true;
+      }
       case "add": {
         const source = positional[0];
         if (!source) return fail(`Usage: ${command} extension add <folder | git URL[#ref]> [--project] [--path <subfolder>]`);
@@ -88,6 +98,7 @@ export async function runExtensionCommand(
           [
             `Usage: ${command} extension <action>`,
             "  list                                   what's installed, in which scope, on or off",
+            "  info <name>                            its metadata, what it offers, its README",
             "  add <folder | git URL[#ref]> [--project] [--path <subfolder>]",
             "  remove|enable|disable <name> [--project | --agent]",
           ].join("\n"),
@@ -98,11 +109,37 @@ export async function runExtensionCommand(
   }
 }
 
-/** One line for an installed extension: name, scope, on or off, where it came from. */
+/** One line for an installed extension: name and version, scope, on or off, its author, where it came from. */
 export function describe(extension: InstalledExtension): string {
   const state = extension.shadowed ? "not used (the project's wins)" : extension.lock.enabled ? "enabled" : "disabled";
   const source = extension.lock.commit ? `${extension.lock.source} @ ${extension.lock.commit.slice(0, 12)}` : path.normalize(extension.lock.source);
-  return `${extension.name}  [${extension.scope}]  ${state}  from ${source}`;
+  const version = extension.manifest?.version ? ` ${extension.manifest.version}` : "";
+  const author = extension.manifest?.author ? `  by ${extension.manifest.author.name}` : "";
+  return `${extension.name}${version}  [${extension.scope}]  ${state}${author}  from ${source}`;
+}
+
+/** Everything an installed extension's manifest says about it, for `extension info`. */
+async function info(extension: InstalledExtension): Promise<string[]> {
+  const manifest = extension.manifest;
+  if (!manifest) return [describe(extension), "Its manifest can't be read."];
+  const author = manifest.author ? [manifest.author.name, manifest.author.email && `<${manifest.author.email}>`, manifest.author.url && `(${manifest.author.url})`].filter(Boolean).join(" ") : undefined;
+  const readme = path.join(extension.dir, "README.md");
+  const field = (label: string, value: string | undefined): string[] => (value ? [`${label.padEnd(13)}${value}`] : []);
+  return [
+    `${manifest.name}${manifest.version ? ` ${manifest.version}` : ""}: ${manifest.description}`,
+    ...field("Author", author),
+    ...field("License", manifest.license),
+    ...field("Homepage", manifest.homepage),
+    ...field("Repository", manifest.repository),
+    ...field("Keywords", manifest.keywords?.join(", ")),
+    ...field("Works with", manifest.kit && `agent-kit ${manifest.kit}`),
+    ...field("Provides", manifest.provides.join(", ") || undefined),
+    ...field("Requires", manifest.requires.join(", ") || undefined),
+    ...field("Tools", manifest.server ? `its own server (${manifest.server.entry})${manifest.readOnlyTools.length ? `; only read: ${manifest.readOnlyTools.join(", ")}` : ""}` : undefined),
+    ...field("Variables", manifest.server?.env?.length ? manifest.server.env.join(", ") : undefined),
+    ...field("Installed", `${extension.scope} scope, ${extension.lock.enabled ? "enabled" : "disabled"}, on ${extension.lock.installed}, from ${describe(extension).split("  from ")[1]}`),
+    ...field("README", (await stat(readme).catch(() => null))?.isFile() ? readme : undefined),
+  ];
 }
 
 /**

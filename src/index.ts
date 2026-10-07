@@ -35,6 +35,7 @@ export {
   setExtensionEnabled,
   listInstalled,
   readExternalManifest,
+  type ExtensionAuthor,
   type ExtensionDirs,
   type ExtensionScope,
   type ExternalManifest,

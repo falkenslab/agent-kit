@@ -2,6 +2,11 @@
   "name": "jokebook",
   "version": "1.0.0",
   "description": "A jokebook: classic pirate jokes, and ranking the jokes kept in a knowledge base by their score.",
+  "author": { "name": "Falkenslab", "url": "https://github.com/falkenslab" },
+  "homepage": "https://falkenslab.github.io/agent-kit/docs/capabilities/extensions",
+  "repository": "https://github.com/falkenslab/agent-kit",
+  "license": "MIT",
+  "keywords": ["jokes", "pirates", "example"],
   "agent-kit": {
     "kit": ">=0.18.0 <0.20.0",
     "provides": ["jokes"],

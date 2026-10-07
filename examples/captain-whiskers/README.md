@@ -54,6 +54,7 @@ His `jokebook` is installed instead: `extensions/jokebook/` is an extension any 
 npm start -- extension add ./extensions/jokebook            # for all his projects: ~/.captain-whiskers/extensions/
 npm start -- extension add ./extensions/jokebook --project  # only this one: workspace/extensions/
 npm start -- extension list
+npm start -- extension info jokebook                        # its version, author, what it offers, its README
 ```
 
 In the chat, `/extensions` lists what he runs with; `/extensions disable jokebook` and `/extensions enable jokebook` turn it off and on, reopening the session with the same conversation. `CAPTAIN_HOME` moves `~/.captain-whiskers` elsewhere (to try him without touching yours).

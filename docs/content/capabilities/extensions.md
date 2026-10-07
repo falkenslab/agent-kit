@@ -78,7 +78,8 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 
 | Command | What it does |
 | --- | --- |
-| `extension list` | What's installed, in which scope, enabled or not, and where from. |
+| `extension list` | What's installed: name and version, scope, enabled or not, author, where from. |
+| `extension info <name>` | Everything its manifest says (description, author, license, homepage, repository, keywords, the agent-kit versions, capabilities, tools, variables), how it was installed, and where its README is. |
 | `extension add <folder>` | Copies the folder into the agent's scope, checks its manifest, hashes it and locks it, enabled. |
 | `extension add <git URL>[#ref] [--path <subfolder>]` | Clones the repository at the ref (`https://…`, `git@…`, `file://…`, `github:owner/repo`) and records the commit. |
 | `extension add … --project` | Into the project's scope instead. |
@@ -131,19 +132,25 @@ A folder any agent on the kit can install. Captain Whiskers' `jokebook` is one:
 
 ```text
 jokebook/
+├── README.md                     for people: what it does, what it offers, how to install it
 ├── .claude-plugin/plugin.json    its manifest
 ├── server/index.mjs              its MCP server, run with Node
 ├── skills/rank-jokes/SKILL.md    its skills and commands, if any
 └── agents/loro-critico.md        its subagents, if any
 ```
 
-The manifest is the plugin's, with the kit's data under `"agent-kit"`:
+The manifest is the plugin's: its metadata in [Claude Code's fields](https://code.claude.com/docs/en/plugins-reference#plugin-manifest-schema), and the kit's data under `"agent-kit"`:
 
 ```json
 {
   "name": "jokebook",
   "version": "1.0.0",
   "description": "A jokebook: classic pirate jokes, and ranking the jokes kept in a knowledge base by their score.",
+  "author": { "name": "Falkenslab", "url": "https://github.com/falkenslab" },
+  "homepage": "https://falkenslab.github.io/agent-kit/docs/capabilities/extensions",
+  "repository": "https://github.com/falkenslab/agent-kit",
+  "license": "MIT",
+  "keywords": ["jokes", "pirates", "example"],
   "agent-kit": {
     "kit": ">=0.18.0 <0.20.0",
     "provides": ["jokes"],
@@ -161,6 +168,12 @@ The manifest is the plugin's, with the kit's data under `"agent-kit"`:
 }
 ```
 
+- **Metadata** goes in Claude Code's own fields, in its format: `name` (kebab-case), `version`, `description`, `author` (an object, `{ name, email?, url? }`: a plain string fails validation), `homepage`, `repository`, `license`, `keywords`. `extension list` and `extension info` show them.
+- **The kit's data** goes under `"agent-kit"`, the only key the kit reads. Claude Code ignores it: `claude plugin validate` passes with a warning ("Unknown field 'agent-kit'"). Anything else you add is ignored by both: keep your own data out of the manifest.
+- Check it with `claude plugin validate <folder>`.
+
+Under `"agent-kit"`:
+
 | Field | What it does |
 | --- | --- |
 | `kit` | The agent-kit versions it works with: comparators separated by spaces, all of which must hold (`>=0.19.0 <0.21.0`, `0.19.2`). Outside them, it's off. |
@@ -170,6 +183,8 @@ The manifest is the plugin's, with the kit's data under `"agent-kit"`:
 | `readOnlyTools` | Its tools that only read (short names): [plan mode](../core-concepts/modes.md#plan) lets them through; every other one is denied there. |
 | `labels` | How the chat shows each tool, per language (English when the kit's isn't there): `label` (`{field}` takes the call's input, e.g. `"Rolling {sides}"`) and `phrase`, how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
 | `help` | What `agent-help` says about it. |
+
+**A `README.md`** at its root is for people: what it does, what it offers (its tools, skills, subagents, capabilities), what it requires, how to install it. The model never reads it; `extension info` says where it is. The jokebook's is an example.
 
 **What it's for and its rules** go in the `instructions` its server sends when it connects: the model has them from the start, like an internal extension's prompt section. Keep them short; procedures go in skills.
 
