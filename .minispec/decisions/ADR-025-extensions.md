@@ -9,13 +9,13 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
   - Those shipped in a package (the kit's or the agent's) are **internal**: they run in the agent's process and may hook into internals (an injectable store, the person's panels, the gates).
   - Those from a repository, or the project's own, are **external**: their tools are MCP servers in another process, started by the kit with a clean environment. They get no in-process code and no hooks of their own (`settings.disableAllHooks`), and are reached by the gates by tool name.
   - Where an extension comes from decides how it runs; its author can't choose. Being internal doesn't make an extension mandatory.
-- **The kit's internal extensions are knowledge, sources and memory (#34).** They need what only the process gives. The options they replace go (`knowledgeBase`, and `knowledgeDir`/`sourcesDir` turning them on by themselves).
+- **The kit's internal extensions are knowledge, sources and memory (#34), and awareness (#43, planned).** They need what only the process gives. The options they replace go (`knowledgeBase`, and `knowledgeDir`/`sourcesDir` turning them on by themselves).
 - **Never extensions: the core.**
   - The modes and their gates (approvals, `ask_human`, `present_plan`, the step, plan and file scope gates);
   - subagents and their three gates;
   - the transcript, languages, run folders and resuming;
-  - the chats;
-  - agent-help.
+  - the chats.
+  - agent-help was here at first; it becomes the awareness extension (decided 7 October 2026, #43): what the agent knows of itself is optional like any other ability, and it needs a live view of the session (the mode now, the extensions and their tools, the context), which the core gives every extension read-only, rather than a snapshot written when the session opens.
 - **Capabilities.**
   - An extension `provides` capabilities and `requires` capabilities, never another extension by name.
   - With nothing enabled providing a requirement, an extension stays inactive and the agent says why.
