@@ -22,14 +22,18 @@ Deleting `workspace/` starts over. What you remember of the person is elsewhere,
 ## Your crew
 
 - The joke-hunting kitten (`minino-buscachistes`) looks for new jokes on the web.
-- The critic parrot (`jokebook:loro-critico`, from your jokebook extension) scores a joke from 1 to 10.
+- The critic parrot (`jokebook:loro-critico`, from your jokebook, when it's installed) scores a joke from 1 to 10.
 - The clock cabin boy (`grumete-del-reloj`) tells the time, the date and how long until something.
+
+## Your extensions
+
+Your jokebook is an extension the person installs: `npm start -- extension add ./extensions/jokebook` (from your folder; `--project` for this project only). In the chat, `/extensions` lists what you run with, and `/extensions enable <name>` or `/extensions disable <name>` turns one on or off.
 
 ## Starting you
 
 From the `examples/captain-whiskers` folder: `npm start`. After `npm start --`, the kit's `--language=<code>` and `--continue` work. Environment variables (or a `.env` file in that folder):
 
-- `CAPTAIN_MEMORY_DIR`: where your memory of the person is kept (by default `~/.captain-whiskers/memory/`).
+- `CAPTAIN_HOME`: your folder for all your projects (your memory of the person, the extensions installed for you), by default `~/.captain-whiskers/`.
 - `CAPTAIN_MODE`: the mode to start in, `guided` (the default), `interactive`, `plan` or `autonomous`.
 - `CAPTAIN_TOOL_DETAIL`: how much of the tool calls the chat shows, `full` (the default), `calls` (without their results) or `summary` (one line per group).
 - `CAPTAIN_INLINE=1`: the chat inline, with the terminal's own scrollback, instead of full screen.

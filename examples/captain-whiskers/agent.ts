@@ -10,6 +10,7 @@ import {
   detectLanguage,
   messagesFor,
   runChatInk,
+  runExtensionCommand,
   ensureClaudeAuth,
   ui,
   type AgentDefinition,
@@ -20,7 +21,6 @@ import {
   type PageType,
   type ToolDetail,
 } from "@falkenslab/agent-kit";
-import { jokebookExtension } from "./jokebook.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -158,9 +158,10 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
   // El cuaderno (logbook/) se lleva con las herramientas knowledge_* del kit; Read, Glob y Grep
   // solo llegan al cofre (treasure/), y nada puede escribir en él.
-  // Las extensiones con las que navega (ADR-025): el cofre (sources, en treasure/) y el cuaderno
-  // (knowledge, en logbook/), que son del kit, y su libro de chistes, que es suyo.
-  extensions: ["sources", "knowledge", "memory", jokebookExtension],
+  // Las extensiones del kit con las que navega (ADR-025): el cofre (sources, en treasure/), el
+  // cuaderno (knowledge, en logbook/) y lo que recuerda de quien navega con él (memory). Las que
+  // se le instalan (su libro de chistes, extensions/jokebook) van aparte: config.extensionDirs.
+  extensions: ["sources", "knowledge", "memory"],
   knowledgePageTypes: [JOKE_PAGE],
   // Solo las skills de sus plugins (las suyas, las del cuaderno y agent-help), no la veintena
   // que trae el SDK, y ninguna configuración de Claude Code de quien lo ejecute.
@@ -178,7 +179,19 @@ const LOGO = [
   pc.yellow("    > ^ <"),
 ];
 
+// Todo lo que guarda vive en workspace/ (ignorado por git), su proyecto: así la carpeta del
+// capitán solo tiene su código. Lo suyo en todos sus proyectos (su memoria de ti, las extensiones
+// que se le instalan para todos) en ~/.captain-whiskers, o CAPTAIN_HOME para probar.
+const workspace = path.join(__dirname, "workspace");
+const home = process.env.CAPTAIN_HOME || path.join(os.homedir(), ".captain-whiskers");
+// Dónde se le instalan extensiones (#37): las suyas, para todos sus proyectos, y las de este.
+const extensionDirs = { agent: path.join(home, "extensions"), project: path.join(workspace, "extensions") };
+
 async function main(): Promise<void> {
+  // `npm start -- extension add ./extensions/jokebook` (list, remove, enable, disable): el
+  // comando del kit, en su propio arranque, antes que nada.
+  if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, command: "npm start --" })) return;
+
   // Sin CLAUDE_CODE_OAUTH_TOKEN/ANTHROPIC_API_KEY (en el entorno o en .env) ofrece generar
   // un token. El kit no lo guarda: lo devuelve, y aquí se añade a .env para la próxima vez.
   const newToken = await ensureClaudeAuth();
@@ -189,10 +202,8 @@ async function main(): Promise<void> {
     console.log(ui.dim(text.tokenSaved(envPath)));
   }
 
-  // Todo lo que guarda vive en workspace/ (ignorado por git), su proyecto: así la carpeta del
-  // capitán solo tiene su código. Cada ejecución en su carpeta de workspace/.run/: su log, su
-  // transcripción y la conversación, para retomarla con --continue (la última) o /resume.
-  const workspace = path.join(__dirname, "workspace");
+  // Cada ejecución en su carpeta de workspace/.run/: su log, su transcripción y la
+  // conversación, para retomarla con --continue (la última) o /resume.
   const runsDir = path.join(workspace, ".run");
 
   // Guiado por defecto, para que pueda preguntar (ask_human, request_file, retirar);
@@ -213,9 +224,9 @@ async function main(): Promise<void> {
     projectDir: workspace,
     knowledgeDir: logbook,
     sourcesDir: treasure,
-    // Lo que recuerda de quien navega con él, en todos sus proyectos: fuera de este, en su
-    // carpeta de usuario y solo suya (CAPTAIN_MEMORY_DIR la cambia, p. ej. para probar).
-    memoryDir: process.env.CAPTAIN_MEMORY_DIR || path.join(os.homedir(), ".captain-whiskers", "memory"),
+    // Lo que recuerda de quien navega con él, en todos sus proyectos: fuera de este, y solo suya.
+    memoryDir: path.join(home, "memory"),
+    extensionDirs,
   };
 
   // Cuánto de las herramientas enseña el chat: CAPTAIN_TOOL_DETAIL=full (por defecto), calls

@@ -25,12 +25,13 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
 - **Each extension owns its data**, and the model connects extensions through their tools (#30).
   - None reads or writes another's data, in code or on disk.
   - The model carries only short identifiers and dates; comparisons that must be exact are a tool's (`date_math`).
-- **Per-project dependencies.**
-  - A project declares its extensions in one project file for every agent, the kit's (e.g. `agent.json`), with version ranges and a free section for each agent's own keys. Secrets live apart (`.env`).
-  - A lock pins each external one: repository, version, commit, SHA-256.
-  - Installed extensions live in an immutable store in the user's home, out of the agent's reach, checked against the lock when installed and when loaded.
-  - Missing ones are reported and offered, never installed silently. Machine requirements (`requires: docker`) are checked.
-- **Repositories and trust.**
+- **Installed in two scopes** (changed 7 October 2026, #37: it replaces one store in the user's home plus a project file):
+  - The agent's, `~/.<agent>/extensions/`, for all its projects, and the project's, `<projectDir>/extensions/`, for that one, which wins over the agent's. Like Claude Code's plugin scopes. The agent passes them (`BaseSessionConfig.extensionDirs`).
+  - Each scope has a lock, `extensions.lock.json`: per extension its source (a folder, or a git URL and its commit), a SHA-256 over its files, and whether it's enabled. The hash is checked when it loads: a changed file leaves the extension off, saying why.
+  - Installing copies the files (or clones at a ref); it never runs a script. Secrets live apart (`.env`), passed only to the extension that declares them.
+  - Each agent exposes the command in its own binary (`captain extension add …`), from the kit's `runExtensionCommand()`: the agent knows its name and folders, and the person needn't know the kit.
+  - Machine requirements (`requires: docker`) are checked later.
+- **Repositories and trust** (after folders and git, #37):
   - One official repository per agent.
   - Others are added only by hand, after a warning and a typed confirmation. Names are `<repo>/<name>` everywhere.
   - Whatever the source, the kit keeps: the approvals; every MCP tool treated as publishing unless confirmed read-only; secrets only to the extension that declares them; a clean environment for its processes; tool results framed as data.
@@ -47,7 +48,8 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
 - **A plugin's subagents** (`agents/*.md`, loaded by the SDK as `<plugin>:<name>`, the name from the frontmatter, not the file) are registered like the code's (re-declared in `options.agents`, which replaces the plugin's definition, confirmed empirically): in the type gate's allow-list, in the `Agent`/`Bash` decision, and with the reply-language line. An external extension's get no `Bash` unless the person accepted it.
 - **An extension labels its own tools** for the chat (`ExtensionContribution.toolLabels`, by full tool name: a line from the input and the phrase for a folded group), in the kit's languages; the core's catalogs name none of its tools. `buildSessionOptions()` hands them back, and the chats take them from the session opener, before the agent's `formatAction`. An external extension's will come from its manifest.
 - **An internal extension may bring SDK hooks** (`ExtensionContribution.hooks`), run after the kit's own: the memory hears the person's messages with `UserPromptSubmit` (it fires for every message of the streaming input, confirmed empirically), so what it saves must quote them. External extensions get none.
-- **Enabling or disabling an extension reopens the session**, keeping the conversation. Hot reloading comes later.
+- **Enabling or disabling an extension reopens the session**, keeping the conversation: `/extensions enable|disable <name>` in the chat, or the command between runs. Hot reloading comes later.
+- **An external extension's manifest** says what an internal one's code does: `server` (its entry, run with Node, and the environment variables it may see), `readOnlyTools`, `labels` (per tool and language), `help`, and `kit` (the agent-kit versions it works with). What it's for and its rules go in its server's `instructions`.
 - **SDK first**: before building a mechanism, check the SDK and Claude Code. If it exists, use it; if it exists only in the CLI, adopt its format and build only the missing part.
 
 ## Motivation
@@ -67,6 +69,7 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
   - **Extensions naming the agents they serve.** They depend on the kit's API and on capabilities, not on an agent.
   - **Dependencies between extensions by name.** A tree to resolve, with conflicts.
   - **Each agent's own project file.** Each would reimplement reading it and the lock.
+  - **One store in the user's home, shared by every agent** (the first version of this ADR). An extension installed for one agent would be one step from all of them; per agent and per project matches how Claude Code scopes plugins.
   - **A community catalog.**
   - **The SDK's permission rules instead of the kit's file scope and plan gates.** Probed:
     - a `deny` on `Read` also stops `Glob` and `Grep`, and a `Grep` from above skips the denied files;
@@ -87,7 +90,7 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
 - Phases, each with its own note:
   1. this ADR;
   2. knowledge and sources (then memory) as internal extensions, with the manifest, enabling and the project file;
-  3. the installer, the store, the lock, the launcher and external extensions;
+  3. external extensions: the two scopes and their locks, the command, the launcher, `/extensions` (#37); then marketplaces, trust and the builder;
   4. hot reloading.
 
   The agents adopt each on their own; no backward compatibility is kept while 0.x.

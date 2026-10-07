@@ -9,7 +9,7 @@ import type { Mode } from "../../core/agentSpec.js";
 import { getInteractionPort, setInteractionPort } from "../../core/interaction.js";
 import { createInputQueue, togglePlanMode, type ModeControl } from "../../core/session.js";
 import { runQuery, type AgentRun } from "../../core/runner.js";
-import { listRuns, readConversation, type RunFolder } from "../../core/runs.js";
+import { listRuns, readConversation, readRunSession, type RunFolder } from "../../core/runs.js";
 import { capHistory, loadHistory, runChatTui, saveHistory, slashCommandToken, type ChatTuiOptions } from "../chatTui.js";
 import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
@@ -17,6 +17,8 @@ import { applyLanguage } from "../language.js";
 import { applyTheme, inkColor } from "../theme.js";
 import { KitTheme } from "./inkTheme.js";
 import { withToolLabels, withToolPhrases, type ToolLabels } from "../../core/toolLabels.js";
+import { chatExtensionsCommand } from "../extensionCommand.js";
+import type { ExtensionsStatus } from "../../core/session.js";
 import { firstRun, openSession, runDate, runFolderOf, runLabel, type SessionOpener } from "../runs.js";
 import { createInkInteraction, type InkInteraction } from "./inkInteraction.js";
 import { PromptInput } from "./PromptInput.js";
@@ -103,7 +105,7 @@ export interface InkChatOptions extends ChatTuiOptions {
 const DEFAULT_PROMPT_LABEL = "\n> ";
 /** The chat's own commands, never sent to the model (the agent-help skill lists them; a test keeps both in step). */
 export const DEFAULT_EXIT_COMMANDS: readonly string[] = ["/exit", "/quit"];
-export const LOCAL_COMMANDS = { copy: "/copy", resume: "/resume", plan: "/plan" } as const;
+export const LOCAL_COMMANDS = { copy: "/copy", resume: "/resume", plan: "/plan", extensions: "/extensions" } as const;
 const DEFAULT_HISTORY_LIMIT = 100;
 // The prompt's frame: a border and one column of padding on each side.
 const PROMPT_FRAME_COLUMNS = 4;
@@ -362,7 +364,7 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
   let historyEntries = tuiOptions.historyPath ? capHistory(await loadHistory(tuiOptions.historyPath), historyLimit) : [];
 
   // The session in use: with runs, the run's folder, rebuilt on /resume.
-  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; run: RunFolder | null } =
+  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; run: RunFolder | null } =
     opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
   const modeControl = (): ModeControl | undefined => current.modeControl ?? tuiOptions.modeControl;
 
@@ -511,6 +513,15 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
     await showConversation(current.run as RunFolder, true);
   }
 
+  /** Opens the current run's session again (an extension enabled or disabled), keeping its conversation. */
+  async function reopen(): Promise<void> {
+    if (!opener || !current.run) return;
+    queue.end();
+    run.close();
+    current = await openSession(opener, { dir: current.run.dir, sessionId: await readRunSession(current.run.dir) });
+    connect();
+  }
+
   const previousPort = getInteractionPort();
   setInteractionPort(interaction.port);
   const restoreTerminal = tuiOptions.fullscreen ? enterFullscreen(stdout) : null;
@@ -579,6 +590,13 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
       }
       if (runsDir && line.toLowerCase() === LOCAL_COMMANDS.resume) {
         await resume();
+        continue;
+      }
+      // /extensions: what the session runs with; enabling or disabling one reopens it.
+      const extensionsCommand = await chatExtensionsCommand(line, current.extensions, Boolean(opener && current.run));
+      if (extensionsCommand) {
+        for (const text of extensionsCommand.lines) model.writeLine(ui.dim(text));
+        if (extensionsCommand.reopen) await reopen();
         continue;
       }
       // A local command too: into plan mode, or back to the mode it was entered from.

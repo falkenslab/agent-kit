@@ -45,6 +45,7 @@ Messages typed while the agent works are queued and sent when it finishes.
 - `/exit` or `/quit`: leave the chat (an agent can name its own exit commands instead).
 - `/copy`: copy the last reply to the clipboard.
 - `/resume`: pick an earlier conversation to go on with (`↑`/`↓`, `Enter`, `Esc` to cancel), where the agent keeps its conversations.
+- `/extensions`: what the session runs with, what's off and why, and the extensions installed; `/extensions enable <name>` or `/extensions disable <name>` turns an installed one on or off and reopens the session, keeping the conversation.
 - `/plan`: plan mode on or off (see Modes).
 
 Typing `/` and `Tab` lists every command, the agent's own included (named `/plugin:command`). An unknown `/command` isn't sent.

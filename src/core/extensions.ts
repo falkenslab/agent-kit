@@ -70,6 +70,8 @@ export interface Extension {
   name: string;
   /** Its plugin's root: `.claude-plugin/plugin.json`, and its skills and commands, if any. */
   plugin: string;
+  /** Installed rather than shipped in a package (#37): its subagents get no `Bash`, and no plugin hook runs. */
+  external?: boolean;
   /** Why it can't run in this session (e.g. "needs `knowledgeDir` in the config"), or `undefined` when it can. */
   missing?(context: ExtensionContext): string | undefined;
   /** What it brings to the session, once it's active. */

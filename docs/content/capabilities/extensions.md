@@ -1,29 +1,35 @@
 ---
 sidebar_position: 4
 title: Extensions
-description: What an agent runs with besides the kit's core - the kit's knowledge base and sources folder, and extensions of the agent's own - how to enable them, what they bring, capabilities, and how to write one.
+description: What an agent runs with besides the kit's core - the kit's knowledge base, sources and memory, extensions installed per agent or per project, and its own - how to enable and install them, capabilities, and how to write one.
 ---
 
 # Extensions
 
-An agent is the kit's core (the chat, the modes and their gates, subagents, the transcript, languages) plus the **extensions** it enables. An extension is a Claude Code plugin (skills, commands, a manifest) with the code that says what it brings to a session: its tools, a section of the system prompt, the folders the file tools may reach, which of its tools only read. The kit ships two, and an agent can bring its own.
+An agent is the kit's core (the chat, the modes and their gates, subagents, the transcript, languages) plus the **extensions** it runs with. An extension is a Claude Code plugin (a manifest, skills, commands, subagents) plus what it brings to a session: its tools, what the model needs to know about them, which of its tools only read, how the chat shows them.
 
-## Enabling them
+There are two kinds, managed the same way:
+
+- **Internal**, shipped in a package: the kit's three (`sources`, `knowledge`, `memory`) and any an agent writes in its own code. They run in the agent's process, so they can use the kit's internals. The agent enables them in its spec.
+- **Installed**, from a folder or a git repository, into the agent (for all its projects) or into one project. Any agent on the kit can use one. Its tools are its own MCP server, which the kit runs in a separate process with a clean environment. The person installs, enables and disables them.
+
+## Enabling the internal ones
 
 ```ts
 const spec: AgentSpec<Config> = {
   // …
-  extensions: ["sources", "knowledge", jokebookExtension],
+  extensions: ["sources", "knowledge", "memory", diceExtension],
 };
 
 const config: Config = {
   // …
   sourcesDir: path.join(workspace, "sources"), // "sources" needs it
   knowledgeDir: path.join(workspace, "knowledge"), // "knowledge" needs it
+  memoryDir: path.join(os.homedir(), ".my-agent", "memory"), // "memory" needs it
 };
 ```
 
-- The kit's are enabled **by name**; an agent's own **as an object** (see [Writing your own](#writing-your-own)).
+- The kit's are enabled **by name**; an agent's own **as an object** (see [Writing one in your agent's code](#writing-one-in-your-agents-code)).
 - **None is on by default.** A folder in the config doesn't turn anything on by itself: `knowledgeDir` without `"knowledge"` is a folder of the agent's own notes, kept with the file tools under rules it writes itself.
 - An extension the session lacks something for (its folder) is **left out**, and so is one whose required capabilities nothing enabled provides (see [Capabilities](#capabilities)). The system prompt says which ones are off and why, so the agent can tell the person.
 - An unknown name is an error.
@@ -36,19 +42,69 @@ const config: Config = {
 
 They own their data and never call each other: the model connects them through their tools (see [Knowledge base and sources](knowledge-base.md#knowledge-base-and-sources)).
 
+## Installing extensions
+
+An agent says where extensions are installed for it, in two **scopes**, like Claude Code's plugins:
+
+```ts
+const config: Config = {
+  // …
+  extensionDirs: {
+    agent: path.join(os.homedir(), ".my-agent", "extensions"), // for all its projects
+    project: path.join(projectDir, "extensions"), // for this one: it wins over the agent's
+  },
+};
+```
+
+Each scope is a folder with one subfolder per extension and a lock, `extensions.lock.json`: where each came from (a folder, or a git URL and the commit it was cloned at), a SHA-256 over its files, and whether it's enabled. Every enabled one in them runs with the session, alongside the internal ones and resolved the same way (capabilities, the Extensions section of the prompt), unless:
+
+- its files changed since it was installed (the hash doesn't match): install it again to trust the change;
+- its manifest says it works with other agent-kit versions (`kit`);
+- its server isn't where its manifest says;
+- an extension the spec enables has its name.
+
+Then it's off, and the prompt and `/extensions` say why.
+
+### The command
+
+Each agent exposes the kit's command in its own binary, so the person needn't know the kit:
+
+```ts
+import { runExtensionCommand } from "@falkenslab/agent-kit";
+
+// Before anything else: `my-agent extension add …` does that and exits.
+if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, command: "my-agent" })) process.exit();
+```
+
+| Command | What it does |
+| --- | --- |
+| `extension list` | What's installed, in which scope, enabled or not, and where from. |
+| `extension add <folder>` | Copies the folder into the agent's scope, checks its manifest, hashes it and locks it, enabled. |
+| `extension add <git URL>[#ref] [--path <subfolder>]` | Clones the repository at the ref (`https://…`, `git@…`, `file://…`, `github:owner/repo`) and records the commit. |
+| `extension add … --project` | Into the project's scope instead. |
+| `extension remove <name>` | Removes its files and its lock entry. |
+| `extension enable <name>` | Turns it on. |
+| `extension disable <name>` | Turns it off, keeping it installed. |
+
+Without a scope, `remove`, `enable` and `disable` act where the extension is (in both: say which, `--project` or `--agent`). Installing never runs a script: a repository's install scripts, if any, don't run.
+
+### In the chat
+
+`/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and reopen the session, keeping the conversation (the chat must have a session opener). It works in both chats.
+
 ## What the agent sees
 
-With any extension enabled, the system prompt gets an **Extensions** section after the agent's own prompt and identity, then each extension's own section:
+With any extension on, the system prompt gets an **Extensions** section after the agent's own prompt and identity, then each internal extension's own section:
 
 ```text
 ## Extensions
 What you can do besides your own tools comes from these extensions; their sections below say how to use them.
 - **sources**: The sources folder: originals kept as obtained, … Provides: sources.
 - **knowledge**: Built-in knowledge base workflows (an LLM wiki) … Provides: knowledge-base.
-- **jokebook**: The captain's own jokebook … Provides: jokes.
+- **jokebook**: A jokebook: classic pirate jokes, … Provides: jokes.
 ```
 
-An extension that's off is listed too, with why ("it needs `knowledgeDir` in the config", "it requires memory, which no enabled extension provides"). The [`agent-help`](../core-concepts/agent-spec.md#identity-and-helpguide) skill tells the person the same.
+An extension that's off is listed too, with why ("it needs `knowledgeDir` in the config", "it requires memory, which no enabled extension provides"). The [`agent-help`](../core-concepts/agent-spec.md#identity-and-helpguide) skill tells the person the same. An installed extension's own rules reach the model through its server's `instructions` (see below).
 
 ## Capabilities
 
@@ -60,7 +116,7 @@ An extension's manifest says what it **provides** and what it **requires**, as c
 ```markdown
 ---
 name: rank-jokes
-description: Rank the jokes in the logbook by the parrot's score…
+description: Rank the jokes in the knowledge base by their score…
 requires: knowledge-base
 ---
 ```
@@ -69,45 +125,81 @@ requires: knowledge-base
 
 The kit's capabilities are `sources`, `knowledge-base` and `person-memory`; an agent names its own (miyagi's classroom capabilities, say), and two extensions may provide the same one.
 
-## Writing your own
+## Writing an installable extension
 
-An extension of the agent's own is a plugin folder in its project, plus an object that implements `Extension`:
+A folder any agent on the kit can install. Captain Whiskers' `jokebook` is one:
 
 ```text
-my-agent/
-├── jokebook.ts                       the extension: what it brings
-└── extensions/jokebook/
-    ├── .claude-plugin/plugin.json    its manifest
-    ├── skills/rank-jokes/SKILL.md    its skills and commands, if any
-    └── agents/loro-critico.md        its subagents, if any
+jokebook/
+├── .claude-plugin/plugin.json    its manifest
+├── server/index.mjs              its MCP server, run with Node
+├── skills/rank-jokes/SKILL.md    its skills and commands, if any
+└── agents/loro-critico.md        its subagents, if any
 ```
+
+The manifest is the plugin's, with the kit's data under `"agent-kit"`:
 
 ```json
 {
   "name": "jokebook",
-  "description": "The captain's own jokebook: the classic pirate jokes, and ranking the jokes in his logbook.",
-  "agent-kit": { "provides": ["jokes"], "requires": [] }
+  "version": "1.0.0",
+  "description": "A jokebook: classic pirate jokes, and ranking the jokes kept in a knowledge base by their score.",
+  "agent-kit": {
+    "kit": ">=0.18.0 <0.20.0",
+    "provides": ["jokes"],
+    "requires": [],
+    "server": { "entry": "server/index.mjs", "env": [] },
+    "readOnlyTools": ["classic_joke"],
+    "labels": {
+      "classic_joke": {
+        "en": { "label": "Opening the jokebook", "phrase": ["opened the jokebook", "opened the jokebook {n} times"] },
+        "es": { "label": "Abriendo el libro de chistes", "phrase": ["abrió el libro de chistes", "abrió el libro de chistes {n} veces"] }
+      }
+    },
+    "help": "The jokebook: `classic_joke` gives a classic pirate joke; the `jokebook:rank-jokes` skill ranks the knowledge base's jokes by their score."
+  }
 }
 ```
+
+| Field | What it does |
+| --- | --- |
+| `kit` | The agent-kit versions it works with: comparators separated by spaces, all of which must hold (`>=0.19.0 <0.21.0`, `0.19.2`). Outside them, it's off. |
+| `provides`, `requires` | Its [capabilities](#capabilities). |
+| `server.entry` | Its MCP server, relative to the extension: a JavaScript file Node runs (stdio). Its tools are `mcp__<name>__<tool>`. |
+| `server.env` | The environment variables it may see (an API key from the agent's `.env`, say). It gets those and the system's (`PATH`, `TEMP`, `HOME`…), never the agent's credentials. |
+| `readOnlyTools` | Its tools that only read (short names): [plan mode](../core-concepts/modes.md#plan) lets them through; every other one is denied there. |
+| `labels` | How the chat shows each tool, per language (English when the kit's isn't there): `label` (`{field}` takes the call's input, e.g. `"Rolling {sides}"`) and `phrase`, how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
+| `help` | What `agent-help` says about it. |
+
+**What it's for and its rules** go in the `instructions` its server sends when it connects: the model has them from the start, like an internal extension's prompt section. Keep them short; procedures go in skills.
+
+**The server** runs installed as copied, with no `node_modules`: write it without dependencies, or bundle it into one file with them (esbuild). The jokebook's is a small script that speaks MCP over stdio by hand; a bigger one would use `@modelcontextprotocol/sdk`, bundled.
+
+**What it can't do**, unlike an internal one: hooks (none of its plugin's run: `settings.disableAllHooks` while one is on), the kit's panels, a store passed from code, its own folders for the file tools. Its subagents get no `Bash`: one that lists it loses it, and one without `tools` gets none. Its tools go through the same gates as any other: the approval in interactive mode, plan mode, the transcript.
+
+## Writing one in your agent's code
+
+An extension only one agent needs, or one that needs the kit's internals, can be code in the agent: a plugin folder in its project plus an object that implements `Extension`.
 
 ```ts
 import path from "node:path";
 import { createSdkMcpServer, tool, type Extension } from "@falkenslab/agent-kit";
+import { z } from "zod";
 
-export const jokebookExtension: Extension = {
-  name: "jokebook", // the same as its plugin's
-  plugin: path.join(__dirname, "extensions", "jokebook"),
-  // missing: ({ config }) => (config.jokesDir ? undefined : "needs `jokesDir` in the config"),
+export const diceExtension: Extension = {
+  name: "dice", // the same as its plugin's
+  plugin: path.join(__dirname, "extensions", "dice"), // .claude-plugin/plugin.json, skills…
+  // missing: ({ config }) => (config.diceDir ? undefined : "needs `diceDir` in the config"),
   async contribute({ config, spec, runDir, mode, interactive }) {
-    const classicJoke = tool("classic_joke", "A classic pirate joke from the jokebook, picked at random.", {}, async () => ({
-      content: [{ type: "text" as const, text: pick(CLASSICS) }],
+    const roll = tool("roll", "Rolls a die.", { sides: z.number() }, async ({ sides }) => ({
+      content: [{ type: "text" as const, text: String(1 + Math.floor(Math.random() * sides)) }],
     }), { annotations: { readOnlyHint: true } });
     return {
-      mcpServers: { jokebook: createSdkMcpServer({ name: "jokebook", version: "1.0.0", tools: [classicJoke] }) },
-      promptSection: "## Your jokebook\nThe classics are in your own jokebook: `classic_joke` gives one.",
-      readOnlyTools: ["mcp__jokebook__classic_joke"], // plan mode lets it through
-      toolLabels: { mcp__jokebook__classic_joke: { label: () => "Opening the jokebook", phrase: ["opened the jokebook", "opened the jokebook {n} times"] } },
-      helpLines: ["Your jokebook: `classic_joke` gives a classic pirate joke."],
+      mcpServers: { dice: createSdkMcpServer({ name: "dice", version: "1.0.0", tools: [roll] }) },
+      promptSection: "## Dice\nWhen the person wants a roll, `roll` it: never make one up.",
+      readOnlyTools: ["mcp__dice__roll"], // plan mode lets it through
+      toolLabels: { mcp__dice__roll: { label: (input) => `Rolling a ${String(input.sides)}-sided die`, phrase: ["rolled once", "rolled {n} times"] } },
+      helpLines: ["Dice: `roll` rolls one."],
     };
   },
 };
@@ -131,8 +223,8 @@ What a contribution may carry (every part optional):
 
 `missing(context)` says why the extension can't run in this session (a folder it needs), or `undefined`. The context has the config, the spec, the run folder, the mode and whether a person can be asked.
 
-Its plugin is loaded like any of the agent's, so its skills, commands and subagents are named after it (`jokebook:rank-jokes`, `jokebook:loro-critico`); with `skills: "plugins"` its skills are offered without naming them, and its subagents (`agents/*.md`) are registered like the agent's own (see [Subagents in a plugin](subagents.md#subagents-in-a-plugin)).
+Its plugin is loaded like any of the agent's, so its skills, commands and subagents are named after it (`dice:…`); with `skills: "plugins"` its skills are offered without naming them, and its subagents (`agents/*.md`) are registered like the agent's own (see [Subagents in a plugin](subagents.md#subagents-in-a-plugin)).
 
 ## Where they run
 
-The kit's extensions and an agent's own are **internal**: they run in the agent's process, so they can use the kit's internals (a store passed from code, the person's panels through the [interaction port](../human-in-the-loop/interaction-port.md), the gates). Extensions installed from a repository, which run in a separate process with a clean environment, come later ([ADR-025](https://github.com/falkenslab/agent-kit/blob/main/.minispec/decisions/ADR-025-extensions.md)).
+Internal extensions run in the agent's process: the kit's are reviewed with it, and an agent's own are its author's code. Installed ones run apart, because their code may come from anyone: their server is a separate Node process, started through the kit's launcher, which removes every environment variable but the system's and those the manifest declares (the SDK merges a server's `env` with the agent's own, so passing `env` alone wouldn't hide the agent's credentials). Marketplaces, with an official repository per agent and a confirmation for any other, come later ([ADR-025](https://github.com/falkenslab/agent-kit/blob/main/.minispec/decisions/ADR-025-extensions.md)).

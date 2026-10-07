@@ -88,7 +88,7 @@ Asked how to do something, he loads the kit's `agent-help` skill: the chat's par
 
 ### Bring his own extension
 
-Besides the kit's `sources`, `knowledge` and `memory` (what he remembers of whoever sails with him, in `~/.captain-whiskers/memory/`, across all their projects: see [Memory of the person](../capabilities/memory.md)), he runs with one of his own, `jokebook`: a plugin in his project and the code that says what it brings. Its tool, `classic_joke`, tells a classic from his jokebook; its skill, `rank-jokes`, ranks his logbook's jokes, and requires the `knowledge-base` capability, so it's only offered with the logbook on. See [Extensions](../capabilities/extensions.md).
+Besides the kit's `sources`, `knowledge` and `memory` (what he remembers of whoever sails with him, in `~/.captain-whiskers/memory/`, across all their projects: see [Memory of the person](../capabilities/memory.md)), he can be given more. His `jokebook` is one any agent on the kit could install: a folder in his project (`extensions/jokebook/`) with its manifest, its own MCP server (a small Node script the kit runs in a separate process), a skill and the parrot. Install it with `npm start -- extension add ./extensions/jokebook` (for all his projects, in `~/.captain-whiskers/extensions/`) or with `--project` (only this one, in `workspace/extensions/`). Its tool, `classic_joke`, tells a classic from the book; its skill, `rank-jokes`, ranks his logbook's jokes, and requires the `knowledge-base` capability, so it's only offered with the logbook on. In the chat, `/extensions` lists what he runs with, and `/extensions disable jokebook` turns it off without leaving the conversation. See [Extensions](../capabilities/extensions.md#installing-extensions).
 
 ### Speak your language
 
@@ -121,8 +121,7 @@ It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment or 
 examples/captain-whiskers/
 ├── agent.ts                    everything: texts, tools, crew, spec, chat
 ├── guide.md                    his own help guide (commands, folders, settings)
-├── jokebook.ts                 his own extension: what it brings
-├── extensions/jokebook/        its plugin: manifest and the rank-jokes skill
+├── extensions/jokebook/        an installable extension: manifest, MCP server, skill, parrot
 ├── package.json                "@falkenslab/agent-kit": "file:../.."
 ├── plugin/
 │   ├── .claude-plugin/plugin.json   { "name": "captain-whiskers" }
@@ -197,7 +196,7 @@ const SUBAGENTS: Record<string, AgentDefinition> = {
 };
 ```
 
-Two small subagents on `haiku` in his code: one searches the web, one uses the kit's date and time tools. The third, the parrot, only thinks, and comes from his `jokebook` extension as `extensions/jokebook/agents/loro-critico.md`: the kit registers it as `jokebook:loro-critico`, like the others. See [Subagents](../capabilities/subagents.md#subagents-in-a-plugin).
+Two small subagents on `haiku` in his code: one searches the web, one uses the kit's date and time tools. The third, the parrot, only thinks, and comes with the `jokebook` extension as `agents/loro-critico.md`: installed, the kit registers it as `jokebook:loro-critico`, like the others. See [Subagents](../capabilities/subagents.md#subagents-in-a-plugin).
 
 ## 5. The spec
 
@@ -220,7 +219,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildMcpServers: () => ({}),
   pluginRoots: () => [path.join(__dirname, "plugin")],
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
-  extensions: ["sources", "knowledge", "memory", jokebookExtension],
+  extensions: ["sources", "knowledge", "memory"],
   knowledgePageTypes: [JOKE_PAGE],
   skills: "plugins",
   settingSources: [],
@@ -228,7 +227,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
 ```
 
 - `identity` and `helpGuide`: the model knows his name, his version and agent-kit's, and the `agent-help` skill answers how to use him, from the kit's chat and his `guide.md`. See [`identity` and `helpGuide`](../core-concepts/agent-spec.md#identity-and-helpguide).
-- `extensions`: the kit's `sources` (his chest, `treasure/`) and `knowledge` (his logbook, `logbook/`), enabled by name, and his own `jokebook` as an object. See [Extensions](../capabilities/extensions.md).
+- `extensions`: the kit's `sources` (his chest, `treasure/`), `knowledge` (his logbook, `logbook/`) and `memory`, enabled by name. His jokebook isn't here: it's installed (see below). See [Extensions](../capabilities/extensions.md).
 - `knowledgePageTypes`: his logbook has a page type of its own, `joke`, kept in `logbook/jokes/` with the parrot's score in its index line. See [Your own page types](../capabilities/knowledge-base.md#your-own-page-types).
 - `skills: "plugins"` and `settingSources: []`: only the skills of his plugins (his two, the logbook's and agent-help), not the twenty the SDK brings, and nothing from the machine's Claude Code configuration. See [Context and cost](../sessions/context-and-cost.md).
 
@@ -247,7 +246,8 @@ const config: BaseSessionConfig = {
   projectDir: workspace, // the model sees logbook/ and treasure/
   knowledgeDir: logbook,
   sourcesDir: treasure,
-  memoryDir: process.env.CAPTAIN_MEMORY_DIR || path.join(os.homedir(), ".captain-whiskers", "memory"),
+  memoryDir: path.join(home, "memory"), // home: ~/.captain-whiskers, or CAPTAIN_HOME
+  extensionDirs: { agent: path.join(home, "extensions"), project: path.join(workspace, "extensions") },
 };
 const toolDetail = details.find((d) => d === process.env.CAPTAIN_TOOL_DETAIL) ?? "full";
 

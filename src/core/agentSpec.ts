@@ -1,3 +1,4 @@
+import type { ExtensionDirs } from "./externalExtensions.js";
 import type { AgentDefinition as SdkSubagentDefinition, McpServerConfig, SettingSource } from "@anthropic-ai/claude-agent-sdk";
 import type { KnowledgeStore, PageType } from "../extensions/knowledge/knowledgeStore.js";
 import type { Extension } from "./extensions.js";
@@ -47,6 +48,13 @@ export interface BaseSessionConfig {
    * with another agent. The extension needs it; only its tools (`recall`, `remember`, `forget`) reach it.
    */
   memoryDir?: string;
+  /**
+   * Where extensions are installed for this agent (#37): `agent` for all its projects (e.g.
+   * `~/.miyagi/extensions`), `project` for this one (e.g. `<projectDir>/extensions`), which wins.
+   * The enabled ones whose files match their lock run with the session; `runExtensionCommand()`
+   * installs them.
+   */
+  extensionDirs?: ExtensionDirs;
   /** Directories besides `knowledgeDir`/`sourcesDir` where Write/Edit are allowed (see hooks/fileScopeGate.ts). */
   extraWritableDirs?: string[];
   /**

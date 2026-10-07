@@ -19,6 +19,7 @@ import { extensionsPromptSection, resolveExtensions, skillsMissingCapabilities, 
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { AGENT_HELP_SKILL, identityPromptSection, writeAgentHelpPlugin } from "./agentHelp.js";
 import { pluginAgents } from "./pluginAgents.js";
+import { listInstalled, loadExternalExtensions, type ExtensionDirs, type InstalledExtension } from "./externalExtensions.js";
 import type { ToolLabels } from "./toolLabels.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 import { replyLanguageInstruction, type Language } from "./language.js";
@@ -58,6 +59,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   language: Language;
   /** How the chat shows the extensions' tools (`runChatInk()` takes them from a session opener). */
   toolLabels: ToolLabels;
+  /** The installed extensions and what this session runs with, for `/extensions` (#37). */
+  extensions: ExtensionsStatus;
   /** The knowledge base's store, when the knowledge extension is on (for a host that reads the knowledge base). */
   knowledgeStore?: KnowledgeStore;
 }> {
@@ -80,7 +83,17 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // What the enabled extensions bring (ADR-025): their tools, prompt sections, plugins and
   // folders, put together here.
   const extensionContext = { config, spec, runDir, mode, interactive: mode !== "autonomous" };
-  const resolved = resolveExtensions(spec.extensions ?? [], extensionContext);
+  // The installed ones (#37), the project's over the agent's: those that can't load are off with
+  // why, and so is one named like an extension the spec enables.
+  const extensionDirs = config.extensionDirs ?? {};
+  const external = await loadExternalExtensions(extensionDirs);
+  const enabledNames = new Set((spec.extensions ?? []).map((entry) => (typeof entry === "string" ? entry : entry.name)));
+  const resolved = resolveExtensions([...(spec.extensions ?? []), ...external.extensions.filter((extension) => !enabledNames.has(extension.name))], extensionContext);
+  resolved.inactive.push(
+    ...external.off,
+    ...external.extensions.filter((extension) => enabledNames.has(extension.name)).map((extension) => ({ name: extension.name, reason: "has the name of one this agent already has" })),
+  );
+  const externalPlugins = new Set(resolved.active.filter(({ extension }) => extension.external).map(({ extension }) => path.resolve(extension.plugin)));
   const added = await Promise.all(resolved.active.map(({ extension }) => extension.contribute(extensionContext)));
   const extensionPlugins = resolved.active.map(({ extension }) => extension.plugin);
   const fromExtensions = <T>(pick: (contribution: ExtensionContribution) => readonly T[] | undefined): T[] => added.flatMap((contribution) => pick(contribution) ?? []);
@@ -159,7 +172,13 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // The plugins' subagents too (agents/*.md, the agent's and its extensions'), registered as the
   // spec's are: allowed to be spawned, counted in the Agent and Bash decision, and given the
   // reply line (pluginAgents.ts; ADR-025).
-  const fromPlugins = await pluginAgents(pluginRoots);
+  // An installed extension's get no Bash (ADR-025): one without `tools` gets none.
+  const fromPlugins = {
+    ...(await pluginAgents(pluginRoots.filter((root) => !externalPlugins.has(path.resolve(root))))),
+    ...Object.fromEntries(
+      Object.entries(await pluginAgents([...externalPlugins])).map(([name, agent]) => [name, { ...agent, tools: (agent.tools ?? []).filter((tool) => tool !== "Bash") }]),
+    ),
+  };
   const allAgents = { ...fromPlugins, ...(subagents?.agents ?? {}) };
   // Each subagent gets the reply line too: its prompt doesn't include the main one's.
   const subagentDefinitions = Object.keys(allAgents).length
@@ -211,6 +230,9 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       autoMemoryEnabled: false,
       includeGitInstructions: false,
       disableClaudeAiConnectors: true,
+      // An installed extension's plugin may carry hooks: none run (ADR-025). The kit's own,
+      // passed in `hooks`, still do (confirmed empirically).
+      ...(externalPlugins.size ? { disableAllHooks: true } : {}),
     },
     // No built-in tools except, if applicable, Read/Write/Edit/Glob/Grep scoped to the
     // project's own folders (fileScopeGate below), and WebFetch/WebSearch
@@ -334,10 +356,25 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   }
 
   const toolLabels: ToolLabels = Object.assign({}, ...added.map((contribution) => contribution.toolLabels ?? {}));
-  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, ...(knowledgeStore ? { knowledgeStore } : {}) };
+  const extensions: ExtensionsStatus = {
+    dirs: extensionDirs,
+    installed: await listInstalled(extensionDirs),
+    active: resolved.active.map(({ extension }) => extension.name),
+    inactive: resolved.inactive,
+  };
+  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, ...(knowledgeStore ? { knowledgeStore } : {}) };
 }
 
 export { createModeControl, togglePlanMode, type ModeControl } from "./modeControl.js";
+
+/** The extensions of a session: where they're installed, what's installed, what runs and what can't (with why). */
+export interface ExtensionsStatus {
+  dirs: ExtensionDirs;
+  installed: InstalledExtension[];
+  /** The names of the extensions this session runs with, the kit's and the agent's too. */
+  active: string[];
+  inactive: { name: string; reason: string }[];
+}
 
 /** The Claude Code configuration folder the SDK's CLI uses: `CLAUDE_CONFIG_DIR`, or `~/.claude`. */
 function claudeConfigDir(): string {

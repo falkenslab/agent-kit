@@ -24,7 +24,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 });
 ```
 
-The opener is called with the run folder to use (a new one, the latest with `--continue`, or the one picked in `/resume`) and returns either `Options` or `buildSessionOptions()`'s whole result, whose `modeControl` and `toolLabels` the chat picks up.
+The opener is called with the run folder to use (a new one, the latest with `--continue`, or the one picked in `/resume`) and returns either `Options` or `buildSessionOptions()`'s whole result, whose `modeControl`, `toolLabels` and `extensions` the chat picks up.
 
 **With fixed options**: one session, logs wherever you say, no resuming.
 
@@ -132,6 +132,7 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 | `/exit`, `/quit` | Leave (configurable with `exitCommands`). |
 | `/copy` | Copy the last reply to the clipboard (OSC 52), with terminal integration on. |
 | `/resume` | Pick an earlier conversation to resume, with a runs folder. |
+| `/extensions` | What the session runs with, what's off and why, and the [installed extensions](../capabilities/extensions.md#installing-extensions); `/extensions enable <name>` or `disable <name>` reopens the session with or without one, keeping the conversation (with a session opener). |
 | `/plan` | Switch into [plan mode](../core-concepts/modes.md#plan), or back to the mode before it; offered only when the session's mode can switch. |
 
 Any other `/command` is checked against the session's commands (skills and plugin commands included): an unknown one shows "Unknown command" instead of reaching the model as text.

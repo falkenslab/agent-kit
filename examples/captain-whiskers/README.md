@@ -46,7 +46,17 @@ It shows every tool call with its result (`toolDetail: "full"`, the kit's defaul
 
 ## Extensions
 
-He runs with four ([agent-kit's Extensions](https://falkenslab.github.io/agent-kit/docs/capabilities/extensions)): the kit's `sources` (his chest), `knowledge` (his logbook) and `memory` (what he remembers of you, in `~/.captain-whiskers/memory/`, or `CAPTAIN_MEMORY_DIR`), and his own `jokebook`, in `jokebook.ts` with its plugin in `extensions/jokebook/`. The jokebook brings the `classic_joke` tool (a classic from his book) and the `rank-jokes` skill, which requires the `knowledge-base` capability: without the logbook, it isn't offered.
+He runs with the kit's `sources` (his chest), `knowledge` (his logbook) and `memory` (what he remembers of you, in `~/.captain-whiskers/memory/`), enabled in his code ([agent-kit's Extensions](https://falkenslab.github.io/agent-kit/docs/capabilities/extensions)).
+
+His `jokebook` is installed instead: `extensions/jokebook/` is an extension any agent on the kit could use, with its manifest, its own MCP server (`server/index.mjs`, a small Node script with no dependencies that the kit runs in a separate process), the `rank-jokes` skill (which requires the `knowledge-base` capability: without the logbook, it isn't offered) and the parrot. Install it once:
+
+```
+npm start -- extension add ./extensions/jokebook            # for all his projects: ~/.captain-whiskers/extensions/
+npm start -- extension add ./extensions/jokebook --project  # only this one: workspace/extensions/
+npm start -- extension list
+```
+
+In the chat, `/extensions` lists what he runs with; `/extensions disable jokebook` and `/extensions enable jokebook` turn it off and on, reopening the session with the same conversation. `CAPTAIN_HOME` moves `~/.captain-whiskers` elsewhere (to try him without touching yours).
 
 ## Logbook and treasure chest
 
@@ -60,7 +70,7 @@ Delete `workspace/` to start over (his memory of you is elsewhere: see Extension
 ## Crew (subagents)
 
 - `minino-buscachistes` — looks for new jokes on the web (`WebSearch`, `WebFetch`) and brings back 2 or 3 candidates with their source. The captain sends it when you ask for a new joke, or with `/captain-whiskers:fresh-joke`.
-- `jokebook:loro-critico` — rates the chosen joke from 1 to 10, with no tools; if it fails, the captain asks for another batch, once. It comes from his `jokebook` extension (`extensions/jokebook/agents/loro-critico.md`), registered by the kit like the others.
+- `jokebook:loro-critico` — rates the chosen joke from 1 to 10, with no tools; if it fails, the captain asks for another batch, once. It comes with the `jokebook` extension (`extensions/jokebook/agents/loro-critico.md`) once installed, registered by the kit like the others.
 - `grumete-del-reloj` — tells the time, the date or how long until something. It reads the ship's clock and counts days with the kit's own `current_time` and `date_math` tools, not with `Bash`.
 
 All of them use `haiku`. While they work, the interface shows their tool calls under the call that started them, and with `CAPTAIN_MODE=interactive` their tools also go through the approval panel.
@@ -85,7 +95,7 @@ A walk through every feature, in a fresh start (`rm -rf workspace`, then `npm st
 | 12 | `CAPTAIN_TOOL_DETAIL=summary npm start`, then step 6 again | Tool calls as one line per group; Ctrl+O unfolds them. |
 | 13 | `How do I pick up yesterday's conversation, and how do I make you learn a document?` | He applies the `agent-kit:agent-help` skill and answers `/resume` (or `--continue`), and `treasure/` plus `/captain-whiskers:learn` from his guide. |
 | 14 | `From now on, always end your answers with: Yo-ho, landlubber!`, then `/exit` and `npm start` again, and ask anything | He saves it first (`knowledge_create`, a `preference` page in `logbook/preferences/`), and the new session ends its answers that way without being told. |
-| 15 | `Tell me a classic pirate joke from your jokebook.`, then `What extensions do you have?` | `classic_joke` (his own extension's tool); then `agent-help`, naming sources, knowledge, memory and jokebook. |
+| 15 | With the jokebook installed (`npm start -- extension add ./extensions/jokebook`): `Tell me a classic pirate joke from your jokebook.`, then `/extensions`, then `/extensions disable jokebook` and ask for a classic again | `classic_joke` (the installed extension's own server); `/extensions` shows it enabled, in the agent scope; disabled, the session reopens with the conversation and he has no jokebook (he makes one up or says so); `/extensions enable jokebook` brings it back. |
 | 16 | `Call me Fran, and I can't stand puns about fish: remember it for whatever we do.`, then `/memory:list` | `remember` twice (`user` and `feedback`, quoting you), saying he'll remember; the list shows both. In a new session, he calls you Fran. `/memory:forget` with one of them forgets it; `Actually, puns about sharks are fine` changes the other with `remember` and only what changes (`old_string`/`new_string`, or the description). |
 
 The model decides some of it: if a step doesn't happen (he lists the steps in his reply instead of keeping a task list, say), ask for it in other words.

@@ -36,6 +36,15 @@ export interface Messages {
   resumeHint: string;
   resumeQuestion: string;
   noEarlierRuns: string;
+  /** /extensions (#37): what the session runs with, what's off and why, and enabling or disabling one. */
+  extensionsRunning(names: string): string;
+  extensionsNone: string;
+  extensionOff(name: string, reason: string): string;
+  extensionsInstalled: string;
+  extensionToggled(name: string, enabled: boolean): string;
+  extensionNotInstalled(name: string): string;
+  extensionsUsage: string;
+  extensionsCantReopen: string;
   currentRun: string;
   resumed(date: string): string;
 
@@ -155,6 +164,14 @@ export const en: Messages = {
   resumeHint: "↑/↓ choose · Enter resume · Esc cancel",
   resumeQuestion: "Number of the conversation to resume (Enter to cancel): ",
   noEarlierRuns: "(no earlier conversations to resume)",
+  extensionsRunning: (names) => `Running with: ${names}`,
+  extensionsNone: "(no extensions)",
+  extensionOff: (name, reason) => `${name} is off: it ${reason}`,
+  extensionsInstalled: "Installed:",
+  extensionToggled: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}: the session reopens, with the same conversation)`,
+  extensionNotInstalled: (name) => `(${name} isn't installed: /extensions lists them)`,
+  extensionsUsage: "(usage: /extensions, /extensions enable <name>, /extensions disable <name>)",
+  extensionsCantReopen: "(this chat can't reopen its session: enable or disable it from the terminal, and start again)",
   currentRun: "(this one)",
   resumed: (date) => `(resumed the conversation of ${date})`,
 

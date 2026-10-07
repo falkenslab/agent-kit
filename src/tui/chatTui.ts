@@ -6,7 +6,7 @@ import path from "node:path";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import { createInputQueue, togglePlanMode, type ModeControl } from "../core/session.js";
 import { runQuery, type AgentEvent, type AgentRun } from "../core/runner.js";
-import { listRuns, readConversation, type RunFolder } from "../core/runs.js";
+import { listRuns, readConversation, readRunSession, type RunFolder } from "../core/runs.js";
 import { isSharedQuestionActive, setSharedReadline } from "./terminalInteraction.js";
 import * as ui from "./ui.js";
 import { t } from "../core/messages/index.js";
@@ -14,6 +14,8 @@ import { applyLanguage } from "./language.js";
 import { applyTheme, type Theme } from "./theme.js";
 import { createConsoleRenderer } from "./consoleRenderer.js";
 import { withToolLabels, type ToolLabels } from "../core/toolLabels.js";
+import { chatExtensionsCommand } from "./extensionCommand.js";
+import type { ExtensionsStatus } from "../core/session.js";
 import { firstRun, openSession, runDate, runFolderOf, runLabel, type SessionOpener } from "./runs.js";
 
 // Only strips picocolors' own SGR sequences (`\x1b[<codes>m`) — the only kind this file
@@ -216,7 +218,7 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
   const runsDir = opener ? tuiOptions.runsDir : undefined;
   if (opener && !runsDir) throw new Error("runChatTui(): a session opener needs `runsDir`.");
   // The session in use: with runs, the run's folder, rebuilt on /resume.
-  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; run: RunFolder | null } =
+  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; run: RunFolder | null } =
     opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
   const modeControl = (): ModeControl | undefined => current.modeControl ?? tuiOptions.modeControl;
 
@@ -378,6 +380,19 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
     await showConversation(current.run as RunFolder);
   }
 
+  /** Opens the current run's session again (an extension enabled or disabled), keeping its conversation. */
+  async function reopen(): Promise<void> {
+    if (!opener || !current.run) return;
+    queue.end();
+    run.close();
+    current = await openSession(opener, { dir: current.run.dir, sessionId: await readRunSession(current.run.dir) });
+    queue = createInputQueue({ modeControl: modeControl() });
+    run = runQuery(queue.iterable, current.options);
+    events = run.events[Symbol.asyncIterator]();
+    watchMode();
+    knownCommandTokens = null;
+  }
+
   if (tuiOptions.welcomeMessage) writeLine(tuiOptions.welcomeMessage);
 
   try {
@@ -410,6 +425,13 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
       if (exitCommands.has(line.toLowerCase())) break;
       if (runsDir && line.toLowerCase() === "/resume") {
         await resume();
+        continue;
+      }
+      // /extensions: what the session runs with; enabling or disabling one reopens it.
+      const extensionsCommand = await chatExtensionsCommand(line, current.extensions, Boolean(opener && current.run));
+      if (extensionsCommand) {
+        for (const text of extensionsCommand.lines) writeLine(ui.dim(text));
+        if (extensionsCommand.reopen) await reopen();
         continue;
       }
       // Plan mode on and off (the Ink chat also has Shift+Tab); the line says where it is now.

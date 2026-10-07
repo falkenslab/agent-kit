@@ -57,25 +57,25 @@ An [extension](../capabilities/extensions.md) brings its tools' labels with what
 | `memory` | `remember` | `Remembering "<entry>"` |
 | `memory` | `forget` | `Forgetting "<entry>"` |
 
-For your own extension, give each tool, by its full name, a `label` from its input and, optionally, the `phrase` it counts with in a [folded summary](#folded-summaries), in the kit's language (`getLanguage()`, already chosen when `contribute()` runs):
+An [installed extension](../capabilities/extensions.md#writing-an-installable-extension) gives them in its manifest (`labels`, per tool and language). One written in your agent's code gives each tool, by its full name, a `label` from its input and, optionally, the `phrase` it counts with in a [folded summary](#folded-summaries), in the kit's language (`getLanguage()`, already chosen when `contribute()` runs):
 
 ```ts
 import { getLanguage, type Extension, type Language, type ToolPhrase } from "@falkenslab/agent-kit";
 
-const LABELS: Record<Language, { label: string; phrase: ToolPhrase }> = {
-  en: { label: "Opening the jokebook", phrase: ["opened the jokebook", "opened the jokebook {n} times"] },
-  es: { label: "Abriendo el libro de chistes", phrase: ["abrió el libro de chistes", "abrió el libro de chistes {n} veces"] },
-  fr: { label: "Ouverture du recueil de blagues", phrase: ["a ouvert le recueil de blagues", "a ouvert le recueil de blagues {n} fois"] },
-  de: { label: "Witzebuch aufschlagen", phrase: ["Witzebuch aufgeschlagen", "Witzebuch {n}-mal aufgeschlagen"] },
+const LABELS: Record<Language, { label: (sides: string) => string; phrase: ToolPhrase }> = {
+  en: { label: (sides) => `Rolling a ${sides}-sided die`, phrase: ["rolled once", "rolled {n} times"] },
+  es: { label: (sides) => `Tirando un dado de ${sides} caras`, phrase: ["tiró una vez", "tiró {n} veces"] },
+  fr: { label: (sides) => `Lance un dé à ${sides} faces`, phrase: ["a lancé une fois", "a lancé {n} fois"] },
+  de: { label: (sides) => `Würfelt mit ${sides} Seiten`, phrase: ["einmal gewürfelt", "{n}-mal gewürfelt"] },
 };
 
-export const jokebookExtension: Extension = {
+export const diceExtension: Extension = {
   // …
   async contribute() {
     const { label, phrase } = LABELS[getLanguage()];
     return {
       // …
-      toolLabels: { mcp__jokebook__classic_joke: { label: () => label, phrase } },
+      toolLabels: { mcp__dice__roll: { label: (input) => label(String(input.sides)), phrase } },
     };
   },
 };
