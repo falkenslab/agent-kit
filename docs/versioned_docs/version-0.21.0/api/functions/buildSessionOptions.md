@@ -1,0 +1,72 @@
+# Function: buildSessionOptions()
+
+```ts
+function buildSessionOptions<TConfig>(
+   config, 
+   runDir, 
+   spec, 
+   options?
+): Promise<{
+  apis: Record<string, Record<string, unknown>>;
+  extensions: ExtensionsStatus;
+  language: Language;
+  modeControl: ModeControl;
+  options: Options;
+  switchExtension: ExtensionSwitch;
+  toolLabels: ToolLabels;
+  transcriptLogger: TranscriptLogger;
+  transcriptPath: string;
+}>;
+```
+
+Defined in: [core/session.ts:51](https://github.com/falkenslab/agent-kit/blob/main/src/core/session.ts#L51)
+
+Builds the `options` object passed to the Agent SDK's `query()` — everything about
+*how* the agent runs a session (system prompt, tools, MCP servers, hooks), independent
+of *what* is said to start it off (that's the caller's `prompt`, a plain string for a
+one-shot run or an `AsyncIterable` for a multi-turn chat).
+
+Everything actually *about the domain* (which system prompt, which MCP servers besides
+the generic human-in-the-loop ones below, which plugin roots, which subagents) is behind
+`spec` (see agentSpec.ts), and the kit's optional parts (the knowledge base, the sources
+folder) are extensions whose contributions this function puts together (extensions.ts,
+ADR-025): it names none of them.
+
+The per-mode behavioral differences (whether the approval/manual-intervention tools
+exist, whether the interactive step gate or the plan gate decides) all fall out of
+`config.mode` and the session's `ModeControl` alone.
+
+`options.run` keeps the SDK's transcript of the conversation in that run folder (see
+runs.ts's createRunStore()) and, when it has a session already, resumes it: the chat
+passes it when the agent gives it a runs folder (`InkChatOptions.runsDir`).
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `TConfig` *extends* [`BaseSessionConfig`](../interfaces/BaseSessionConfig.md) |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `config` | `TConfig` |
+| `runDir` | `string` |
+| `spec` | [`AgentSpec`](../interfaces/AgentSpec.md)\<`TConfig`\> |
+| `options` | \{ `autoCompactEnabled?`: `boolean`; `run?`: [`RunFolder`](../interfaces/RunFolder.md); \} |
+| `options.autoCompactEnabled?` | `boolean` |
+| `options.run?` | [`RunFolder`](../interfaces/RunFolder.md) |
+
+## Returns
+
+`Promise`\<\{
+  `apis`: `Record`\<`string`, `Record`\<`string`, `unknown`\>\>;
+  `extensions`: [`ExtensionsStatus`](../interfaces/ExtensionsStatus.md);
+  `language`: [`Language`](../type-aliases/Language.md);
+  `modeControl`: [`ModeControl`](../interfaces/ModeControl.md);
+  `options`: `Options`;
+  `switchExtension`: `ExtensionSwitch`;
+  `toolLabels`: [`ToolLabels`](../type-aliases/ToolLabels.md);
+  `transcriptLogger`: [`TranscriptLogger`](../interfaces/TranscriptLogger.md);
+  `transcriptPath`: `string`;
+\}\>
