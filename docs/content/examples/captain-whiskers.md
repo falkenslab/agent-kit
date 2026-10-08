@@ -114,7 +114,7 @@ CAPTAIN_PLAIN=1 npm start               # the plain readline chat
 npm start -- --web                      # in a browser: prints the URL to open
 ```
 
-As a desktop app, from `examples/captain-whiskers/desktop/`: `npm run build`, `npm install`, then `npm start` (unpackaged) or `npm run dist` (the installer).
+As a desktop app, from `examples/captain-whiskers/desktop/`: `npm run build`, then `npm start` (unpackaged) or `npm run dist` (an installer wizard that asks where to install him).
 
 It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment, or the token saved in his `config.json`; without one, the terminal offers to create a token, and the browser and the app ask for it on the page.
 

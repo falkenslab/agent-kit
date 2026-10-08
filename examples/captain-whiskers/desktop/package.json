@@ -42,6 +42,20 @@
       "captain/treasure-samples/**"
     ],
     "win": { "target": ["nsis", "dir"], "icon": "build/icon.png" },
-    "nsis": { "oneClick": true, "perMachine": false, "shortcutName": "Captain Whiskers", "deleteAppDataOnUninstall": false }
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Captain Whiskers",
+      "uninstallDisplayName": "Captain Whiskers",
+      "artifactName": "Captain Whiskers Setup.${ext}",
+      "multiLanguageInstaller": true,
+      "installerLanguages": ["en_US", "es_ES", "fr_FR", "de_DE"],
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    }
   }
 }

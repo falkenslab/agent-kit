@@ -60,14 +60,13 @@ prints a URL (`http://127.0.0.1:<port>/?token=…`): open it in a browser. It's 
 `desktop/` is an Electron app around the same page, with an installer: his name and icon, and signing in from the window. It's exactly his web (the same host, page and behavior, and the same home: what you do in the app is there in the browser and the terminal, and back). Electron keeps only its caches in its own data folder. In both, his jokebook is installed for him on the first start. From `desktop/`:
 
 ```
-npm run build       # the kit packed as published, and the captain compiled into captain/
-npm install         # again after the kit changes (it's agent-kit.tgz)
+npm run build       # the kit packed as published and installed, and the captain compiled into captain/
 npm start           # the app, unpackaged
-npm run dist        # dist/Captain Whiskers Setup <version>.exe and dist/win-unpacked/
+npm run dist        # dist/Captain Whiskers Setup.exe and dist/win-unpacked/
 npm run icon        # build/icon.png again, from the logo in web/index.html
 ```
 
-If npm blocks install scripts (it says `allow-scripts`), `node node_modules/electron/install.js` downloads Electron for `npm start`. From VS Code's terminal, unset `ELECTRON_RUN_AS_NODE` first, or Electron runs as plain Node. The installer isn't signed: Windows SmartScreen warns about it.
+If npm blocks install scripts (it says `allow-scripts`), `node node_modules/electron/install.js` downloads Electron for `npm start`. From VS Code's terminal, unset `ELECTRON_RUN_AS_NODE` first, or Electron runs as plain Node. The installer is a wizard in the system's language (English, Spanish, French or German): it asks to confirm, whether to install for you only or for everyone on the computer, and where; it adds Start menu and desktop shortcuts, opens him at the end, and shows in Windows' apps as "Captain Whiskers", without the version. It isn't signed: Windows SmartScreen warns about it.
 
 ## Extensions
 
