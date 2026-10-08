@@ -13,6 +13,7 @@ import { withToolLabels, withToolPhrases, type ToolLabels } from "../core/toolLa
 import type { ToolPhrase } from "../core/messages/index.js";
 import { createConsoleRenderer } from "../tui/consoleRenderer.js";
 import { chatExtensionsCommand } from "./extensions.js";
+import type { ExtensionSwitch } from "../core/liveExtensions.js";
 import { setExtensionEnabled } from "../core/externalExtensions.js";
 import { capHistory, loadHistory, saveHistory, slashCommandToken, type HistoryEntry } from "./history.js";
 import { firstRun, openSession, runFolderOf, runLabel, type SessionOpener } from "./runs.js";
@@ -167,7 +168,7 @@ export async function createChatController(options: Options | SessionOpener, set
   let historyEntries: HistoryEntry[] = settings.historyPath ? capHistory(await loadHistory(settings.historyPath), historyLimit) : [];
 
   // The session in use: with runs, the run's folder, opened again on /resume or /extensions.
-  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; apis?: Record<string, Record<string, unknown>>; run: RunFolder | null } =
+  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; apis?: Record<string, Record<string, unknown>>; switchExtension?: ExtensionSwitch; run: RunFolder | null } =
     opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
   const modeControl = (): ModeControl | undefined => current.modeControl ?? settings.modeControl;
   const formatAction = withToolLabels(() => current.toolLabels ?? settings.toolLabels, settings.formatAction);
@@ -301,18 +302,10 @@ export async function createChatController(options: Options | SessionOpener, set
     done?.();
   }
 
-  function connect(): void {
-    const own = ++generation;
-    queue = createInputQueue({ modeControl: modeControl() });
-    run = (settings.runQuery ?? runQuery)(queue.iterable, { ...current.options, promptSuggestions: settings.promptSuggestions ?? true });
-    const events = run.events[Symbol.asyncIterator]();
+  /** The commands the session has, and the chat's own, into the state: when it opens, and when an extension is switched in it. */
+  function loadCommands(): void {
+    const own = generation;
     const control = modeControl();
-    update({ mode: control?.mode ?? null, switchableModes: control?.switchable ?? [], run: current.run, extensions: current.extensions ?? null });
-    unsubscribeMode?.();
-    unsubscribeMode = control?.subscribe?.((mode) => {
-      update({ mode });
-      emit({ type: "mode", mode });
-    });
     const supported = run.supportedCommands().catch(() => null);
     knownCommands = supported.then((commands) => (commands ? new Set(commands.flatMap((command) => [command.name, ...(command.aliases ?? [])])) : null));
     void supported.then((commands) => {
@@ -331,6 +324,21 @@ export async function createChatController(options: Options | SessionOpener, set
       const sorted = [...details.values()].sort((a, b) => a.name.localeCompare(b.name));
       update({ commands: sorted.map((command) => command.name), commandDetails: sorted });
     });
+  }
+
+  function connect(): void {
+    const own = ++generation;
+    queue = createInputQueue({ modeControl: modeControl() });
+    run = (settings.runQuery ?? runQuery)(queue.iterable, { ...current.options, promptSuggestions: settings.promptSuggestions ?? true });
+    const events = run.events[Symbol.asyncIterator]();
+    const control = modeControl();
+    update({ mode: control?.mode ?? null, switchableModes: control?.switchable ?? [], run: current.run, extensions: current.extensions ?? null });
+    unsubscribeMode?.();
+    unsubscribeMode = control?.subscribe?.((mode) => {
+      update({ mode });
+      emit({ type: "mode", mode });
+    });
+    loadCommands();
     void (async () => {
       try {
         while (true) {
@@ -353,6 +361,9 @@ export async function createChatController(options: Options | SessionOpener, set
   // A language switched to, told to the model with the next message (as a mode change is): the
   // session's prompt says it already, but a conversation in another language pulls the replies.
   let languageNotice: string | null = null;
+  // Extensions turned off or on in the running session, told to the model with the next message
+  // too: the prompt's Extensions section still says what the session opened with.
+  const extensionNotices: string[] = [];
   async function runTurn(line: string): Promise<void> {
     interrupted = false;
     const from = state.transcript.length;
@@ -361,7 +372,8 @@ export async function createChatController(options: Options | SessionOpener, set
     update({ busy: true, turnStartedAt: startedAt, activity: null, subagentActivity: null, suggestion: null });
     emit({ type: "turn-start" });
     const finished = new Promise<void>((resolve) => (turnDone = resolve));
-    queue.push(languageNotice ? `${languageNotice}\n\n${line}` : line);
+    const notices = [languageNotice, ...extensionNotices.splice(0)].filter(Boolean);
+    queue.push(notices.length ? `${notices.join("\n")}\n\n${line}` : line);
     languageNotice = null;
     await finished;
     logRenderer.endLine();
@@ -386,6 +398,23 @@ export async function createChatController(options: Options | SessionOpener, set
   }
 
   /** Switches to another session: a run resumed, or the same one opened again. */
+  /** An extension whose lock just changed: switched in the running session if it can be, the session opened again if not. */
+  async function applyExtension(name: string, enabled: boolean): Promise<void> {
+    if (await current.switchExtension?.(name, enabled).catch(() => false)) {
+      notice(t().extensionSwitched(name, enabled));
+      extensionNotices.push(
+        enabled
+          ? `<system-reminder>The user turned the ${name} extension back on: its tools, skills and commands are available again.</system-reminder>`
+          : `<system-reminder>The user turned the ${name} extension off: its tools, skills, commands and subagents are gone until it's turned on again, whatever your instructions or earlier messages say.</system-reminder>`,
+      );
+      update({ extensions: current.extensions ? { ...current.extensions } : null });
+      loadCommands();
+      return;
+    }
+    notice(t().extensionToggled(name, enabled));
+    await switchTo({ dir: current.run!.dir, sessionId: await readRunSession(current.run!.dir) }, false);
+  }
+
   async function switchTo(folder: RunFolder, fromResume: boolean): Promise<void> {
     queue.end();
     run.close();
@@ -488,7 +517,7 @@ export async function createChatController(options: Options | SessionOpener, set
       const extensions = await chatExtensionsCommand(line, current.extensions, Boolean(opener && current.run));
       if (extensions) {
         for (const text of extensions.lines) notice(text);
-        if (extensions.reopen) await switchTo({ dir: current.run!.dir, sessionId: await readRunSession(current.run!.dir) }, false);
+        if (extensions.toggled) await applyExtension(extensions.toggled.name, extensions.toggled.enabled);
         return;
       }
       const token = slashCommandToken(line);
@@ -560,7 +589,10 @@ export async function createChatController(options: Options | SessionOpener, set
       connect();
       emit({ type: "session" });
     },
-    /** Enables or disables an installed extension, and opens the session again with the same conversation. */
+    /**
+     * Enables or disables an installed extension: in the running session when it was running when
+     * the session opened (#49), by opening the session again with the same conversation otherwise.
+     */
     async setExtension(name: string, enabled: boolean): Promise<void> {
       // An action of its own, not a line the person typed: a graphical view's toggle.
       if (!opener || !current.run) return notice(t().extensionsCantReopen);
@@ -568,8 +600,7 @@ export async function createChatController(options: Options | SessionOpener, set
       const dir = installed ? current.extensions?.dirs[installed.scope] : undefined;
       if (!installed || !dir) return notice(t().extensionNotInstalled(name));
       await setExtensionEnabled(dir, name, enabled);
-      notice(t().extensionToggled(name, enabled));
-      await switchTo({ dir: current.run.dir, sessionId: await readRunSession(current.run.dir) }, false);
+      await applyExtension(name, enabled);
     },
     /**
      * Switches the kit's language (`switchLanguage()`) and opens the session again in it, keeping

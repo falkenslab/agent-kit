@@ -41,7 +41,7 @@ you>
 - An unknown `/command` is caught before it reaches the model.
 - The agent's task list (`TodoWrite`) prints a line when a task starts (`[task] ◼ Preparing the slides`) and when it's done (`[task] ☑ Prepare the slides`), not the calls; the session log of every chat gets the same lines.
 - `/resume` prints a numbered list of runs and asks for a number.
-- `/extensions` works as in the Ink chat: it lists the extensions, and `enable`/`disable` reopens the session.
+- `/extensions` works as in the Ink chat: it lists the extensions, and `enable`/`disable` turns one on or off, in the same session when it can.
 - `/plan` switches into [plan mode](../core-concepts/modes.md#plan) and back, with the `modeControl` option or a session opener (the plain chat has no Shift+Tab).
 
 ## Checkpoints

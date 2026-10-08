@@ -174,7 +174,8 @@ test("a session runs an installed extension: its server through the launcher, it
   await addExtension(makeExtension(), dirs.project);
   setLanguage("es");
   try {
-    const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, temp(), spec);
+    const runDir = temp();
+    const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, runDir, spec);
     const server = (built.options.mcpServers as Record<string, { type: string; command: string; args: string[]; env: Record<string, string> }>).dice!;
     assert.equal(server.command, process.execPath);
     assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server", "index.mjs"), '["DICE_SEED"]', "--fair"]);
@@ -184,14 +185,17 @@ test("a session runs an installed extension: its server through the launcher, it
     assert.match(String(built.options.systemPrompt), /\*\*dice\*\*: Rolls dice\. Provides: dice\./);
     assert.equal((built.options.settings as { disableAllHooks?: boolean }).disableAllHooks, true);
     assert.deepEqual(built.options.agents?.["dice:croupier"]?.tools, ["Read"]);
-    assert.ok(built.options.plugins?.some((plugin) => plugin.path === path.join(dirs.project, "dice")));
+    // Its plugin from a copy in the run's folder, which the session can empty to turn it off (#49).
+    const copy = path.join(runDir, "extensions", "dice");
+    assert.ok(built.options.plugins?.some((plugin) => plugin.path === copy));
+    assert.ok(fs.existsSync(path.join(copy, ".claude-plugin", "plugin.json")));
     assert.deepEqual(built.extensions.active, ["dice"]);
 
-    // /extensions lists it; disabling it changes the lock and asks to reopen.
+    // /extensions lists it; disabling it changes the lock and says which, for the chat to apply.
     const listed = await chatExtensionsCommand("/extensions", built.extensions, true);
     assert.match(listed?.lines.join("\n") ?? "", /dice 2\.1\.0 {2}\[project\] {2}enabled {2}by Ada/);
     const disabled = await chatExtensionsCommand("/extensions disable dice", built.extensions, true);
-    assert.equal(disabled?.reopen, true);
+    assert.deepEqual(disabled?.toggled, { name: "dice", enabled: false });
     assert.equal((await readLock(dirs.project)).dice?.enabled, false);
     const reopened = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, temp(), spec);
     assert.equal((reopened.options.mcpServers as Record<string, unknown>).dice, undefined);

@@ -126,7 +126,12 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
   // What the session is, for an extension that asks (sessionFacts.ts): the controls now, the
   // tools and skills when the session starts.
   const view = sessionViewOf(options);
-  view?.attach({ supportedCommands: () => result.supportedCommands(), contextUsage: () => contextUsage() });
+  view?.attach({
+    supportedCommands: () => result.supportedCommands(),
+    contextUsage: () => contextUsage(),
+    toggleMcpServer: (server, enabled) => result.toggleMcpServer(server, enabled),
+    reloadPlugins: () => result.reloadPlugins(),
+  });
 
   // The main agent's tool calls by id, to name the results that come back for them.
   const toolNames = new Map<string, string>();

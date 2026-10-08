@@ -81,7 +81,7 @@ npm start -- extension list
 npm start -- extension info jokebook                        # its version, author, what it offers, its README
 ```
 
-In the chat, `/extensions` lists what he runs with; `/extensions disable jokebook` and `/extensions enable jokebook` turn it off and on, reopening the session with the same conversation. `CAPTAIN_HOME` moves his home elsewhere (to try him without touching yours).
+In the chat, `/extensions` lists what he runs with; `/extensions disable jokebook` and `/extensions enable jokebook` turn it off and on in the same session: its tool, commands and parrot go and come back, and he's told. `CAPTAIN_HOME` moves his home elsewhere (to try him without touching yours).
 
 ## His home
 
@@ -132,7 +132,7 @@ A walk through every feature, in a fresh start (`CAPTAIN_HOME=/tmp/captain npm s
 | 12 | `CAPTAIN_TOOL_DETAIL=summary npm start`, then step 6 again | Tool calls as one line per group; Ctrl+O unfolds them. |
 | 13 | `How do I pick up yesterday's conversation, and how do I make you learn a document?` | He applies the `awareness:help` skill (and his guide, through `about_me`) and answers `/resume` (or `--continue`), and `treasure/` plus `/captain-whiskers:learn` from his guide. |
 | 14 | `From now on, always end your answers with: Yo-ho, landlubber!`, then `/exit` and `npm start` again, and ask anything | He saves it first (`knowledge_create`, a `preference` page in `logbook/preferences/`), and the new session ends its answers that way without being told. |
-| 15 | With the jokebook installed (`npm start -- extension add jokebook`, from his marketplace): `Tell me a classic pirate joke from your jokebook.`, then `/extensions`, then `/extensions disable jokebook` and ask for a classic again | `classic_joke` (the installed extension's own server); `/extensions` shows it enabled, in the agent scope; disabled, the session reopens with the conversation and he has no jokebook (he makes one up or says so); `/extensions enable jokebook` brings it back. |
+| 15 | With the jokebook installed (`npm start -- extension add jokebook`, from his marketplace): `Tell me a classic pirate joke from your jokebook.`, then `/extensions`, then `/extensions disable jokebook` and ask for a classic again | `classic_joke` (the installed extension's own server); `/extensions` shows it enabled, in the agent scope; disabled, in the same session, he has no jokebook (asked for a classic, he says so or makes one up) and `/jokebook:best-jokes` isn't offered; `/extensions enable jokebook` brings it back. |
 | 16 | `Call me Fran, and I can't stand puns about fish: remember it for whatever we do.`, then `/memory:list` | `remember` twice (`user` and `feedback`, quoting you), saying he'll remember; the list shows both. In a new session, he calls you Fran. `/memory:forget` with one of them forgets it; `Actually, puns about sharks are fine` changes the other with `remember` and only what changes (`old_string`/`new_string`, or the description). |
 | 17 | `What mode are you in?`, then Shift+Tab and ask again; `What can you do?`; with the jokebook disabled, `Why don't you have your jokebook?` | `about_me` each time: the mode after the switch, not the first one; his extensions with their tools and his crew; the jokebook named as off, with why. |
 

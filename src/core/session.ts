@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { cp, readdir, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { HookCallbackMatcher, HookEvent, Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
@@ -25,7 +25,8 @@ import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 import { replyLanguageInstruction, type Language } from "./language.js";
 import { chooseLanguage } from "./messages/index.js";
 import { createRunStore, type RunFolder } from "./runs.js";
-import { createSessionView, registerSessionView, type SessionView } from "./sessionFacts.js";
+import { createSessionView, registerSessionView, type SessionView, type StaticSessionFacts } from "./sessionFacts.js";
+import { createExtensionSwitch, type ExtensionSwitch } from "./liveExtensions.js";
 import { agentKitVersion } from "./version.js";
 
 /**
@@ -67,6 +68,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   knowledgeStore?: KnowledgeStore;
   /** What each active extension hands the host (its contribution's `api`), by its name: the sources' `addSource`, the knowledge base's store. */
   apis: Record<string, Record<string, unknown>>;
+  /** Turns an installed extension off or on in the running session; false when that takes opening it again (#49). */
+  switchExtension: ExtensionSwitch;
 }> {
   const { mode } = config;
   // The kit's language (`--language`, then config.language, then the system's), chosen here
@@ -106,6 +109,16 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     ...external.off,
     ...external.extensions.filter((extension) => enabledNames.has(extension.name)).map((extension) => ({ name: extension.name, reason: "has the name of one this agent already has" })),
   );
+  // Each installed one's plugin, copied into the run's folder: the running session empties and
+  // fills the copy to turn the extension off and on (liveExtensions.ts), never what's installed.
+  const installedDirs = new Map<string, string>();
+  for (const { extension } of resolved.active.filter(({ extension }) => extension.external)) {
+    const copy = path.join(runDir, "extensions", extension.name);
+    await rm(copy, { recursive: true, force: true });
+    await cp(extension.plugin, copy, { recursive: true });
+    installedDirs.set(extension.name, extension.plugin);
+    extension.plugin = copy;
+  }
   const externalPlugins = new Set(resolved.active.filter(({ extension }) => extension.external).map(({ extension }) => path.resolve(extension.plugin)));
   const added = await Promise.all(resolved.active.map(({ extension }) => extension.contribute(extensionContext)));
   const extensionPlugins = resolved.active.map(({ extension }) => extension.plugin);
@@ -191,6 +204,9 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // map, and inherits the full session tools (Bash included) rather than the narrow list
   // each declared subagent actually declares.
   const allowedSubagentTypes = [...new Set([...(subagents?.allowedSubagentTypes ?? []), ...Object.keys(fromPlugins)])];
+
+  // The extensions' read-only tools, for the plan gate: a list the live switch changes (liveExtensions.ts).
+  const readOnlyTools = fromExtensions((contribution) => contribution.readOnlyTools);
 
   const transcriptPath = path.join(runDir, "transcript.jsonl");
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);
@@ -322,7 +338,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
                   createPlanGate(
                     {
                       projectDir: config.projectDir,
-                      readOnlyTools: fromExtensions((contribution) => contribution.readOnlyTools),
+                      readOnlyTools,
                       ...(spec.planMode?.isPlanFile ? { isPlanFile: (filePath: string) => spec.planMode!.isPlanFile!(filePath, config) } : {}),
                       ...(spec.planMode?.isReadOnlyTool ? { isReadOnlyTool: spec.planMode.isReadOnlyTool } : {}),
                     },
@@ -360,30 +376,53 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     inactive: resolved.inactive,
   };
   // What the session is, for the extensions that ask (sessionFacts.ts, #43).
-  late.view = createSessionView(
-    {
-      ...(spec.identity ? { identity: spec.identity } : {}),
-      kitVersion: agentKitVersion(),
-      language,
-      extensions: {
-        active: resolved.active.map(({ extension, manifest }, index) => ({
+  const viewBase: StaticSessionFacts = {
+    ...(spec.identity ? { identity: spec.identity } : {}),
+    kitVersion: agentKitVersion(),
+    language,
+    extensions: {
+      active: resolved.active.map(({ extension, manifest }, index) => ({
+        name: extension.name,
+        description: manifest.description,
+        provides: manifest.provides,
+        servers: Object.keys(added[index]?.mcpServers ?? {}),
+        help: added[index]?.helpLines ?? [],
+      })),
+      // Its own list: /extensions' status has another, and the live switch changes both.
+      inactive: [...resolved.inactive],
+    },
+    subagents: Object.entries(allAgents).map(([name, agent]) => ({ name, description: agent.description })),
+    skills: sdkOptions.skills === "all" ? await pluginSkills(pluginRoots) : [...((sdkOptions.skills as string[] | undefined) ?? [])],
+    runDir,
+  };
+  late.view = createSessionView(viewBase, modeControl);
+  registerSessionView(sdkOptions, late.view);
+  // Turning an installed extension off and on while the session runs (#49).
+  const switchExtension = createExtensionSwitch(
+    resolved.active.flatMap(({ extension, manifest }, index) => {
+      const installedDir = installedDirs.get(extension.name);
+      if (!installedDir) return [];
+      const contribution = added[index];
+      return [
+        {
           name: extension.name,
+          installedDir,
+          scopeDir: path.dirname(installedDir),
+          pluginCopy: extension.plugin,
+          servers: Object.keys(contribution?.mcpServers ?? {}),
+          readOnlyTools: contribution?.readOnlyTools ?? [],
+          toolLabels: contribution?.toolLabels ?? {},
+          agents: Object.keys(fromPlugins).filter((agent) => agent.startsWith(`${extension.name}:`)),
           description: manifest.description,
           provides: manifest.provides,
-          servers: Object.keys(added[index]?.mcpServers ?? {}),
-          help: added[index]?.helpLines ?? [],
-        })),
-        inactive: resolved.inactive,
-      },
-      subagents: Object.entries(allAgents).map(([name, agent]) => ({ name, description: agent.description })),
-      skills: sdkOptions.skills === "all" ? await pluginSkills(pluginRoots) : [...((sdkOptions.skills as string[] | undefined) ?? [])],
-      runDir,
-    },
-    modeControl,
+          help: contribution?.helpLines ?? [],
+        },
+      ];
+    }),
+    { readOnlyTools, allowedSubagentTypes, toolLabels, status: extensions, facts: viewBase, controls: () => late.view?.controls() ?? {} },
   );
-  registerSessionView(sdkOptions, late.view);
   const apis = Object.fromEntries(resolved.active.flatMap(({ extension }, index) => (added[index]?.api ? [[extension.name, added[index]!.api!]] : [])));
-  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, apis, ...(knowledgeStore ? { knowledgeStore } : {}) };
+  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, apis, switchExtension, ...(knowledgeStore ? { knowledgeStore } : {}) };
 }
 
 export { createModeControl, togglePlanMode, type ModeControl } from "./modeControl.js";

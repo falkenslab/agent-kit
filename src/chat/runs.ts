@@ -2,6 +2,7 @@ import path from "node:path";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import type { ExtensionsStatus, ModeControl } from "../core/session.js";
 import type { ToolLabels } from "../core/toolLabels.js";
+import type { ExtensionSwitch } from "../core/liveExtensions.js";
 import { continueArgument, createRunFolder, listRuns, readRunSession, type RunFolder, type RunSummary } from "../core/runs.js";
 import { getLanguage, t } from "../core/messages/index.js";
 
@@ -11,7 +12,7 @@ import { getLanguage, t } from "../core/messages/index.js";
  * and again for each one resumed with /resume (MCP servers, the step gate and the transcript
  * are bound to the run's folder, so they're built anew).
  */
-export type SessionOpener = (run: RunFolder) => Promise<Options | { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; apis?: Record<string, Record<string, unknown>> }>;
+export type SessionOpener = (run: RunFolder) => Promise<Options | { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; apis?: Record<string, Record<string, unknown>>; switchExtension?: ExtensionSwitch }>;
 
 export interface OpenedSession {
   run: RunFolder;
@@ -20,6 +21,7 @@ export interface OpenedSession {
   toolLabels?: ToolLabels;
   extensions?: ExtensionsStatus;
   apis?: Record<string, Record<string, unknown>>;
+  switchExtension?: ExtensionSwitch;
 }
 
 /** The run a chat starts with: the latest one with `--continue` (if any), a new one otherwise. */
@@ -34,7 +36,7 @@ export async function firstRun(runsDir: string, argv: readonly string[] = proces
 export async function openSession(opener: SessionOpener, run: RunFolder): Promise<OpenedSession> {
   const opened = await opener(run);
   // The SDK's Options has no "options" field: this is buildSessionOptions()'s result.
-  return "options" in opened ? { run, options: opened.options, modeControl: opened.modeControl, toolLabels: opened.toolLabels, extensions: opened.extensions, apis: opened.apis } : { run, options: opened };
+  return "options" in opened ? { run, options: opened.options, modeControl: opened.modeControl, toolLabels: opened.toolLabels, extensions: opened.extensions, apis: opened.apis, switchExtension: opened.switchExtension } : { run, options: opened };
 }
 
 /** A run's date for a person, in the kit's language. */

@@ -48,6 +48,12 @@ The kit encodes several behaviors of the Claude Agent SDK (and the Claude Code C
 - **About twenty skills come with the SDK itself** (`deep-research`, `dataviz`, `code-review`, `loop`…), even with `settingSources: []`: `skills` is what keeps them out of the context.
 - **`getContextUsage()`'s split between categories can mislead** (skills counted as system tools when filtered), and before the first turn it counts in-process MCP tools as 0 tokens (15.5k estimated for a session whose first call took 23.7k); the API usage of a call is the reliable measure.
 
+## Changing a running session
+
+- **`toggleMcpServer(name, false)` takes a server given in `mcpServers` out of the session**: its tools leave the model's context (asked to call one, it says it has none) while the other servers keep working; `true` brings it back. The kit turns an installed extension off and on with it.
+- **`setMcpServers()` leaves the servers given at start alone.** It replaces only the ones it added itself: removing a starting server from its set removes nothing (`removed: []`, still connected), and adding one back adds a second, dynamic copy.
+- **`reloadPlugins()` re-reads the plugin folders given at start**: a folder emptied loses its skills, commands and subagents in the session, and filled again they come back. A plugin path the session didn't start with can't be added this way.
+
 ## Sessions
 
 - **A `SessionStore` receives every transcript entry and is asked for them before resuming.** A resumed session keeps its id and remembers the conversation, subagents included, even with the CLI's own copy deleted. The CLI's copy is always written while a store is in use.

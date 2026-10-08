@@ -134,7 +134,11 @@ The functions behind the command are exported too, for a host with its own inter
 
 ### In the chat
 
-`/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and reopen the session, keeping the conversation (the chat must have a session opener). It works in both chats.
+`/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and apply it (the chat must have a session opener). It works in both chats.
+
+**In the same session** when the extension was running when the session opened: its MCP servers are switched off (their tools leave the model's context) and its plugin is unloaded (its skills, commands and subagents go), and back again on `enable`. The kit's gates, the chat's labels, the commands, `/extensions` and [awareness](awareness.md)'s `about_me` follow, and the model is told with the person's next message, since the prompt's Extensions section still says what the session opened with. To do it, each session loads an installed extension's plugin from a copy in the run's folder (`<runDir>/extensions/<name>/`), which it empties and fills again; what's installed is never touched.
+
+**By opening the session again**, keeping the conversation, otherwise: an extension that wasn't running when the session opened (installed since, or enabled in the lock), or whose files changed since it was installed (a new session judges them by their hash). A session the agent builds itself gets the same switch from `buildSessionOptions()`'s `switchExtension(name, enabled)`, which returns `false` when it takes a new session; it needs the session running through `runQuery()`.
 
 ## What the agent sees
 

@@ -35,6 +35,7 @@ export const de: Partial<Messages> = {
   extensionsNone: "(keine Erweiterungen)",
   extensionOff: (name, reason) => `${name} ist aus: ${reason}`,
   extensionsInstalled: "Installiert:",
+  extensionSwitched: (name, enabled) => `(${name} ${enabled ? "aktiviert" : "deaktiviert"}, in derselben Sitzung)`,
   extensionToggled: (name, enabled) => `(${name} ${enabled ? "aktiviert" : "deaktiviert"}: die Sitzung wird mit derselben Unterhaltung neu geöffnet)`,
   extensionNotInstalled: (name) => `(${name} ist nicht installiert: /extensions listet sie auf)`,
   extensionsUsage: "(Verwendung: /extensions, /extensions enable <Name>, /extensions disable <Name>)",

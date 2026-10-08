@@ -45,6 +45,8 @@ export interface Messages {
   extensionsNone: string;
   extensionOff(name: string, reason: string): string;
   extensionsInstalled: string;
+  /** An installed extension turned off or on in the running session (#49). */
+  extensionSwitched(name: string, enabled: boolean): string;
   extensionToggled(name: string, enabled: boolean): string;
   extensionNotInstalled(name: string): string;
   extensionsUsage: string;
@@ -175,6 +177,7 @@ export const en: Messages = {
   extensionsNone: "(no extensions)",
   extensionOff: (name, reason) => `${name} is off: it ${reason}`,
   extensionsInstalled: "Installed:",
+  extensionSwitched: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}, in this same session)`,
   extensionToggled: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}: the session reopens, with the same conversation)`,
   extensionNotInstalled: (name) => `(${name} isn't installed: /extensions lists them)`,
   extensionsUsage: "(usage: /extensions, /extensions enable <name>, /extensions disable <name>)",

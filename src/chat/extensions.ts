@@ -17,24 +17,29 @@ export function describe(extension: InstalledExtension): string {
 /**
  * `/extensions` in a chat (#37): with nothing after it, what the session runs with, what's off
  * and why, and what's installed; with `enable <name>` or `disable <name>`, changes its lock and
- * asks the chat to reopen the session (`reopen`), which keeps the conversation. `null` when
- * `line` isn't this command.
+ * says which (`toggled`): the chat turns it on or off in the running session when it can (#49),
+ * and opens the session again otherwise, keeping the conversation. `null` when `line` isn't this
+ * command.
  */
-export async function chatExtensionsCommand(line: string, status: ExtensionsStatus | undefined, canReopen: boolean): Promise<{ lines: string[]; reopen: boolean } | null> {
+export async function chatExtensionsCommand(
+  line: string,
+  status: ExtensionsStatus | undefined,
+  canReopen: boolean,
+): Promise<{ lines: string[]; toggled?: { name: string; enabled: boolean } } | null> {
   const [command, action, name, ...extra] = line.trim().split(/\s+/);
   if (command?.toLowerCase() !== "/extensions") return null;
   if (!action) {
     const lines = [status?.active.length ? t().extensionsRunning(status.active.join(", ")) : t().extensionsNone];
     for (const { name: off, reason } of status?.inactive ?? []) lines.push(t().extensionOff(off, reason));
     if (status?.installed.length) lines.push(t().extensionsInstalled, ...status.installed.map((extension) => `  ${describe(extension)}`));
-    return { lines, reopen: false };
+    return { lines };
   }
   const enable = action.toLowerCase() === "enable";
-  if ((!enable && action.toLowerCase() !== "disable") || !name || extra.length) return { lines: [t().extensionsUsage], reopen: false };
-  if (!canReopen) return { lines: [t().extensionsCantReopen], reopen: false };
+  if ((!enable && action.toLowerCase() !== "disable") || !name || extra.length) return { lines: [t().extensionsUsage] };
+  if (!canReopen) return { lines: [t().extensionsCantReopen] };
   const installed = (status?.installed ?? []).find((extension) => extension.name === name && !extension.shadowed);
   const dir = installed ? status?.dirs[installed.scope] : undefined;
-  if (!installed || !dir) return { lines: [t().extensionNotInstalled(name)], reopen: false };
+  if (!installed || !dir) return { lines: [t().extensionNotInstalled(name)] };
   await setExtensionEnabled(dir, name, enable);
-  return { lines: [t().extensionToggled(name, enable)], reopen: true };
+  return { lines: [], toggled: { name, enabled: enable } };
 }

@@ -44,6 +44,9 @@ export interface SessionLive {
   skills?: string[];
   supportedCommands?: () => Promise<SlashCommand[]>;
   contextUsage?: () => Promise<ContextUsage | null>;
+  /** The running session's controls an installed extension is turned off and on with (liveExtensions.ts). */
+  toggleMcpServer?: (server: string, enabled: boolean) => Promise<void>;
+  reloadPlugins?: () => Promise<unknown>;
 }
 
 /** The facts known when the options are built: everything but the mode and what only the running session knows. */
@@ -54,6 +57,8 @@ export type StaticSessionFacts = Omit<SessionFacts, "mode" | "switchableModes" |
 export interface SessionView {
   facts(): Promise<SessionFacts>;
   attach(live: SessionLive): void;
+  /** What the running session has attached so far. */
+  controls(): SessionLive;
 }
 
 // A live call made from inside a tool, mid-turn: never let it hold the tool up.
@@ -68,6 +73,7 @@ export function createSessionView(base: StaticSessionFacts, modeControl: ModeCon
     attach(more) {
       live = { ...live, ...more };
     },
+    controls: () => live,
     async facts() {
       const tools = live.tools ?? [];
       const [commands, context] = await Promise.all([
