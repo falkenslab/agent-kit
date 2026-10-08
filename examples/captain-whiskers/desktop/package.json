@@ -1,7 +1,7 @@
 {
   "name": "captain-whiskers-desktop",
   "productName": "Captain Whiskers",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Captain Whiskers as a desktop application: a retired pirate cat who tells jokes and learns from your documents.",
   "author": "Falkenslab",
