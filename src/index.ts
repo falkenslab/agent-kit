@@ -37,6 +37,7 @@ export {
 } from "./core/extensions.js";
 export {
   addExtension,
+  extensionDataDir,
   removeExtension,
   setExtensionEnabled,
   listInstalled,

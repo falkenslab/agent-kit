@@ -90,3 +90,22 @@ test("turning on takes opening the session again when the extension wasn't runni
   const fresh = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: { agent: other } }, temp(), spec);
   assert.equal(await fresh.switchExtension("dice", false), false); // no running session to switch it in
 });
+
+test("a linked extension turns on again after a rebuild, with its new files: it's being developed", async () => {
+  const projectDir = temp();
+  const scope = path.join(projectDir, "extensions");
+  const source = makeExtension("dice");
+  await addExtension(source, scope, { link: true });
+  const runDir = temp();
+  const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: { agent: scope } }, runDir, spec);
+  const calls: string[] = [];
+  sessionViewOf(built.options)!.attach({
+    toggleMcpServer: async (server, enabled) => void calls.push(`${server}:${enabled ? "on" : "off"}`),
+    reloadPlugins: async () => void calls.push("reload"),
+  });
+  assert.equal(await built.switchExtension("dice", false), true);
+  fs.writeFileSync(path.join(source, "skills", "roll-many", "SKILL.md"), "---\nname: roll-many\ndescription: Rolls many, rebuilt.\n---\n\nRoll.");
+  assert.equal(await built.switchExtension("dice", true), true);
+  assert.deepEqual(calls, ["reload", "dice:off", "reload", "dice:on"]);
+  assert.match(fs.readFileSync(path.join(runDir, "extensions", "dice", "skills", "roll-many", "SKILL.md"), "utf8"), /rebuilt/);
+});

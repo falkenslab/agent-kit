@@ -83,12 +83,13 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 | Command | What it does |
 | --- | --- |
 | `extension list` | What's installed: name and version, scope, enabled or not, author, where from. |
-| `extension info <name>` | Everything its manifest says (description, author, license, homepage, repository, keywords, the agent-kit versions, capabilities, tools, variables), how it was installed, and where its README is. |
+| `extension info <name>` | Everything its manifest says (description, author, license, homepage, repository, keywords, the agent-kit versions, capabilities, tools, variables), how it was installed, its data folder and its size, and where its README is. |
 | `extension add <folder>` | Copies the folder into the agent's scope, checks its manifest, hashes it and locks it, enabled. |
 | `extension add <git URL>[#ref] [--path <subfolder>]` | Clones the repository at the ref (`https://…`, `git@…`, `file://…`, `github:owner/repo`) and records the commit. |
 | `extension add <plugin>[@<marketplace>]` | Installs a plugin of a known [marketplace](#marketplaces), from wherever the marketplace says (the marketplace's own folder, or a git repository at a ref or commit); `@<marketplace>` only when two offer that name. One from a marketplace that isn't the agent's own asks first. |
+| `extension add <folder> --link` | Registers the folder where it is, to [develop it](#developing-one): not copied, its files not checked. `list` shows it as linked. |
 | `extension add … --project` | Into the project's scope instead. |
-| `extension remove <name>` | Removes its files and its lock entry. |
+| `extension remove <name>` | Removes its files and its lock entry (a linked one's folder stays where it is). When it has [data](#its-data), asks whether to delete it too: `--yes` deletes it, `--keep-data` keeps it. |
 | `extension enable <name>` | Turns it on. |
 | `extension disable <name>` | Turns it off, keeping it installed. |
 | `extension search [words]` | What the known marketplaces offer, matching the words in a plugin's name, description, category, tags or keywords; installed ones are marked. |
@@ -141,7 +142,7 @@ The functions behind the command are exported too, for a host with its own inter
 
 **In the same session** when the extension was running when the session opened: its MCP servers are switched off (their tools leave the model's context) and its plugin is unloaded (its skills, commands and subagents go), and back again on `enable`. The kit's gates, the chat's labels, the commands, `/extensions` and [awareness](awareness.md)'s `about_me` follow, and the model is told with the person's next message, since the prompt's Extensions section still says what the session opened with. To do it, each session loads an installed extension's plugin from a copy in the run's folder (`<runDir>/extensions/<name>/`), which it empties and fills again; what's installed is never touched.
 
-**By opening the session again**, keeping the conversation, otherwise: an extension that wasn't running when the session opened (installed since, or enabled in the lock), or whose files changed since it was installed (a new session judges them by their hash). A session the agent builds itself gets the same switch from `buildSessionOptions()`'s `switchExtension(name, enabled)`, which returns `false` when it takes a new session; it needs the session running through `runQuery()`.
+**By opening the session again**, keeping the conversation, otherwise: an extension that wasn't running when the session opened (installed since, or enabled in the lock), or whose files changed since it was installed (a new session judges them by their hash; a [linked](#developing-one) one's aren't checked, so it turns on again with its new files). A session the agent builds itself gets the same switch from `buildSessionOptions()`'s `switchExtension(name, enabled)`, which returns `false` when it takes a new session; it needs the session running through `runQuery()`.
 
 ## What the agent sees
 
@@ -235,7 +236,8 @@ Its servers, in `.mcp.json` (or under `mcpServers` in `plugin.json`, inline or a
 
 - Each server's name gives its tools': `mcp__jokebook__classic_joke`.
 - **Only Node servers**: `command` is `node`, and the first of `args` its script, inside the extension (`${CLAUDE_PLUGIN_ROOT}` is its folder); the rest of `args` reach the script. Any other command (`python`, `npx`, `docker`) leaves the extension off, saying why: the kit runs installed code only through its launcher.
-- **Its environment**: the system's variables (`PATH`, `TEMP`, `HOME`…) and those in its `env`, where `${VAR}` takes the agent's (`"JOKES_API_KEY": "${JOKES_API_KEY}"`, from its `.env`). Nothing else of the agent's: not its credentials.
+- **Its folders**: `${CLAUDE_PLUGIN_ROOT}` is its plugin's folder and `${CLAUDE_PLUGIN_DATA}` its [data folder](#its-data), in `args` and `env`, as in Claude Code; the server gets both as variables too.
+- **Its environment**: the system's variables and those in its `env`, where `${VAR}` takes the agent's (`"JOKES_API_KEY": "${JOKES_API_KEY}"`, from its `.env`). Nothing else of the agent's: not its credentials. The system's are where things are and the desktop session: `PATH`, `TEMP`, `HOME`, `APPDATA`, `LOCALAPPDATA`, `PROGRAMFILES` and `PROGRAMFILES(X86)` (where a browser is found on Windows), `DISPLAY`, `WAYLAND_DISPLAY` and `XDG_*` (to open a window on Linux), the language and time zone, and the like.
 
 Under `"agent-kit"`, all optional:
 
@@ -247,6 +249,26 @@ Under `"agent-kit"`, all optional:
 | `readOnlyTools` | Its tools that only read (short names, of any of its servers): [plan mode](../core-concepts/modes.md#plan) lets them through; every other one is denied there. Without it, plan mode denies them all. |
 | `labels` | How the chat shows each tool (short names), per language (English when the kit's isn't there): `label` (`{field}` takes the call's input, e.g. `"Rolling {sides}"`) and `phrase`, how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
 | `help` | What it says about itself in a session, for the agent to tell the person (the [awareness](awareness.md) extension's `about_me`). |
+
+### Its data
+
+An installed extension has a data folder of its own, `<scope>/.data/<name>/` (e.g. `~/.miyagi/extensions/.data/moodle/`), named in its servers' `args` and `env` as `${CLAUDE_PLUGIN_DATA}`, like Claude Code's for a plugin. Keep there what must last: a browser profile with a signed-in session, a cache, a downloaded browser.
+
+```json
+{ "mcpServers": { "moodle": { "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.mjs", "--profile", "${CLAUDE_PLUGIN_DATA}/profile"] } } }
+```
+
+- It's created when a session starts the extension, outside its plugin and its hash: what the server writes there never turns the extension off.
+- It's kept when the extension is installed again or updated, and when it's removed unless the person says to delete it.
+- Never write in the plugin's own folder: a session runs the extension's plugin from a copy in its run folder, and an update replaces the installed one.
+
+### Developing one
+
+`extension add <folder> --link` registers the folder where it is: the agent runs it from there, its files aren't checked against a hash, and the lock says it's linked. Rebuild it (`esbuild`, `tsc`) and it takes effect when its server starts again: a new session, or `/extensions disable <name>` and `/extensions enable <name>` in the chat, which turns a linked extension back on with its new files. `extension remove` only forgets it; the folder stays. Install it normally (a copy, hashed) once it's published.
+
+### When it's turned off
+
+Turning an extension off in the session, or closing the session, ends its servers and every process they started: a browser Playwright opened, with all its own processes, ends too, and its profile isn't left locked for the next start (confirmed empirically on Windows: the SDK's CLI ends a server's whole process tree). A server needn't clean up on its own, but it may: closing the browser when its input ends saves the browser's state properly.
 
 **A `README.md`** at its root is for people: what it does, what it offers (its tools, skills, subagents, capabilities), what it requires, how to install it. The model never reads it; `extension info` says where it is. The jokebook's is an example.
 

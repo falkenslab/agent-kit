@@ -22,8 +22,9 @@ import type { ToolLabels } from "./toolLabels.js";
 /** What an installed extension brought to this session, to take it away and bring it back. */
 export interface LiveExtension {
   name: string;
-  /** Where it's installed (its scope's folder): the plugin copy is filled from there. */
+  /** Its plugin as installed (in its scope's folder, or where it's linked): the plugin copy is filled from there. */
   installedDir: string;
+  /** Its scope's folder, where its lock is. */
   scopeDir: string;
   /** Its plugin, copied into the run's folder for this session. */
   pluginCopy: string;
@@ -65,8 +66,9 @@ export function createExtensionSwitch(extensions: readonly LiveExtension[], targ
     if (enabled === !off.has(name)) return true; // already as asked
     if (enabled) {
       // Its files as they were installed, or nothing: a changed one is for a new session to judge.
+      // A linked one's aren't checked: it's being developed, and a rebuild is why it's turned on again.
       const lock = (await readLock(extension.scopeDir))[name];
-      if (!lock || lock.sha256 !== (await hashExtension(extension.installedDir))) return false;
+      if (!lock || (!lock.linked && lock.sha256 !== (await hashExtension(extension.installedDir)))) return false;
       await cp(extension.installedDir, extension.pluginCopy, { recursive: true });
     } else {
       for (const entry of await readdir(extension.pluginCopy)) await rm(path.join(extension.pluginCopy, entry), { recursive: true, force: true });

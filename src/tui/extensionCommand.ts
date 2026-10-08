@@ -13,6 +13,7 @@ import {
 } from "../core/marketplaces.js";
 import {
   addExtension,
+  folderSize,
   isGitSource,
   listInstalled,
   removeExtension,
@@ -34,7 +35,9 @@ export { chatExtensionsCommand, describe } from "../chat/extensions.js";
  * - `extension list`
  * - `extension info <name>`: its metadata, what it offers and where its README is
  * - `extension add <folder | git URL[#ref] | plugin[@marketplace]> [--project] [--path <subfolder>] [--yes]`
- * - `extension remove|enable|disable <name> [--project | --agent]`
+ * - `extension add <folder> --link [--project]`: registered where it is, to develop it (not copied, its files not checked)
+ * - `extension remove <name> [--project | --agent] [--yes | --keep-data]`: asks before deleting its data folder
+ * - `extension enable|disable <name> [--project | --agent]`
  * - `extension search [words]`: what the known marketplaces offer
  * - `extension marketplace add <folder | git URL[#ref] | owner/repo> [--yes]`, `list`, `update [name]`, `remove <name>`
  *
@@ -116,6 +119,12 @@ export async function runExtensionCommand(
         if (!dir) return fail(`This agent has no ${scope} scope for extensions.`);
         // A plugin of a marketplace, unless it's a folder here or a git URL.
         const isFolder = await stat(path.resolve(source)).then((found) => found.isDirectory(), () => false);
+        if (flag("link")) {
+          if (!isFolder) return fail(`Only a folder can be linked: ${source} isn't one here.`);
+          const result = await addExtension(source, dir, { link: true });
+          write(`Linked ${result.name} in the ${scope} scope: it runs from ${path.resolve(source)}, whose files aren't checked. A rebuild takes effect when its server starts again (a new session, or \`/extensions disable\` and \`enable\` in the chat).`);
+          return true;
+        }
         if (!isFolder && !isGitSource(source) && /^[A-Za-z0-9][\w.-]*(@[A-Za-z0-9][\w.-]*)?$/.test(source)) {
           await knownMarketplaces();
           const { marketplace, plugin } = await findPlugin(marketsDir!, source);
@@ -141,11 +150,19 @@ export async function runExtensionCommand(
         const found = (await listInstalled(options.dirs)).filter((extension) => extension.name === name && (!askedScope || extension.scope === askedScope));
         if (!found.length) return fail(`${name} isn't installed${askedScope ? ` in the ${askedScope} scope` : ""}. \`${command} extension list\` lists them.`);
         if (found.length > 1 && !askedScope) return fail(`${name} is installed in both scopes: say which, with --project or --agent.`);
-        const { scope } = found[0]!;
+        const { scope, dataDir } = found[0]!;
         const dir = scopeDir(scope)!;
-        if (action === "remove") await removeExtension(dir, name);
-        else await setExtensionEnabled(dir, name, action === "enable");
-        write(`${name} ${action === "remove" ? "removed" : `${action}d`} in the ${scope} scope. It applies from the next session (in the chat, \`/extensions\` reopens it).`);
+        if (action !== "remove") {
+          await setExtensionEnabled(dir, name, action === "enable");
+          write(`${name} ${action}d in the ${scope} scope. It applies from the next session (in the chat, \`/extensions\` reopens it).`);
+          return true;
+        }
+        // Its data (a browser profile, a signed-in session) may be worth keeping for a reinstall: asked, unless said.
+        const size = await folderSize(dataDir);
+        const deleteData =
+          size > 0 && !flag("keep-data") && (await confirmed(`Delete its data too (${dataDir}, ${formatSize(size)})? (y/N) `, (typed) => /^(y|yes|s|si|sí)$/i.test(typed)));
+        await removeExtension(dir, name, { deleteData });
+        write(`${name} removed in the ${scope} scope${size > 0 ? (deleteData ? ", with its data" : `; its data stays in ${dataDir}`) : ""}. It applies from the next session (in the chat, \`/extensions\` reopens it).`);
         return true;
       }
       case "search": {
@@ -174,7 +191,9 @@ export async function runExtensionCommand(
             "  list                                   what's installed, in which scope, on or off",
             "  info <name>                            its metadata, what it offers, its README",
             "  add <folder | git URL[#ref] | plugin[@marketplace]> [--project] [--path <subfolder>] [--yes]",
-            "  remove|enable|disable <name> [--project | --agent]",
+            "  add <folder> --link [--project]       to develop one: runs from its folder, not copied nor checked",
+            "  remove <name> [--project | --agent] [--yes | --keep-data]",
+            "  enable|disable <name> [--project | --agent]",
             "  search [words]                         what the known marketplaces offer",
             "  marketplace add <folder | git URL[#ref] | owner/repo> [--yes]",
             "  marketplace list | update [name] | remove <name>",
@@ -266,6 +285,19 @@ async function info(extension: InstalledExtension): Promise<string[]> {
     ...field("Only read", manifest.readOnlyTools.join(", ") || undefined),
     ...field("Variables", Object.values(manifest.servers).flatMap((server) => Object.keys(server.env ?? {})).join(", ") || undefined),
     ...field("Installed", `${extension.scope} scope, ${extension.lock.enabled ? "enabled" : "disabled"}, on ${extension.lock.installed}, from ${describe(extension).split("  from ")[1]}`),
+    ...field("Data", (await stat(extension.dataDir).catch(() => null))?.isDirectory() ? `${extension.dataDir} (${formatSize(await folderSize(extension.dataDir))})` : undefined),
     ...field("README", (await stat(readme).catch(() => null))?.isFile() ? readme : undefined),
   ];
+}
+
+/** A size in bytes, as a person reads it: `512 B`, `3.4 KB`, `120 MB`. */
+function formatSize(bytes: number): string {
+  const units = ["B", "KB", "MB", "GB"];
+  let size = bytes;
+  let unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit++;
+  }
+  return `${unit === 0 ? size : size.toFixed(size < 10 ? 1 : 0)} ${units[unit]}`;
 }

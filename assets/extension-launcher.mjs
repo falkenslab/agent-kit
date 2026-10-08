@@ -12,8 +12,15 @@ if (!entry) {
   process.exit(1);
 }
 
-// What any process may need to run, on Windows and elsewhere; never a credential.
-const SYSTEM = ["PATH", "PATHEXT", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "TEMP", "TMP", "TMPDIR", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "LANG", "LC_ALL", "TZ"];
+// What any process may need to run, on Windows and elsewhere; never a credential. Where programs
+// are installed and the desktop session too: a browser is found through PROGRAMFILES on Windows
+// (Playwright found no Edge without them, #52) and opens a window through DISPLAY on Linux.
+const SYSTEM = [
+  "PATH", "PATHEXT", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "TEMP", "TMP", "TMPDIR", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "LANG", "LC_ALL", "TZ",
+  "PROGRAMFILES", "PROGRAMFILES(X86)", "PROGRAMW6432", "COMMONPROGRAMFILES", "COMMONPROGRAMFILES(X86)", "COMMONPROGRAMW6432", "PROGRAMDATA", "ALLUSERSPROFILE",
+  "HOMEDRIVE", "HOMEPATH", "USERNAME", "USER", "LOGNAME", "OS", "PROCESSOR_ARCHITECTURE", "NUMBER_OF_PROCESSORS",
+  "DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "DBUS_SESSION_BUS_ADDRESS",
+];
 const allowed = new Set([...SYSTEM, ...JSON.parse(declared)].map((name) => name.toUpperCase()));
 for (const name of Object.keys(process.env)) {
   if (!allowed.has(name.toUpperCase())) delete process.env[name];

@@ -91,6 +91,8 @@ export interface Extension {
   plugin: string;
   /** Installed rather than shipped in a package (#37): its subagents get no `Bash`, and no plugin hook runs. */
   external?: boolean;
+  /** An installed one's scope folder, where its lock is (its plugin is elsewhere when it's linked). */
+  installedIn?: string;
   /** Why it can't run in this session (e.g. "needs a folder (`dir`)"), or `undefined` when it can. */
   missing?(context: ExtensionContext): string | undefined;
   /** What it brings to the session, once it's active. */

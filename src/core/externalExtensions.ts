@@ -21,7 +21,9 @@ import { outsideArchive } from "./packaged.js";
  * extension is a Claude Code plugin as it is (#38): its MCP servers come from its `.mcp.json`,
  * and the kit starts each with Node through a launcher that leaves it only the system's
  * variables and its own `env`. The `"agent-kit"` key of its `plugin.json` is optional: it adds
- * what the kit's gates and chat can use (capabilities, read-only tools, labels, help).
+ * what the kit's gates and chat can use (capabilities, read-only tools, labels, help). Each has a
+ * data folder of its own (`${CLAUDE_PLUGIN_DATA}`, as Claude Code gives a plugin), kept across
+ * sessions and updates; one being developed is linked rather than copied (#52).
  */
 
 /** The two folders an agent installs extensions into; either may be left out. */
@@ -39,7 +41,7 @@ export type ExtensionScope = keyof ExtensionDirs;
 export interface PluginServer {
   command: string;
   args?: string[];
-  /** Its variables: a value may take the agent's with `${VAR}`. */
+  /** Its variables: a value may take the agent's with `${VAR}`, and its folders with `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}`. */
   env?: Record<string, string>;
 }
 
@@ -87,13 +89,18 @@ export interface ExternalManifest {
 
 /** One extension in a scope's lock. */
 export interface LockEntry {
-  /** Where it came from: a folder, or a git URL (with `#ref` when given). */
+  /** Where it came from: a folder, or a git URL (with `#ref` when given). A linked one runs from there. */
   source: string;
+  /**
+   * Linked rather than copied (`extension add --link`), to develop it: it runs from its folder,
+   * whose files aren't checked, so a rebuild takes effect when its server starts again.
+   */
+  linked?: boolean;
   /** The commit it was cloned at, for a git source. */
   commit?: string;
   /** The marketplace it was installed from (`<name>@<marketplace>`), if any. */
   marketplace?: string;
-  /** SHA-256 over its files, checked when it loads. */
+  /** SHA-256 over its files, checked when it loads; empty for a linked one. */
   sha256: string;
   enabled: boolean;
   /** When it was installed, ISO 8601 in UTC. */
@@ -101,6 +108,16 @@ export interface LockEntry {
 }
 
 export const LOCK_FILE = "extensions.lock.json";
+
+/**
+ * An installed extension's data folder: `${CLAUDE_PLUGIN_DATA}` in its servers' arguments and
+ * variables (a browser profile, a cache), in its scope, outside its plugin and its hash, so it's
+ * kept across sessions and updates. Created when a session starts it; removing the extension
+ * asks before deleting it.
+ */
+export function extensionDataDir(scopeDir: string, name: string): string {
+  return path.join(scopeDir, ".data", name);
+}
 
 /** A scope's lock: its extensions by name. */
 export async function readLock(scopeDir: string): Promise<Record<string, LockEntry>> {
@@ -183,28 +200,41 @@ async function pluginServers(dir: string, raw: Record<string, unknown>): Promise
   return servers;
 }
 
-/** `${CLAUDE_PLUGIN_ROOT}` (the extension's folder) and `${VAR}` (the agent's variable) in a server's values. */
-function expand(value: string, root: string): string {
-  return value.replace(/\$\{(\w+)\}/g, (_, name: string) => (name === "CLAUDE_PLUGIN_ROOT" ? root : (process.env[name] ?? "")));
+/** An extension's own folders, as its servers' values name them. */
+interface PluginFolders {
+  /** `${CLAUDE_PLUGIN_ROOT}`: its plugin. */
+  root: string;
+  /** `${CLAUDE_PLUGIN_DATA}`: its data folder. */
+  data: string;
+}
+
+/** `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}` and `${VAR}` (the agent's variable) in a server's values. */
+function expand(value: string, folders: PluginFolders): string {
+  return value.replace(/\$\{(\w+)\}/g, (_, name: string) =>
+    name === "CLAUDE_PLUGIN_ROOT" ? folders.root : name === "CLAUDE_PLUGIN_DATA" ? folders.data : (process.env[name] ?? ""),
+  );
 }
 
 /**
  * Why one of an extension's servers can't run through the launcher (only Node, its script
  * first, inside the extension), or how the kit starts it.
  */
-function serverLaunch(name: string, server: PluginServer, root: string): string | { entry: string; args: string[]; env: Record<string, string> } {
+function serverLaunch(name: string, server: PluginServer, folders: PluginFolders): string | { entry: string; args: string[]; env: Record<string, string> } {
+  const { root } = folders;
   if (!/^node(\.exe)?$/i.test(path.basename(server.command))) return `runs its server "${name}" with "${server.command}": only Node servers can be installed`;
-  const [script, ...args] = (server.args ?? []).map((arg) => expand(arg, root));
+  const [script, ...args] = (server.args ?? []).map((arg) => expand(arg, folders));
   if (!script) return `gives its server "${name}" no script to run`;
   const entry = path.resolve(root, script);
   if (path.relative(root, entry).startsWith("..")) return `runs its server "${name}" from outside its folder (${script})`;
-  return { entry, args, env: Object.fromEntries(Object.entries(server.env ?? {}).map(([key, value]) => [key, expand(String(value), root)])) };
+  // Its folders as variables too, as Claude Code gives them to a plugin's servers.
+  const declared = Object.fromEntries(Object.entries(server.env ?? {}).map(([key, value]) => [key, expand(String(value), folders)]));
+  return { entry, args, env: { CLAUDE_PLUGIN_ROOT: root, CLAUDE_PLUGIN_DATA: folders.data, ...declared } };
 }
 
 /** Why an extension's servers can't run, or nothing: each must be Node, with its script there. */
 async function serversProblem(manifest: ExternalManifest, root: string): Promise<string | undefined> {
   for (const [name, server] of Object.entries(manifest.servers)) {
-    const launch = serverLaunch(name, server, root);
+    const launch = serverLaunch(name, server, { root, data: "" });
     if (typeof launch === "string") return launch;
     if (!(await stat(launch.entry).catch(() => null))?.isFile()) return `has no script at ${path.relative(root, launch.entry)} for its server "${name}"`;
   }
@@ -263,7 +293,12 @@ export function inKitRange(version: string, range: string): boolean {
 export interface InstalledExtension {
   name: string;
   scope: ExtensionScope;
+  /** Its scope's folder, where its lock is. */
+  scopeDir: string;
+  /** Its plugin: in its scope's folder, or where it is when it's linked. */
   dir: string;
+  /** Its data folder (`${CLAUDE_PLUGIN_DATA}`), which may not exist yet. */
+  dataDir: string;
   lock: LockEntry;
   /** Also installed in the project's scope, which wins: this one isn't used. */
   shadowed: boolean;
@@ -278,9 +313,9 @@ export async function listInstalled(dirs: ExtensionDirs): Promise<InstalledExten
     const scopeDir = dirs[scope];
     if (!scopeDir) continue;
     for (const [name, lock] of Object.entries(await readLock(scopeDir))) {
-      const dir = path.join(scopeDir, name);
+      const dir = lock.linked ? lock.source : path.join(scopeDir, name);
       const manifest = await readExternalManifest(dir).catch(() => undefined);
-      installed.push({ name, scope, dir, lock, shadowed: installed.some((other) => other.name === name), ...(manifest ? { manifest } : {}) });
+      installed.push({ name, scope, scopeDir, dir, dataDir: extensionDataDir(scopeDir, name), lock, shadowed: installed.some((other) => other.name === name), ...(manifest ? { manifest } : {}) });
     }
   }
   return installed;
@@ -313,10 +348,12 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
     name: manifest.name,
     plugin: installed.dir,
     external: true,
+    installedIn: installed.scopeDir,
     async contribute() {
       const servers: Record<string, McpServerConfig> = {};
+      if (Object.keys(manifest.servers).length) await mkdir(installed.dataDir, { recursive: true });
       for (const [name, server] of Object.entries(manifest.servers)) {
-        const launch = serverLaunch(name, server, installed.dir);
+        const launch = serverLaunch(name, server, { root: installed.dir, data: installed.dataDir });
         if (typeof launch === "string") continue; // checked when it loaded
         // Its `env` reaches it (the SDK merges it with the agent's); the launcher removes the rest.
         // Inside Electron, process.execPath is the app itself: ELECTRON_RUN_AS_NODE makes it run
@@ -364,7 +401,7 @@ export async function onPath(program: string, env: NodeJS.ProcessEnv = process.e
 async function problem(installed: InstalledExtension): Promise<string | ExternalManifest> {
   let manifest: ExternalManifest;
   try {
-    if ((await hashExtension(installed.dir)) !== installed.lock.sha256) return "has files that changed since it was installed: install it again to trust them";
+    if (!installed.lock.linked && (await hashExtension(installed.dir)) !== installed.lock.sha256) return "has files that changed since it was installed: install it again to trust them";
     manifest = await readExternalManifest(installed.dir);
   } catch (error) {
     return `can't be read (${error instanceof Error ? error.message : String(error)})`;
@@ -389,13 +426,15 @@ export function isGitSource(source: string): boolean {
  * a commit, and `subdir` for one inside it): copies its files (never runs a script), checks its
  * manifest, and locks it, enabled, with the marketplace it came from when it did (`origin`, for a
  * temporary folder, is what the lock says it came from). An extension with the same name in that
- * scope is replaced.
+ * scope is replaced; its data folder stays. With `link`, a folder is registered where it is
+ * instead, to develop it: not copied, and its files not checked.
  */
 export async function addExtension(
   source: string,
   scopeDir: string,
-  options: { subdir?: string; sha?: string; marketplace?: string; origin?: string } = {},
+  options: { subdir?: string; sha?: string; marketplace?: string; origin?: string; link?: boolean } = {},
 ): Promise<{ name: string; replaced: boolean; commit?: string }> {
+  if (options.link && isGitSource(source)) throw new Error("Only a folder can be linked: a git repository is installed as a copy.");
   let from = path.resolve(source);
   let commit: string | undefined;
   let clone: string | undefined;
@@ -415,10 +454,17 @@ export async function addExtension(
     const servers = await serversProblem(manifest, from);
     if (servers) throw new Error(`${manifest.name} can't be installed: it ${servers}.`);
     const target = path.join(scopeDir, manifest.name);
+    // Replacing what's installed there would delete the source itself.
+    if (path.resolve(from) === path.resolve(target)) throw new Error(`${from} is where ${manifest.name} is installed: install it from another folder.`);
     const lock = await readLock(scopeDir);
     const replaced = Boolean(lock[manifest.name]);
     await rm(target, { recursive: true, force: true });
     await mkdir(scopeDir, { recursive: true });
+    if (options.link) {
+      lock[manifest.name] = { source: from, linked: true, sha256: "", enabled: true, installed: new Date().toISOString() };
+      await writeLock(scopeDir, lock);
+      return { name: manifest.name, replaced };
+    }
     await cp(from, target, { recursive: true, filter: (file) => path.basename(file) !== ".git" });
     lock[manifest.name] = {
       source: options.origin ?? (isGitSource(source) ? `${source}${options.subdir ? ` (${options.subdir})` : ""}` : from),
@@ -435,14 +481,29 @@ export async function addExtension(
   }
 }
 
-/** Removes an extension from a scope (its files and its lock entry); false when it wasn't there. */
-export async function removeExtension(scopeDir: string, name: string): Promise<boolean> {
+/**
+ * Removes an extension from a scope (its files and its lock entry; a linked one's folder is left
+ * where it is), and its data folder with `deleteData`; false when it wasn't there.
+ */
+export async function removeExtension(scopeDir: string, name: string, options: { deleteData?: boolean } = {}): Promise<boolean> {
   const lock = await readLock(scopeDir);
   if (!lock[name]) return false;
   delete lock[name];
   await rm(path.join(scopeDir, name), { recursive: true, force: true });
+  if (options.deleteData) await rm(extensionDataDir(scopeDir, name), { recursive: true, force: true });
   await writeLock(scopeDir, lock);
   return true;
+}
+
+/** The size in bytes of the files under `dir` (0 when it doesn't exist). */
+export async function folderSize(dir: string): Promise<number> {
+  let size = 0;
+  for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) size += await folderSize(full);
+    else if (entry.isFile()) size += (await stat(full)).size;
+  }
+  return size;
 }
 
 /** Enables or disables an installed extension in a scope; false when it isn't there. */

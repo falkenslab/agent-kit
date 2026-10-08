@@ -5,7 +5,7 @@ import { t } from "../core/messages/index.js";
 
 /** One line for an installed extension: name and version, scope, on or off, its author, where it came from. */
 export function describe(extension: InstalledExtension): string {
-  const state = extension.shadowed ? "not used (the project's wins)" : extension.lock.enabled ? "enabled" : "disabled";
+  const state = `${extension.shadowed ? "not used (the project's wins)" : extension.lock.enabled ? "enabled" : "disabled"}${extension.lock.linked ? ", linked" : ""}`;
   // From a marketplace, its name there (`jokebook@shipyard`): the copy it came from is the kit's business.
   const where = extension.lock.commit ? `${extension.lock.source} @ ${extension.lock.commit.slice(0, 12)}` : path.normalize(extension.lock.source);
   const source = extension.lock.marketplace ? `${extension.lock.marketplace}${extension.lock.commit ? ` @ ${extension.lock.commit.slice(0, 12)}` : ""}` : where;

@@ -110,12 +110,12 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   );
   // Each installed one's plugin, copied into the run's folder: the running session empties and
   // fills the copy to turn the extension off and on (liveExtensions.ts), never what's installed.
-  const installedDirs = new Map<string, string>();
+  const installedDirs = new Map<string, { dir: string; scopeDir: string }>();
   for (const { extension } of resolved.active.filter(({ extension }) => extension.external)) {
     const copy = path.join(runDir, "extensions", extension.name);
     await rm(copy, { recursive: true, force: true });
     await cp(extension.plugin, copy, { recursive: true });
-    installedDirs.set(extension.name, extension.plugin);
+    installedDirs.set(extension.name, { dir: extension.plugin, scopeDir: extension.installedIn ?? path.dirname(extension.plugin) });
     extension.plugin = copy;
   }
   const externalPlugins = new Set(resolved.active.filter(({ extension }) => extension.external).map(({ extension }) => path.resolve(extension.plugin)));
@@ -400,14 +400,14 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // Turning an installed extension off and on while the session runs (#49).
   const switchExtension = createExtensionSwitch(
     resolved.active.flatMap(({ extension, manifest }, index) => {
-      const installedDir = installedDirs.get(extension.name);
-      if (!installedDir) return [];
+      const installed = installedDirs.get(extension.name);
+      if (!installed) return [];
       const contribution = added[index];
       return [
         {
           name: extension.name,
-          installedDir,
-          scopeDir: path.dirname(installedDir),
+          installedDir: installed.dir,
+          scopeDir: installed.scopeDir,
           pluginCopy: extension.plugin,
           servers: Object.keys(contribution?.mcpServers ?? {}),
           readOnlyTools: contribution?.readOnlyTools ?? [],

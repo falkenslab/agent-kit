@@ -161,10 +161,12 @@ test("the launcher leaves the server only the system's variables and those it de
   const entry = path.join(dir, "env.mjs");
   fs.writeFileSync(entry, "process.stdout.write(JSON.stringify({ names: Object.keys(process.env), argv: process.argv.slice(2) }));");
   const out = execFileSync(process.execPath, [extensionLauncherPath(), entry, JSON.stringify(["DICE_SEED"]), "--fair"], {
-    env: { ...process.env, DICE_SEED: "7", CLAUDE_CODE_OAUTH_TOKEN: "secret", ANTHROPIC_API_KEY: "secret", SOMETHING_ELSE: "x" },
+    env: { ...process.env, DICE_SEED: "7", CLAUDE_CODE_OAUTH_TOKEN: "secret", ANTHROPIC_API_KEY: "secret", SOMETHING_ELSE: "x", PROGRAMFILES: "C:\\Program Files", DISPLAY: ":0" },
   }).toString();
   const { names, argv } = JSON.parse(out) as { names: string[]; argv: string[] };
   assert.ok(names.includes("DICE_SEED"));
+  // Where programs are and the desktop session: a browser is found and opened through them.
+  for (const kept of ["PROGRAMFILES", "DISPLAY"]) assert.ok(names.some((name) => name.toUpperCase() === kept), kept);
   for (const hidden of ["CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "SOMETHING_ELSE"]) assert.equal(names.includes(hidden), false, hidden);
   assert.deepEqual(argv, ["--fair"]);
 });
@@ -179,8 +181,11 @@ test("a session runs an installed extension: its server through the launcher, it
     const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, runDir, spec);
     const server = (built.options.mcpServers as Record<string, { type: string; command: string; args: string[]; env: Record<string, string> }>).dice!;
     assert.equal(server.command, process.execPath);
-    assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server", "index.mjs"), '["DICE_SEED"]', "--fair"]);
-    assert.deepEqual(server.env, { DICE_SEED: process.env.DICE_SEED ?? "" });
+    assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server", "index.mjs"), '["CLAUDE_PLUGIN_ROOT","CLAUDE_PLUGIN_DATA","DICE_SEED"]', "--fair"]);
+    // Its folders as Claude Code gives them to a plugin's servers, and its own variables.
+    const data = path.join(dirs.project, ".data", "dice");
+    assert.deepEqual(server.env, { CLAUDE_PLUGIN_ROOT: path.join(dirs.project, "dice"), CLAUDE_PLUGIN_DATA: data, DICE_SEED: process.env.DICE_SEED ?? "" });
+    assert.ok(fs.statSync(data).isDirectory());
     assert.equal(built.toolLabels.mcp__dice__roll?.label({ sides: 6 }), "Tirando un dado de 6");
     assert.deepEqual(built.toolLabels.mcp__dice__roll?.phrase, undefined);
     assert.match(String(built.options.systemPrompt), /\*\*dice\*\*: Rolls dice\. Provides: dice\./);
@@ -236,6 +241,101 @@ test("the command installs, lists, disables and removes, and says what it did", 
   assert.equal((await readLock(dirs.agent)).dice?.enabled, false);
   await run("remove", "dice", "--project");
   assert.deepEqual(await readLock(dirs.project), {});
+});
+
+/** An extension whose server keeps a profile in its data folder, as a browser would. */
+function makeStatefulExtension(): string {
+  const dir = makeExtension("browser");
+  fs.writeFileSync(
+    path.join(dir, ".mcp.json"),
+    JSON.stringify({ mcpServers: { browser: { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server/index.mjs", "--profile", "${CLAUDE_PLUGIN_DATA}/profile"], env: { CACHE: "${CLAUDE_PLUGIN_DATA}/cache" } } } }),
+  );
+  return dir;
+}
+
+test("an installed extension's data folder is ${CLAUDE_PLUGIN_DATA}: outside its plugin and hash, kept when it's reinstalled, deleted only when asked", async () => {
+  const scope = path.join(temp(), "extensions");
+  const source = makeStatefulExtension();
+  await addExtension(source, scope);
+  const data = path.join(scope, ".data", "browser");
+  const server = async () => {
+    const built = await buildSessionOptions({ mode: "guided", projectDir: temp(), extensionDirs: { agent: scope } }, temp(), spec);
+    return (built.options.mcpServers as Record<string, { args: string[]; env: Record<string, string> }>).browser!;
+  };
+  const first = await server();
+  assert.deepEqual(first.args.slice(3), ["--profile", `${data}/profile`]);
+  assert.equal(first.env.CACHE, `${data}/cache`);
+  // What the server writes there doesn't change its hash, and survives a reinstall.
+  fs.writeFileSync(path.join(data, "cookies"), "signed in");
+  assert.ok(await server());
+  assert.deepEqual((await loadExternalExtensions({ agent: scope })).off, []);
+  await addExtension(source, scope);
+  assert.equal(fs.readFileSync(path.join(data, "cookies"), "utf8"), "signed in");
+  const [installed] = await listInstalled({ agent: scope });
+  assert.equal(installed!.dataDir, data);
+
+  await removeExtension(scope, "browser");
+  assert.ok(fs.existsSync(path.join(data, "cookies")));
+  await addExtension(source, scope);
+  await removeExtension(scope, "browser", { deleteData: true });
+  assert.ok(!fs.existsSync(data));
+});
+
+test("a linked extension runs from its folder, unchecked; removing it leaves the folder; only a folder elsewhere can be linked", async () => {
+  const scope = path.join(temp(), "extensions");
+  const source = makeExtension();
+  await addExtension(source, scope, { link: true });
+  const lock = (await readLock(scope)).dice!;
+  assert.equal(lock.linked, true);
+  assert.equal(lock.source, source);
+  assert.ok(!fs.existsSync(path.join(scope, "dice")));
+  const [installed] = await listInstalled({ agent: scope });
+  assert.equal(installed!.dir, source);
+
+  // A rebuild changes its files: it still loads, from where it is.
+  fs.writeFileSync(path.join(source, "server", "index.mjs"), "// rebuilt\n");
+  const built = await buildSessionOptions({ mode: "guided", projectDir: temp(), extensionDirs: { agent: scope } }, temp(), spec);
+  assert.deepEqual(built.extensions.active, ["dice"]);
+  assert.equal((built.options.mcpServers as Record<string, { args: string[] }>).dice!.args[1], path.join(source, "server", "index.mjs"));
+
+  await removeExtension(scope, "dice");
+  assert.ok(fs.existsSync(path.join(source, "server", "index.mjs")));
+  await assert.rejects(addExtension("https://example.com/dice.git", scope, { link: true }), /Only a folder can be linked/);
+  await addExtension(source, scope);
+  await assert.rejects(addExtension(path.join(scope, "dice"), scope), /is where dice is installed/);
+});
+
+test("the command links a folder, shows it linked with its data, and asks before deleting the data when it removes", async () => {
+  const dirs = { agent: path.join(temp(), "agent") };
+  const lines: string[] = [];
+  let answer = "";
+  const run = (...argv: string[]) =>
+    runExtensionCommand(["extension", ...argv], { dirs, command: "captain", write: (line) => lines.push(line), ask: async () => answer });
+  const source = makeStatefulExtension();
+  await run("add", source, "--link");
+  assert.match(lines.at(-1)!, /^Linked browser in the agent scope: it runs from /);
+  const data = path.join(dirs.agent, ".data", "browser");
+  fs.mkdirSync(data, { recursive: true });
+  fs.writeFileSync(path.join(data, "cookies"), "signed in");
+  await run("list");
+  assert.match(lines.at(-1)!, /^browser 2\.1\.0 {2}\[agent\] {2}enabled, linked/);
+  await run("info", "browser");
+  assert.match(lines.join("\n"), /Data {9}.*browser \(9 B\)/);
+
+  // "n" (or no answer) keeps it; --keep-data doesn't ask; "y" deletes it.
+  answer = "n";
+  await run("remove", "browser");
+  assert.match(lines.at(-1)!, /removed in the agent scope; its data stays in /);
+  assert.ok(fs.existsSync(data));
+  await run("add", source, "--link");
+  await run("remove", "browser", "--keep-data");
+  assert.ok(fs.existsSync(data));
+  await run("add", source, "--link");
+  answer = "y";
+  await run("remove", "browser");
+  assert.match(lines.at(-1)!, /removed in the agent scope, with its data/);
+  assert.ok(!fs.existsSync(data));
+  assert.ok(fs.existsSync(source));
 });
 
 test("an extension needing a program that isn't on the PATH is off, saying which; one that's there doesn't stop it", async () => {
