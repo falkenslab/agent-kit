@@ -122,8 +122,6 @@ Also:
 
 Captain Whiskers is a full example: `examples/captain-whiskers/web/` (his web host on the controller, with signing in from the page, uploads for `request_file` and to his treasure chest, a `/` menu, quick actions and the language switched on the fly) and `examples/captain-whiskers/desktop/` (his Electron app and installer).
 
-`examples/electron-probe/` in the repository is a minimal packaged app that checks all this.
-
 ## Things to take care of
 
 - **Don't import the terminal UI at startup if you don't need it.** Everything is exported from the package root; importing it installs the terminal interaction port, which `panels: "state"` (or your own `setInteractionPort()`) replaces. The terminal port does nothing without a TTY anyway.

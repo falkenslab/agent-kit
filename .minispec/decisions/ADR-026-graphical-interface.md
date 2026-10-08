@@ -20,7 +20,7 @@ An agent on the kit can run with a graphical interface besides its terminal chat
 
 ## Consequences
 
-- **Probed (7 October 2026, Windows, Electron 44, SDK 0.3.293; `examples/electron-probe/`, to run again)**: a packaged Electron app (`electron-builder`, `asar`) runs an agent-kit agent through the chat controller: a turn with the kit's tools, an extension's included, and its plugins' skills. It needs two things, both confirmed:
+- **Probed (7 October 2026, Windows, Electron 44, SDK 0.3.293; first with a throwaway probe app, removed since; Captain Whiskers' desktop app, `examples/captain-whiskers/desktop/`, checks it now)**: a packaged Electron app (`electron-builder`, `asar`) runs an agent-kit agent through the chat controller: a turn with the kit's tools, an extension's included, and its plugins' skills. It needs two things, both confirmed:
   - The SDK doesn't run the CLI with Node: it spawns a **native binary per platform** (`@anthropic-ai/claude-agent-sdk-<platform>-<arch>`, `claude.exe` on Windows, 209 MB). Packaged, the SDK resolves it inside `app.asar`, which a process can't execute, and the turn hangs with no error. Fixed with `asarUnpack` for that package and `pathToClaudeCodeExecutable` pointing into `app.asar.unpacked`.
   - Every path the kit hands to the CLI or to another process must be outside `app.asar` too: its extensions' plugins (packaged, the knowledge skills silently disappeared), the extension launcher, the agent's own plugins. Fixed with `asarUnpack` and the path rewritten to `app.asar.unpacked`.
   - `ELECTRON_RUN_AS_NODE` in the environment (VS Code sets it) turns Electron into plain Node: a desktop host clears it for the processes it starts, and a developer running one from VS Code's terminal unsets it.
