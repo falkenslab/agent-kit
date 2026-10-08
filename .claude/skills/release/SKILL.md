@@ -1,12 +1,12 @@
 ---
 name: release
-description: Cut a new agent-kit release - decide the semver bump (patch vs minor) from the commits since the last tag, bump version files, commit, tag, push, create the GitHub release and publish to npm. Only when the user explicitly asks to release or publish.
+description: Cut a new agent-kit release - decide the semver bump (patch vs minor) from the commits since the last tag, bump version files (the kit's and Captain Whiskers'), commit, tag, push, create the GitHub release with Captain Whiskers' Windows installer attached, and publish to npm. Only when the user explicitly asks to release or publish.
 disable-model-invocation: true
 ---
 
 # Release agent-kit
 
-A release is a version commit, a `vX.Y.Z` git tag on `main`, a GitHub release and the same version published to npm as `@falkenslab/agent-kit` (ADR-017). Users install it with `npm install @falkenslab/agent-kit`.
+A release is a version commit, a `vX.Y.Z` git tag on `main`, a GitHub release with Captain Whiskers' Windows installer attached, and the same version published to npm as `@falkenslab/agent-kit` (ADR-017). Users install it with `npm install @falkenslab/agent-kit`.
 
 ## 1. Preconditions
 
@@ -27,13 +27,17 @@ While the version is `0.x` (current policy):
 
 If nothing but `docs`/`chore` changed since the last tag, tell the user a release may not be worthwhile and confirm before continuing. State the chosen bump and why; if it is ambiguous, ask.
 
+### Captain Whiskers' version
+
+The captain has his own version, in `examples/captain-whiskers/package.json` (the one he says he is, and his installer's: `npm run build` copies it into `desktop/package.json`). Read `git diff <tag>..HEAD --stat -- examples/captain-whiskers` and bump it by the same rules: minor for a feature or a breaking change of his, patch for fixes only. If he didn't change, keep his version: the installer is built again anyway, since the kit inside it is new. State both versions.
+
 ## 3. Bump
 
 ```
 npm version <patch|minor|major> --no-git-tag-version
 ```
 
-This updates `package.json` and `package-lock.json`. The README installs with a plain `npm install @falkenslab/agent-kit` and names no version; still, `grep -n "<old version>" README.md` in case one slipped in.
+This updates `package.json` and `package-lock.json`. If the captain's version goes up, the same in his folder: `(cd examples/captain-whiskers && npm version <patch|minor> --no-git-tag-version)`. The README installs with a plain `npm install @falkenslab/agent-kit` and names no version; still, `grep -n "<old version>" README.md` in case one slipped in.
 
 Then snapshot the documentation for this version (the site shows the latest version by default, and keeps each release's documentation):
 
@@ -51,7 +55,7 @@ Draft the release notes in English from the commits since the last tag, grouped 
 ## 4. Commit, tag, push
 
 ```
-git add package.json package-lock.json README.md docs/versioned_docs docs/versioned_sidebars docs/versions.json
+git add package.json package-lock.json README.md docs/versioned_docs docs/versioned_sidebars docs/versions.json examples/captain-whiskers/package.json examples/captain-whiskers/package-lock.json examples/captain-whiskers/desktop/package.json
 git commit -m "chore(release): vX.Y.Z"   # plus the attribution trailer required by the session
 git tag vX.Y.Z
 git push origin main
@@ -62,14 +66,30 @@ npm publish
 
 `npm publish` runs `prepublishOnly` (typecheck, lint, tests, build) first and publishes with public access (`publishConfig`). If the account has two-factor authentication, it asks for a one-time code: ask the user for it and run `npm publish --otp=<code>`. A published version can't be reused; if something is wrong after publishing, fix it with a new patch release.
 
+## 4b. Captain Whiskers' installer
+
+Built from the release commit, so it carries exactly the kit just tagged (`npm run build` packs the kit from the repository), then attached to the release. Windows only for now, and unsigned (ADR-017).
+
+```
+cd examples/captain-whiskers/desktop
+npm run build                 # the kit packed and installed, the captain compiled, his version copied in
+npm run dist                  # dist/Captain Whiskers Setup.exe and dist/win-unpacked/
+```
+
+- Unset `ELECTRON_RUN_AS_NODE` for both (VS Code's terminal sets it). If `electron-builder` fails with "No JSON content found in output", a `PATH` entry points at an npm that no longer exists (a stale `nvm4w`): run it with that entry removed.
+- Check before uploading: `dist/win-unpacked/resources/app.asar.unpacked/node_modules/@anthropic-ai/claude-agent-sdk-win32-x64/claude.exe` exists, `.../node_modules/@falkenslab/agent-kit/package.json` says the new kit version, and `desktop/package.json` says the captain's.
+- Upload it with the captain's version in its name (installed, it's "Captain Whiskers" alone): copy it to the session scratchpad as `Captain-Whiskers-Setup-<captain version>.exe`, then `gh release upload vX.Y.Z <that file>`.
+- The notes say which captain it is, how it's run and its caveats: "Captain Whiskers <version>, the example agent built on agent-kit X.Y.Z, as a Windows app: download the installer. It's unsigned, so SmartScreen warns about it; it asks for a Claude key on first start and keeps everything in `~/.captain-whiskers`."
+- `git status` afterwards: the build leaves nothing tracked changed but, possibly, `desktop/package.json`'s version (commit it if so).
+
 Tags in this repo are lightweight (`git tag vX.Y.Z`). Never move or delete an existing tag, and never force-push. If a step fails half-way, report the exact state (what is pushed, what is not) instead of retrying blindly.
 
 ## 5. Verify the release
 
 - `git ls-remote --tags origin` shows the tag on the release commit.
-- `gh release view vX.Y.Z` works.
+- `gh release view vX.Y.Z` works and lists `Captain-Whiskers-Setup-<captain version>.exe` among its assets.
 - `npm view @falkenslab/agent-kit version` shows the new version.
 - The documentation workflow ran for the release commit (`gh run list --workflow docs.yml --limit 1`) and https://falkenslab.github.io/agent-kit/docs shows the new version in the version selector.
 - Optionally prove the install path in a scratch directory (use the session scratchpad, not the repo): `npm install @falkenslab/agent-kit@X.Y.Z` and check `node_modules/@falkenslab/agent-kit/dist/index.js` exists.
 
-Report the version, the tag, the release URL, the npm package page and the notes you published. Mention that consumers pinned to an older tag must bump their dependency themselves.
+Report the version, the captain's version, the tag, the release URL (and the installer's download URL), the npm package page and the notes you published. Mention that consumers pinned to an older tag must bump their dependency themselves.

@@ -3,7 +3,7 @@
 // the chest's samples, his web page, his jokebook to install on the first start). Run it again
 // after changing the captain or the kit.
 import { execSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -22,6 +22,13 @@ console.log(`kit: ${packed} → agent-kit.tgz`);
 // would keep the kit it installed before, and the app would ship it.
 rmSync(path.join(desktop, "node_modules", "@falkenslab"), { recursive: true, force: true });
 run(`npm install --no-save "@falkenslab/agent-kit@file:./agent-kit.tgz"`, desktop);
+
+// The app's version is the captain's (his package.json, the one he says he is): written here,
+// so the installer can't say another.
+const { version } = JSON.parse(readFileSync(path.join(captainDir, "package.json"), "utf8"));
+const manifest = path.join(desktop, "package.json");
+writeFileSync(manifest, readFileSync(manifest, "utf8").replace(/("version":\s*")[^"]*(")/, `$1${version}$2`));
+console.log(`version: ${version}`);
 
 // The captain, compiled.
 const out = path.join(desktop, "captain");
