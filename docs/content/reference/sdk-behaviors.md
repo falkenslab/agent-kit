@@ -17,6 +17,7 @@ The kit encodes several behaviors of the Claude Agent SDK (and the Claude Code C
 - **A `z.record()` in an in-process tool's schema makes the SDK drop every tool of that server**, silently: the server shows as connected, but its tools aren't offered. The kit's tools use lists of `{ name, value }` pairs instead.
 - **`disallowedTools` takes a built-in tool out of the request, but not an MCP tool.** A disallowed `TodoWrite` or `Bash` leaves the context (3.4k and 1.9k input tokens fewer per call, measured); a disallowed in-process MCP tool is blocked, but its definition is still sent. Only not registering the server removes it.
 - **`TodoWrite` only exists with `CLAUDE_CODE_ENABLE_TASKS=0`.** By default the CLI offers its `TaskCreate`, `TaskUpdate`, `TaskList` and `TaskGet` tools instead and drops `TodoWrite` from the session, even when `tools` names it; the kit passes that variable in `env` (with the rest of `process.env`). Each `TodoWrite` call carries the whole task list (`{ todos: [{ content, status, activeForm }] }`); its result only says it was saved.
+- **A `permissions.deny` rule with an absolute path takes `//` and the POSIX form, on Windows too**: `Read(//c/Users/ada/secret.txt)` denies that file and `Read(//c/Users/ada/secrets/**)` what's in that folder ("File is in a directory that is denied by your permission settings").
 - **`Read` reads PDFs and images, but refuses DOCX and PPTX** ("This tool cannot read binary files"). Hence `extract_text`.
 
 ## Subagents

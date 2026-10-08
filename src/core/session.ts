@@ -208,6 +208,9 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // The extensions' read-only tools, for the plan gate: a list the live switch changes (liveExtensions.ts).
   const readOnlyTools = fromExtensions((contribution) => contribution.readOnlyTools);
 
+  // What no file tool may touch: the agent's denied paths and the SDK's own credentials.
+  const deniedPaths = [...(config.deniedPaths ?? []), path.join(claudeConfigDir(), ".credentials.json")];
+
   const transcriptPath = path.join(runDir, "transcript.jsonl");
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);
 
@@ -245,6 +248,9 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       // An installed extension's plugin may carry hooks: none run (ADR-025). The kit's own,
       // passed in `hooks`, still do (confirmed empirically).
       ...(externalPlugins.size ? { disableAllHooks: true } : {}),
+      // The denied paths again, as the SDK's own rules: a second layer under the file scope gate,
+      // which a tool the gate doesn't know of can't pass either (#49).
+      permissions: { deny: denyRules(deniedPaths) },
     },
     // No built-in tools except, if applicable, Read/Write/Edit/Glob/Grep scoped to the
     // project's own folders (fileScopeGate below), and WebFetch/WebSearch
@@ -314,7 +320,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
                     searchableDirs,
                     readOnlyDirs,
                     // The SDK's own credentials, whatever the agent denies.
-                    deniedPaths: [...(config.deniedPaths ?? []), path.join(claudeConfigDir(), ".credentials.json")],
+                    deniedPaths,
                     // Read and Glob only in the agent's folders, plus what only the kit knows it
                     // needs: the run folder, the plugins, the project's .claude/ (when loaded) and
                     // the SDK's large tool results. Never the rest of the disk (~/.ssh, other
@@ -450,6 +456,20 @@ function claudeConfigDir(): string {
  */
 export function claudeProjectDir(projectDir: string): string {
   return path.join(claudeConfigDir(), "projects", path.resolve(projectDir).replace(/[^a-zA-Z0-9]/g, "-"));
+}
+
+/**
+ * The SDK's `permissions.deny` rules for paths no file tool may read or change, each one and
+ * whatever is inside it. An absolute path is written `//` and POSIX: `C:\Users\x` is
+ * `//c/Users/x` (confirmed empirically on Windows; on POSIX `/home/x` is `//home/x`). `Read`
+ * rules reach the tools that read, `Edit` rules those that write.
+ */
+export function denyRules(paths: readonly string[]): string[] {
+  return paths.flatMap((denied) => {
+    const posix = path.resolve(denied).replace(/\\/g, "/").replace(/^([A-Za-z]):/, (_, drive: string) => `/${drive.toLowerCase()}`);
+    const rule = `/${posix}`;
+    return [`Read(${rule})`, `Read(${rule}/**)`, `Edit(${rule})`, `Edit(${rule}/**)`];
+  });
 }
 
 /** The built-in file tools, in the order the session lists them. */

@@ -52,7 +52,7 @@ const config: Config = {
 };
 ```
 
-The kit adds what it knows the agent needs without you declaring it: the run folder, the plugins it loads, the project's `.claude/`, and the SDK's large tool results, which agents `Read` when an output is too big for the context. `deniedPaths` still wins inside all of it. The project folder itself isn't readable: whatever else lives there (a config file with a token, a `.env`) stays out. The knowledge folder stays reachable only through the `knowledge_*` tools. Subagents go through the same hook.
+The kit adds what it knows the agent needs without you declaring it: the run folder, the plugins it loads, the project's `.claude/`, and the SDK's large tool results, which agents `Read` when an output is too big for the context. `deniedPaths` still wins inside all of it, and twice: the kit passes the denied paths (and the SDK's credentials) to the SDK as its own `permissions.deny` rules too, `Read` and `Edit` for each one and whatever is inside it, so a file tool the kit's hook doesn't know of can't reach them either. An absolute path is written in the rules' `//` POSIX form (`C:\Users\ada\.env` is `//c/Users/ada/.env`). The project folder itself isn't readable: whatever else lives there (a config file with a token, a `.env`) stays out. The knowledge folder stays reachable only through the `knowledge_*` tools. Subagents go through the same hook.
 
 `Bash`, when a subagent has it, is outside the gate: it can reach any path.
 
