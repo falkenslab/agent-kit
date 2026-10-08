@@ -48,6 +48,7 @@ export interface PageInfo {
   fields: Record<string, string>;
 }
 
+/** A page that `search()` found, with where it matched. */
 export interface SearchHit {
   id: string;
   title: string;

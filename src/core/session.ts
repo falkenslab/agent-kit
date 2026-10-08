@@ -64,6 +64,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   extensions: ExtensionsStatus;
   /** The knowledge base's store, when the knowledge extension is on (for a host that reads the knowledge base). */
   knowledgeStore?: KnowledgeStore;
+  /** What each active extension hands the host (its contribution's `api`), by its name: the sources' `addSource`, the knowledge base's store. */
+  apis: Record<string, Record<string, unknown>>;
 }> {
   const { mode } = config;
   // The kit's language (`--language`, then config.language, then the system's), chosen here
@@ -364,7 +366,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     about: Object.fromEntries(resolved.active.map(({ extension, manifest }) => [extension.name, { description: manifest.description, provides: manifest.provides }])),
     inactive: resolved.inactive,
   };
-  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, ...(knowledgeStore ? { knowledgeStore } : {}) };
+  const apis = Object.fromEntries(resolved.active.flatMap(({ extension }, index) => (added[index]?.api ? [[extension.name, added[index]!.api!]] : [])));
+  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, apis, ...(knowledgeStore ? { knowledgeStore } : {}) };
 }
 
 export { createModeControl, togglePlanMode, type ModeControl } from "./modeControl.js";

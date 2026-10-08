@@ -239,3 +239,21 @@ test("the sources tools name the folder as it really is, and take paths with eit
     await p.done();
   }
 });
+
+test("the host adds a file the person gave through the extension's api: the person as its origin, a duplicate recognized, never overwriting", async () => {
+  const p = await project();
+  try {
+    const { api } = await contributionOf(sourcesExtension, { mode: "guided", projectDir: p.root, sourcesDir: p.sources });
+    const addSource = api?.addSource as (file: string, name: string, subfolder?: string) => Promise<{ path: string; duplicateOf?: string }>;
+    const upload = path.join(p.run, "upload.tmp");
+    await writeFile(upload, "Why do pirates make great singers? They hit the high Cs.\n");
+    assert.deepEqual(await addSource(upload, "jokes.md"), { path: "jokes.md" });
+    assert.equal((await loadManifest(p.sources)).files["jokes.md"]?.origin.kind, "person");
+    assert.deepEqual(await addSource(upload, "again.md"), { path: "jokes.md", duplicateOf: "jokes.md" });
+    await writeFile(upload, "Another one.\n");
+    await assert.rejects(addSource(upload, "jokes.md"), /never overwritten/);
+    assert.deepEqual(await addSource(upload, "more.md", "books"), { path: "books/more.md" });
+  } finally {
+    await p.done();
+  }
+});

@@ -29,6 +29,8 @@ export function withEnglishFallback(own: Partial<Messages>): Messages {
 let current: Language = "en";
 let messages: Messages = en;
 let chosen = false;
+// A language switched to on purpose (switchLanguage()): kept over --language and options.
+let switched = false;
 let pendingWarnings: string[] = [];
 const warned = new Set<string>();
 
@@ -52,7 +54,7 @@ export function getLanguage(): Language {
  * once per process.
  */
 export function chooseLanguage(option?: string): Language {
-  if (chosen && option === undefined) return current;
+  if (switched || (chosen && option === undefined)) return current;
   const resolved = detectLanguage(option);
   for (const warning of resolved.warnings) {
     if (warned.has(warning)) continue;
@@ -61,6 +63,16 @@ export function chooseLanguage(option?: string): Language {
   }
   setLanguage(resolved.language);
   return current;
+}
+
+/**
+ * Switches the kit's language on purpose, e.g. the person picked another in a chat (#47): from
+ * then on it wins over `--language` and `config.language`, until switched again. The session
+ * says so to the model when it opens next (the controller's `setLanguage()` reopens it).
+ */
+export function switchLanguage(language: Language): void {
+  setLanguage(language);
+  switched = true;
 }
 
 /** Warnings about unsupported language codes not shown yet (English, one line each). */

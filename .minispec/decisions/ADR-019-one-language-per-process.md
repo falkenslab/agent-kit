@@ -6,7 +6,7 @@ The kit's texts come in English, Spanish, French and German, from catalogs in `s
 
 ## Motivation
 
-- One language for everything a person sees: the status bar, panels, labels and the agent's replies. `--language` and the system's language belong to the process, and an agent has one, so a module-level current language (`chooseLanguage()`, `t()`) is simpler than passing a catalog through every view, renderer and label function. A desktop host sets it with `setLanguage()`.
+- One language for everything a person sees: the status bar, panels, labels and the agent's replies. `--language` and the system's language belong to the process, and an agent has one, so a module-level current language (`chooseLanguage()`, `t()`) is simpler than passing a catalog through every view, renderer and label function. A desktop host sets it with `setLanguage()`. It can still change while a chat runs: `switchLanguage()` sets it and wins over `--language` and the agent's option from then on, and the chat controller's `setLanguage()` reopens the session in it, keeping the conversation, and tells the model with the next message (the earlier conversation pulls the replies otherwise). Still one per process: a server with several people in several languages needs one process each.
 - Text for the model stays in English (tool descriptions, hook deny reasons, the knowledge base section, the reply line itself but for the language's name): several of those texts are tuned to SDK behavior confirmed by hand.
 - Texts the agent passes in (header, welcome, prompt label, approval texts, its own tool labels) are its own and aren't translated.
 

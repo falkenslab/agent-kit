@@ -3,7 +3,8 @@ import path from "node:path";
 import type { Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { Mode } from "../core/agentSpec.js";
 import { getInteractionPort, setInteractionPort, type ApprovalPrompt, type ChoiceSettings, type InteractionPort } from "../core/interaction.js";
-import { t } from "../core/messages/index.js";
+import { getLanguage, switchLanguage, t } from "../core/messages/index.js";
+import { LANGUAGE_NAMES, type Language } from "../core/language.js";
 import { runQuery, type AgentEvent, type AgentRun, type SessionUsage } from "../core/runner.js";
 import { createRunFolder, listRuns, readConversation, readRunSession, type RunFolder } from "../core/runs.js";
 import { createInputQueue, togglePlanMode, type ExtensionsStatus, type ModeControl } from "../core/session.js";
@@ -114,6 +115,10 @@ export interface ChatState {
   suggestion: string | null;
   /** The slash commands the person can type: the session's and the chat's own. */
   commands: string[];
+  /** The same, with what each does and what it takes after it, for a view that lists them. */
+  commandDetails: { name: string; description: string; argumentHint: string }[];
+  /** The kit's language now (it can change: `setLanguage()`). */
+  language: Language;
   /** The person's earlier lines, oldest first. */
   history: string[];
   /** A checkpoint waiting for an answer (`panels: "state"`). */
@@ -162,7 +167,7 @@ export async function createChatController(options: Options | SessionOpener, set
   let historyEntries: HistoryEntry[] = settings.historyPath ? capHistory(await loadHistory(settings.historyPath), historyLimit) : [];
 
   // The session in use: with runs, the run's folder, opened again on /resume or /extensions.
-  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; run: RunFolder | null } =
+  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; apis?: Record<string, Record<string, unknown>>; run: RunFolder | null } =
     opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
   const modeControl = (): ModeControl | undefined => current.modeControl ?? settings.modeControl;
   const formatAction = withToolLabels(() => current.toolLabels ?? settings.toolLabels, settings.formatAction);
@@ -186,6 +191,8 @@ export async function createChatController(options: Options | SessionOpener, set
     contextPercent: null,
     suggestion: null,
     commands: [],
+    commandDetails: [],
+    language: getLanguage(),
     history: historyEntries.map((entry) => entry.text),
     panel: null,
     choice: null,
@@ -306,15 +313,23 @@ export async function createChatController(options: Options | SessionOpener, set
       update({ mode });
       emit({ type: "mode", mode });
     });
-    knownCommands = run.supportedCommands().then(
-      (commands) => new Set(commands.flatMap((command) => [command.name, ...(command.aliases ?? [])])),
-      () => null,
-    );
-    void knownCommands.then((names) => {
+    const supported = run.supportedCommands().catch(() => null);
+    knownCommands = supported.then((commands) => (commands ? new Set(commands.flatMap((command) => [command.name, ...(command.aliases ?? [])])) : null));
+    void supported.then((commands) => {
       if (own !== generation) return;
       const exits = [...exitCommands].filter((command) => command.startsWith("/")).map((command) => command.slice(1));
-      const local = [...Object.keys(settings.commands ?? {}), ...(runsDir ? ["resume"] : []), ...(control?.switchable.includes("plan") ? ["plan"] : []), "extensions"];
-      update({ commands: [...new Set([...(names ?? []), ...exits, ...local])].sort() });
+      const viewCommands = Object.keys(settings.commands ?? {}).map((name) => ({ name, description: "", argumentHint: "" }));
+      const local = [
+        ...viewCommands,
+        ...(runsDir ? [{ name: "resume", description: t().commandResume, argumentHint: "" }] : []),
+        ...(control?.switchable.includes("plan") ? [{ name: "plan", description: t().commandPlan, argumentHint: "" }] : []),
+        { name: "extensions", description: t().commandExtensions, argumentHint: "[enable|disable <name>]" },
+      ];
+      const details = new Map<string, { name: string; description: string; argumentHint: string }>();
+      for (const command of [...(commands ?? []).map(({ name, description, argumentHint }) => ({ name, description: description ?? "", argumentHint: argumentHint ?? "" })), ...local]) details.set(command.name, command);
+      for (const name of exits) if (!details.has(name)) details.set(name, { name, description: "", argumentHint: "" });
+      const sorted = [...details.values()].sort((a, b) => a.name.localeCompare(b.name));
+      update({ commands: sorted.map((command) => command.name), commandDetails: sorted });
     });
     void (async () => {
       try {
@@ -335,6 +350,9 @@ export async function createChatController(options: Options | SessionOpener, set
 
   // The agent's text in the latest turn (for /copy), kept when it ends.
   let latestReply = "";
+  // A language switched to, told to the model with the next message (as a mode change is): the
+  // session's prompt says it already, but a conversation in another language pulls the replies.
+  let languageNotice: string | null = null;
   async function runTurn(line: string): Promise<void> {
     interrupted = false;
     const from = state.transcript.length;
@@ -343,7 +361,8 @@ export async function createChatController(options: Options | SessionOpener, set
     update({ busy: true, turnStartedAt: startedAt, activity: null, subagentActivity: null, suggestion: null });
     emit({ type: "turn-start" });
     const finished = new Promise<void>((resolve) => (turnDone = resolve));
-    queue.push(line);
+    queue.push(languageNotice ? `${languageNotice}\n\n${line}` : line);
+    languageNotice = null;
     await finished;
     logRenderer.endLine();
     latestReply = state.transcript.slice(from).flatMap((entry) => (entry.kind === "agent" ? [entry.text] : [])).join("").trim();
@@ -551,6 +570,23 @@ export async function createChatController(options: Options | SessionOpener, set
       await setExtensionEnabled(dir, name, enabled);
       notice(t().extensionToggled(name, enabled));
       await switchTo({ dir: current.run.dir, sessionId: await readRunSession(current.run.dir) }, false);
+    },
+    /**
+     * Switches the kit's language (`switchLanguage()`) and opens the session again in it, keeping
+     * the conversation: the agent's next reply, the labels and the kit's notices come in it.
+     * `note` adds the host's own words to what the model is told (the agent's name in that
+     * language: the earlier conversation keeps pulling the old one).
+     */
+    async setLanguage(language: Language, { note }: { note?: string } = {}): Promise<void> {
+      switchLanguage(language);
+      update({ language });
+      const name = LANGUAGE_NAMES[language];
+      languageNotice = `<system-reminder>The user switched the chat's language to ${name}. From now on, reply in ${name}, and keep everything you write in ${name}, whatever language earlier messages are in. The names your instructions give now (your own included) are the ones to use.${note ? ` ${note}` : ""}</system-reminder>`;
+      if (opener && current.run) await switchTo({ dir: current.run.dir, sessionId: await readRunSession(current.run.dir) }, false);
+    },
+    /** What an active extension hands the host (its `api`), e.g. the sources' `addSource`; `undefined` when it isn't active. */
+    api<T = Record<string, unknown>>(extension: string): T | undefined {
+      return current.apis?.[extension] as T | undefined;
     },
     /** Answers the state's panel (`panels: "state"`). */
     answer(panelId: number, answer: string): void {

@@ -36,6 +36,10 @@ export interface Messages {
   resumeHint: string;
   resumeQuestion: string;
   noEarlierRuns: string;
+  /** What the chat's own commands do, for a view that lists them. */
+  commandResume: string;
+  commandPlan: string;
+  commandExtensions: string;
   /** /extensions (#37): what the session runs with, what's off and why, and enabling or disabling one. */
   extensionsRunning(names: string): string;
   extensionsNone: string;
@@ -164,6 +168,9 @@ export const en: Messages = {
   resumeHint: "↑/↓ choose · Enter resume · Esc cancel",
   resumeQuestion: "Number of the conversation to resume (Enter to cancel): ",
   noEarlierRuns: "(no earlier conversations to resume)",
+  commandResume: "Pick an earlier conversation to go on with",
+  commandPlan: "Into plan mode, or back",
+  commandExtensions: "What runs, what's off and why; turn one on or off",
   extensionsRunning: (names) => `Running with: ${names}`,
   extensionsNone: "(no extensions)",
   extensionOff: (name, reason) => `${name} is off: it ${reason}`,

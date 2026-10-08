@@ -70,7 +70,7 @@ export {
   type LanguageSources,
   type ResolvedLanguage,
 } from "./core/language.js";
-export { setLanguage, getLanguage, messagesFor, type Messages } from "./core/messages/index.js";
+export { setLanguage, switchLanguage, getLanguage, messagesFor, type Messages } from "./core/messages/index.js";
 export {
   createRunStore,
   createRunFolder,

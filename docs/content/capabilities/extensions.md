@@ -247,7 +247,7 @@ What a contribution may carry (every part optional):
 | `toolLabels` | How the chat shows its tools, by full name: each one's line and how it counts in a folded summary, in the kit's language. See [An extension's labels](../terminal-ui/tool-labels.md#an-extensions-labels). |
 | `hooks` | Its SDK hooks, by event, run after the kit's own (the memory hears the person's messages with `UserPromptSubmit`). |
 | `helpLines` | What `agent-help` says about it in this session. |
-| `api` | What `buildSessionOptions()` hands back to the host (the knowledge extension returns its store as `knowledgeStore`). |
+| `api` | What the extension hands the host: `buildSessionOptions()` returns every active extension's under `apis`, by name, and the chat controller's `api(name)` gives it (the `sources` extension's `addSource`, the knowledge extension's store, also as `knowledgeStore`). |
 
 `missing(context)` says why the extension can't run in this session (a folder it needs), or `undefined`. The context has the config, the spec, the run folder, the mode and whether a person can be asked.
 

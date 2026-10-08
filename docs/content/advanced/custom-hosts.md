@@ -36,7 +36,8 @@ await chat.send("Tell me a joke"); // a line: a command, or a turn (resolves whe
 | `mode`, `switchableModes` | The mode, and the ones the person can switch to. |
 | `turns`, `usage`, `contextPercent` | Turns so far, tokens used, how full the context window is. |
 | `suggestion` | The model's predicted next prompt. |
-| `commands`, `history` | The slash commands the person can type, and their earlier lines. |
+| `commands`, `commandDetails`, `history` | The slash commands the person can type (the session's skills and commands, the extensions' among them, and the chat's own), the same with what each does and its arguments (`{ name, description, argumentHint }`, for a menu that opens on `/`), and the person's earlier lines. |
+| `language` | The kit's language now: it changes with `setLanguage()`. |
 | `panel` | A checkpoint waiting for an answer, with `panels: "state"`: an approval (`decision`), a confirmation after a manual step (`manual`), free text (`text`) or a choice (`choice`, with its options). |
 | `choice` | A choice in place of the prompt (the conversations to resume), without `pick`. |
 | `run`, `extensions` | The run in use, and the extensions: what runs (with each one's description and capabilities, `about`), what's off and why, what's installed. |
@@ -51,6 +52,8 @@ await chat.send("Tell me a joke"); // a line: a command, or a turn (resolves whe
 | `listRuns()`, `resume(dir?)` | The runs to resume, and switching to one (without `dir`, it asks: `pick`, or the state's `choice`). |
 | `newConversation()` | A new conversation in a new run, the current one left to resume: a graphical view's "new chat" button. |
 | `setExtension(name, enabled)` | Enables or disables an installed extension and opens the session again, keeping the conversation: an action, with a notice, not a line of the person's. |
+| `setLanguage(language, { note? })` | Switches the language on the fly (`switchLanguage()`) and opens the session again in it, keeping the conversation: the agent's prompt, its next replies, the labels and the kit's notices. The model is also told with the person's next message, since a conversation in another language pulls the replies towards it; `note` adds your own words to that (the agent's name in the new language). Build the spec in the opener, not once at startup, if the agent's own texts should follow (see [Languages](../sessions/languages.md#switching-on-the-fly)). |
+| `api(extension)` | What an active extension hands the host (its contribution's `api`), or `undefined`: the `sources` extension's `addSource(file, name, subfolder?)` puts a file the person gives into the sources folder, never overwriting, a duplicate recognized, the person as its origin (a "drop a file here" in the page). |
 | `answer(panelId, answer)` | Answers the state's `panel`: `"y"`/`"n"` for a decision, the text, or the chosen options' numbers (`"1,3"`, and "Other" text on the next lines). |
 | `choose(value)` | Answers the state's `choice` (`null` cancels). |
 | `notice(text, tone)` | A notice of the host's (a welcome), in the transcript and the session log. |
@@ -117,14 +120,14 @@ Also:
 - **Signing**: `electron-builder` signs every executable it packs, the CLI binary included.
 - **Installed extensions**: their servers are started with `process.execPath`, which in Electron is the app itself; the kit sets `ELECTRON_RUN_AS_NODE` for them, so they run as Node.
 
-Captain Whiskers is a full example: `examples/captain-whiskers/web/` (his web host on the controller, with signing in from the page and uploads for `request_file`) and `examples/captain-whiskers/desktop/` (his Electron app and installer).
+Captain Whiskers is a full example: `examples/captain-whiskers/web/` (his web host on the controller, with signing in from the page, uploads for `request_file` and to his treasure chest, a `/` menu, quick actions and the language switched on the fly) and `examples/captain-whiskers/desktop/` (his Electron app and installer).
 
 `examples/electron-probe/` in the repository is a minimal packaged app that checks all this.
 
 ## Things to take care of
 
 - **Don't import the terminal UI at startup if you don't need it.** Everything is exported from the package root; importing it installs the terminal interaction port, which `panels: "state"` (or your own `setInteractionPort()`) replaces. The terminal port does nothing without a TTY anyway.
-- **One language and one theme per process.** Set the language with `setLanguage()` before building options; themes only affect the terminal UI.
+- **One language and one theme per process.** Set the language with `setLanguage()` before building options, or switch it later with the controller's `setLanguage()`; themes only affect the terminal UI.
 - **Credentials**: `resolveClaudeAuth()` never prompts; getting a token (a login screen that runs `claude setup-token`, a settings field) is your host's job.
 - **Where run folders go**: somewhere private to the user (`app.getPath("userData")`), since they hold whole conversations.
 - **Your own reader instead**: a host can still drive `runQuery()` and `createInputQueue()` itself. Then `prompt-suggestion` arrives after `turn-end` and `mcp-error` before the first turn: keep one reader for the whole session.

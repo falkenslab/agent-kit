@@ -30,6 +30,19 @@ const config: BaseSessionConfig = { mode: "guided", projectDir, language: "es" }
 
 `buildSessionOptions()` chooses the language (and appends the reply line); a chat, progress view or wizard started afterwards without its own `language` keeps it. `getLanguage()` returns it, `setLanguage(code)` sets it directly (a desktop host with its own language setting), and `resolveLanguage()` / `detectLanguage()` resolve without setting anything.
 
+## Switching on the fly
+
+The language is still one per process, but a host can change it while the chat runs: `switchLanguage(code)` sets it and keeps it over `--language` and `config.language` from then on (`setLanguage()` alone would lose to them the next time options are built). The [chat controller](../advanced/custom-hosts.md#the-chat-controller)'s `setLanguage(code)` does it for you: it switches, opens the session again in the new language keeping the conversation, and tells the model with the person's next message.
+
+The agent's own texts follow only if they're chosen when the session opens, not once at startup: build the spec (prompt, names, subagents) in the session opener, from `getLanguage()`. Captain Whiskers does this, and keeps the person's choice in his home folder:
+
+```ts
+const chat = await createChatController(async (run) => buildSessionOptions(config, run.dir, makeSpec(), { run }), { runsDir, panels: "state" });
+await chat.setLanguage("fr", { note: "Your name is now Capitaine Moustaches." });
+```
+
+Even so, the earlier conversation pulls: the replies switch at once, but the model keeps a name it already used in another language unless told. The notice asks it to use the names its instructions give now, and `note` says which: without it, the captain answered in French as "Capitaine Whiskers"; with it, as "Capitaine Moustaches".
+
 ## The reply language
 
 `buildSessionOptions()` appends one line to the system prompt and to every subagent's prompt:
