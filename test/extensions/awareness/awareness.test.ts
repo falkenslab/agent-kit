@@ -74,7 +74,7 @@ test("about_me answers with the session as it is now: the mode after a switch, t
 
   let now = (await ask({}, {})).content[0]!.text;
   assert.match(now, /You are padawan 1\.2\.3/);
-  assert.match(now, /## Mode\n\n\*\*guided\*\*/);
+  assert.match(now, /## Mode\n\nYou are in \*\*guided\*\* mode now\. The person can switch it with Shift\+Tab to interactive or plan\./);
   assert.match(now, /\*\*knowledge\*\*: .*Tools: \*/); // before the session starts: its server, not its tools yet
   assert.match(now, /\*\*memory\*\* is off: it needs `memoryDir` in the config\./);
   assert.match(now, /\*\*quiz-checker\*\*: Checks a quiz's answers/);
@@ -87,7 +87,7 @@ test("about_me answers with the session as it is now: the mode after a switch, t
     contextUsage: async () => ({ percentage: 12.4, totalTokens: 24_800, maxTokens: 200_000 }),
   });
   now = (await ask({ part: "now" }, {})).content[0]!.text;
-  assert.match(now, /## Mode\n\n\*\*plan\*\*/);
+  assert.match(now, /## Mode\n\nYou are in \*\*plan\*\* mode now\./);
   assert.match(now, /Tools: knowledge_create, knowledge_read\./);
   assert.match(now, /## Built-in tools\n\nRead, Skill\./);
   assert.match(now, /`\/knowledge:query <question>`: Answer from the knowledge base/);

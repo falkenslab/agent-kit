@@ -23,8 +23,8 @@ export function describeSession(facts: SessionFacts): string {
 
   const others = facts.switchableModes.filter((mode) => mode !== facts.mode);
   sections.push(
-    `## Mode\n\n**${facts.mode}**. ${
-      facts.switchableModes.length > 1 ? `The person can switch with Shift+Tab, through ${facts.switchableModes.join(", ")} (now: ${others.join(", ")} besides this one).` : "It can't be switched in this session."
+    `## Mode\n\nYou are in **${facts.mode}** mode now. ${
+      facts.switchableModes.length > 1 ? `The person can switch it with Shift+Tab to ${others.join(" or ")}.` : "It can't be switched in this session."
     }`,
   );
 
