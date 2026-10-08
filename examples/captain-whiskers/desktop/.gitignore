@@ -1,0 +1,6 @@
+node_modules/
+dist/
+captain/
+agent-kit.tgz
+# Pins the packed kit's hash, which changes with every pack.
+package-lock.json

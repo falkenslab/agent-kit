@@ -111,7 +111,10 @@ CAPTAIN_MODE=interactive npm start      # ask before every tool call (guided by 
 CAPTAIN_TOOL_DETAIL=summary npm start   # tool calls as one line per group
 CAPTAIN_INLINE=1 npm start              # inline, with the terminal's scrollback
 CAPTAIN_PLAIN=1 npm start               # the plain readline chat
+npm start -- --web                      # in a browser: prints the URL to open
 ```
+
+As a desktop app, from `examples/captain-whiskers/desktop/`: `npm run build`, `npm install`, then `npm start` (unpackaged) or `npm run dist` (the installer).
 
 It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment or in `examples/captain-whiskers/.env`; without one, it offers to create a token.
 
@@ -119,7 +122,10 @@ It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment or 
 
 ```text
 examples/captain-whiskers/
-├── agent.ts                    everything: texts, tools, crew, spec, chat
+├── captain.ts                  what makes him: texts, prompt, crew, spec, his config
+├── agent.ts                    the terminal (and --web)
+├── web/                        his web host on the chat controller, and its page
+├── desktop/                    his Electron app and installer
 ├── guide.md                    his own help guide (commands, folders, settings)
 ├── extensions/jokebook/        an installable extension: manifest, .mcp.json and its server, skill, command, parrot
 ├── package.json                "@falkenslab/agent-kit": "file:../.."
@@ -272,7 +278,17 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 - **The first suggestion**: Tab takes it before the first turn.
 - **Guided by default**, so he can ask: which kind of joke (`ask_human`), a file (`request_file`), whether to retire an original.
 
-## 7. The logbook and the chest
+## 7. In a browser and on the desktop
+
+The terminal is one of his three faces; all three are views of the kit's [chat controller](../advanced/custom-hosts.md#the-chat-controller), and none of the graphical ones is the kit's: they're his own, as [ADR-026](https://github.com/falkenslab/agent-kit/blob/main/.minispec/decisions/ADR-026-graphical-interface.md) has it.
+
+- **`web/server.ts`** (about 250 lines): a controller with `panels: "state"`, an HTTP server on `127.0.0.1` with a token in the URL, the state by server-sent events, the person's actions by `POST`, one window at a time, uploads for `request_file`, and signing in from the page when there's no Claude key.
+- **`web/index.html`**: one page, no dependencies or build: the conversation drawn block by block (only what changed), tool calls folded with a spinner while they run, the approvals, choices and plans as dialogs, the mode with what each one means, earlier conversations and extensions in side panels, light and dark, laid out for a phone.
+- **`desktop/main.mjs`**: Electron around that page. The main process starts the web host with a token that never leaves it, keeps everything in the app's data folder, installs his jokebook on the first start, and opens links in the browser. Packaged with `electron-builder` and `asarUnpack` only: the kit [runs packaged](../advanced/custom-hosts.md#packaging-an-electron-app) by itself.
+
+`captain.ts` is what the three share: his texts, prompt, crew and spec, and `createCaptain({ workspace, home })`, his config and session opener for wherever he keeps his things.
+
+## 8. The logbook and the chest
 
 `logbook/` is his [knowledge base](../capabilities/knowledge-base.md), reached only through the `knowledge_*` tools; `treasure/` is his chest of [originals](../capabilities/knowledge-base.md#sources-originals-kept-as-obtained). His prompt and commands put them to work:
 

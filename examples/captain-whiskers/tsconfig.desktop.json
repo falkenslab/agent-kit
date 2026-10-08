@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "desktop/captain"
+  },
+  "include": ["captain.ts", "web/*.ts"]
+}

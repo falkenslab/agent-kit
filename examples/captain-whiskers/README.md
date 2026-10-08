@@ -1,6 +1,6 @@
 # Captain Whiskers
 
-A small agent built on agent-kit: a retired pirate cat who tells jokes in a terminal chat, keeps a logbook of what he learns and a treasure chest of originals. It uses most of the kit, so it doubles as its end-to-end check. He speaks the kit's language, the system's or the one given with `npm start -- --language=fr` (`en`, `es`, `fr`, `de`): his name (Capitán Bigotes, Captain Whiskers, Capitaine Moustaches, Käpt'n Schnurrbart), his on-screen texts and the kit's follow it, and he answers in it. Everything the model reads (prompts, skills, commands) is in English, since text in another language pulls the replies towards it; only his crew keeps Spanish names. It's a standalone project that uses the kit through `file:../..`.
+A small agent built on agent-kit: a retired pirate cat who tells jokes, keeps a logbook of what he learns and a treasure chest of originals. He runs in a terminal, in a browser (a phone too) and as a desktop app, each a view of the kit's chat controller. It uses most of the kit, so it doubles as its end-to-end check. He speaks the kit's language, the system's or the one given with `npm start -- --language=fr` (`en`, `es`, `fr`, `de`): his name (Capitán Bigotes, Captain Whiskers, Capitaine Moustaches, Käpt'n Schnurrbart), his on-screen texts and the kit's follow it, and he answers in it. Everything the model reads (prompts, skills, commands) is in English, since text in another language pulls the replies towards it; only his crew keeps Spanish names. It's a standalone project that uses the kit through `file:../..`.
 
 ## Getting started
 
@@ -42,6 +42,32 @@ In a terminal it uses the kit's Ink interface (`runChatInk`) full screen: the pr
 It runs in `guided` mode by default, so it can ask you things: which kind of joke, a file, whether to retire an original. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `workspace/.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=autonomous` it asks nothing. With `CAPTAIN_MODE=plan` it only reads and plans: its crew can still search the web, read the ship's clock and the logbook, and anything else is denied until the plan is approved (`present_plan`) or you leave plan mode. Started in any mode but `autonomous`, Shift+Tab cycles through `guided`, `interactive` and `plan`. `/plan` goes into plan mode and back.
 
 It shows every tool call with its result (`toolDetail: "full"`, the kit's default); `CAPTAIN_TOOL_DETAIL=calls` shows the calls without their results, and `CAPTAIN_TOOL_DETAIL=summary` one line per group. Ctrl+O unfolds them either way.
+
+## In a browser
+
+```
+npm start -- --web
+```
+
+prints a URL (`http://127.0.0.1:<port>/?token=…`): open it in a browser. It's his own web host (`web/`) on the kit's chat controller: the same conversation, tool calls folded with their labels, the approvals and choices as dialogs, a file picker when he asks for one (`request_file`), the mode, earlier conversations and his extensions in side panels, in his language, light or dark as your system, and laid out for a phone. Without a Claude key, the page asks for one and keeps it in `.env`.
+
+- It listens on `127.0.0.1` only, and nothing gets in without the token in the URL. One window at a time: opening it elsewhere takes over, and the first one says so.
+- **From your phone**: a tunnel to that port (`cloudflared tunnel --url http://127.0.0.1:<port>`, `ngrok http <port>`, Tailscale) and the URL with the token. Anyone with that URL acts as you, and he acts in the world (downloads, writes his logbook): share it with no one, and keep `guided` or `interactive` mode so he asks before what matters.
+- `CAPTAIN_PORT` fixes the port; `CAPTAIN_WEB_TOKEN` the token (to test; leave it random otherwise).
+
+## As a desktop app
+
+`desktop/` is an Electron app around the same page, with an installer: his name and icon, his workspace, memory and extensions in the app's data folder (`%APPDATA%/Captain Whiskers` on Windows), signing in from the window, and his jokebook installed on the first start. From `desktop/`:
+
+```
+npm run build       # the kit packed as published, and the captain compiled into captain/
+npm install         # again after the kit changes (it's agent-kit.tgz)
+npm start           # the app, unpackaged
+npm run dist        # dist/Captain Whiskers Setup <version>.exe and dist/win-unpacked/
+npm run icon        # build/icon.png again, from the logo in web/index.html
+```
+
+If npm blocks install scripts (it says `allow-scripts`), `node node_modules/electron/install.js` downloads Electron for `npm start`. From VS Code's terminal, unset `ELECTRON_RUN_AS_NODE` first, or Electron runs as plain Node. The installer isn't signed: Windows SmartScreen warns about it.
 
 ## Extensions
 

@@ -28,6 +28,10 @@ Deleting `workspace/` starts over. What you remember of the person is elsewhere,
 
 Your jokebook is an extension the person installs, with the classics (`classic_joke`), the parrot and `/jokebook:best-jokes` (the best jokes in your logbook by the parrot's score, filed back as a synthesis): `npm start -- extension add ./extensions/jokebook` (from your folder; `--project` for this project only). In the chat, `/extensions` lists what you run with, and `/extensions enable <name>` or `/extensions disable <name>` turns one on or off.
 
+## Where you run
+
+The person can use you in a terminal (`npm start`), in a browser (`npm start -- --web`, which prints the address to open; a phone reaches it through a tunnel) or as a desktop app (installed from `desktop/`). In the browser and the app, the buttons at the top start a new conversation, show the earlier ones and your extensions, and switch your mode; your questions show as dialogs, and a file you ask for is picked from their computer or phone.
+
 ## Starting you
 
 From the `examples/captain-whiskers` folder: `npm start`. After `npm start --`, the kit's `--language=<code>` and `--continue` work. Environment variables (or a `.env` file in that folder):

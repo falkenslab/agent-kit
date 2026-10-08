@@ -1,0 +1,237 @@
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import path from "node:path";
+import { agentKitVersion, createChatController, resolveClaudeAuth, type ChatController, type Mode } from "@falkenslab/agent-kit";
+import { CAPTAIN_DIR, language, text, version, type createCaptain } from "../captain.js";
+import { pageTexts } from "./texts.js";
+
+// El capitán en el navegador (ADR-026, #44): su propia web, sobre el controlador de chat del
+// kit. Un servidor en 127.0.0.1 (un túnel llega a ese puerto), con un token en la URL sin el
+// que no se entra; el estado del chat llega a la página por eventos del servidor (SSE) y lo que
+// hace la persona vuelve en POST. Sin dependencias: node:http y una página.
+
+type Captain = Awaited<ReturnType<typeof createCaptain>>;
+
+export interface WebChatOptions {
+  /** El puerto; uno libre si no se da. */
+  port?: number;
+  /** El token de la URL; uno aleatorio si no se da. */
+  token?: string;
+  /** Dónde guardar el token de Claude que la persona pegue al iniciar sesión. */
+  envPath: string;
+  /** Quién la sirve: "web" (un navegador) o "desktop" (la aplicación), para lo que la página enseña. */
+  shell?: "web" | "desktop";
+}
+
+/** Lo más grande que se puede subir para el cofre. */
+const MAX_UPLOAD = 50 * 1024 * 1024;
+
+/**
+ * Arranca su web: devuelve la URL (con el token) y cómo cerrarla. Sin token de Claude, la página
+ * lo pide; con él, abre la sesión.
+ */
+export async function startWebChat(captain: Captain, options: WebChatOptions): Promise<{ url: string; close: () => Promise<void> }> {
+  const token = options.token ?? randomBytes(18).toString("base64url");
+
+  // La sesión, en cuanto hay con qué autenticarse.
+  let chat: ChatController | null = null;
+  let opening: Promise<void> | null = null;
+  function openChat(): Promise<void> {
+    opening ??= (async () => {
+      chat = await createChatController(captain.opener, {
+        runsDir: captain.runsDir,
+        historyPath: captain.historyPath,
+        // Los paneles (aprobaciones, elecciones) son parte del estado: la página los responde.
+        panels: "state",
+        // Aquí no se sale escribiendo: se cierra la pestaña.
+        exitCommands: [],
+      });
+      chat.subscribe(() => schedule());
+      await chat.start();
+      schedule();
+    })();
+    return opening;
+  }
+  if (resolveClaudeAuth()) void openChat();
+
+  // Una persona a la vez: la última conexión manda, y la anterior se entera.
+  let client: ServerResponse | null = null;
+  let pending: ReturnType<typeof setTimeout> | null = null;
+  /** El estado a la página, como mucho cada 50 ms (el texto llega a trocitos). */
+  function schedule(): void {
+    if (pending) return;
+    pending = setTimeout(() => {
+      pending = null;
+      send("state", snapshot());
+    }, 50);
+  }
+  function snapshot() {
+    return { signedIn: Boolean(chat), chat: chat?.getState() ?? null };
+  }
+  function send(event: string, data: unknown): void {
+    client?.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+  // Un latido cada 20 s, para que ningún proxy (un túnel) cierre la conexión por inactividad.
+  const heartbeat = setInterval(() => client?.write(": ping\n\n"), 20_000);
+
+  const authorized = (request: IncomingMessage, url: URL): boolean => {
+    const given = url.searchParams.get("token") ?? request.headers["x-token"];
+    if (typeof given !== "string" || given.length !== token.length) return false;
+    return timingSafeEqual(Buffer.from(given), Buffer.from(token));
+  };
+
+  async function raw(request: IncomingMessage, limit: number): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of request) {
+      size += (chunk as Buffer).length;
+      if (size > limit) throw new Error("too large");
+      chunks.push(chunk as Buffer);
+    }
+    return Buffer.concat(chunks);
+  }
+
+  /** What the person does, by path. */
+  async function act(action: string, data: Record<string, unknown>): Promise<unknown> {
+    if (action === "login") return await signIn(String(data.token ?? ""));
+    if (!chat) return { error: "signed out" };
+    const current = chat;
+    switch (action) {
+      case "send":
+        // One turn at a time: the page waits for the one running.
+        if (current.getState().busy) return { error: "busy" };
+        // The turn runs on; the page follows it through the state.
+        void current.send(String(data.line ?? "")).catch((error) => current.notice(String(error?.message ?? error), "error"));
+        return {};
+      case "interrupt":
+        current.interrupt();
+        return {};
+      case "mode":
+        current.setMode(String(data.mode) as Mode);
+        return {};
+      case "answer":
+        current.answer(Number(data.panelId), String(data.answer ?? ""));
+        return {};
+      case "choose":
+        current.choose(data.value === null || data.value === undefined ? null : String(data.value));
+        return {};
+      case "runs":
+        return { runs: await current.listRuns(), current: current.getState().run?.dir ?? null };
+      case "resume":
+        if (current.getState().busy) return { error: "busy" };
+        await current.resume(data.dir ? String(data.dir) : undefined);
+        return {};
+      case "new":
+        if (current.getState().busy) return { error: "busy" };
+        await current.newConversation();
+        return {};
+      case "extension":
+        if (current.getState().busy) return { error: "busy" };
+        await current.setExtension(String(data.name), Boolean(data.enabled));
+        return {};
+      default:
+        return { error: `unknown action ${action}` };
+    }
+  }
+
+  /** The token the person pasted: an API key or an OAuth token, into the .env and the process. */
+  async function signIn(pasted: string): Promise<unknown> {
+    const value = pasted.trim();
+    const variable = value.startsWith("sk-ant-api") ? "ANTHROPIC_API_KEY" : value.startsWith("sk-ant-oat") ? "CLAUDE_CODE_OAUTH_TOKEN" : null;
+    if (!variable) return { error: "invalid" };
+    process.env[variable] = value;
+    await mkdir(path.dirname(options.envPath), { recursive: true });
+    const previous = await readFile(options.envPath, "utf8").catch(() => "");
+    await appendFile(options.envPath, `${previous && !previous.endsWith("\n") ? "\n" : ""}${variable}=${value}\n`);
+    await openChat();
+    return {};
+  }
+
+  /** A file the person chose (the captain asked for one): kept in the workspace, its path for the answer. */
+  async function upload(request: IncomingMessage, url: URL): Promise<unknown> {
+    const name = path.basename(url.searchParams.get("name") ?? "file").replace(/[^\w.\- ()]/g, "_") || "file";
+    const dir = path.join(captain.workspace, ".uploads", new Date().toISOString().replace(/[:.]/g, "-"));
+    await mkdir(dir, { recursive: true });
+    const file = path.join(dir, name);
+    await writeFile(file, await raw(request, MAX_UPLOAD));
+    return { path: file };
+  }
+
+  const info = {
+    name: text.name,
+    language,
+    version,
+    kit: agentKitVersion(),
+    shell: options.shell ?? "web",
+    texts: pageTexts(language),
+  };
+
+  const server = createServer((request, response) => {
+    void (async () => {
+      const url = new URL(request.url ?? "/", "http://localhost");
+      if (!authorized(request, url)) {
+        response.writeHead(403, { "content-type": "text/plain; charset=utf-8" }).end("403");
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/") {
+        response
+          .writeHead(200, {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store",
+            // Nothing from elsewhere: the page is self-contained.
+            "content-security-policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'",
+            "referrer-policy": "no-referrer",
+          })
+          // Read on every load: a few KB, and a change to it shows on reload.
+          .end(await readFile(path.join(CAPTAIN_DIR, "web", "index.html"), "utf8"));
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/api/events") {
+        if (client) {
+          client.write(`event: replaced\ndata: {}\n\n`);
+          client.end();
+        }
+        client = response;
+        response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
+        send("info", info);
+        send("state", snapshot());
+        request.on("close", () => client === response && (client = null));
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/api/upload") {
+        try {
+          response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(await upload(request, url)));
+        } catch (error) {
+          response.writeHead(400, { "content-type": "application/json" }).end(JSON.stringify({ error: String((error as Error)?.message ?? error) }));
+        }
+        return;
+      }
+      if (request.method === "POST" && url.pathname.startsWith("/api/")) {
+        try {
+          const body = (await raw(request, 1_000_000)).toString("utf8");
+          const result = await act(url.pathname.slice("/api/".length), body ? (JSON.parse(body) as Record<string, unknown>) : {});
+          response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(result));
+        } catch (error) {
+          response.writeHead(400, { "content-type": "application/json" }).end(JSON.stringify({ error: String((error as Error)?.message ?? error) }));
+        }
+        return;
+      }
+      response.writeHead(404).end();
+    })();
+  });
+
+  // Solo en esta máquina: un túnel (cloudflared, ngrok, Tailscale) es de la persona.
+  await new Promise<void>((resolve) => server.listen(options.port ?? 0, "127.0.0.1", resolve));
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : options.port;
+  return {
+    url: `http://127.0.0.1:${port}/?token=${token}`,
+    async close() {
+      clearInterval(heartbeat);
+      client?.end();
+      (chat as ChatController | null)?.close();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    },
+  };
+}

@@ -1,0 +1,47 @@
+{
+  "name": "captain-whiskers-desktop",
+  "productName": "Captain Whiskers",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Captain Whiskers as a desktop application: a retired pirate cat who tells jokes and learns from your documents.",
+  "author": "Falkenslab",
+  "license": "MIT",
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "icon": "electron scripts/icon.mjs",
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "dependencies": {
+    "@falkenslab/agent-kit": "file:./agent-kit.tgz",
+    "@mozilla/readability": "^0.6.0",
+    "fflate": "^0.8.3",
+    "linkedom": "^0.18.13",
+    "mammoth": "^1.13.0",
+    "picocolors": "^1.1.1",
+    "turndown": "^7.2.4"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "dev.falkenslab.captainwhiskers",
+    "productName": "Captain Whiskers",
+    "copyright": "Falkenslab",
+    "directories": { "buildResources": "build", "output": "dist" },
+    "files": ["main.mjs", "package.json", "captain/**/*", "node_modules/**/*"],
+    "asarUnpack": [
+      "node_modules/@anthropic-ai/claude-agent-sdk-*/**",
+      "node_modules/@falkenslab/agent-kit/assets/**",
+      "node_modules/@falkenslab/agent-kit/extensions/**",
+      "captain/plugin/**",
+      "captain/extensions/**",
+      "captain/treasure-samples/**"
+    ],
+    "win": { "target": ["nsis", "dir"], "icon": "build/icon.png" },
+    "nsis": { "oneClick": true, "perMachine": false, "shortcutName": "Captain Whiskers", "deleteAppDataOnUninstall": false }
+  }
+}

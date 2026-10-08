@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0f1724">
+<title>Captain Whiskers</title>
+<link rel="icon" id="favicon">
+<style>
+  :root {
+    --bg: #0d1420; --bg-2: #111a29; --panel: #162133; --panel-2: #1c2a40; --line: #263650; --line-2: #33476a;
+    --text: #e8edf4; --text-2: #b9c4d3; --dim: #7f8ca0;
+    --gold: #e5b53a; --gold-2: #f0c85a; --gold-ink: #1d1505; --gold-soft: rgba(229, 181, 58, 0.14);
+    --user: #22406a; --user-text: #eef3fa; --ok: #5cc28a; --warn: #e9a94a; --error: #ef6b5b; --error-soft: rgba(239, 107, 91, 0.12);
+    --shadow: 0 10px 40px rgba(0, 0, 0, 0.45); --radius: 14px; --radius-sm: 9px;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+    --sans: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f1e7; --bg-2: #efe8da; --panel: #fffdf8; --panel-2: #f3ecdf; --line: #e2d7c3; --line-2: #d3c4a8;
+      --text: #1d2635; --text-2: #3d4a5e; --dim: #7a7466;
+      --gold: #b8860b; --gold-2: #c99a1d; --gold-ink: #fffaf0; --gold-soft: rgba(184, 134, 11, 0.12);
+      --user: #1f3d66; --user-text: #f5f8fc; --shadow: 0 10px 40px rgba(60, 45, 20, 0.18);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 15.5px/1.55 var(--sans); display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  /* Header */
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 18px; padding-top: max(10px, env(safe-area-inset-top)); background: var(--bg-2); border-bottom: 1px solid var(--line); position: relative; z-index: 3; }
+  .brand { display: flex; align-items: center; gap: 11px; min-width: 0; flex: 1; }
+  .brand svg { width: 38px; height: 38px; flex: none; }
+  .brand .names { min-width: 0; }
+  .brand h1 { margin: 0; font-size: 16.5px; font-weight: 650; letter-spacing: 0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand .tagline { font-size: 12.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); display: inline-block; margin-left: 6px; vertical-align: middle; }
+  .dot.online { background: var(--ok); } .dot.working { background: var(--gold); animation: pulse 1.2s ease-in-out infinite; } .dot.offline { background: var(--warn); }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  .tools-bar { display: flex; gap: 6px; align-items: center; }
+  .icon-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; min-width: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; color: var(--text-2); }
+  .icon-button:hover { border-color: var(--line-2); color: var(--text); }
+  .icon-button svg { width: 18px; height: 18px; }
+  .icon-button .text { font-size: 13.5px; }
+  .mode-button { color: var(--text); }
+  .mode-button .swatch { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+  .mode-button.plan .swatch { background: #7aa7ff; } .mode-button.interactive .swatch { background: var(--ok); } .mode-button.autonomous .swatch { background: var(--error); }
+  .popover { position: absolute; top: calc(100% - 4px); right: 18px; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius); box-shadow: var(--shadow); padding: 6px; min-width: 250px; display: none; z-index: 5; }
+  .popover.on { display: block; }
+  .popover button { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; border: 0; background: none; padding: 9px 12px; border-radius: 9px; cursor: pointer; }
+  .popover button:hover, .popover button.current { background: var(--panel-2); }
+  .popover button .help { font-size: 12.5px; color: var(--dim); }
+  .popover button.current strong::after { content: "  ✓"; color: var(--gold); }
+
+  /* Conversation */
+  main { flex: 1; overflow-y: auto; scroll-behavior: smooth; position: relative; }
+  .column { max-width: 780px; margin: 0 auto; padding: 22px 18px 12px; display: flex; flex-direction: column; gap: 14px; }
+  .welcome { text-align: center; padding: 6vh 8px 10px; }
+  .welcome svg { width: 92px; height: 92px; filter: drop-shadow(0 8px 24px rgba(229, 181, 58, 0.18)); }
+  .welcome h2 { margin: 14px 0 6px; font-size: 26px; font-weight: 700; }
+  .welcome p { color: var(--text-2); max-width: 520px; margin: 0 auto 22px; }
+  .chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; max-width: 620px; margin: 0 auto; }
+  .chip { display: flex; align-items: center; gap: 10px; text-align: left; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); cursor: pointer; color: var(--text-2); transition: border-color 0.15s, transform 0.15s; }
+  .chip:hover { border-color: var(--gold); color: var(--text); transform: translateY(-1px); }
+  .chip .emoji { font-size: 20px; }
+  .msg-user { align-self: flex-end; max-width: min(86%, 620px); background: var(--user); color: var(--user-text); padding: 9px 14px; border-radius: 16px 16px 4px 16px; white-space: pre-wrap; overflow-wrap: anywhere; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
+  .msg-user.command { font-family: var(--mono); font-size: 14px; background: transparent; color: var(--gold); border: 1px solid var(--gold); box-shadow: none; }
+  .captain { display: grid; grid-template-columns: 34px 1fr; gap: 0 12px; }
+  .captain .avatar { grid-row: span 2; width: 34px; height: 34px; }
+  .captain .avatar svg { width: 34px; height: 34px; }
+  .captain .who { font-size: 13px; font-weight: 650; color: var(--gold); line-height: 34px; height: 30px; }
+  .captain.cont .avatar, .captain.cont .who { visibility: hidden; height: 0; line-height: 0; }
+  .captain.cont { margin-top: -8px; }
+  .md { overflow-wrap: anywhere; color: var(--text); position: relative; }
+  .md p { margin: 0 0 9px; } .md p:last-child { margin-bottom: 0; }
+  .md pre { background: var(--bg-2); border: 1px solid var(--line); padding: 11px 13px; border-radius: var(--radius-sm); overflow-x: auto; font: 13.5px/1.45 var(--mono); }
+  .md code { font-family: var(--mono); font-size: 0.9em; background: var(--panel-2); padding: 1px 6px; border-radius: 5px; }
+  .md pre code { padding: 0; background: none; }
+  .md table { border-collapse: collapse; margin: 8px 0; font-size: 14px; display: block; overflow-x: auto; }
+  .md th, .md td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; } .md tr:first-child td { font-weight: 650; background: var(--panel-2); }
+  .md a { color: var(--gold); }
+  .md h3 { font-size: 1.05em; margin: 12px 0 6px; }
+  .md ul, .md ol { margin: 4px 0 9px; padding-left: 22px; } .md li { margin: 2px 0; }
+  .md blockquote { margin: 6px 0; padding: 2px 12px; border-left: 3px solid var(--gold); color: var(--text-2); }
+  .copy { border: 0; background: none; color: var(--dim); padding: 0 0 0 10px; font-size: 12px; cursor: pointer; }
+  .copy:hover { color: var(--gold); }
+  .card { border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius-sm); overflow: hidden; }
+  .card-head { display: flex; align-items: center; gap: 9px; padding: 8px 12px; cursor: pointer; color: var(--text-2); font-size: 14px; user-select: none; }
+  .card-head:hover { background: var(--panel-2); }
+  .card-head .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-head .count { font-size: 12.5px; color: var(--dim); }
+  .card-head .chev { transition: transform 0.15s; color: var(--dim); }
+  .card.open .card-head .chev { transform: rotate(90deg); }
+  .card-body { display: none; border-top: 1px solid var(--line); padding: 6px 12px 10px; }
+  .card.open .card-body { display: block; }
+  .call { padding: 7px 0 4px; border-bottom: 1px dashed var(--line); } .call:last-child { border-bottom: 0; }
+  .call .line { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .call .state { width: 16px; text-align: center; color: var(--ok); flex: none; } .call .state.err { color: var(--error); }
+  .call .child { font-size: 13px; color: var(--dim); padding-left: 24px; }
+  .call .out { margin: 5px 0 2px 24px; font: 12.5px/1.45 var(--mono); white-space: pre-wrap; max-height: 180px; overflow: auto; color: var(--text-2); background: var(--bg-2); border-radius: 7px; padding: 7px 9px; }
+  .spin { width: 14px; height: 14px; border: 2px solid var(--gold-soft); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; flex: none; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .notice { align-self: center; font-size: 13px; color: var(--dim); background: var(--panel); border: 1px solid var(--line); padding: 5px 12px; border-radius: 999px; max-width: 100%; white-space: pre-wrap; text-align: center; }
+  .notice.plain { color: var(--text-2); } .notice.warn { color: var(--warn); }
+  .notice.error { align-self: stretch; border-radius: var(--radius-sm); background: var(--error-soft); border-color: var(--error); color: var(--text); text-align: left; }
+  .took { font-size: 12px; color: var(--dim); padding-left: 46px; margin-top: -6px; }
+
+  /* Above the composer */
+  .dock { max-width: 780px; margin: 0 auto; padding: 0 18px; display: flex; flex-direction: column; gap: 8px; }
+  .todos { border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13.5px; display: none; }
+  .todos.on { display: block; }
+  .todos .title { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+  .todos div { padding: 2px 0; color: var(--text-2); } .todos .done { color: var(--dim); text-decoration: line-through; } .todos .doing { color: var(--gold); font-weight: 600; }
+  .activity { display: none; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text-2); padding: 0 4px; }
+  .activity.on { display: flex; }
+  .activity .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .activity .sub { color: var(--dim); }
+  .activity .time { color: var(--dim); font-variant-numeric: tabular-nums; }
+  .jump { position: sticky; bottom: 10px; margin: 0 auto; display: none; width: max-content; border: 1px solid var(--line-2); background: var(--panel); color: var(--text-2); border-radius: 999px; padding: 5px 14px; font-size: 13px; cursor: pointer; box-shadow: var(--shadow); }
+  .jump.on { display: block; }
+
+  /* Composer */
+  footer { padding: 10px 0 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg) 30%); }
+  .composer { max-width: 780px; margin: 0 auto; padding: 0 18px; }
+  .box { display: flex; align-items: flex-end; gap: 8px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 18px; padding: 8px 8px 8px 16px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18); transition: border-color 0.15s; }
+  .box:focus-within { border-color: var(--gold); }
+  textarea { flex: 1; resize: none; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; padding: 7px 0; max-height: 38vh; min-height: 24px; }
+  textarea::placeholder { color: var(--dim); }
+  .send { width: 40px; height: 40px; border-radius: 12px; border: 0; background: var(--gold); color: var(--gold-ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; transition: background 0.15s, opacity 0.15s; }
+  .send:hover { background: var(--gold-2); } .send:disabled { opacity: 0.4; cursor: default; }
+  .send.stop { background: var(--error); color: #fff; }
+  .send svg { width: 18px; height: 18px; }
+  .meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); padding: 6px 6px 0; gap: 12px; }
+  .meta .ctx { display: inline-flex; align-items: center; gap: 6px; }
+  .meter { width: 54px; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; } .meter i { display: block; height: 100%; background: var(--gold); }
+
+  /* Dialogs and drawers */
+  .scrim { position: fixed; inset: 0; background: rgba(4, 8, 14, 0.62); backdrop-filter: blur(2px); display: none; z-index: 10; }
+  .scrim.on { display: block; }
+  .dialog { position: fixed; z-index: 11; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 28px)); max-height: 86vh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line-2); border-radius: 18px; box-shadow: var(--shadow); padding: 20px 22px; display: none; }
+  .dialog.on { display: block; animation: rise 0.16s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translate(-50%, -46%); } }
+  .dialog .kicker { font-size: 12px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--gold); font-weight: 650; }
+  .dialog h2 { margin: 4px 0 10px; font-size: 18px; }
+  .dialog .body { color: var(--text-2); font-size: 14.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .dialog .body.md { white-space: normal; color: var(--text); }
+  .dialog .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 18px; }
+  .btn { border-radius: 11px; padding: 9px 16px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); cursor: pointer; min-height: 40px; font-weight: 550; }
+  .btn:hover { border-color: var(--dim); }
+  .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); } .btn.primary:hover { background: var(--gold-2); }
+  .btn.danger { background: transparent; border-color: var(--error); color: var(--error); }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--text-2); }
+  .options { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .option { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--bg-2); }
+  .option:hover { border-color: var(--line-2); } .option.checked { border-color: var(--gold); background: var(--gold-soft); }
+  .option input { accent-color: var(--gold); width: 17px; height: 17px; }
+  .field { width: 100%; margin-top: 10px; background: var(--bg-2); color: var(--text); border: 1px solid var(--line-2); border-radius: 11px; padding: 10px 12px; font: inherit; }
+  .field:focus { outline: none; border-color: var(--gold); }
+  .file-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 13.5px; color: var(--dim); flex-wrap: wrap; }
+  .drawer { position: fixed; z-index: 11; top: 0; right: 0; bottom: 0; width: min(420px, 100vw); background: var(--panel); border-left: 1px solid var(--line-2); box-shadow: var(--shadow); transform: translateX(105%); transition: transform 0.2s ease-out; display: flex; flex-direction: column; }
+  .drawer.on { transform: none; }
+  .drawer-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px; padding-top: max(16px, env(safe-area-inset-top)); border-bottom: 1px solid var(--line); }
+  .drawer-head h2 { margin: 0; font-size: 17px; flex: 1; }
+  .drawer-body { overflow-y: auto; padding: 12px 14px 24px; flex: 1; }
+  .section { font-size: 12px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--dim); margin: 14px 4px 8px; }
+  .run { display: block; width: 100%; text-align: left; padding: 11px 13px; border: 1px solid var(--line); background: var(--bg-2); border-radius: 12px; margin-bottom: 8px; cursor: pointer; color: var(--text-2); }
+  .run:hover { border-color: var(--line-2); color: var(--text); } .run.current { border-color: var(--gold); }
+  .run .when { font-size: 12.5px; color: var(--dim); } .run .tag { color: var(--gold); font-size: 12px; margin-left: 6px; }
+  .ext { padding: 12px 13px; border: 1px solid var(--line); background: var(--bg-2); border-radius: 12px; margin-bottom: 8px; }
+  .ext .top { display: flex; align-items: center; gap: 10px; }
+  .ext .name { font-weight: 650; flex: 1; } .ext .ver { font-size: 12px; color: var(--dim); font-weight: 400; margin-left: 6px; }
+  .ext .desc { font-size: 13.5px; color: var(--text-2); margin-top: 4px; } .ext .why { font-size: 13px; color: var(--warn); margin-top: 4px; }
+  .ext .badge { font-size: 11.5px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+  .toast { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line-2); color: var(--text); padding: 9px 16px; border-radius: 12px; box-shadow: var(--shadow); font-size: 14px; z-index: 20; display: none; max-width: calc(100vw - 32px); }
+  .toast.on { display: block; animation: fade 0.2s ease-out; }
+  @keyframes fade { from { opacity: 0; } }
+
+  /* Another window took over */
+  .away { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; background: rgba(4, 8, 14, 0.78); backdrop-filter: blur(3px); padding: 20px; }
+  .away.on { display: flex; }
+  .away .panel { background: var(--panel); border: 1px solid var(--line-2); border-radius: 18px; padding: 24px; max-width: 380px; text-align: center; box-shadow: var(--shadow); }
+  .away .panel p { color: var(--text-2); margin: 0 0 16px; }
+
+  /* Sign in */
+  .signin { flex: 1; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .signin.on { display: flex; }
+  .signin .panel { width: min(460px, 100%); background: var(--panel); border: 1px solid var(--line-2); border-radius: 20px; padding: 28px 26px; box-shadow: var(--shadow); text-align: center; }
+  .signin svg { width: 76px; height: 76px; }
+  .signin h2 { margin: 12px 0 8px; font-size: 21px; }
+  .signin p { color: var(--text-2); font-size: 14.5px; margin: 0 0 16px; }
+  .signin .error { color: var(--error); font-size: 13.5px; min-height: 1.3em; margin-top: 8px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
+  @media (max-width: 640px) {
+    header { padding: 8px 10px; gap: 6px; }
+    .brand { gap: 8px; }
+    .brand h1 { font-size: 15px; }
+    .brand .tagline, .icon-button .text { display: none; }
+    .brand svg { width: 30px; height: 30px; }
+    .tools-bar { gap: 4px; }
+    .icon-button { height: 34px; min-width: 34px; padding: 0 8px; }
+    .column { padding: 16px 12px 10px; }
+    .dock, .composer { padding: 0 12px; }
+    .welcome { padding-top: 3vh; } .welcome h2 { font-size: 22px; }
+    .dialog { top: auto; bottom: 0; left: 0; right: 0; transform: none; width: auto; border-radius: 18px 18px 0 0; border-bottom: 0; padding: 18px 16px max(18px, env(safe-area-inset-bottom)); max-height: 88vh; overflow-x: hidden; }
+    .dialog.on { animation: up 0.18s ease-out; }
+    @keyframes up { from { transform: translateY(24%); } }
+    .dialog .actions .btn { flex: 1; }
+    .meta .hint { display: none; }
+    .copy { opacity: 1; top: auto; bottom: -24px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span id="logo-header"></span>
+    <div class="names">
+      <h1><span id="name">Captain Whiskers</span><span class="dot" id="dot"></span></h1>
+      <div class="tagline" id="tagline"></div>
+    </div>
+  </div>
+  <div class="tools-bar" id="toolbar">
+    <button class="icon-button mode-button" id="mode-button" type="button" aria-haspopup="true"><span class="swatch"></span><span class="text" id="mode-label"></span></button>
+    <button class="icon-button" id="new-button" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button class="icon-button" id="runs-button" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg></button>
+    <button class="icon-button" id="ext-button" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M10 3h4v3a2 2 0 1 0 4 0V3h3v7h-3a2 2 0 1 0 0 4h3v7h-7v-3a2 2 0 1 0-4 0v3H3v-7h3a2 2 0 1 0 0-4H3V3h7z"/></svg></button>
+  </div>
+  <div class="popover" id="mode-menu" role="menu"></div>
+</header>
+
+<section class="signin" id="signin">
+  <div class="panel">
+    <span id="logo-signin"></span>
+    <h2 id="signin-title"></h2>
+    <p id="signin-text"></p>
+    <input class="field" id="signin-key" type="password" autocomplete="off" spellcheck="false">
+    <div class="error" id="signin-error"></div>
+    <button class="btn primary" id="signin-button" type="button" style="width:100%;margin-top:8px"></button>
+  </div>
+</section>
+
+<main id="scroller">
+  <div class="column" id="column">
+    <div class="welcome" id="welcome">
+      <span id="logo-welcome"></span>
+      <h2 id="welcome-title"></h2>
+      <p id="welcome-text"></p>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+  <button class="jump" id="jump" type="button"></button>
+</main>
+
+<div class="dock">
+  <div class="todos" id="todos"></div>
+  <div class="activity" id="activity"><span class="spin"></span><span class="what" id="activity-text"></span><span class="time" id="activity-time"></span></div>
+</div>
+<footer id="footer">
+  <form class="composer" id="composer">
+    <div class="box">
+      <textarea id="input" rows="1" enterkeyhint="send"></textarea>
+      <button class="send" id="send" type="submit" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    </div>
+    <div class="meta"><span class="hint" id="hint"></span><span class="ctx" id="ctx"></span></div>
+  </form>
+</footer>
+
+<div class="scrim" id="scrim"></div>
+<div class="dialog" id="dialog" role="dialog" aria-modal="true"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head"><h2 id="drawer-title"></h2><button class="icon-button" id="drawer-close" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+<div class="toast" id="toast"></div>
+<div class="away" id="away"><div class="panel"><p id="away-text"></p><button class="btn primary" id="away-button" type="button"></button></div></div>
+
+<script>
+"use strict";
+// La página del capitán: dibuja el estado del controlador de chat del kit (ChatState), que llega
+// por SSE, y manda lo que hace la persona por POST. Sin dependencias ni compilación.
+const token = new URLSearchParams(location.search).get("token") ?? "";
+const $ = (id) => document.getElementById(id);
+let T = {}; // los textos de la página, en el idioma del capitán
+let info = {};
+let state = null; // { signedIn, chat: ChatState | null }
+let connected = false;
+
+// --- El logo: un gato pirata con sombrero y parche.
+const LOGO = `<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="fur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2c650"/><stop offset="1" stop-color="#d9a52c"/></linearGradient></defs>
+<circle cx="32" cy="32" r="31" fill="#1a2740"/><circle cx="32" cy="32" r="31" fill="none" stroke="#e5b53a" stroke-opacity=".55" stroke-width="1.5"/>
+<path d="M15 33 L18 15 L28 24 Z" fill="url(#fur)"/><path d="M49 33 L46 15 L36 24 Z" fill="url(#fur)"/>
+<path d="M18.5 30 L19.5 20 L25 25 Z" fill="#c4572f" opacity=".55"/><path d="M45.5 30 L44.5 20 L39 25 Z" fill="#c4572f" opacity=".55"/>
+<ellipse cx="32" cy="39" rx="17.5" ry="15" fill="url(#fur)"/>
+<path d="M10 23 C17 9 47 9 54 23 C46 18 18 18 10 23 Z" fill="#0b111c"/><path d="M10 23 C18 20 46 20 54 23" fill="none" stroke="#e5b53a" stroke-width="1.6"/>
+<circle cx="32" cy="16.5" r="3" fill="#f3efe4"/><path d="M29.5 21 l5 -1.5 M29.5 19.5 l5 1.5" stroke="#f3efe4" stroke-width="1.1"/>
+<circle cx="25.5" cy="37" r="3.1" fill="#0b111c"/><circle cx="26.4" cy="36" r=".9" fill="#fff"/>
+<path d="M14 30 L43 33" stroke="#0b111c" stroke-width="1.6"/><rect x="34" y="32" width="10.5" height="8" rx="3.5" fill="#0b111c"/>
+<path d="M29.6 43.2 h4.8 l-2.4 2.6 z" fill="#c4572f"/><path d="M32 45.8 v2.2 M32 48 c-1.6 1.6 -3.6 1.4 -4.6 .2 M32 48 c1.6 1.6 3.6 1.4 4.6 .2" stroke="#7a3d17" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+<path d="M20 44 l-9 -1.6 M20 46.5 l-9 1.4 M44 44 l9 -1.6 M44 46.5 l9 1.4" stroke="#fff4d6" stroke-width=".9" stroke-linecap="round" opacity=".8"/></svg>`;
+for (const id of ["logo-header", "logo-signin", "logo-welcome"]) $(id).innerHTML = LOGO;
+$("favicon").href = `data:image/svg+xml,${encodeURIComponent(LOGO)}`;
+
+async function act(action, data = {}) {
+  try {
+    const response = await fetch(`/api/${action}`, { method: "POST", headers: { "content-type": "application/json", "x-token": token }, body: JSON.stringify(data) });
+    const result = await response.json();
+    if (result.error === "busy") toast(T.busyTurn);
+    return result;
+  } catch {
+    toast(T.disconnected);
+    return { error: "network" };
+  }
+}
+
+let toastTimer;
+function toast(text) {
+  const el = $("toast");
+  el.textContent = text;
+  el.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("on"), 2600);
+}
+
+const fill = (template, n) => String(template).replace("{n}", n);
+
+// --- Markdown, lo justo: código, títulos, citas, listas, tablas, negrita, cursiva, código en línea, enlaces.
+const escape = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function inline(s) {
+  return escape(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?!\w)/g, "$1<em>$2</em>")
+    .replace(/(^|[^_\w])_([^_\s][^_]*?)_(?!\w)/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
+}
+const BLOCK = /^(```|#{1,6}\s|>\s?|\s*([-*+]|\d+[.)])\s|\|)/;
+function markdown(text) {
+  const out = [];
+  const lines = String(text).replace(/\r/g, "").split("\n");
+  for (let i = 0; i < lines.length; ) {
+    const line = lines[i];
+    if (line.startsWith("```")) {
+      const code = [];
+      for (i++; i < lines.length && !lines[i].startsWith("```"); i++) code.push(lines[i]);
+      i++;
+      out.push(`<pre><code>${escape(code.join("\n"))}</code></pre>`);
+    } else if (/^#{1,6}\s/.test(line)) {
+      out.push(`<h3>${inline(line.replace(/^#+\s/, ""))}</h3>`);
+      i++;
+    } else if (/^>\s?/.test(line)) {
+      const quote = [];
+      for (; i < lines.length && /^>\s?/.test(lines[i]); i++) quote.push(lines[i].replace(/^>\s?/, ""));
+      out.push(`<blockquote>${markdown(quote.join("\n"))}</blockquote>`);
+    } else if (/^\s*([-*+]|\d+[.)])\s/.test(line)) {
+      const ordered = /^\s*\d/.test(line);
+      const items = [];
+      for (; i < lines.length && /^\s*([-*+]|\d+[.)])\s/.test(lines[i]); i++) items.push(`<li>${inline(lines[i].replace(/^\s*([-*+]|\d+[.)])\s/, ""))}</li>`);
+      // A list split by blank lines goes on counting: each part starts at its own first number.
+      out.push(ordered ? `<ol start="${Number(line.match(/\d+/)[0])}">${items.join("")}</ol>` : `<ul>${items.join("")}</ul>`);
+    } else if (/^\|.*\|\s*$/.test(line)) {
+      const rows = [];
+      for (; i < lines.length && /^\|.*\|\s*$/.test(lines[i]); i++) if (!/^\|[\s:|-]+\|\s*$/.test(lines[i])) rows.push(lines[i]);
+      out.push(`<table>${rows.map((row) => `<tr>${row.trim().slice(1, -1).split("|").map((cell) => `<td>${inline(cell.trim())}</td>`).join("")}</tr>`).join("")}</table>`);
+    } else if (!line.trim()) {
+      i++;
+    } else {
+      const paragraph = [];
+      for (; i < lines.length && lines[i].trim() && !BLOCK.test(lines[i]); i++) paragraph.push(lines[i]);
+      if (!paragraph.length) paragraph.push(lines[i++]);
+      out.push(`<p>${paragraph.map(inline).join("<br>")}</p>`);
+    }
+  }
+  return out.join("");
+}
+
+// --- La conversación, dibujada por partes: cada bloque es un nodo, que solo se rehace si cambió.
+const nodes = new Map(); // id -> { el, sig }
+const openCards = new Set();
+function blockFor(entry, previous, busy, last) {
+  const sig = JSON.stringify([entry, previous?.kind, busy && last]);
+  return { sig, build: () => buildBlock(entry, previous, busy && last) };
+}
+/** A tool's output for a person: the SDK's bookkeeping after a subagent's answer (its id, its usage) left out. */
+function cleanOutput(text) {
+  return String(text)
+    .replace(/\n?agentId: [\s\S]*$/, "")
+    .replace(/<usage>[\s\S]*?<\/usage>/g, "")
+    .trim();
+}
+
+function buildBlock(entry, previous, live) {
+  const div = document.createElement("div");
+  const continues = previous && (previous.kind === "agent" || previous.kind === "tools");
+  switch (entry.kind) {
+    case "user":
+      // A command (/captain-whiskers:learn) reads as one.
+      div.className = `msg-user${entry.text.startsWith("/") ? " command" : ""}`;
+      div.textContent = entry.text;
+      return div;
+    case "agent": {
+      div.className = `captain${continues ? " cont" : ""}`;
+      div.innerHTML = `<div class="avatar">${LOGO}</div><div class="who">${escape(info.name ?? "")}</div><div class="md">${markdown(entry.text)}</div>`;
+      return div;
+    }
+    case "tools": {
+      div.className = `captain${continues ? " cont" : ""}`;
+      const running = live && entry.calls.some((call) => !call.result);
+      const card = document.createElement("div");
+      card.className = `card${openCards.has(entry.id) ? " open" : ""}`;
+      const lastCall = entry.calls.at(-1);
+      const head = running
+        ? `<span class="spin"></span><span class="label">${escape(lastCall.label)}</span>`
+        : `<span class="chev">›</span><span class="label">${escape(entry.calls.map((call) => call.label).join(" · "))}</span>`;
+      card.innerHTML = `<div class="card-head">${head}<span class="count">${escape(fill(T.tools?.[entry.calls.length === 1 ? 0 : 1] ?? "{n}", entry.calls.length))}</span></div><div class="card-body"></div>`;
+      const body = card.querySelector(".card-body");
+      for (const call of entry.calls) {
+        const row = document.createElement("div");
+        row.className = "call";
+        const mark = !call.result ? '<span class="state"><span class="spin"></span></span>' : call.result.isError ? '<span class="state err">✕</span>' : '<span class="state">✓</span>';
+        row.innerHTML = `<div class="line">${mark}<span>${escape(call.label)}</span></div>${call.children.map((child) => `<div class="child">↳ ${escape(child)}</div>`).join("")}${call.result?.text && cleanOutput(call.result.text) ? `<div class="out">${escape(cleanOutput(call.result.text).slice(0, 4000))}</div>` : ""}`;
+        body.append(row);
+      }
+      card.querySelector(".card-head").addEventListener("click", () => {
+        card.classList.toggle("open");
+        card.classList.contains("open") ? openCards.add(entry.id) : openCards.delete(entry.id);
+      });
+      div.innerHTML = `<div class="avatar">${LOGO}</div><div class="who">${escape(info.name ?? "")}</div>`;
+      div.append(card);
+      return div;
+    }
+    case "notice":
+      div.className = `notice ${entry.tone}`;
+      div.textContent = entry.text;
+      return div;
+    case "turn-summary": {
+      div.className = "took";
+      div.textContent = `✻ ${fill(T.seconds ?? "{n} s", entry.seconds)}`;
+      // Copy: the turn's whole reply, the captain's words since the person's line.
+      const reply = turnReply(entry.id);
+      if (reply) {
+        const copy = document.createElement("button");
+        copy.type = "button";
+        copy.className = "copy";
+        copy.textContent = T.copy;
+        copy.addEventListener("click", async () => {
+          await navigator.clipboard?.writeText(reply).catch(() => {});
+          copy.textContent = T.copied;
+          setTimeout(() => (copy.textContent = T.copy), 1500);
+        });
+        div.append(copy);
+      }
+      return div;
+    }
+  }
+  return div;
+}
+
+/** The captain's words in the turn that ends at `summaryId`. */
+function turnReply(summaryId) {
+  const transcript = state?.chat?.transcript ?? [];
+  const end = transcript.findIndex((entry) => entry.id === summaryId);
+  const texts = [];
+  for (let i = end - 1; i >= 0 && transcript[i].kind !== "user"; i--) if (transcript[i].kind === "agent") texts.unshift(transcript[i].text);
+  return texts.join("\n\n").trim();
+}
+
+function renderTranscript(chat) {
+  const column = $("column");
+  const scroller = $("scroller");
+  const stick = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
+  const seen = new Set();
+  let anchor = $("welcome");
+  chat.transcript.forEach((entry, index) => {
+    const { sig, build } = blockFor(entry, chat.transcript[index - 1], chat.busy, index === chat.transcript.length - 1);
+    seen.add(entry.id);
+    const known = nodes.get(entry.id);
+    if (!known) {
+      const el = build();
+      anchor.after(el);
+      nodes.set(entry.id, { el, sig });
+      anchor = el;
+    } else {
+      if (known.sig !== sig) {
+        const el = build();
+        known.el.replaceWith(el);
+        known.el = el;
+        known.sig = sig;
+      }
+      if (known.el.previousElementSibling !== anchor) anchor.after(known.el);
+      anchor = known.el;
+    }
+  });
+  for (const [id, known] of nodes) {
+    if (!seen.has(id)) {
+      known.el.remove();
+      nodes.delete(id);
+    }
+  }
+  $("welcome").style.display = chat.transcript.length ? "none" : "";
+  if (stick) scroller.scrollTop = scroller.scrollHeight;
+  updateJump();
+}
+
+function updateJump() {
+  const scroller = $("scroller");
+  $("jump").classList.toggle("on", scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight > 300);
+}
+$("scroller").addEventListener("scroll", updateJump);
+$("jump").addEventListener("click", () => ($("scroller").scrollTop = $("scroller").scrollHeight));
+
+// --- Todo lo demás.
+function render() {
+  const signedIn = Boolean(state?.signedIn);
+  $("signin").classList.toggle("on", !signedIn && connected);
+  for (const id of ["scroller", "footer"]) $(id).style.display = signedIn ? "" : "none";
+  document.querySelector(".dock").style.display = signedIn ? "" : "none";
+  $("toolbar").style.visibility = signedIn ? "" : "hidden";
+  const chat = state?.chat;
+  $("dot").className = `dot ${!connected ? "offline" : chat?.busy ? "working" : "online"}`;
+  $("dot").title = connected ? T.online ?? "" : T.disconnected ?? "";
+  document.title = `${chat?.busy ? "● " : ""}${info.name ?? "Captain Whiskers"}`;
+  if (!chat) return;
+  renderTranscript(chat);
+
+  // El modo.
+  const button = $("mode-button");
+  button.className = `icon-button mode-button ${chat.mode ?? ""}`;
+  $("mode-label").textContent = T.modes?.[chat.mode] ?? chat.mode ?? "";
+  button.title = `${T.mode}: ${T.modeHelp?.[chat.mode] ?? ""}`;
+  button.disabled = chat.switchableModes.length < 2;
+  buildModeMenu(chat);
+
+  // Trabajando.
+  $("activity").classList.toggle("on", chat.busy);
+  $("activity-text").innerHTML = `${escape(chat.activity ?? T.working)}${chat.subagentActivity ? ` <span class="sub">↳ ${escape(chat.subagentActivity)}</span>` : ""}`;
+  tick();
+  const send = $("send");
+  send.classList.toggle("stop", chat.busy);
+  send.disabled = false;
+  send.setAttribute("aria-label", chat.busy ? T.stop : T.send);
+  send.title = chat.busy ? T.stop : T.send;
+  send.innerHTML = chat.busy
+    ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+  $("input").placeholder = chat.suggestion ?? T.placeholder ?? "";
+
+  // La lista de tareas.
+  const todos = chat.todos ?? [];
+  $("todos").classList.toggle("on", todos.length > 0);
+  $("todos").innerHTML = todos.length
+    ? `<div class="title">${escape(T.plan)}</div>${todos.map((todo) => `<div class="${todo.status === "completed" ? "done" : todo.status === "in_progress" ? "doing" : ""}">${todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "▸" : "○"} ${escape(todo.status === "in_progress" ? todo.activeForm : todo.content)}</div>`).join("")}`
+    : "";
+
+  // El contexto en uso.
+  $("ctx").innerHTML = chat.contextPercent !== null ? `${escape(T.context)} <span class="meter"><i style="width:${Math.min(100, Math.round(chat.contextPercent))}%"></i></span> ${Math.round(chat.contextPercent)}%` : "";
+  renderDialog(chat);
+}
+
+function tick() {
+  const chat = state?.chat;
+  $("activity-time").textContent = chat?.busy && chat.turnStartedAt ? `${Math.max(0, Math.round((Date.now() - chat.turnStartedAt) / 1000))} s` : "";
+}
+setInterval(tick, 1000);
+
+// --- El menú de modos.
+function buildModeMenu(chat) {
+  const menu = $("mode-menu");
+  menu.innerHTML = "";
+  for (const mode of chat.switchableModes) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = mode === chat.mode ? "current" : "";
+    item.innerHTML = `<strong>${escape(T.modes?.[mode] ?? mode)}</strong><span class="help">${escape(T.modeHelp?.[mode] ?? "")}</span>`;
+    item.addEventListener("click", () => {
+      menu.classList.remove("on");
+      void act("mode", { mode });
+    });
+    menu.append(item);
+  }
+}
+$("mode-button").addEventListener("click", (event) => {
+  event.stopPropagation();
+  $("mode-menu").classList.toggle("on");
+});
+document.addEventListener("click", (event) => {
+  if (!$("mode-menu").contains(event.target)) $("mode-menu").classList.remove("on");
+});
+
+// --- Los diálogos: lo que el agente pregunta (panel) y lo que se elige en lugar del prompt (choice).
+let shownKey = null;
+let dialogKeys = null;
+function closeDialog() {
+  $("dialog").classList.remove("on");
+  if (!$("drawer").classList.contains("on")) $("scrim").classList.remove("on");
+  dialogKeys = null;
+}
+function openDialog(build) {
+  const dialog = $("dialog");
+  dialog.innerHTML = "";
+  build(dialog);
+  dialog.classList.add("on");
+  $("scrim").classList.add("on");
+  setTimeout(() => (dialog.querySelector("[data-autofocus]") ?? dialog.querySelector(".btn.primary"))?.focus(), 30);
+}
+const button = (label, cls, onClick) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = `btn ${cls}`;
+  b.textContent = label;
+  b.addEventListener("click", onClick);
+  return b;
+};
+
+function renderDialog(chat) {
+  const key = chat.panel ? `panel-${chat.panel.id}` : chat.choice ? `choice-${chat.choice.title}-${chat.choice.options.length}` : null;
+  if (key === shownKey) return;
+  shownKey = key;
+  if (!key) return closeDialog();
+  if (chat.panel) openDialog((dialog) => buildPanel(dialog, chat.panel));
+  else openDialog((dialog) => buildChoice(dialog, chat.choice));
+}
+
+function buildPanel(dialog, panel) {
+  const answer = (value) => void act("answer", { panelId: panel.id, answer: value });
+  const kicker = { decision: T.approval, manual: T.manual, text: T.question, choice: T.question }[panel.kind] ?? "";
+  // A question's first line is the question: the title, under the captain's kicker (the kit's
+  // own title, "The agent asks", says the same). An approval keeps its title.
+  const asking = (panel.kind === "choice" || panel.kind === "text") && panel.prompt.lines.length > 0 && !panel.prompt.markdown;
+  const title = asking ? panel.prompt.lines[0] : panel.prompt.title;
+  const lines = asking ? panel.prompt.lines.slice(1) : panel.prompt.lines;
+  dialog.innerHTML = `<div class="kicker">${escape(kicker)}</div><h2>${escape(title)}</h2>`;
+  if (lines.length) {
+    const body = document.createElement("div");
+    body.className = `body${panel.prompt.markdown ? " md" : ""}`;
+    if (panel.prompt.markdown) body.innerHTML = markdown(lines.join("\n"));
+    else body.textContent = lines.join("\n");
+    dialog.append(body);
+  }
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  if (panel.kind === "decision") {
+    actions.append(button(T.stopAll, "danger", () => answer("q")), button(T.reject, "", () => answer("n")), button(T.approve, "primary", () => answer("y")));
+    dialogKeys = (event) => {
+      if (event.key === "Escape") answer("n");
+    };
+  } else if (panel.kind === "manual") {
+    actions.append(button(T.done, "primary", () => answer("")));
+  } else if (panel.kind === "text") {
+    const field = document.createElement("input");
+    field.className = "field";
+    field.type = "text";
+    field.dataset.autofocus = "1";
+    const row = document.createElement("div");
+    row.className = "file-row";
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.hidden = true;
+    const status = document.createElement("span");
+    const choose = button(T.attach, "", () => picker.click());
+    picker.addEventListener("change", async () => {
+      const file = picker.files?.[0];
+      if (!file) return;
+      status.textContent = T.uploading;
+      const response = await fetch(`/api/upload?name=${encodeURIComponent(file.name)}`, { method: "POST", headers: { "x-token": token }, body: file });
+      const result = await response.json().catch(() => ({}));
+      if (result.path) {
+        field.value = result.path;
+        status.textContent = `${file.name} · ${T.uploaded}`;
+      } else {
+        status.textContent = result.error ?? "";
+      }
+    });
+    row.append(choose, status, picker);
+    field.addEventListener("keydown", (event) => event.key === "Enter" && answer(field.value));
+    dialog.append(field, row);
+    actions.append(button(T.answer, "primary", () => answer(field.value)));
+  } else if (panel.kind === "choice") {
+    const type = panel.choice.multiple ? "checkbox" : "radio";
+    const options = document.createElement("div");
+    options.className = "options";
+    panel.choice.options.forEach((option, index) => {
+      const label = document.createElement("label");
+      label.className = "option";
+      label.innerHTML = `<input type="${type}" name="choice" value="${index + 1}"><span>${escape(option)}</span>`;
+      const input = label.querySelector("input");
+      input.addEventListener("change", () => {
+        options.querySelectorAll(".option").forEach((other) => other.classList.toggle("checked", other.querySelector("input").checked));
+        // One choice: picking it answers.
+        if (!panel.choice.multiple) answer(input.value);
+      });
+      options.append(label);
+    });
+    const other = document.createElement("textarea");
+    other.className = "field";
+    other.rows = 2;
+    other.placeholder = T.other;
+    other.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey && other.value.trim()) {
+        event.preventDefault();
+        answer(other.value.trim());
+      }
+    });
+    dialog.append(options, other);
+    actions.append(
+      button(T.answer, "primary", () => {
+        const numbers = [...options.querySelectorAll("input:checked")].map((input) => input.value).join(",");
+        const value = [numbers, other.value.trim()].filter(Boolean).join("\n");
+        if (value) answer(value);
+      }),
+    );
+  }
+  dialog.append(actions);
+}
+
+function buildChoice(dialog, choice) {
+  dialog.innerHTML = `<h2>${escape(choice.title)}</h2>`;
+  const options = document.createElement("div");
+  options.className = "options";
+  for (const option of choice.options) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "run";
+    b.textContent = option.label;
+    b.addEventListener("click", () => void act("choose", { value: option.value }));
+    options.append(b);
+  }
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  actions.append(button(T.cancel, "ghost", () => void act("choose", { value: null })));
+  dialog.append(options, actions);
+  dialogKeys = (event) => event.key === "Escape" && void act("choose", { value: null });
+}
+document.addEventListener("keydown", (event) => {
+  if (dialogKeys && $("dialog").classList.contains("on")) dialogKeys(event);
+  else if (event.key === "Escape" && $("drawer").classList.contains("on")) closeDrawer();
+  else if (event.key === "Escape" && state?.chat?.busy) void act("interrupt");
+});
+
+// --- Los cajones: las conversaciones y las extensiones.
+function openDrawer(title, fillBody) {
+  $("drawer-title").textContent = title;
+  const body = $("drawer-body");
+  body.innerHTML = "";
+  fillBody(body);
+  $("drawer").classList.add("on");
+  $("drawer").setAttribute("aria-hidden", "false");
+  $("scrim").classList.add("on");
+}
+function closeDrawer() {
+  $("drawer").classList.remove("on");
+  $("drawer").setAttribute("aria-hidden", "true");
+  if (!$("dialog").classList.contains("on")) $("scrim").classList.remove("on");
+}
+$("drawer-close").addEventListener("click", closeDrawer);
+$("scrim").addEventListener("click", () => {
+  if ($("drawer").classList.contains("on")) closeDrawer();
+});
+
+$("new-button").addEventListener("click", async () => {
+  const result = await act("new");
+  if (!result.error) {
+    openCards.clear();
+    $("input").focus();
+  }
+});
+
+$("runs-button").addEventListener("click", async () => {
+  const result = await act("runs");
+  openDrawer(T.conversations, (body) => {
+    body.append(button(`+  ${T.newConversation}`, "primary", async () => {
+      closeDrawer();
+      await act("new");
+    }));
+    body.lastChild.style.width = "100%";
+    body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.conversations)}</div>`);
+    const runs = result.runs ?? [];
+    if (!runs.length) body.insertAdjacentHTML("beforeend", `<p style="color:var(--dim)">${escape(T.noRuns)}</p>`);
+    for (const run of runs) {
+      const [when, ...rest] = run.label.replace(/^\d+\.\s*/, "").split(" · ");
+      const isCurrent = run.dir === result.current;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = `run${isCurrent ? " current" : ""}`;
+      b.innerHTML = `<div>${escape(rest.join(" · ") || "…")}</div><div class="when">${escape(when.replace(/\s*\(.*?\)\s*$/, ""))}${isCurrent ? `<span class="tag">${escape(T.current)}</span>` : ""}</div>`;
+      b.addEventListener("click", async () => {
+        closeDrawer();
+        if (!isCurrent) {
+          openCards.clear();
+          await act("resume", { dir: run.dir });
+        }
+      });
+      body.append(b);
+    }
+  });
+});
+
+$("ext-button").addEventListener("click", () => {
+  const extensions = state?.chat?.extensions;
+  openDrawer(T.extensions, (body) => {
+    const installed = (name) => extensions?.installed.find((extension) => extension.name === name && !extension.shadowed);
+    const card = (name, extra) => {
+      const ext = installed(name);
+      const div = document.createElement("div");
+      div.className = "ext";
+      const description = ext?.manifest?.description ?? extensions?.about?.[name]?.description ?? "";
+      div.innerHTML = `<div class="top"><span class="name">${escape(name)}${ext?.manifest?.version ? `<span class="ver">${escape(ext.manifest.version)}</span>` : ""}</span>${ext ? "" : `<span class="badge">${escape(T.builtIn)}</span>`}</div>${description ? `<div class="desc">${escape(description)}</div>` : ""}${extra ?? ""}`;
+      return div;
+    };
+    body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.active)}</div>`);
+    for (const name of extensions?.active ?? []) {
+      const div = card(name);
+      if (installed(name)) {
+        div.querySelector(".top").append(button(T.turnOff, "", async () => {
+          closeDrawer();
+          await act("extension", { name, enabled: false });
+        }));
+      }
+      body.append(div);
+    }
+    const off = extensions?.inactive ?? [];
+    if (off.length) {
+      body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.inactive)}</div>`);
+      for (const item of off) body.append(card(item.name, `<div class="why">${escape(item.reason)}</div>`));
+    }
+    const disabled = (extensions?.installed ?? []).filter((extension) => !extension.lock.enabled && !extension.shadowed);
+    if (disabled.length) {
+      body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.disabled)}</div>`);
+      for (const extension of disabled) {
+        const div = card(extension.name);
+        div.querySelector(".top").append(button(T.turnOn, "primary", async () => {
+          closeDrawer();
+          await act("extension", { name: extension.name, enabled: true });
+        }));
+        body.append(div);
+      }
+    }
+  });
+});
+
+// --- Escribir.
+const input = $("input");
+const grow = () => {
+  input.style.height = "auto";
+  input.style.height = `${Math.min(input.scrollHeight, window.innerHeight * 0.38)}px`;
+};
+input.addEventListener("input", grow);
+input.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+    event.preventDefault();
+    $("composer").requestSubmit();
+  } else if (event.key === "Tab" && !input.value && state?.chat?.suggestion) {
+    event.preventDefault();
+    input.value = state.chat.suggestion;
+    grow();
+  }
+});
+async function sendLine(line) {
+  const result = await act("send", { line });
+  return !result.error;
+}
+$("composer").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (state?.chat?.busy) return void act("interrupt");
+  const line = input.value.trim();
+  if (!line) return;
+  input.value = "";
+  grow();
+  // If it didn't go (the captain was still busy), it stays in the box.
+  if (!(await sendLine(line))) {
+    input.value = line;
+    grow();
+  }
+});
+
+$("signin-button").addEventListener("click", async () => {
+  const result = await act("login", { token: $("signin-key").value });
+  $("signin-error").textContent = result.error ? T.invalidKey : "";
+});
+$("signin-key").addEventListener("keydown", (event) => event.key === "Enter" && $("signin-button").click());
+
+// --- La conexión: el estado por SSE; si se cae, el navegador reconecta solo.
+function applyInfo() {
+  document.documentElement.lang = info.language;
+  $("name").textContent = info.name;
+  $("tagline").textContent = T.tagline;
+  $("welcome-title").textContent = T.welcomeTitle;
+  $("welcome-text").textContent = T.welcomeText;
+  $("chips").innerHTML = "";
+  for (const suggestion of T.suggestions ?? []) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.innerHTML = `<span class="emoji">${suggestion.icon}</span><span>${escape(suggestion.label)}</span>`;
+    chip.addEventListener("click", () => void sendLine(suggestion.prompt));
+    $("chips").append(chip);
+  }
+  $("hint").textContent = T.hint;
+  $("jump").textContent = `↓ ${T.jump}`;
+  $("new-button").title = T.newConversation;
+  $("runs-button").title = T.conversations;
+  $("ext-button").title = T.extensions;
+  $("signin-title").textContent = T.signInTitle;
+  $("signin-text").innerHTML = inline(T.signInText);
+  $("signin-key").placeholder = T.signInPlaceholder;
+  $("signin-button").textContent = T.signIn;
+}
+let events;
+let replaced = false;
+$("away-button").addEventListener("click", () => {
+  replaced = false;
+  $("away").classList.remove("on");
+  connect();
+});
+function connect() {
+  events = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
+  events.addEventListener("open", () => {
+    connected = true;
+    render();
+  });
+  events.addEventListener("info", (event) => {
+    info = JSON.parse(event.data);
+    T = info.texts;
+    applyInfo();
+  });
+  events.addEventListener("state", (event) => {
+    state = JSON.parse(event.data);
+    connected = true;
+    render();
+  });
+  // Another window took over: this one stops, says so, and can take it back.
+  events.addEventListener("replaced", () => {
+    events.close();
+    connected = false;
+    replaced = true;
+    $("away-text").textContent = T.replaced;
+    $("away-button").textContent = T.useHere;
+    $("away").classList.add("on");
+    render();
+  });
+  events.onerror = () => {
+    connected = false;
+    render();
+  };
+}
+connect();
+</script>
+</body>
+</html>
