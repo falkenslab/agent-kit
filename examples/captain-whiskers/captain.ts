@@ -47,7 +47,7 @@ const TEXTS: Record<Language, CaptainTexts> = {
     mode: "modo",
     welcome: "El Capitán Bigotes ha subido a bordo. Escribe /exit para desembarcar, /captain-whiskers:joke para pedirle uno directamente o /resume para retomar una conversación.",
     suggestion: "cuéntame un chiste fresco",
-    tokenSaved: (file) => `Token guardado en ${file} (ignorado por git).`,
+    tokenSaved: (file) => `Token guardado en ${file}.`,
   },
   en: {
     name: "Captain Whiskers",
@@ -55,7 +55,7 @@ const TEXTS: Record<Language, CaptainTexts> = {
     mode: "mode",
     welcome: "Captain Whiskers is aboard. Type /exit to disembark, /captain-whiskers:joke to ask for a joke right away or /resume to pick up a conversation.",
     suggestion: "tell me a fresh joke",
-    tokenSaved: (file) => `Token saved to ${file} (ignored by git).`,
+    tokenSaved: (file) => `Token saved to ${file}.`,
   },
   fr: {
     name: "Capitaine Moustaches",
@@ -63,7 +63,7 @@ const TEXTS: Record<Language, CaptainTexts> = {
     mode: "mode",
     welcome: "Le Capitaine Moustaches est à bord. Tape /exit pour débarquer, /captain-whiskers:joke pour une blague tout de suite ou /resume pour reprendre une conversation.",
     suggestion: "raconte-moi une nouvelle blague",
-    tokenSaved: (file) => `Jeton enregistré dans ${file} (ignoré par git).`,
+    tokenSaved: (file) => `Jeton enregistré dans ${file}.`,
   },
   de: {
     name: "Käpt'n Schnurrbart",
@@ -71,7 +71,7 @@ const TEXTS: Record<Language, CaptainTexts> = {
     mode: "Modus",
     welcome: "Käpt'n Schnurrbart ist an Bord. Tippe /exit zum Vonbordgehen, /captain-whiskers:joke für einen Witz oder /resume, um ein Gespräch fortzusetzen.",
     suggestion: "erzähl mir einen neuen Witz",
-    tokenSaved: (file) => `Token in ${file} gespeichert (von git ignoriert).`,
+    tokenSaved: (file) => `Token in ${file} gespeichert.`,
   },
 };
 /** Sus textos en `language`, o en el idioma del kit ahora mismo. */
@@ -180,15 +180,12 @@ export function makeSpec(): AgentSpec<BaseSessionConfig> {
   };
 }
 
-/** Dónde vive lo suyo: su espacio de trabajo (este proyecto) y su casa (lo de todos sus proyectos). */
-export interface CaptainPlaces {
-  /** Su proyecto: el cuaderno, el cofre, las ejecuciones. Por defecto, workspace/ junto a su código. */
-  workspace?: string;
-  /** Lo suyo en todos sus proyectos (su memoria de ti, las extensiones que se le instalan). Por defecto ~/.captain-whiskers. */
-  home?: string;
-  /** El modo con el que empieza. */
-  mode?: Mode;
-}
+/**
+ * Su casa, ~/.captain-whiskers (CAPTAIN_HOME la cambia): todo lo suyo, en sus tres caras. Es
+ * también su proyecto, porque no trabaja sobre los de nadie: el cuaderno, el cofre, las
+ * conversaciones, lo que recuerda de ti, sus extensiones y su configuración.
+ */
+export const CAPTAIN_HOME = process.env.CAPTAIN_HOME || path.join(os.homedir(), ".captain-whiskers");
 
 /** El modo de CAPTAIN_MODE, o guiado: puede preguntar (ask_human, request_file, retirar). */
 export function modeFromEnv(): Mode {
@@ -197,54 +194,76 @@ export function modeFromEnv(): Mode {
 }
 
 /** Sus carpetas, su configuración y cómo se abre su sesión en una carpeta de ejecución. */
-export async function createCaptain(places: CaptainPlaces = {}) {
-  const workspace = places.workspace ?? path.join(CAPTAIN_DIR, "workspace");
-  const home = places.home ?? (process.env.CAPTAIN_HOME || path.join(os.homedir(), ".captain-whiskers"));
-  const mode = places.mode ?? modeFromEnv();
-  // Dónde se le instalan extensiones (#37): las suyas, para todos sus proyectos, y las de este.
-  const extensionDirs = { agent: path.join(home, "extensions"), project: path.join(workspace, "extensions") };
+export async function createCaptain(options: { home?: string; mode?: Mode } = {}) {
+  const home = options.home ?? CAPTAIN_HOME;
+  const mode = options.mode ?? modeFromEnv();
   // Su cuaderno de bitácora (la base de conocimiento) y su cofre (los originales). La primera
   // vez, el cofre recibe las muestras de treasure-samples/.
-  const logbook = path.join(workspace, "logbook");
-  const treasure = path.join(workspace, "treasure");
+  const logbook = path.join(home, "logbook");
+  const treasure = path.join(home, "treasure");
   await stockTheChest(treasure);
+  // Las extensiones que se le instalan (#37), en un solo sitio: su casa es su único proyecto.
+  const extensionDirs = { agent: path.join(home, "extensions") };
   const config: BaseSessionConfig = {
     mode,
-    // El proyecto es el espacio de trabajo: el modelo ve logbook/ y treasure/, como siempre.
-    projectDir: workspace,
+    // Su casa es su proyecto: el modelo ve logbook/ y treasure/, y nada más de ella.
+    projectDir: home,
     knowledgeDir: logbook,
     sourcesDir: treasure,
-    // Lo que recuerda de quien navega con él, en todos sus proyectos: fuera de este, y solo suya.
+    // Lo que recuerda de quien navega con él: solo por sus herramientas, nunca leído como fichero.
     memoryDir: path.join(home, "memory"),
     extensionDirs,
+    // Su clave de Claude, en config.json: nunca a la vista del modelo.
+    deniedPaths: [configPath(home)],
   };
   // Cada ejecución en su carpeta de .run/: su log, su transcripción y la conversación, para
   // retomarla con --continue (la última) o /resume.
-  const runsDir = path.join(workspace, ".run");
+  const runsDir = path.join(home, ".run");
   // Su spec se hace cada vez que se abre la sesión: en el idioma de ese momento.
   const opener: SessionOpener = (run) => buildSessionOptions(config, run.dir, makeSpec(), { run });
-  return { workspace, home, mode, config, runsDir, extensionDirs, opener, historyPath: path.join(runsDir, "history.jsonl") };
+  return { home, mode, config, runsDir, extensionDirs, opener, historyPath: path.join(runsDir, "history.jsonl") };
 }
 
-/** Lo que recuerda de cómo le gusta a la persona (el idioma elegido en su web), en su casa. */
-export interface CaptainSettings {
+/** Su configuración (config.json en su casa): la clave de Claude, el idioma elegido, la ventana de su app. */
+export interface CaptainConfig {
+  /** La clave con la que entra en Claude: un token OAuth (`sk-ant-oat…`) o una API key (`sk-ant-api…`). */
+  claudeToken?: string;
   language?: Language;
+  /** Dónde y de qué tamaño quedó la ventana de su app de escritorio. */
+  window?: { x?: number; y?: number; width: number; height: number };
 }
 
-/** Sus ajustes guardados en su casa, o ninguno. */
-export async function loadSettings(home: string): Promise<CaptainSettings> {
+const configPath = (home: string): string => path.join(home, "config.json");
+
+/** Su configuración, o ninguna. */
+export async function loadConfig(home: string = CAPTAIN_HOME): Promise<CaptainConfig> {
   try {
-    const settings = JSON.parse(await readFile(path.join(home, "settings.json"), "utf8")) as CaptainSettings;
-    return settings.language && !SUPPORTED_LANGUAGES.includes(settings.language) ? {} : settings;
+    const config = JSON.parse(await readFile(configPath(home), "utf8")) as CaptainConfig;
+    if (config.language && !SUPPORTED_LANGUAGES.includes(config.language)) delete config.language;
+    return config;
   } catch {
     return {};
   }
 }
 
-/** Guarda sus ajustes en su casa (con lo que ya hubiera). */
-export async function saveSettings(home: string, changes: CaptainSettings): Promise<void> {
+/** Guarda cambios en su configuración (con lo que ya hubiera), legible solo por quien lo ejecuta. */
+export async function saveConfig(home: string, changes: CaptainConfig): Promise<void> {
   await mkdir(home, { recursive: true });
-  await writeFile(path.join(home, "settings.json"), `${JSON.stringify({ ...(await loadSettings(home)), ...changes }, null, 2)}\n`, "utf8");
+  await writeFile(configPath(home), `${JSON.stringify({ ...(await loadConfig(home)), ...changes }, null, 2)}
+`, { encoding: "utf8", mode: 0o600 });
+}
+
+/** La variable de entorno que el SDK lee para una clave: por su prefijo, o ninguna si no lo parece. */
+export function claudeKeyVariable(token: string): "CLAUDE_CODE_OAUTH_TOKEN" | "ANTHROPIC_API_KEY" | null {
+  return token.startsWith("sk-ant-api") ? "ANTHROPIC_API_KEY" : token.startsWith("sk-ant-oat") ? "CLAUDE_CODE_OAUTH_TOKEN" : null;
+}
+
+/** La clave guardada, puesta en el entorno para el SDK; la del entorno, si ya hay una, manda. */
+export async function useSavedClaudeKey(home: string = CAPTAIN_HOME): Promise<void> {
+  if (process.env.CLAUDE_CODE_OAUTH_TOKEN || process.env.ANTHROPIC_API_KEY) return;
+  const token = (await loadConfig(home)).claudeToken;
+  const variable = token ? claudeKeyVariable(token) : null;
+  if (variable) process.env[variable] = token;
 }
 
 /** Copia las muestras al cofre si aún no tiene nada (una carpeta nueva, o vacía). */

@@ -10,13 +10,17 @@ Asking in plain words works as well as the commands ("tell me a fresh joke", "ho
 
 ## Your folders
 
-They're in `workspace/`, inside your own folder (`examples/captain-whiskers`): tell the person so when they need to find one, e.g. to drop a file in `workspace/treasure/`.
+They're in your home, `~/.captain-whiskers` (or wherever `CAPTAIN_HOME` says), the same whether they use you in the terminal, the browser or the app: tell the person so when they need to find one, e.g. to drop a file in `~/.captain-whiskers/treasure/` (in the browser and the app they can also drop it on the page).
 
 - `logbook/`: your logbook, the knowledge base where you note what you learn and the jokes you've told (one page each, with the parrot's score).
 - `treasure/`: your treasure chest of originals. The person can drop files in it (markdown, PDF, Word, PowerPoint, Excel) and then run `/captain-whiskers:learn`. On the first start it gets two samples: a PowerPoint on knots and a Word document with the ship's rules.
 - `.run/`: each conversation's log and transcript, one folder per run; it's what `/resume` and `--continue` pick from.
 
-Deleting `workspace/` starts over. What you remember of the person is elsewhere, in your memory (`~/.captain-whiskers/memory/`), across all their projects: `/memory:list` shows it.
+- `memory/`: what you remember of the person; `/memory:list` shows it.
+- `extensions/`: the extensions installed for you, such as your jokebook.
+- `config.json`: their Claude key, the language they chose and the app's window. Never show or repeat what's in it.
+
+Deleting `~/.captain-whiskers` starts over (keeping `config.json` spares signing in again).
 
 ## Your crew
 
@@ -34,11 +38,11 @@ The person can use you in a terminal (`npm start`), in a browser (`npm start -- 
 
 ## Starting you
 
-From the `examples/captain-whiskers` folder: `npm start`. After `npm start --`, the kit's `--language=<code>` and `--continue` work. Environment variables (or a `.env` file in that folder):
+From the `examples/captain-whiskers` folder: `npm start`. After `npm start --`, the kit's `--language=<code>` and `--continue` work. Environment variables:
 
-- `CAPTAIN_HOME`: your folder for all your projects (your memory of the person, the extensions installed for you), by default `~/.captain-whiskers/`.
+- `CAPTAIN_HOME`: your home, by default `~/.captain-whiskers/`.
 - `CAPTAIN_MODE`: the mode to start in, `guided` (the default), `interactive`, `plan` or `autonomous`.
 - `CAPTAIN_TOOL_DETAIL`: how much of the tool calls the chat shows, `full` (the default), `calls` (without their results) or `summary` (one line per group).
 - `CAPTAIN_INLINE=1`: the chat inline, with the terminal's own scrollback, instead of full screen.
 - `CAPTAIN_PLAIN=1`: the plain line-by-line chat.
-- `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`: the Claude authentication; without either, the captain offers to create a token at startup.
+- `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`: the Claude authentication, over the one saved in `config.json`; without either, the terminal offers to create a token at startup, and the browser and the app ask for it on the page.

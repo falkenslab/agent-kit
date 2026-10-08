@@ -1,9 +1,9 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { addExtension, agentKitVersion, createChatController, getLanguage, listInstalled, resolveClaudeAuth, SUPPORTED_LANGUAGES, switchLanguage, type ChatController, type Language, type Mode } from "@falkenslab/agent-kit";
-import { CAPTAIN_DIR, loadSettings, saveSettings, texts, version, type createCaptain } from "../captain.js";
+import { CAPTAIN_DIR, claudeKeyVariable, loadConfig, saveConfig, texts, useSavedClaudeKey, version, type createCaptain } from "../captain.js";
 import { chestTexts, pageTexts } from "./texts.js";
 
 // El capitán en el navegador (ADR-026, #44): su propia web, sobre el controlador de chat del
@@ -18,8 +18,6 @@ export interface WebChatOptions {
   port?: number;
   /** El token de la URL; uno aleatorio si no se da. */
   token?: string;
-  /** Dónde guardar el token de Claude que la persona pegue al iniciar sesión. */
-  envPath: string;
 }
 
 /** Lo más grande que se puede subir para el cofre. */
@@ -29,7 +27,7 @@ const MAX_UPLOAD = 50 * 1024 * 1024;
  * Arranca su web: devuelve la URL (con el token) y cómo cerrarla. Sin token de Claude, la página
  * lo pide; con él, abre la sesión.
  */
-export async function startWebChat(captain: Captain, options: WebChatOptions): Promise<{ url: string; close: () => Promise<void> }> {
+export async function startWebChat(captain: Captain, options: WebChatOptions = {}): Promise<{ url: string; close: () => Promise<void> }> {
   const token = options.token ?? randomBytes(18).toString("base64url");
   // His jokebook comes with him, in the browser as in the app: installed for him on the first
   // start, like any extension. From outside the archive when he runs packaged: another process reads it.
@@ -38,7 +36,9 @@ export async function startWebChat(captain: Captain, options: WebChatOptions): P
     await addExtension(jokebook, captain.extensionDirs.agent);
   }
   // The language the person last chose here, kept in his home (#47).
-  const saved = (await loadSettings(captain.home)).language;
+  const saved = (await loadConfig(captain.home)).language;
+  // His Claude key, from his config.json when the environment brings none.
+  await useSavedClaudeKey(captain.home);
   if (saved) switchLanguage(saved);
 
   // La sesión, en cuanto hay con qué autenticarse.
@@ -143,7 +143,7 @@ export async function startWebChat(captain: Captain, options: WebChatOptions): P
         if (current.getState().busy) return { error: "busy" };
         // His name follows the language too: the conversation so far would keep the old one.
         await current.setLanguage(language, { note: `Your name is now ${texts(language).name}.` });
-        await saveSettings(captain.home, { language });
+        await saveConfig(captain.home, { language });
         // The page's texts, the captain's name: anew, in the language chosen.
         send("info", info());
         return {};
@@ -153,23 +153,21 @@ export async function startWebChat(captain: Captain, options: WebChatOptions): P
     }
   }
 
-  /** The token the person pasted: an API key or an OAuth token, into the .env and the process. */
+  /** The token the person pasted: an API key or an OAuth token, into his config.json and the process. */
   async function signIn(pasted: string): Promise<unknown> {
     const value = pasted.trim();
-    const variable = value.startsWith("sk-ant-api") ? "ANTHROPIC_API_KEY" : value.startsWith("sk-ant-oat") ? "CLAUDE_CODE_OAUTH_TOKEN" : null;
+    const variable = claudeKeyVariable(value);
     if (!variable) return { error: "invalid" };
     process.env[variable] = value;
-    await mkdir(path.dirname(options.envPath), { recursive: true });
-    const previous = await readFile(options.envPath, "utf8").catch(() => "");
-    await appendFile(options.envPath, `${previous && !previous.endsWith("\n") ? "\n" : ""}${variable}=${value}\n`);
+    await saveConfig(captain.home, { claudeToken: value });
     await openChat();
     return {};
   }
 
-  /** A file the person chose (the captain asked for one): kept in the workspace, its path for the answer. */
+  /** A file the person chose (the captain asked for one): kept in his home, its path for the answer. */
   async function upload(request: IncomingMessage, url: URL): Promise<unknown> {
     const name = path.basename(url.searchParams.get("name") ?? "file").replace(/[^\w.\- ()]/g, "_") || "file";
-    const dir = path.join(captain.workspace, ".uploads", new Date().toISOString().replace(/[:.]/g, "-"));
+    const dir = path.join(captain.home, ".uploads", new Date().toISOString().replace(/[:.]/g, "-"));
     await mkdir(dir, { recursive: true });
     const file = path.join(dir, name);
     await writeFile(file, await raw(request, MAX_UPLOAD));
@@ -196,7 +194,7 @@ export async function startWebChat(captain: Captain, options: WebChatOptions): P
     if (!current || !addSource) return { error: "no chest" };
     if (current.getState().busy) return { error: "busy" };
     const name = path.basename(url.searchParams.get("name") ?? "file").replace(/[^\w.\- ()]/g, "_") || "file";
-    const temp = path.join(captain.workspace, ".uploads", `${Date.now()}-${name}`);
+    const temp = path.join(captain.home, ".uploads", `${Date.now()}-${name}`);
     await mkdir(path.dirname(temp), { recursive: true });
     await writeFile(temp, await raw(request, MAX_UPLOAD));
     const say = chestTexts(getLanguage());

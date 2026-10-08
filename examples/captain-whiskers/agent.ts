@@ -1,22 +1,11 @@
-import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import pc from "picocolors";
 import { agentKitVersion, ensureClaudeAuth, getLanguage, messagesFor, runChatInk, runExtensionCommand, ui, type ToolDetail } from "@falkenslab/agent-kit";
-import { CAPTAIN_DIR, createCaptain, texts } from "./captain.js";
+import { createCaptain, saveConfig, texts, useSavedClaudeKey } from "./captain.js";
 import { startWebChat } from "./web/server.js";
 
 // El capitán en la terminal, y en el navegador con --web. Lo que hace ser al capitán está en
 // captain.ts; aquí, solo cómo se le ve.
-
-// Node no carga .env por su cuenta. Se lee antes que nada (CAPTAIN_* incluidas); lo que ya
-// esté en el entorno manda sobre el fichero, y sin .env todo sigue igual.
-// CAPTAIN_ENV lo cambia (p. ej. para probar el inicio de sesión de su web con otro).
-const envPath = process.env.CAPTAIN_ENV || path.join(CAPTAIN_DIR, ".env");
-try {
-  process.loadEnvFile(envPath);
-} catch (error) {
-  if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-}
 
 // El logo de la cabecera: un gato con sombrero pirata y parche. Solo caracteres de una
 // columna (ASCII y bloques): un emoji descuadraría el título que va a su derecha.
@@ -29,10 +18,10 @@ const LOGO = [
 ];
 
 async function main(): Promise<void> {
-  // Todo lo que guarda vive en workspace/ (ignorado por git), su proyecto: así la carpeta del
-  // capitán solo tiene su código. Lo suyo en todos sus proyectos (su memoria de ti, las
-  // extensiones que se le instalan para todos) en ~/.captain-whiskers, o CAPTAIN_HOME.
+  // Todo lo suyo vive en su casa, ~/.captain-whiskers (o CAPTAIN_HOME), la misma en sus tres
+  // caras; su clave de Claude, en su config.json, si el entorno no trae una.
   const captain = await createCaptain();
+  await useSavedClaudeKey(captain.home);
   const text = texts();
 
   // `npm start -- extension add ./extensions/jokebook` (list, remove, enable, disable): el
@@ -41,22 +30,20 @@ async function main(): Promise<void> {
   if (await runExtensionCommand(args, { dirs: captain.extensionDirs, command: "npm start --" })) return;
 
   // En el navegador: su propia web, sobre el controlador de chat del kit. Sin token, la página
-  // lo pide y lo guarda en el .env de su carpeta.
+  // lo pide y la guarda en su config.json.
   if (args.includes("--web")) {
     const port = process.env.CAPTAIN_PORT ? Number(process.env.CAPTAIN_PORT) : undefined;
-    const { url } = await startWebChat(captain, { envPath, ...(port ? { port } : {}), ...(process.env.CAPTAIN_WEB_TOKEN ? { token: process.env.CAPTAIN_WEB_TOKEN } : {}) });
+    const { url } = await startWebChat(captain, { ...(port ? { port } : {}), ...(process.env.CAPTAIN_WEB_TOKEN ? { token: process.env.CAPTAIN_WEB_TOKEN } : {}) });
     console.log(`${text.name}: ${url}`);
     return;
   }
 
-  // Sin CLAUDE_CODE_OAUTH_TOKEN/ANTHROPIC_API_KEY (en el entorno o en .env) ofrece generar
-  // un token. El kit no lo guarda: lo devuelve, y aquí se añade a .env para la próxima vez.
+  // Sin CLAUDE_CODE_OAUTH_TOKEN/ANTHROPIC_API_KEY (en el entorno o en su config.json) ofrece
+  // generar un token. El kit no lo guarda: lo devuelve, y aquí va a config.json para la próxima vez.
   const newToken = await ensureClaudeAuth();
   if (newToken) {
-    const previous = await readFile(envPath, "utf8").catch(() => "");
-    const separator = previous && !previous.endsWith("\n") ? "\n" : "";
-    await appendFile(envPath, `${separator}CLAUDE_CODE_OAUTH_TOKEN=${newToken}\n`);
-    console.log(ui.dim(text.tokenSaved(envPath)));
+    await saveConfig(captain.home, { claudeToken: newToken });
+    console.log(ui.dim(text.tokenSaved(path.join(captain.home, "config.json"))));
   }
 
   // Cuánto de las herramientas enseña el chat: CAPTAIN_TOOL_DETAIL=full (por defecto), calls

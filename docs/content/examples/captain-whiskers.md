@@ -88,7 +88,7 @@ He has the kit's [awareness](../capabilities/awareness.md): asked what mode he's
 
 ### Bring his own extension
 
-Besides the kit's `sources`, `knowledge` and `memory` (what he remembers of whoever sails with him, in `~/.captain-whiskers/memory/`, across all their projects: see [Memory of the person](../capabilities/memory.md)), he can be given more. His `jokebook` is one any agent on the kit could install: a folder in his project (`extensions/jokebook/`) with its manifest, its own MCP server (a small Node script the kit runs in a separate process), a skill and the parrot. Install it with `npm start -- extension add ./extensions/jokebook` (for all his projects, in `~/.captain-whiskers/extensions/`) or with `--project` (only this one, in `workspace/extensions/`). Its tool, `classic_joke`, tells a classic from the book; its skill, `rank-jokes`, ranks his logbook's jokes, and requires the `knowledge-base` capability, so it's only offered with the logbook on. In the chat, `/extensions` lists what he runs with, and `/extensions disable jokebook` turns it off without leaving the conversation. See [Extensions](../capabilities/extensions.md#installing-extensions).
+Besides the kit's `sources`, `knowledge` and `memory` (what he remembers of whoever sails with him, in his home's `memory/`: see [Memory of the person](../capabilities/memory.md)), he can be given more. His `jokebook` is one any agent on the kit could install: a folder in his project (`extensions/jokebook/`) with its manifest, its own MCP server (a small Node script the kit runs in a separate process), a skill and the parrot. His browser and app install it on their first start; in the terminal, `npm start -- extension add ./extensions/jokebook` installs it in his home's `extensions/`, his only scope, since his home is his only project. Its tool, `classic_joke`, tells a classic from the book; its skill, `rank-jokes`, ranks his logbook's jokes, and requires the `knowledge-base` capability, so it's only offered with the logbook on. In the chat, `/extensions` lists what he runs with, and `/extensions disable jokebook` turns it off without leaving the conversation. See [Extensions](../capabilities/extensions.md#installing-extensions).
 
 ### Speak your language
 
@@ -116,7 +116,7 @@ npm start -- --web                      # in a browser: prints the URL to open
 
 As a desktop app, from `examples/captain-whiskers/desktop/`: `npm run build`, `npm install`, then `npm start` (unpackaged) or `npm run dist` (the installer).
 
-It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment or in `examples/captain-whiskers/.env`; without one, it offers to create a token.
+It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment, or the token saved in his `config.json`; without one, the terminal offers to create a token, and the browser and the app ask for it on the page.
 
 ## Files
 
@@ -138,25 +138,27 @@ examples/captain-whiskers/
 │   ├── commands/stock-the-chest.md  /captain-whiskers:stock-the-chest
 │   ├── commands/learn.md            /captain-whiskers:learn
 │   └── commands/logbook-check.md    /captain-whiskers:logbook-check
-├── treasure-samples/            a PPTX on knots and a DOCX of the ship's rules
-└── workspace/                   his project, git-ignored: everything he keeps
-    ├── logbook/                 his knowledge base
-    ├── treasure/                his chest of originals
-    └── .run/                    one folder per run
+└── treasure-samples/            a PPTX on knots and a DOCX of the ship's rules
+
+~/.captain-whiskers/             his home and his project, the same for his three faces
+├── config.json                  his Claude key, his language, the app's window
+├── logbook/                     his knowledge base
+├── treasure/                    his chest of originals
+├── memory/                      what he remembers of you
+├── extensions/                  the extensions installed for him
+└── .run/                        one folder per run
 ```
 
-## 1. Environment and language
+## 1. His key and his language
 
 ```ts
-const envPath = path.join(__dirname, ".env");
-try {
-  process.loadEnvFile(envPath);
-} catch (error) {
-  if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-}
+// The environment's key wins; otherwise the one saved in his config.json.
+await useSavedClaudeKey(home);
 
 const { language } = detectLanguage();
 ```
+
+His home's `config.json` keeps the Claude key (`claudeToken`), the language chosen in his browser or app, and the app's window, written readable only by its user. The kit's file scope keeps the model off it: `deniedPaths: [path.join(home, "config.json")]`.
 
 `detectLanguage()` resolves the kit's language (`--language`, else the system's) so the captain can pick his own texts: his name and on-screen texts come in the four languages, in a `TEXTS` record keyed by language. See [Languages](../sessions/languages.md#an-agents-own-texts).
 
@@ -239,20 +241,21 @@ const spec: AgentSpec<BaseSessionConfig> = {
 ## 6. The chat
 
 ```ts
-const workspace = path.join(__dirname, "workspace"); // everything he keeps, git-ignored
-const runsDir = path.join(workspace, ".run");
-const logbook = path.join(workspace, "logbook");
-const treasure = path.join(workspace, "treasure");
+const home = process.env.CAPTAIN_HOME || path.join(os.homedir(), ".captain-whiskers"); // everything he keeps
+const runsDir = path.join(home, ".run");
+const logbook = path.join(home, "logbook");
+const treasure = path.join(home, "treasure");
 const modes: Mode[] = ["autonomous", "guided", "interactive", "plan"];
 const mode = modes.find((m) => m === process.env.CAPTAIN_MODE) ?? "guided";
 await stockTheChest(treasure); // the samples, on the first start
 const config: BaseSessionConfig = {
   mode,
-  projectDir: workspace, // the model sees logbook/ and treasure/
+  projectDir: home, // his home is his project: the model sees logbook/ and treasure/
   knowledgeDir: logbook,
   sourcesDir: treasure,
-  memoryDir: path.join(home, "memory"), // home: ~/.captain-whiskers, or CAPTAIN_HOME
-  extensionDirs: { agent: path.join(home, "extensions"), project: path.join(workspace, "extensions") },
+  memoryDir: path.join(home, "memory"), // only through the memory's tools
+  extensionDirs: { agent: path.join(home, "extensions") }, // one scope: his only project
+  deniedPaths: [path.join(home, "config.json")], // his Claude key
 };
 const toolDetail = details.find((d) => d === process.env.CAPTAIN_TOOL_DETAIL) ?? "full";
 
@@ -272,7 +275,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 });
 ```
 
-- **A session opener with `runsDir`**: every run in `workspace/.run/<timestamp>/`, resumable with `--continue` or `/resume`.
+- **A session opener with `runsDir`**: every run in `~/.captain-whiskers/.run/<timestamp>/`, resumable with `--continue` or `/resume`.
 - **The header**: the translated name, the mode in the kit's language, the version of agent-kit he runs on (`agentKitVersion()`), and a logo in single-column block characters.
 - **A theme**: the approval panels' border and the focused option in doubloon gold; everything else keeps the kit's colors.
 - **The first suggestion**: Tab takes it before the first turn.
@@ -282,11 +285,11 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 
 The terminal is one of his three faces; all three are views of the kit's [chat controller](../advanced/custom-hosts.md#the-chat-controller), and none of the graphical ones is the kit's: they're his own, as [ADR-026](https://github.com/falkenslab/agent-kit/blob/main/.minispec/decisions/ADR-026-graphical-interface.md) has it.
 
-- **`web/server.ts`** (about 290 lines): his jokebook installed on the first start, a controller with `panels: "state"`, an HTTP server on `127.0.0.1` with a token in the URL, the state by server-sent events, the person's actions by `POST`, one window at a time, uploads for `request_file`, files added to his chest through the `sources` extension's `api` (`chat.api("sources").addSource`), the language switched with the controller's `setLanguage()` and kept in his home's `settings.json`, and signing in from the page when there's no Claude key.
+- **`web/server.ts`** (about 290 lines): his jokebook installed on the first start, a controller with `panels: "state"`, an HTTP server on `127.0.0.1` with a token in the URL, the state by server-sent events, the person's actions by `POST`, one window at a time, uploads for `request_file`, files added to his chest through the `sources` extension's `api` (`chat.api("sources").addSource`), the language switched with the controller's `setLanguage()` and kept in his home's `config.json`, and signing in (the key, into `config.json` too) from the page when there's no Claude key.
 - **`web/index.html`**: one page, no dependencies or build: the conversation drawn block by block (only what changed), tool calls folded with a spinner while they run, the approvals, choices and plans as dialogs, a menu of commands on `/` (his, his extensions' and the chat's, from the state's `commandDetails`), quick actions and the language at the top, files dropped or attached to fill his chest, the mode with what each one means, earlier conversations and extensions in side panels, light and dark, laid out for a phone.
-- **`desktop/main.mjs`**: Electron around that page. The main process starts the web host with a token that never leaves it, keeps everything in the app's data folder, and opens links in the browser; nothing else, so the app is exactly his web. Packaged with `electron-builder` and `asarUnpack` only: the kit [runs packaged](../advanced/custom-hosts.md#packaging-an-electron-app) by itself.
+- **`desktop/main.mjs`**: Electron around that page. The main process starts the web host with a token that never leaves it, from his same home (Electron's own data folder keeps only its caches), keeps the window's place in his `config.json`, and opens links in the browser; nothing else, so the app is exactly his web. Packaged with `electron-builder` and `asarUnpack` only: the kit [runs packaged](../advanced/custom-hosts.md#packaging-an-electron-app) by itself.
 
-`captain.ts` is what the three share: his texts, prompt, crew and spec, and `createCaptain({ workspace, home })`, his config and session opener for wherever he keeps his things. The opener builds the spec each time it opens a session, in the language of that moment, so switching languages renames him too.
+`captain.ts` is what the three share: his texts, prompt, crew and spec, and `createCaptain({ home })`, his config and session opener for his home (`CAPTAIN_HOME`, or `~/.captain-whiskers`), and his `config.json`. The opener builds the spec each time it opens a session, in the language of that moment, so switching languages renames him too.
 
 ## 8. The logbook and the chest
 

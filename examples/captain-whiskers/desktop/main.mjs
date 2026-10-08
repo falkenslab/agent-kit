@@ -1,54 +1,50 @@
 // Captain Whiskers as a desktop application (ADR-026, #44): an Electron window around his own
 // web chat. The main process starts his web host on a free local port with a token that never
 // leaves this process, and loads it in the window: the same page as in a browser, with the
-// window's own file picker. Everything he keeps goes in the app's user data folder (the
-// install folder is read-only): his workspace, his memory, the extensions installed for him,
-// and the Claude key he signs in with.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+// window's own file picker. Everything he keeps goes in his home, ~/.captain-whiskers, the same
+// as in the terminal and the browser: his logbook, chest, conversations, memory, extensions, and
+// his config.json (the Claude key he signs in with, his language, this window's place). The
+// app's own data folder keeps only Electron's caches.
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, Menu, shell } from "electron";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+// For automated checks only: Electron's caches somewhere of their own (his home: CAPTAIN_HOME),
+// set first, so the single-instance lock below is theirs too.
+if (process.env.CAPTAIN_DESKTOP_DATA) app.setPath("userData", process.env.CAPTAIN_DESKTOP_DATA);
+
 // One window: a second launch brings the first to the front.
-if (!app.requestSingleInstanceLock()) app.quit();
+if (!app.requestSingleInstanceLock()) {
+  console.log("Captain Whiskers is already open: brought to the front.");
+  app.quit();
+}
 
 // VS Code's terminal sets it, and with it every process Electron starts would be plain Node.
 delete process.env.ELECTRON_RUN_AS_NODE;
 
-// For automated checks only: a data folder of their own.
-if (process.env.CAPTAIN_DESKTOP_DATA) app.setPath("userData", process.env.CAPTAIN_DESKTOP_DATA);
-const home = app.getPath("userData");
-const envPath = path.join(home, ".env");
-mkdirSync(home, { recursive: true });
-if (existsSync(envPath)) process.loadEnvFile(envPath);
-
-const boundsFile = path.join(home, "window.json");
-function savedBounds() {
-  try {
-    return JSON.parse(readFileSync(boundsFile, "utf8"));
-  } catch {
-    return { width: 1120, height: 800 };
-  }
-}
-
 let window = null;
 let web = null;
+// Where the window was when it closed, saved in his config.json before the app quits.
+let closedBounds = null;
+let captainConfig = null;
 
 async function start() {
   // The captain, compiled into captain/ by `npm run build`.
-  const { createCaptain } = await import("./captain/captain.js");
+  const { createCaptain, loadConfig, saveConfig } = await import("./captain/captain.js");
   const { startWebChat } = await import("./captain/web/server.js");
 
-  // Exactly his web, as `npm start -- --web` serves it: only where he keeps his things changes.
-  const captain = await createCaptain({ workspace: path.join(home, "workspace"), home });
-  web = await startWebChat(captain, { envPath });
+  // Exactly his web, as `npm start -- --web` serves it, from the same home.
+  const captain = await createCaptain();
+  web = await startWebChat(captain);
+  captainConfig = { home: captain.home, save: saveConfig };
   // For automated checks only: where the page is.
   if (process.env.CAPTAIN_DESKTOP_URL_FILE) writeFileSync(process.env.CAPTAIN_DESKTOP_URL_FILE, web.url);
 
   window = new BrowserWindow({
-    ...savedBounds(),
+    ...((await loadConfig(captain.home)).window ?? { width: 1120, height: 800 }),
     minWidth: 380,
     minHeight: 520,
     // The page names the window (`document.title`), in the language of the moment.
@@ -70,7 +66,7 @@ async function start() {
       if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     }
   });
-  window.on("close", () => writeFileSync(boundsFile, JSON.stringify(window.getNormalBounds())));
+  window.on("close", () => (closedBounds = window.getNormalBounds()));
   await window.loadURL(web.url);
   if (process.env.CAPTAIN_DESKTOP_SCRIPT) void runScript(process.env.CAPTAIN_DESKTOP_SCRIPT);
 }
@@ -132,6 +128,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", async () => {
+  if (closedBounds && captainConfig) await captainConfig.save(captainConfig.home, { window: closedBounds });
   await web?.close();
   app.quit();
 });

@@ -17,7 +17,7 @@ npm install
 npm start
 ```
 
-It needs Claude authentication: `CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY`) in the environment or in a `.env` file in this folder (ignored by git), loaded at startup; what's already in the environment wins over the file. If there's no token, it offers to create one with `claude setup-token` and saves it to `.env` for next time.
+It needs Claude authentication: `CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY`) in the environment, or the token saved in his `config.json` (see [His home](#his-home)); the environment wins. If there's none, the terminal offers to create one with `claude setup-token`, and the browser and the app ask for it on the page; either way it's saved in `config.json` for next time.
 
 ## Usage
 
@@ -35,11 +35,11 @@ The kit's own `/knowledge:ingest`, `/knowledge:query` and `/knowledge:lint` work
 
 He knows who he is, what he is right now and how he's used, through the kit's `awareness` extension: the spec's `identity` gives the model his name, his version and agent-kit's; `about_me` tells him his mode after Shift+Tab, his extensions and their tools, what's off and why, his crew, his commands and how full his context is, and his own [guide.md](guide.md) (his commands, folders and settings); and its `help` skill answers questions such as "how do I resume a conversation?" from the kit's chat.
 
-↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each run keeps its session log, its transcript and the conversation in `workspace/.run/<date-time>/`: `npm start -- --continue` picks up the latest one, and `/resume` lists them to pick one. The ↑/↓ history lives in `workspace/.run/history.jsonl`.
+↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each run keeps its session log, its transcript and the conversation in `~/.captain-whiskers/.run/<date-time>/`: `npm start -- --continue` picks up the latest one, and `/resume` lists them to pick one. The ↑/↓ history lives in `~/.captain-whiskers/.run/history.jsonl`.
 
 In a terminal it uses the kit's Ink interface (`runChatInk`) full screen: the prompt stays at the bottom, PageUp/PageDown and the mouse wheel scroll through the conversation and Ctrl+End (or typing) goes back to the bottom; drag with the mouse to select and right-click to copy to the clipboard. With `CAPTAIN_INLINE=1` it uses the inline mode (with the terminal's own scrollback), and without a TTY, or with `CAPTAIN_PLAIN=1`, the plain readline chat.
 
-It runs in `guided` mode by default, so it can ask you things: which kind of joke, a file, whether to retire an original. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `workspace/.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=autonomous` it asks nothing. With `CAPTAIN_MODE=plan` it only reads and plans: its crew can still search the web, read the ship's clock and the logbook, and anything else is denied until the plan is approved (`present_plan`) or you leave plan mode. Started in any mode but `autonomous`, Shift+Tab cycles through `guided`, `interactive` and `plan`. `/plan` goes into plan mode and back.
+It runs in `guided` mode by default, so it can ask you things: which kind of joke, a file, whether to retire an original. With `CAPTAIN_MODE=interactive` it asks for approval before every tool (the panel takes `1`-`3` or `y`/`n`/`q`, and it can also be answered by writing to `~/.captain-whiskers/.run/<date-time>/approval-response.txt`), and with `CAPTAIN_MODE=autonomous` it asks nothing. With `CAPTAIN_MODE=plan` it only reads and plans: its crew can still search the web, read the ship's clock and the logbook, and anything else is denied until the plan is approved (`present_plan`) or you leave plan mode. Started in any mode but `autonomous`, Shift+Tab cycles through `guided`, `interactive` and `plan`. `/plan` goes into plan mode and back.
 
 It shows every tool call with its result (`toolDetail: "full"`, the kit's default); `CAPTAIN_TOOL_DETAIL=calls` shows the calls without their results, and `CAPTAIN_TOOL_DETAIL=summary` one line per group. Ctrl+O unfolds them either way.
 
@@ -49,7 +49,7 @@ It shows every tool call with its result (`toolDetail: "full"`, the kit's defaul
 npm start -- --web
 ```
 
-prints a URL (`http://127.0.0.1:<port>/?token=…`): open it in a browser. It's his own web host (`web/`) on the kit's chat controller: the same conversation, tool calls folded with their labels, the approvals and choices as dialogs, a file picker when he asks for one (`request_file`), the mode, earlier conversations and his extensions in side panels, in his language, light or dark as your system, and laid out for a phone. Typing `/` opens a menu of his commands, his extensions' and the chat's; the lightning button has quick actions; the globe switches his language on the fly (and remembers it, in `~/.captain-whiskers/settings.json`); and a file dropped on the page, or attached with the clip, goes into his chest, ready to learn. Without a Claude key, the page asks for one and keeps it in `.env`.
+prints a URL (`http://127.0.0.1:<port>/?token=…`): open it in a browser. It's his own web host (`web/`) on the kit's chat controller: the same conversation, tool calls folded with their labels, the approvals and choices as dialogs, a file picker when he asks for one (`request_file`), the mode, earlier conversations and his extensions in side panels, in his language, light or dark as your system, and laid out for a phone. Typing `/` opens a menu of his commands, his extensions' and the chat's; the lightning button has quick actions; the globe switches his language on the fly (and remembers it, in his `config.json`); and a file dropped on the page, or attached with the clip, goes into his chest, ready to learn. Without a Claude key, the page asks for one and keeps it in his `config.json`.
 
 - It listens on `127.0.0.1` only, and nothing gets in without the token in the URL. One window at a time: opening it elsewhere takes over, and the first one says so.
 - **From your phone**: a tunnel to that port (`cloudflared tunnel --url http://127.0.0.1:<port>`, `ngrok http <port>`, Tailscale) and the URL with the token. Anyone with that URL acts as you, and he acts in the world (downloads, writes his logbook): share it with no one, and keep `guided` or `interactive` mode so he asks before what matters.
@@ -57,7 +57,7 @@ prints a URL (`http://127.0.0.1:<port>/?token=…`): open it in a browser. It's 
 
 ## As a desktop app
 
-`desktop/` is an Electron app around the same page, with an installer: his name and icon, his workspace, memory and extensions in the app's data folder (`%APPDATA%/Captain Whiskers` on Windows), and signing in from the window. It's exactly his web (the same host, page and behavior); only where he keeps his things changes. In both, his jokebook is installed for him on the first start. From `desktop/`:
+`desktop/` is an Electron app around the same page, with an installer: his name and icon, and signing in from the window. It's exactly his web (the same host, page and behavior, and the same home: what you do in the app is there in the browser and the terminal, and back). Electron keeps only its caches in its own data folder. In both, his jokebook is installed for him on the first start. From `desktop/`:
 
 ```
 npm run build       # the kit packed as published, and the captain compiled into captain/
@@ -71,27 +71,38 @@ If npm blocks install scripts (it says `allow-scripts`), `node node_modules/elec
 
 ## Extensions
 
-He runs with the kit's `sources` (his chest), `knowledge` (his logbook) and `memory` (what he remembers of you, in `~/.captain-whiskers/memory/`), enabled in his code ([agent-kit's Extensions](https://falkenslab.github.io/agent-kit/docs/capabilities/extensions)).
+He runs with the kit's `sources` (his chest), `knowledge` (his logbook) and `memory` (what he remembers of you, in his home's `memory/`), and `awareness` (what he knows of himself), enabled in his code ([agent-kit's Extensions](https://falkenslab.github.io/agent-kit/docs/capabilities/extensions)).
 
-His `jokebook` is installed instead: `extensions/jokebook/` is an extension any agent on the kit could use, with its manifest, its own MCP server (`server/index.mjs`, a small Node script with no dependencies that the kit runs in a separate process), the `rank-jokes` skill (which requires the `knowledge-base` capability: without the logbook, it isn't offered) with its command `/jokebook:best-jokes`, and the parrot. It declares its server in a `.mcp.json`, as any Claude Code plugin does. Nothing of the captain's names it: without it, his commands still work (`fresh-joke` just skips the parrot). Install it once:
+His `jokebook` is installed instead: `extensions/jokebook/` is an extension any agent on the kit could use, with its manifest, its own MCP server (`server/index.mjs`, a small Node script with no dependencies that the kit runs in a separate process), the `rank-jokes` skill (which requires the `knowledge-base` capability: without the logbook, it isn't offered) with its command `/jokebook:best-jokes`, and the parrot. It declares its server in a `.mcp.json`, as any Claude Code plugin does. Nothing of the captain's names it: without it, his commands still work (`fresh-joke` just skips the parrot). The browser and the app install it on their first start; in the terminal, install it once (it has a single scope, his home, since his home is his only project):
 
 ```
-npm start -- extension add ./extensions/jokebook            # for all his projects: ~/.captain-whiskers/extensions/
-npm start -- extension add ./extensions/jokebook --project  # only this one: workspace/extensions/
+npm start -- extension add ./extensions/jokebook            # into ~/.captain-whiskers/extensions/
 npm start -- extension list
 npm start -- extension info jokebook                        # its version, author, what it offers, its README
 ```
 
-In the chat, `/extensions` lists what he runs with; `/extensions disable jokebook` and `/extensions enable jokebook` turn it off and on, reopening the session with the same conversation. `CAPTAIN_HOME` moves `~/.captain-whiskers` elsewhere (to try him without touching yours).
+In the chat, `/extensions` lists what he runs with; `/extensions disable jokebook` and `/extensions enable jokebook` turn it off and on, reopening the session with the same conversation. `CAPTAIN_HOME` moves his home elsewhere (to try him without touching yours).
 
-## Logbook and treasure chest
+## His home
 
-Everything he keeps lives in `workspace/` (ignored by git), which is his project (`projectDir`): his folder holds only his code. Paths below are inside it.
+Everything he keeps lives in his home, `~/.captain-whiskers` (`CAPTAIN_HOME` moves it), the same for his three faces. He doesn't work on anyone's projects, so his home is also his project (`projectDir`); his folder here holds only his code.
+
+```text
+~/.captain-whiskers/
+├── config.json   his Claude key, the language chosen in the browser or the app, the app's window
+├── logbook/      his knowledge base
+├── treasure/     his chest of originals
+├── memory/       what he remembers of you
+├── extensions/   the extensions installed for him (his jokebook)
+└── .run/         one folder per conversation, and the ↑/↓ history
+```
+
+`config.json` is readable only by your user, and the model can't read it: the kit's file scope denies it (`deniedPaths`), `memory/` is reached only through the memory's tools, and the file tools only reach `logbook/` (through the knowledge tools) and `treasure/` (reading).
 
 - `logbook/` is his knowledge base (`knowledgeDir`), kept only through the kit's `knowledge_*` tools. Besides the kit's page types it has one of his own, `joke` (in `logbook/jokes/`), with the parrot's score shown in the index.
 - `treasure/` is his chest of originals (`sourcesDir`). On the first start it gets the two samples in `treasure-samples/`: a PowerPoint on knots (with speaker notes) and a Word document with the ship's rules, which he reads with `extract_text`.
 
-Delete `workspace/` to start over (his memory of you is elsewhere: see Extensions). Reading DOCX and PPTX and keeping web pages as markdown use the kit's optional libraries, already in this project's `package.json`.
+Delete `~/.captain-whiskers` to start over (keep `config.json` if you don't want to sign in again). Reading DOCX and PPTX and keeping web pages as markdown use the kit's optional libraries, already in this project's `package.json`.
 
 ## Crew (subagents)
 
@@ -103,7 +114,7 @@ All of them use `haiku`. While they work, the interface shows their tool calls u
 
 ## Test script
 
-A walk through every feature, in a fresh start (`rm -rf workspace`, then `npm start -- --language=en`). What you type, and what should show:
+A walk through every feature, in a fresh start (`CAPTAIN_HOME=/tmp/captain npm start -- --language=en`, or delete `~/.captain-whiskers` but its `config.json`). What you type, and what should show:
 
 | # | Type | What should show |
 | --- | --- | --- |
