@@ -1,7 +1,7 @@
 import path from "node:path";
 import pc from "picocolors";
 import { agentKitVersion, ensureClaudeAuth, getLanguage, messagesFor, runChatInk, runExtensionCommand, ui, type ToolDetail } from "@falkenslab/agent-kit";
-import { createCaptain, saveConfig, texts, useSavedClaudeKey } from "./captain.js";
+import { createCaptain, saveConfig, SHIPYARD, texts, useSavedClaudeKey } from "./captain.js";
 import { startWebChat } from "./web/server.js";
 
 // El capitán en la terminal, y en el navegador con --web. Lo que hace ser al capitán está en
@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   // `npm start -- extension add ./extensions/jokebook` (list, remove, enable, disable): el
   // comando del kit, en su propio arranque, antes que nada.
   const args = process.argv.slice(2);
-  if (await runExtensionCommand(args, { dirs: captain.extensionDirs, command: "npm start --" })) return;
+  if (await runExtensionCommand(args, { dirs: captain.extensionDirs, command: "npm start --", official: SHIPYARD })) return;
 
   // En el navegador: su propia web, sobre el controlador de chat del kit. Sin token, la página
   // lo pide y la guarda en su config.json.

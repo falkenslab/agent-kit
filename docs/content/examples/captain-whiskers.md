@@ -88,7 +88,7 @@ He has the kit's [awareness](../capabilities/awareness.md): asked what mode he's
 
 ### Bring his own extension
 
-Besides the kit's `sources`, `knowledge` and `memory` (what he remembers of whoever sails with him, in his home's `memory/`: see [Memory of the person](../capabilities/memory.md)), he can be given more. His `jokebook` is one any agent on the kit could install: a folder in his project (`extensions/jokebook/`) with its manifest, its own MCP server (a small Node script the kit runs in a separate process), a skill and the parrot. His browser and app install it on their first start; in the terminal, `npm start -- extension add ./extensions/jokebook` installs it in his home's `extensions/`, his only scope, since his home is his only project. Its tool, `classic_joke`, tells a classic from the book; its skill, `rank-jokes`, ranks his logbook's jokes, and requires the `knowledge-base` capability, so it's only offered with the logbook on. In the chat, `/extensions` lists what he runs with, and `/extensions disable jokebook` turns it off without leaving the conversation. See [Extensions](../capabilities/extensions.md#installing-extensions).
+Besides the kit's `sources`, `knowledge` and `memory` (what he remembers of whoever sails with him, in his home's `memory/`: see [Memory of the person](../capabilities/memory.md)), he can be given more. His `jokebook` is one any agent on the kit could install: a folder (`extensions/jokebook/`) with its manifest, its own MCP server (a small Node script the kit runs in a separate process), a skill and the parrot. It's offered by his own [marketplace](../capabilities/extensions.md#marketplaces), `shipyard` (`extensions/.claude-plugin/marketplace.json`), which he passes to the kit's command as `official`. His browser and app install it from there on their first start; in the terminal, `npm start -- extension add jokebook` installs it in his home's `extensions/`, his only scope, since his home is his only project. Its tool, `classic_joke`, tells a classic from the book; its skill, `rank-jokes`, ranks his logbook's jokes, and requires the `knowledge-base` capability, so it's only offered with the logbook on. In the chat, `/extensions` lists what he runs with, and `/extensions disable jokebook` turns it off without leaving the conversation. See [Extensions](../capabilities/extensions.md#installing-extensions).
 
 ### Speak your language
 
@@ -127,7 +127,8 @@ examples/captain-whiskers/
 ├── web/                        his web host on the chat controller, and its page
 ├── desktop/                    his Electron app and installer
 ├── guide.md                    his own help guide (commands, folders, settings)
-├── extensions/jokebook/        an installable extension: manifest, .mcp.json and its server, skill, command, parrot
+├── extensions/                 his marketplace, shipyard (.claude-plugin/marketplace.json)
+│   └── jokebook/                an installable extension: manifest, .mcp.json and its server, skill, command, parrot
 ├── package.json                "@falkenslab/agent-kit": "file:../.."
 ├── plugin/
 │   ├── .claude-plugin/plugin.json   { "name": "captain-whiskers" }

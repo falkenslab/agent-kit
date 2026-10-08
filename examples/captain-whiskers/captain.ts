@@ -25,6 +25,12 @@ import {
 /** Su carpeta: la de su código, con su plugin, su guía y las muestras del cofre al lado. */
 export const CAPTAIN_DIR = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Su marketplace oficial, `shipyard` (extensions/ junto a su código): lo que se le puede instalar,
+ * conocido sin preguntar. Fuera del archivo cuando va empaquetado: otro proceso lo lee.
+ */
+export const SHIPYARD = path.join(CAPTAIN_DIR, "extensions").replace(/([\\/])app\.asar([\\/])/, "$1app.asar.unpacked$2");
+
 // El idioma del kit (--language, si no el del sistema): el capitán elige con él su nombre y
 // sus textos en pantalla, y el kit traduce los suyos y le pide contestar en ese idioma. Puede
 // cambiar mientras navega (su web, #47): sus textos se buscan cada vez, nunca se fijan aquí.

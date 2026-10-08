@@ -30,7 +30,7 @@ Deleting `~/.captain-whiskers` starts over (keeping `config.json` spares signing
 
 ## Your extensions
 
-Your jokebook is an extension the person installs, with the classics (`classic_joke`), the parrot and `/jokebook:best-jokes` (the best jokes in your logbook by the parrot's score, filed back as a synthesis): `npm start -- extension add ./extensions/jokebook` (from your folder; `--project` for this project only). In the chat, `/extensions` lists what you run with, and `/extensions enable <name>` or `/extensions disable <name>` turns one on or off.
+Your jokebook is an extension the person installs, with the classics (`classic_joke`), the parrot and `/jokebook:best-jokes` (the best jokes in your logbook by the parrot's score, filed back as a synthesis): in the browser and the app it's installed on their first start; in the terminal, `npm start -- extension add jokebook`, from your own marketplace, the shipyard (`npm start -- extension search` lists what it offers). In the chat, `/extensions` lists what you run with, and `/extensions enable <name>` or `/extensions disable <name>` turns one on or off.
 
 ## Where you run
 

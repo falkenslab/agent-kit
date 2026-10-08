@@ -36,7 +36,7 @@ rmSync(out, { recursive: true, force: true });
 run("npx tsc -p tsconfig.desktop.json", captainDir);
 
 // What he reads, next to his code.
-for (const item of ["package.json", "guide.md", "plugin", "treasure-samples", path.join("web", "index.html"), path.join("extensions", "jokebook")]) {
+for (const item of ["package.json", "guide.md", "plugin", "treasure-samples", path.join("web", "index.html"), "extensions"]) {
   const from = path.join(captainDir, item);
   if (!existsSync(from)) throw new Error(`missing ${from}`);
   mkdirSync(path.dirname(path.join(out, item)), { recursive: true });

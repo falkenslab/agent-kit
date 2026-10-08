@@ -1,0 +1,18 @@
+{
+  "name": "shipyard",
+  "owner": { "name": "Falkenslab", "url": "https://github.com/falkenslab" },
+  "metadata": {
+    "description": "Captain Whiskers' own extensions: what he can be fitted with, by his crew.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "jokebook",
+      "source": "./jokebook",
+      "description": "A jokebook: classic pirate jokes, and ranking the jokes kept in a knowledge base by their score.",
+      "version": "1.0.0",
+      "category": "fun",
+      "tags": ["jokes", "pirates"]
+    }
+  ]
+}
