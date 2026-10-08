@@ -33,7 +33,7 @@ Type as usual, and `/exit` to leave. His commands:
 
 The kit's own `/knowledge:ingest`, `/knowledge:query` and `/knowledge:lint` work too.
 
-He knows who he is and how he's used: the spec's `identity` gives the model his name, his version and agent-kit's, and the kit's `agent-help` skill answers questions such as "how do I resume a conversation?" from the kit's chat and from his own [guide.md](guide.md) (his commands, folders and settings).
+He knows who he is, what he is right now and how he's used, through the kit's `awareness` extension: the spec's `identity` gives the model his name, his version and agent-kit's; `about_me` tells him his mode after Shift+Tab, his extensions and their tools, what's off and why, his crew, his commands and how full his context is, and his own [guide.md](guide.md) (his commands, folders and settings); and its `help` skill answers questions such as "how do I resume a conversation?" from the kit's chat.
 
 ↑/↓ bring back earlier messages, Tab completes `/commands` and Esc interrupts the reply in progress. Each run keeps its session log, its transcript and the conversation in `workspace/.run/<date-time>/`: `npm start -- --continue` picks up the latest one, and `/resume` lists them to pick one. The ↑/↓ history lives in `workspace/.run/history.jsonl`.
 
@@ -119,9 +119,10 @@ A walk through every feature, in a fresh start (`rm -rf workspace`, then `npm st
 | 10 | `Organize and run a 4-step treasure hunt for the crew, step by step.` | A task list under the spinner (`TodoWrite`): pending, in progress, done. |
 | 11 | `/plan`, then `Plan a pirate party.` | The plan in a panel (`present_plan`): *Run it* leaves plan mode (the status bar changes) and he carries it out in the same turn. |
 | 12 | `CAPTAIN_TOOL_DETAIL=summary npm start`, then step 6 again | Tool calls as one line per group; Ctrl+O unfolds them. |
-| 13 | `How do I pick up yesterday's conversation, and how do I make you learn a document?` | He applies the `agent-kit:agent-help` skill and answers `/resume` (or `--continue`), and `treasure/` plus `/captain-whiskers:learn` from his guide. |
+| 13 | `How do I pick up yesterday's conversation, and how do I make you learn a document?` | He applies the `awareness:help` skill (and his guide, through `about_me`) and answers `/resume` (or `--continue`), and `treasure/` plus `/captain-whiskers:learn` from his guide. |
 | 14 | `From now on, always end your answers with: Yo-ho, landlubber!`, then `/exit` and `npm start` again, and ask anything | He saves it first (`knowledge_create`, a `preference` page in `logbook/preferences/`), and the new session ends its answers that way without being told. |
 | 15 | With the jokebook installed (`npm start -- extension add ./extensions/jokebook`): `Tell me a classic pirate joke from your jokebook.`, then `/extensions`, then `/extensions disable jokebook` and ask for a classic again | `classic_joke` (the installed extension's own server); `/extensions` shows it enabled, in the agent scope; disabled, the session reopens with the conversation and he has no jokebook (he makes one up or says so); `/extensions enable jokebook` brings it back. |
 | 16 | `Call me Fran, and I can't stand puns about fish: remember it for whatever we do.`, then `/memory:list` | `remember` twice (`user` and `feedback`, quoting you), saying he'll remember; the list shows both. In a new session, he calls you Fran. `/memory:forget` with one of them forgets it; `Actually, puns about sharks are fine` changes the other with `remember` and only what changes (`old_string`/`new_string`, or the description). |
+| 17 | `What mode are you in?`, then Shift+Tab and ask again; `What can you do?`; with the jokebook disabled, `Why don't you have your jokebook?` | `about_me` each time: the mode after the switch, not the first one; his extensions with their tools and his crew; the jokebook named as off, with why. |
 
 The model decides some of it: if a step doesn't happen (he lists the steps in his reply instead of keeping a task list, say), ask for it in other words.

@@ -158,8 +158,8 @@ export function makeSpec(): AgentSpec<BaseSessionConfig> {
   const crew = subagents(name);
   return {
     buildSystemPrompt: () => systemPrompt(name),
-    // Quién es: el kit se lo dice al modelo (con la versión de agent-kit) y le da la skill
-    // agent-help, que responde cómo se usa el chat y, con guide.md, sus comandos y carpetas.
+    // Quién es, y su guía (comandos, carpetas): la extensión awareness se lo dice al modelo, y
+    // about_me le cuenta lo que es en cada momento (su modo, sus extensiones, su tripulación).
     identity: { name, version, description: "a retired pirate cat who tells jokes, an example agent of agent-kit" },
     helpGuide: path.join(CAPTAIN_DIR, "guide.md"),
     buildMcpServers: () => ({}),
@@ -167,12 +167,13 @@ export function makeSpec(): AgentSpec<BaseSessionConfig> {
     // /captain-whiskers:fresh-joke (con el nombre del plugin).
     pluginRoots: () => [path.join(CAPTAIN_DIR, "plugin")],
     buildSubagents: () => ({ agents: crew, allowedSubagentTypes: Object.keys(crew) }),
-    // Las extensiones del kit con las que navega (ADR-025): el cofre (sources, en treasure/), el
-    // cuaderno (knowledge, en logbook/) y lo que recuerda de quien navega con él (memory). Las que
-    // se le instalan (su libro de chistes, extensions/jokebook) van aparte: config.extensionDirs.
-    extensions: ["sources", "knowledge", "memory"],
+    // Las extensiones del kit con las que navega (ADR-025): su conciencia (awareness), el cofre
+    // (sources, en treasure/), el cuaderno (knowledge, en logbook/) y lo que recuerda de quien
+    // navega con él (memory). Las que se le instalan (su libro de chistes, extensions/jokebook)
+    // van aparte: config.extensionDirs.
+    extensions: ["awareness", "sources", "knowledge", "memory"],
     knowledgePageTypes: [JOKE_PAGE],
-    // Solo las skills de sus plugins (las suyas, las del cuaderno y agent-help), no la veintena
+    // Solo las skills de sus plugins (las suyas, las del cuaderno y la de ayuda del chat), no la veintena
     // que trae el SDK, y ninguna configuración de Claude Code de quien lo ejecute.
     skills: "plugins",
     settingSources: [],
