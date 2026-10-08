@@ -1,10 +1,10 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
-import { agentKitVersion, createChatController, resolveClaudeAuth, type ChatController, type Mode } from "@falkenslab/agent-kit";
-import { CAPTAIN_DIR, language, text, version, type createCaptain } from "../captain.js";
-import { pageTexts } from "./texts.js";
+import { agentKitVersion, createChatController, getLanguage, resolveClaudeAuth, SUPPORTED_LANGUAGES, switchLanguage, type ChatController, type Language, type Mode } from "@falkenslab/agent-kit";
+import { CAPTAIN_DIR, loadSettings, saveSettings, texts, version, type createCaptain } from "../captain.js";
+import { chestTexts, pageTexts } from "./texts.js";
 
 // El capitán en el navegador (ADR-026, #44): su propia web, sobre el controlador de chat del
 // kit. Un servidor en 127.0.0.1 (un túnel llega a ese puerto), con un token en la URL sin el
@@ -33,6 +33,9 @@ const MAX_UPLOAD = 50 * 1024 * 1024;
  */
 export async function startWebChat(captain: Captain, options: WebChatOptions): Promise<{ url: string; close: () => Promise<void> }> {
   const token = options.token ?? randomBytes(18).toString("base64url");
+  // The language the person last chose here, kept in his home (#47).
+  const saved = (await loadSettings(captain.home)).language;
+  if (saved) switchLanguage(saved);
 
   // La sesión, en cuanto hay con qué autenticarse.
   let chat: ChatController | null = null;
@@ -130,6 +133,17 @@ export async function startWebChat(captain: Captain, options: WebChatOptions): P
         if (current.getState().busy) return { error: "busy" };
         await current.setExtension(String(data.name), Boolean(data.enabled));
         return {};
+      case "language": {
+        const language = String(data.language) as Language;
+        if (!SUPPORTED_LANGUAGES.includes(language)) return { error: "unknown language" };
+        if (current.getState().busy) return { error: "busy" };
+        // His name follows the language too: the conversation so far would keep the old one.
+        await current.setLanguage(language, { note: `Your name is now ${texts(language).name}.` });
+        await saveSettings(captain.home, { language });
+        // The page's texts, the captain's name: anew, in the language chosen.
+        send("info", info());
+        return {};
+      }
       default:
         return { error: `unknown action ${action}` };
     }
@@ -158,14 +172,43 @@ export async function startWebChat(captain: Captain, options: WebChatOptions): P
     return { path: file };
   }
 
-  const info = {
-    name: text.name,
-    language,
+  /** What the page needs to know besides the chat: in the language of now. */
+  const info = () => ({
+    name: texts().name,
+    language: getLanguage(),
+    languages: SUPPORTED_LANGUAGES,
     version,
     kit: agentKitVersion(),
     shell: options.shell ?? "web",
-    texts: pageTexts(language),
-  };
+    texts: pageTexts(getLanguage()),
+  });
+
+  /**
+   * A file the person adds to the chest (#48), through the sources extension: never
+   * overwriting, a duplicate recognized, the person as its origin. A notice says how it went.
+   */
+  async function addToChest(request: IncomingMessage, url: URL): Promise<unknown> {
+    const current = chat;
+    const addSource = current?.api<{ addSource: (file: string, name: string) => Promise<{ path: string; duplicateOf?: string }> }>("sources")?.addSource;
+    if (!current || !addSource) return { error: "no chest" };
+    if (current.getState().busy) return { error: "busy" };
+    const name = path.basename(url.searchParams.get("name") ?? "file").replace(/[^\w.\- ()]/g, "_") || "file";
+    const temp = path.join(captain.workspace, ".uploads", `${Date.now()}-${name}`);
+    await mkdir(path.dirname(temp), { recursive: true });
+    await writeFile(temp, await raw(request, MAX_UPLOAD));
+    const say = chestTexts(getLanguage());
+    try {
+      const added = await addSource(temp, name);
+      current.notice(added.duplicateOf ? say.duplicate(name, added.duplicateOf) : say.added(added.path), "plain");
+      return added;
+    } catch (error) {
+      const message = String((error as Error)?.message ?? error);
+      current.notice(say.failed(name, message), "warn");
+      return { error: message };
+    } finally {
+      await rm(temp, { force: true });
+    }
+  }
 
   const server = createServer((request, response) => {
     void (async () => {
@@ -194,9 +237,17 @@ export async function startWebChat(captain: Captain, options: WebChatOptions): P
         }
         client = response;
         response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
-        send("info", info);
+        send("info", info());
         send("state", snapshot());
         request.on("close", () => client === response && (client = null));
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/api/chest") {
+        try {
+          response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(await addToChest(request, url)));
+        } catch (error) {
+          response.writeHead(400, { "content-type": "application/json" }).end(JSON.stringify({ error: String((error as Error)?.message ?? error) }));
+        }
         return;
       }
       if (request.method === "POST" && url.pathname === "/api/upload") {

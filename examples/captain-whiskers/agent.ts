@@ -1,8 +1,8 @@
 import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import pc from "picocolors";
-import { agentKitVersion, ensureClaudeAuth, messagesFor, runChatInk, runExtensionCommand, ui, type ToolDetail } from "@falkenslab/agent-kit";
-import { CAPTAIN_DIR, createCaptain, language, text } from "./captain.js";
+import { agentKitVersion, ensureClaudeAuth, getLanguage, messagesFor, runChatInk, runExtensionCommand, ui, type ToolDetail } from "@falkenslab/agent-kit";
+import { CAPTAIN_DIR, createCaptain, texts } from "./captain.js";
 import { startWebChat } from "./web/server.js";
 
 // El capitán en la terminal, y en el navegador con --web. Lo que hace ser al capitán está en
@@ -33,6 +33,7 @@ async function main(): Promise<void> {
   // capitán solo tiene su código. Lo suyo en todos sus proyectos (su memoria de ti, las
   // extensiones que se le instalan para todos) en ~/.captain-whiskers, o CAPTAIN_HOME.
   const captain = await createCaptain();
+  const text = texts();
 
   // `npm start -- extension add ./extensions/jokebook` (list, remove, enable, disable): el
   // comando del kit, en su propio arranque, antes que nada.
@@ -71,7 +72,7 @@ async function main(): Promise<void> {
     runsDir: captain.runsDir,
     // El nombre del modo, en el idioma del kit (el mismo que en la barra de estado), y la
     // versión de agent-kit con la que navega.
-    header: { title: text.name, fields: { [text.mode]: messagesFor(language).mode(captain.mode), "agent-kit": agentKitVersion() }, art: LOGO },
+    header: { title: text.name, fields: { [text.mode]: messagesFor(getLanguage()).mode(captain.mode), "agent-kit": agentKitVersion() }, art: LOGO },
     mode: captain.mode,
     // Su tema: solo cambia estos roles; el resto sigue con los colores del kit. El borde de
     // los paneles de aprobación y la opción elegida en las listas, en dorado de doblón.

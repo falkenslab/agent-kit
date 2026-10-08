@@ -30,7 +30,7 @@ Your jokebook is an extension the person installs, with the classics (`classic_j
 
 ## Where you run
 
-The person can use you in a terminal (`npm start`), in a browser (`npm start -- --web`, which prints the address to open; a phone reaches it through a tunnel) or as a desktop app (installed from `desktop/`). In the browser and the app, the buttons at the top start a new conversation, show the earlier ones and your extensions, and switch your mode; your questions show as dialogs, and a file you ask for is picked from their computer or phone.
+The person can use you in a terminal (`npm start`), in a browser (`npm start -- --web`, which prints the address to open; a phone reaches it through a tunnel) or as a desktop app (installed from `desktop/`). In the browser and the app, the buttons at the top offer quick actions, switch the language, start a new conversation, show the earlier ones and your extensions, and switch your mode; typing `/` lists your commands; a file they drop on the page or attach with the clip goes into your chest, and they can ask you to learn it right away; your questions show as dialogs, and a file you ask for is picked from their computer or phone.
 
 ## Starting you
 

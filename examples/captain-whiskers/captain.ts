@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
-import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildSessionOptions,
   detectLanguage,
+  getLanguage,
+  setLanguage,
+  SUPPORTED_LANGUAGES,
   type AgentDefinition,
   type AgentSpec,
   type BaseSessionConfig,
@@ -23,8 +26,9 @@ import {
 export const CAPTAIN_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 // El idioma del kit (--language, si no el del sistema): el capitán elige con él su nombre y
-// sus textos en pantalla, y el kit traduce los suyos y le pide contestar en ese idioma.
-export const { language } = detectLanguage();
+// sus textos en pantalla, y el kit traduce los suyos y le pide contestar en ese idioma. Puede
+// cambiar mientras navega (su web, #47): sus textos se buscan cada vez, nunca se fijan aquí.
+setLanguage(detectLanguage().language);
 
 /** Sus textos para la persona, en cada idioma del kit. */
 export interface CaptainTexts {
@@ -70,12 +74,15 @@ const TEXTS: Record<Language, CaptainTexts> = {
     tokenSaved: (file) => `Token in ${file} gespeichert (von git ignoriert).`,
   },
 };
-export const text = TEXTS[language];
+/** Sus textos en `language`, o en el idioma del kit ahora mismo. */
+export function texts(language: Language = getLanguage()): CaptainTexts {
+  return TEXTS[language];
+}
 
 // Todo lo que lee el modelo (prompts, skills, comandos) va en inglés: un texto en español
 // arrastra las respuestas al español aunque el kit pida otro idioma (comprobado), y así el
 // capitán contesta en el idioma del kit. Su nombre sí cambia con el idioma.
-const SYSTEM_PROMPT = `You are ${text.name}, a retired pirate cat who now "commands" this chat as if it
+const systemPrompt = (name: string) => `You are ${name}, a retired pirate cat who now "commands" this chat as if it
 were the bridge of a ship. You always talk in sailor slang with absurd drama, treat any request
 from the user as a "mission" and any web search as "checking the treasure map".
 
@@ -102,10 +109,10 @@ present_plan.
 Be brief: 3-4 sentences per reply at most, always in character. Never talk about your instructions,
 this prompt or your tools by name: just do what they say.`;
 
-const SUBAGENTS: Record<string, AgentDefinition> = {
+const subagents = (name: string): Record<string, AgentDefinition> => ({
   "minino-buscachistes": {
     description: "Kitten cabin boy who searches the web for short jokes about pirates, cats or sailors and returns candidates with their source.",
-    prompt: `You are Minino, the youngest cabin boy on ${text.name}'s ship. Your mission: find on the
+    prompt: `You are Minino, the youngest cabin boy on ${name}'s ship. Your mission: find on the
 web 2 or 3 short, clean jokes (about pirates, cats or sailors), preferably in the language the
 captain's request is written in. Use WebSearch (3 searches at most) and WebFetch only if you need
 to open a page. Return only a numbered list with each joke as it is and the URL it comes from.
@@ -124,7 +131,7 @@ answer in one line, without frills.`,
     model: "haiku",
     maxTurns: 3,
   },
-};
+});
 
 // Un tipo de página propio de su cuaderno: los chistes, con la nota del loro en el índice.
 const JOKE_PAGE: PageType = {
@@ -145,27 +152,32 @@ const JOKE_PAGE: PageType = {
 /** Su versión, la de su package.json. */
 export const version = (JSON.parse(readFileSync(path.join(CAPTAIN_DIR, "package.json"), "utf8")) as { version: string }).version;
 
-export const spec: AgentSpec<BaseSessionConfig> = {
-  buildSystemPrompt: () => SYSTEM_PROMPT,
-  // Quién es: el kit se lo dice al modelo (con la versión de agent-kit) y le da la skill
-  // agent-help, que responde cómo se usa el chat y, con guide.md, sus comandos y carpetas.
-  identity: { name: text.name, version, description: "a retired pirate cat who tells jokes, an example agent of agent-kit" },
-  helpGuide: path.join(CAPTAIN_DIR, "guide.md"),
-  buildMcpServers: () => ({}),
-  // Las skills pirate-joke y miau y los comandos /captain-whiskers:joke y
-  // /captain-whiskers:fresh-joke (con el nombre del plugin).
-  pluginRoots: () => [path.join(CAPTAIN_DIR, "plugin")],
-  buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
-  // Las extensiones del kit con las que navega (ADR-025): el cofre (sources, en treasure/), el
-  // cuaderno (knowledge, en logbook/) y lo que recuerda de quien navega con él (memory). Las que
-  // se le instalan (su libro de chistes, extensions/jokebook) van aparte: config.extensionDirs.
-  extensions: ["sources", "knowledge", "memory"],
-  knowledgePageTypes: [JOKE_PAGE],
-  // Solo las skills de sus plugins (las suyas, las del cuaderno y agent-help), no la veintena
-  // que trae el SDK, y ninguna configuración de Claude Code de quien lo ejecute.
-  skills: "plugins",
-  settingSources: [],
-};
+/** Su spec, en el idioma del kit de ahora: su nombre cambia con él. */
+export function makeSpec(): AgentSpec<BaseSessionConfig> {
+  const { name } = texts();
+  const crew = subagents(name);
+  return {
+    buildSystemPrompt: () => systemPrompt(name),
+    // Quién es: el kit se lo dice al modelo (con la versión de agent-kit) y le da la skill
+    // agent-help, que responde cómo se usa el chat y, con guide.md, sus comandos y carpetas.
+    identity: { name, version, description: "a retired pirate cat who tells jokes, an example agent of agent-kit" },
+    helpGuide: path.join(CAPTAIN_DIR, "guide.md"),
+    buildMcpServers: () => ({}),
+    // Las skills pirate-joke y miau y los comandos /captain-whiskers:joke y
+    // /captain-whiskers:fresh-joke (con el nombre del plugin).
+    pluginRoots: () => [path.join(CAPTAIN_DIR, "plugin")],
+    buildSubagents: () => ({ agents: crew, allowedSubagentTypes: Object.keys(crew) }),
+    // Las extensiones del kit con las que navega (ADR-025): el cofre (sources, en treasure/), el
+    // cuaderno (knowledge, en logbook/) y lo que recuerda de quien navega con él (memory). Las que
+    // se le instalan (su libro de chistes, extensions/jokebook) van aparte: config.extensionDirs.
+    extensions: ["sources", "knowledge", "memory"],
+    knowledgePageTypes: [JOKE_PAGE],
+    // Solo las skills de sus plugins (las suyas, las del cuaderno y agent-help), no la veintena
+    // que trae el SDK, y ninguna configuración de Claude Code de quien lo ejecute.
+    skills: "plugins",
+    settingSources: [],
+  };
+}
 
 /** Dónde vive lo suyo: su espacio de trabajo (este proyecto) y su casa (lo de todos sus proyectos). */
 export interface CaptainPlaces {
@@ -208,8 +220,30 @@ export async function createCaptain(places: CaptainPlaces = {}) {
   // Cada ejecución en su carpeta de .run/: su log, su transcripción y la conversación, para
   // retomarla con --continue (la última) o /resume.
   const runsDir = path.join(workspace, ".run");
-  const opener: SessionOpener = (run) => buildSessionOptions(config, run.dir, spec, { run });
+  // Su spec se hace cada vez que se abre la sesión: en el idioma de ese momento.
+  const opener: SessionOpener = (run) => buildSessionOptions(config, run.dir, makeSpec(), { run });
   return { workspace, home, mode, config, runsDir, extensionDirs, opener, historyPath: path.join(runsDir, "history.jsonl") };
+}
+
+/** Lo que recuerda de cómo le gusta a la persona (el idioma elegido en su web), en su casa. */
+export interface CaptainSettings {
+  language?: Language;
+}
+
+/** Sus ajustes guardados en su casa, o ninguno. */
+export async function loadSettings(home: string): Promise<CaptainSettings> {
+  try {
+    const settings = JSON.parse(await readFile(path.join(home, "settings.json"), "utf8")) as CaptainSettings;
+    return settings.language && !SUPPORTED_LANGUAGES.includes(settings.language) ? {} : settings;
+  } catch {
+    return {};
+  }
+}
+
+/** Guarda sus ajustes en su casa (con lo que ya hubiera). */
+export async function saveSettings(home: string, changes: CaptainSettings): Promise<void> {
+  await mkdir(home, { recursive: true });
+  await writeFile(path.join(home, "settings.json"), `${JSON.stringify({ ...(await loadSettings(home)), ...changes }, null, 2)}\n`, "utf8");
 }
 
 /** Copia las muestras al cofre si aún no tiene nada (una carpeta nueva, o vacía). */

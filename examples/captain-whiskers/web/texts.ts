@@ -3,8 +3,37 @@ import type { Language } from "@falkenslab/agent-kit";
 // Los textos de su página, en cada idioma del kit (los del chat los da el kit en el estado: las
 // etiquetas de las herramientas, los avisos). Las sugerencias se mandan tal cual al capitán.
 
+// What the chest says when the person adds a file to it (a notice in the conversation).
+const CHEST = {
+  en: { added: (file: string) => `📎 ${file} is in the chest: “Learn it now” or /captain-whiskers:learn to learn it.`, duplicate: (file: string, of: string) => `📎 ${file} was already in the chest, as ${of}.`, failed: (file: string, why: string) => `📎 ${file} couldn't go in the chest: ${why}` },
+  es: { added: (file: string) => `📎 ${file} ya está en el cofre: «Aprenderlo ahora» o /captain-whiskers:learn para aprenderlo.`, duplicate: (file: string, of: string) => `📎 ${file} ya estaba en el cofre, como ${of}.`, failed: (file: string, why: string) => `📎 ${file} no pudo entrar en el cofre: ${why}` },
+  fr: { added: (file: string) => `📎 ${file} est dans le coffre : « L'apprendre maintenant » ou /captain-whiskers:learn pour l'apprendre.`, duplicate: (file: string, of: string) => `📎 ${file} était déjà dans le coffre, sous le nom ${of}.`, failed: (file: string, why: string) => `📎 ${file} n'a pas pu entrer dans le coffre : ${why}` },
+  de: { added: (file: string) => `📎 ${file} ist in der Kiste: „Jetzt lernen“ oder /captain-whiskers:learn, um es zu lernen.`, duplicate: (file: string, of: string) => `📎 ${file} war schon in der Kiste, als ${of}.`, failed: (file: string, why: string) => `📎 ${file} konnte nicht in die Kiste: ${why}` },
+} satisfies Record<Language, unknown>;
+
+/** What the chest says, in `language`. */
+export function chestTexts(language: Language): (typeof CHEST)["en"] {
+  return CHEST[language];
+}
+
 const TEXTS = {
   en: {
+    quick: "Quick actions",
+    quickActions: [
+      { icon: "🦜", label: "Tell me a joke", prompt: "Tell me a joke" },
+      { icon: "🐾", label: "A fresh joke from the web", prompt: "/captain-whiskers:fresh-joke" },
+      { icon: "🏆", label: "The best jokes", prompt: "/jokebook:best-jokes", command: "jokebook:best-jokes" },
+      { icon: "🗺️", label: "Learn from the chest", prompt: "/captain-whiskers:learn" },
+      { icon: "📖", label: "Check the logbook", prompt: "/captain-whiskers:logbook-check" },
+      { icon: "🧭", label: "What can you do?", prompt: "What can you do, and how do I use you?" },
+    ],
+    addToChest: "Add to the chest…",
+    dropHere: "Drop files to add them to the chest",
+    learnNow: "Learn it now",
+    language: "Language",
+    languageNames: { en: "English", es: "Español", fr: "Français", de: "Deutsch" },
+    commandGroups: { captain: "The captain's", extension: "His extensions'", kit: "The chat's" },
+    noCommands: "No command starts like that.",
     tagline: "Retired pirate cat · jokes, lore and a logbook",
     welcomeTitle: "Ahoy, shipmate!",
     welcomeText: "I tell jokes, learn from the documents in my treasure chest and keep what I learn in my logbook. Pick a mission or write your own.",
@@ -73,6 +102,22 @@ const TEXTS = {
     manual: "Your turn",
   },
   es: {
+    quick: "Acciones rápidas",
+    quickActions: [
+      { icon: "🦜", label: "Cuéntame un chiste", prompt: "Cuéntame un chiste" },
+      { icon: "🐾", label: "Un chiste fresco de la red", prompt: "/captain-whiskers:fresh-joke" },
+      { icon: "🏆", label: "Los mejores chistes", prompt: "/jokebook:best-jokes", command: "jokebook:best-jokes" },
+      { icon: "🗺️", label: "Aprende del cofre", prompt: "/captain-whiskers:learn" },
+      { icon: "📖", label: "Revisa el cuaderno", prompt: "/captain-whiskers:logbook-check" },
+      { icon: "🧭", label: "¿Qué sabes hacer?", prompt: "¿Qué sabes hacer y cómo te uso?" },
+    ],
+    addToChest: "Añadir al cofre…",
+    dropHere: "Suelta ficheros para añadirlos al cofre",
+    learnNow: "Aprenderlo ahora",
+    language: "Idioma",
+    languageNames: { en: "English", es: "Español", fr: "Français", de: "Deutsch" },
+    commandGroups: { captain: "Del capitán", extension: "De sus extensiones", kit: "Del chat" },
+    noCommands: "Ningún comando empieza así.",
     tagline: "Gato pirata retirado · chistes, saber y un cuaderno",
     welcomeTitle: "¡Ahoy, grumete!",
     welcomeText: "Cuento chistes, aprendo de los documentos de mi cofre y apunto lo que aprendo en mi cuaderno de bitácora. Elige una misión o escribe la tuya.",
@@ -141,6 +186,22 @@ const TEXTS = {
     manual: "Te toca",
   },
   fr: {
+    quick: "Actions rapides",
+    quickActions: [
+      { icon: "🦜", label: "Raconte-moi une blague", prompt: "Raconte-moi une blague" },
+      { icon: "🐾", label: "Une blague fraîche du web", prompt: "/captain-whiskers:fresh-joke" },
+      { icon: "🏆", label: "Les meilleures blagues", prompt: "/jokebook:best-jokes", command: "jokebook:best-jokes" },
+      { icon: "🗺️", label: "Apprends du coffre", prompt: "/captain-whiskers:learn" },
+      { icon: "📖", label: "Vérifie le journal", prompt: "/captain-whiskers:logbook-check" },
+      { icon: "🧭", label: "Que sais-tu faire ?", prompt: "Que sais-tu faire, et comment t'utiliser ?" },
+    ],
+    addToChest: "Ajouter au coffre…",
+    dropHere: "Dépose des fichiers pour les ajouter au coffre",
+    learnNow: "L'apprendre maintenant",
+    language: "Langue",
+    languageNames: { en: "English", es: "Español", fr: "Français", de: "Deutsch" },
+    commandGroups: { captain: "Du capitaine", extension: "De ses extensions", kit: "Du chat" },
+    noCommands: "Aucune commande ne commence ainsi.",
     tagline: "Chat pirate à la retraite · blagues, savoir et un journal",
     welcomeTitle: "Ohé, matelot !",
     welcomeText: "Je raconte des blagues, j'apprends des documents de mon coffre et je note ce que j'apprends dans mon journal de bord. Choisis une mission ou écris la tienne.",
@@ -209,6 +270,22 @@ const TEXTS = {
     manual: "À toi",
   },
   de: {
+    quick: "Schnellaktionen",
+    quickActions: [
+      { icon: "🦜", label: "Erzähl mir einen Witz", prompt: "Erzähl mir einen Witz" },
+      { icon: "🐾", label: "Ein frischer Witz aus dem Netz", prompt: "/captain-whiskers:fresh-joke" },
+      { icon: "🏆", label: "Die besten Witze", prompt: "/jokebook:best-jokes", command: "jokebook:best-jokes" },
+      { icon: "🗺️", label: "Lerne aus der Kiste", prompt: "/captain-whiskers:learn" },
+      { icon: "📖", label: "Prüfe das Logbuch", prompt: "/captain-whiskers:logbook-check" },
+      { icon: "🧭", label: "Was kannst du?", prompt: "Was kannst du, und wie benutze ich dich?" },
+    ],
+    addToChest: "Zur Kiste hinzufügen…",
+    dropHere: "Dateien hier ablegen, um sie zur Kiste hinzuzufügen",
+    learnNow: "Jetzt lernen",
+    language: "Sprache",
+    languageNames: { en: "English", es: "Español", fr: "Français", de: "Deutsch" },
+    commandGroups: { captain: "Vom Käpt'n", extension: "Von seinen Erweiterungen", kit: "Vom Chat" },
+    noCommands: "Kein Befehl beginnt so.",
     tagline: "Pirat im Ruhestand · Witze, Wissen und ein Logbuch",
     welcomeTitle: "Ahoi, Matrose!",
     welcomeText: "Ich erzähle Witze, lerne aus den Dokumenten in meiner Schatzkiste und notiere, was ich lerne, in meinem Logbuch. Wähle eine Mission oder schreib deine eigene.",

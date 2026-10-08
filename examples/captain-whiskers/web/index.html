@@ -102,7 +102,7 @@
   .call .state { width: 16px; text-align: center; color: var(--ok); flex: none; } .call .state.err { color: var(--error); }
   .call .child { font-size: 13px; color: var(--dim); padding-left: 24px; }
   .call .out { margin: 5px 0 2px 24px; font: 12.5px/1.45 var(--mono); white-space: pre-wrap; max-height: 180px; overflow: auto; color: var(--text-2); background: var(--bg-2); border-radius: 7px; padding: 7px 9px; }
-  .spin { width: 14px; height: 14px; border: 2px solid var(--gold-soft); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; flex: none; display: inline-block; }
+  .spin { width: 14px; height: 14px; border: 2px solid var(--gold-soft); border-top-color: var(--gold); border-radius: 50%; animation: spin 1.4s linear infinite; flex: none; display: inline-block; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .notice { align-self: center; font-size: 13px; color: var(--dim); background: var(--panel); border: 1px solid var(--line); padding: 5px 12px; border-radius: 999px; max-width: 100%; white-space: pre-wrap; text-align: center; }
   .notice.plain { color: var(--text-2); } .notice.warn { color: var(--warn); }
@@ -110,14 +110,14 @@
   .took { font-size: 12px; color: var(--dim); padding-left: 46px; margin-top: -6px; }
 
   /* Above the composer */
-  .dock { max-width: 780px; margin: 0 auto; padding: 0 18px; display: flex; flex-direction: column; gap: 8px; }
+  .dock { width: 100%; max-width: 780px; margin: 0 auto; padding: 0 18px; display: flex; flex-direction: column; gap: 8px; }
   .todos { border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13.5px; display: none; }
   .todos.on { display: block; }
   .todos .title { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
   .todos div { padding: 2px 0; color: var(--text-2); } .todos .done { color: var(--dim); text-decoration: line-through; } .todos .doing { color: var(--gold); font-weight: 600; }
-  .activity { display: none; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text-2); padding: 0 4px; }
+  .activity { display: none; align-items: center; justify-content: flex-start; gap: 9px; font-size: 13.5px; color: var(--text-2); padding: 0 16px; }
   .activity.on { display: flex; }
-  .activity .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .activity .what { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .activity .sub { color: var(--dim); }
   .activity .time { color: var(--dim); font-variant-numeric: tabular-nums; }
   .jump { position: sticky; bottom: 10px; margin: 0 auto; display: none; width: max-content; border: 1px solid var(--line-2); background: var(--panel); color: var(--text-2); border-radius: 999px; padding: 5px 14px; font-size: 13px; cursor: pointer; box-shadow: var(--shadow); }
@@ -127,9 +127,29 @@
   footer { padding: 10px 0 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg) 30%); }
   .composer { max-width: 780px; margin: 0 auto; padding: 0 18px; }
   .box { display: flex; align-items: flex-end; gap: 8px; background: var(--panel); border: 1px solid var(--line-2); border-radius: 18px; padding: 8px 8px 8px 16px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18); transition: border-color 0.15s; }
-  .box:focus-within { border-color: var(--gold); }
+  .box:focus-within { border-color: var(--dim); }
+  textarea:focus-visible { outline: none; }
   textarea { flex: 1; resize: none; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; padding: 7px 0; max-height: 38vh; min-height: 24px; }
   textarea::placeholder { color: var(--dim); }
+  .attach { width: 34px; height: 40px; border: 0; background: none; color: var(--dim); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; border-radius: 10px; margin-left: -8px; }
+  .attach:hover { color: var(--gold); background: var(--panel-2); }
+  .attach svg { width: 19px; height: 19px; }
+  .composer { position: relative; }
+  .slash { position: absolute; left: 18px; right: 18px; bottom: calc(100% + 6px); background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius); box-shadow: var(--shadow); max-height: min(46vh, 380px); overflow-y: auto; overflow-x: hidden; padding: 6px; display: none; z-index: 6; }
+  .slash.on { display: block; }
+  .slash .group { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--dim); padding: 8px 10px 4px; }
+  .slash .cmd { display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 7px 10px; border-radius: 9px; cursor: pointer; color: var(--text); }
+  .slash .cmd.active, .slash .cmd:hover { background: var(--panel-2); }
+  .slash .cmd .name { font-family: var(--mono); font-size: 13.5px; color: var(--gold); white-space: nowrap; }
+  .slash .cmd .hint { font-family: var(--mono); font-size: 12.5px; color: var(--dim); white-space: nowrap; }
+  .slash .cmd .desc { font-size: 13px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .slash .empty { color: var(--dim); font-size: 13.5px; padding: 8px 10px; }
+  .menu-item { flex-direction: row !important; align-items: center !important; gap: 10px; }
+  .menu-item .emoji { font-size: 17px; width: 22px; text-align: center; }
+  .drop { position: fixed; inset: 10px; z-index: 40; border: 2px dashed var(--gold); border-radius: 22px; background: rgba(13, 20, 32, 0.82); display: none; align-items: center; justify-content: center; text-align: center; color: var(--text); font-size: 18px; font-weight: 600; pointer-events: none; }
+  .drop.on { display: flex; }
+  .drop .big { font-size: 46px; display: block; margin-bottom: 8px; }
+  .toast .action { margin-left: 12px; border: 0; background: var(--gold); color: var(--gold-ink); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-weight: 600; }
   .send { width: 40px; height: 40px; border-radius: 12px; border: 0; background: var(--gold); color: var(--gold-ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; transition: background 0.15s, opacity 0.15s; }
   .send:hover { background: var(--gold-2); } .send:disabled { opacity: 0.4; cursor: default; }
   .send.stop { background: var(--error); color: #fff; }
@@ -194,6 +214,10 @@
   .signin p { color: var(--text-2); font-size: 14.5px; margin: 0 0 16px; }
   .signin .error { color: var(--error); font-size: 13.5px; min-height: 1.3em; margin-top: 8px; }
 
+  @media (max-width: 640px) {
+    .popover { position: fixed; top: auto; left: 0; right: 0; bottom: 0; border-radius: 18px 18px 0 0; padding: 8px 8px max(12px, env(safe-area-inset-bottom)); min-width: 0; max-height: 70vh; overflow-y: auto; }
+    .slash { left: 12px; right: 12px; }
+  }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
   }
@@ -228,11 +252,15 @@
   </div>
   <div class="tools-bar" id="toolbar">
     <button class="icon-button mode-button" id="mode-button" type="button" aria-haspopup="true"><span class="swatch"></span><span class="text" id="mode-label"></span></button>
+    <button class="icon-button" id="quick-button" type="button" aria-haspopup="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></button>
+    <button class="icon-button" id="lang-button" type="button" aria-haspopup="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg><span class="text" id="lang-label"></span></button>
     <button class="icon-button" id="new-button" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
     <button class="icon-button" id="runs-button" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg></button>
     <button class="icon-button" id="ext-button" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M10 3h4v3a2 2 0 1 0 4 0V3h3v7h-3a2 2 0 1 0 0 4h3v7h-7v-3a2 2 0 1 0-4 0v3H3v-7h3a2 2 0 1 0 0-4H3V3h7z"/></svg></button>
   </div>
   <div class="popover" id="mode-menu" role="menu"></div>
+  <div class="popover" id="quick-menu" role="menu"></div>
+  <div class="popover" id="lang-menu" role="menu"></div>
 </header>
 
 <section class="signin" id="signin">
@@ -264,7 +292,10 @@
 </div>
 <footer id="footer">
   <form class="composer" id="composer">
+    <div class="slash" id="slash" role="listbox"></div>
     <div class="box">
+      <button class="attach" id="attach" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5 12.6 20a5.5 5.5 0 0 1-7.8-7.8l8.9-8.9a3.7 3.7 0 0 1 5.2 5.2l-8.9 8.9a1.8 1.8 0 0 1-2.6-2.6l8.2-8.2"/></svg></button>
+      <input type="file" id="chest-files" multiple hidden>
       <textarea id="input" rows="1" enterkeyhint="send"></textarea>
       <button class="send" id="send" type="submit" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
     </div>
@@ -279,6 +310,7 @@
   <div class="drawer-body" id="drawer-body"></div>
 </aside>
 <div class="toast" id="toast"></div>
+<div class="drop" id="drop"><div><span class="big">🧰</span><span id="drop-text"></span></div></div>
 <div class="away" id="away"><div class="panel"><p id="away-text"></p><button class="btn primary" id="away-button" type="button"></button></div></div>
 
 <script>
@@ -320,12 +352,24 @@ async function act(action, data = {}) {
 }
 
 let toastTimer;
-function toast(text) {
+/** A short message at the bottom; with an action, a button that does it (and a longer stay). */
+function toast(text, action) {
   const el = $("toast");
   el.textContent = text;
+  if (action) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "action";
+    b.textContent = action.label;
+    b.addEventListener("click", () => {
+      el.classList.remove("on");
+      action.run();
+    });
+    el.append(b);
+  }
   el.classList.add("on");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("on"), 2600);
+  toastTimer = setTimeout(() => el.classList.remove("on"), action ? 9000 : 2600);
 }
 
 const fill = (template, n) => String(template).replace("{n}", n);
@@ -523,6 +567,7 @@ function render() {
   for (const id of ["scroller", "footer"]) $(id).style.display = signedIn ? "" : "none";
   document.querySelector(".dock").style.display = signedIn ? "" : "none";
   $("toolbar").style.visibility = signedIn ? "" : "hidden";
+  $("attach").style.display = state?.chat?.extensions?.active?.includes("sources") ? "" : "none";
   const chat = state?.chat;
   $("dot").className = `dot ${!connected ? "offline" : chat?.busy ? "working" : "online"}`;
   $("dot").title = connected ? T.online ?? "" : T.disconnected ?? "";
@@ -591,8 +636,164 @@ $("mode-button").addEventListener("click", (event) => {
   $("mode-menu").classList.toggle("on");
 });
 document.addEventListener("click", (event) => {
-  if (!$("mode-menu").contains(event.target)) $("mode-menu").classList.remove("on");
+  for (const id of ["mode-menu", "quick-menu", "lang-menu"]) if (!$(id).contains(event.target)) $(id).classList.remove("on");
+  if (!$("slash").contains(event.target) && event.target !== $("input")) closeSlash();
 });
+/** Opens one of the top bar's menus (closing the others). */
+function toggleMenu(id, event) {
+  event.stopPropagation();
+  for (const other of ["mode-menu", "quick-menu", "lang-menu"]) if (other !== id) $(other).classList.remove("on");
+  $(id).classList.toggle("on");
+}
+
+// --- Quick actions (#46): what's done most, one click away; a command's only when it's there.
+function buildQuickMenu() {
+  const menu = $("quick-menu");
+  menu.innerHTML = "";
+  const commands = new Set(state?.chat?.commands ?? []);
+  const item = (icon, label, run) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "menu-item";
+    b.innerHTML = `<span class="emoji">${icon}</span><strong>${escape(label)}</strong>`;
+    b.addEventListener("click", () => {
+      menu.classList.remove("on");
+      run();
+    });
+    menu.append(b);
+  };
+  for (const action of T.quickActions ?? []) {
+    if (action.command && !commands.has(action.command)) continue;
+    item(action.icon, action.label, () => void sendLine(action.prompt));
+  }
+  if (state?.chat?.extensions?.active?.includes("sources")) item("📎", T.addToChest, () => $("chest-files").click());
+}
+$("quick-button").addEventListener("click", (event) => {
+  buildQuickMenu();
+  toggleMenu("quick-menu", event);
+});
+
+// --- The language (#47): the page, the captain and the kit's texts switch, the conversation stays.
+function buildLangMenu() {
+  const menu = $("lang-menu");
+  menu.innerHTML = "";
+  for (const language of info.languages ?? []) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = language === info.language ? "current" : "";
+    b.innerHTML = `<strong>${escape(T.languageNames?.[language] ?? language)}</strong>`;
+    b.addEventListener("click", () => {
+      menu.classList.remove("on");
+      if (language !== info.language) void act("language", { language });
+    });
+    menu.append(b);
+  }
+}
+$("lang-button").addEventListener("click", (event) => {
+  buildLangMenu();
+  toggleMenu("lang-menu", event);
+});
+
+// --- The chest (#48): files added by the paperclip or dropped on the page.
+async function addToChest(files) {
+  for (const file of files) {
+    toast(`${T.uploading} ${file.name}`);
+    const response = await fetch(`/api/chest?name=${encodeURIComponent(file.name)}`, { method: "POST", headers: { "x-token": token }, body: file }).catch(() => null);
+    const result = (await response?.json().catch(() => ({}))) ?? {};
+    if (result.error === "busy") return toast(T.busyTurn);
+    if (result.path && !result.duplicateOf && (state?.chat?.commands ?? []).includes("captain-whiskers:learn")) {
+      toast(`📎 ${file.name}`, { label: T.learnNow, run: () => void sendLine("/captain-whiskers:learn") });
+    }
+  }
+}
+$("attach").addEventListener("click", () => $("chest-files").click());
+$("chest-files").addEventListener("change", async () => {
+  const files = [...($("chest-files").files ?? [])];
+  $("chest-files").value = "";
+  if (files.length) await addToChest(files);
+});
+let dragDepth = 0;
+const hasFiles = (event) => [...(event.dataTransfer?.types ?? [])].includes("Files");
+document.addEventListener("dragenter", (event) => {
+  if (!hasFiles(event) || !state?.signedIn) return;
+  dragDepth++;
+  $("drop").classList.add("on");
+});
+document.addEventListener("dragleave", (event) => {
+  if (!hasFiles(event)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) $("drop").classList.remove("on");
+});
+document.addEventListener("dragover", (event) => hasFiles(event) && event.preventDefault());
+document.addEventListener("drop", async (event) => {
+  if (!hasFiles(event)) return;
+  event.preventDefault();
+  dragDepth = 0;
+  $("drop").classList.remove("on");
+  if (state?.signedIn) await addToChest([...event.dataTransfer.files]);
+});
+
+// --- The slash menu (#45): every command, with what it does, as the person types.
+let slashItems = [];
+let slashIndex = 0;
+function commandGroup(name) {
+  const prefix = name.includes(":") ? name.split(":")[0] : "";
+  if (prefix === "captain-whiskers") return "captain";
+  if (prefix && (state?.chat?.extensions?.installed ?? []).some((extension) => extension.name === prefix)) return "extension";
+  return "kit";
+}
+function closeSlash() {
+  $("slash").classList.remove("on");
+  slashItems = [];
+}
+function updateSlash() {
+  const value = input.value;
+  const match = /^\/(\S*)$/.exec(value);
+  if (!match || !state?.chat) return closeSlash();
+  const typed = match[1].toLowerCase();
+  const details = state.chat.commandDetails ?? [];
+  slashItems = details.filter((command) => command.name.toLowerCase().includes(typed)).sort((a, b) => (a.name.toLowerCase().startsWith(typed) ? 0 : 1) - (b.name.toLowerCase().startsWith(typed) ? 0 : 1));
+  const order = ["captain", "extension", "kit"];
+  slashItems.sort((a, b) => order.indexOf(commandGroup(a.name)) - order.indexOf(commandGroup(b.name)));
+  slashIndex = Math.min(slashIndex, Math.max(0, slashItems.length - 1));
+  const box = $("slash");
+  box.innerHTML = "";
+  if (!slashItems.length) box.innerHTML = `<div class="empty">${escape(T.noCommands)}</div>`;
+  let group = null;
+  slashItems.forEach((command, index) => {
+    const g = commandGroup(command.name);
+    if (g !== group) {
+      group = g;
+      box.insertAdjacentHTML("beforeend", `<div class="group">${escape(T.commandGroups?.[g] ?? g)}</div>`);
+    }
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = `cmd${index === slashIndex ? " active" : ""}`;
+    // The SDK starts a plugin command's description with its plugin, "(captain-whiskers) …": the group says it already.
+    const description = command.description.replace(/^\([^)]*\)\s*/, "");
+    b.innerHTML = `<span class="name">/${escape(command.name)}</span>${command.argumentHint ? `<span class="hint">${escape(command.argumentHint)}</span>` : ""}<span class="desc">${escape(description)}</span>`;
+    b.addEventListener("mousedown", (event) => event.preventDefault());
+    b.addEventListener("click", () => pickSlash(index));
+    box.append(b);
+  });
+  box.classList.add("on");
+  box.querySelector(".cmd.active")?.scrollIntoView({ block: "nearest" });
+}
+function pickSlash(index) {
+  const command = slashItems[index];
+  if (!command) return;
+  closeSlash();
+  if (command.argumentHint) {
+    // It takes something after it: left in the box, the cursor after a space.
+    input.value = `/${command.name} `;
+    input.focus();
+    grow();
+  } else {
+    input.value = "";
+    grow();
+    void sendLine(`/${command.name}`);
+  }
+}
 
 // --- Los diálogos: lo que el agente pregunta (panel) y lo que se elige en lugar del prompt (choice).
 let shownKey = null;
@@ -851,8 +1052,29 @@ const grow = () => {
   input.style.height = "auto";
   input.style.height = `${Math.min(input.scrollHeight, window.innerHeight * 0.38)}px`;
 };
-input.addEventListener("input", grow);
+input.addEventListener("input", () => {
+  grow();
+  updateSlash();
+});
 input.addEventListener("keydown", (event) => {
+  if ($("slash").classList.contains("on") && slashItems.length) {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      slashIndex = (slashIndex + (event.key === "ArrowDown" ? 1 : -1) + slashItems.length) % slashItems.length;
+      updateSlash();
+      return;
+    }
+    if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
+      event.preventDefault();
+      pickSlash(slashIndex);
+      return;
+    }
+  }
+  if (event.key === "Escape" && $("slash").classList.contains("on")) {
+    event.preventDefault();
+    closeSlash();
+    return;
+  }
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
     event.preventDefault();
     $("composer").requestSubmit();
@@ -903,6 +1125,11 @@ function applyInfo() {
     $("chips").append(chip);
   }
   $("hint").textContent = T.hint;
+  $("drop-text").textContent = T.dropHere;
+  $("attach").title = T.addToChest;
+  $("quick-button").title = T.quick;
+  $("lang-button").title = T.language;
+  $("lang-label").textContent = String(info.language ?? "").toUpperCase();
   $("jump").textContent = `↓ ${T.jump}`;
   $("new-button").title = T.newConversation;
   $("runs-button").title = T.conversations;
@@ -929,6 +1156,10 @@ function connect() {
     info = JSON.parse(event.data);
     T = info.texts;
     applyInfo();
+    // A language change: everything drawn again in it.
+    for (const known of nodes.values()) known.sig = "";
+    shownKey = null;
+    render();
   });
   events.addEventListener("state", (event) => {
     state = JSON.parse(event.data);
