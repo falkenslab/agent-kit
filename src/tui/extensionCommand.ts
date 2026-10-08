@@ -261,6 +261,7 @@ async function info(extension: InstalledExtension): Promise<string[]> {
     ...field("Works with", manifest.kit && `agent-kit ${manifest.kit}`),
     ...field("Provides", manifest.provides.join(", ") || undefined),
     ...field("Requires", manifest.requires.join(", ") || undefined),
+    ...field("Needs", manifest.needs.join(", ") || undefined),
     ...field("Servers", Object.keys(manifest.servers).join(", ") || undefined),
     ...field("Only read", manifest.readOnlyTools.join(", ") || undefined),
     ...field("Variables", Object.values(manifest.servers).flatMap((server) => Object.keys(server.env ?? {})).join(", ") || undefined),

@@ -13,6 +13,7 @@ import {
   isGitSource,
   listInstalled,
   loadExternalExtensions,
+  onPath,
   readLock,
   removeExtension,
   setExtensionEnabled,
@@ -235,4 +236,16 @@ test("the command installs, lists, disables and removes, and says what it did", 
   assert.equal((await readLock(dirs.agent)).dice?.enabled, false);
   await run("remove", "dice", "--project");
   assert.deepEqual(await readLock(dirs.project), {});
+});
+
+test("an extension needing a program that isn't on the PATH is off, saying which; one that's there doesn't stop it", async () => {
+  assert.equal(await onPath("node"), true);
+  assert.equal(await onPath("no-such-program-for-agent-kit"), false);
+  const dirs = { agent: path.join(temp(), "extensions") };
+  await addExtension(makeExtension("dice", { needs: ["node", "no-such-program-for-agent-kit"] }), dirs.agent);
+  const loaded = await loadExternalExtensions(dirs);
+  assert.deepEqual(loaded.extensions, []);
+  assert.deepEqual(loaded.off, [{ name: "dice", reason: "needs no-such-program-for-agent-kit, which isn't on this computer (on the PATH)" }]);
+  await addExtension(makeExtension("dice", { needs: ["node"] }), dirs.agent);
+  assert.deepEqual((await loadExternalExtensions(dirs)).extensions.map((extension) => extension.name), ["dice"]);
 });

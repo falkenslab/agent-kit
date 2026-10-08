@@ -73,6 +73,8 @@ export interface ExternalManifest {
   requires: string[];
   /** The agent-kit versions it works with, e.g. `">=0.19.0 <0.21.0"`. */
   kit?: string;
+  /** Programs it needs on this computer, found on the `PATH` (`"docker"`, `"python3"`): without one it's off, saying which. */
+  needs: string[];
   /** Its MCP servers, by name (`mcp__<name>__<tool>`), from the plugin's `.mcp.json` or `plugin.json`. */
   servers: Record<string, PluginServer>;
   /** Its tools that only read (short names, of any of its servers): plan mode lets them through. */
@@ -146,6 +148,7 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
     provides: kit.provides ?? [],
     requires: kit.requires ?? [],
     ...(kit.kit ? { kit: kit.kit } : {}),
+    needs: Array.isArray(kit.needs) ? kit.needs.filter((program): program is string => typeof program === "string") : [],
     servers: await pluginServers(dir, raw),
     readOnlyTools: kit.readOnlyTools ?? [],
     labels: kit.labels ?? {},
@@ -345,6 +348,19 @@ export async function loadExternalExtensions(dirs: ExtensionDirs): Promise<{ ext
 }
 
 /** Why an installed extension can't load, or its manifest when it can. */
+/** Whether a program is on the `PATH`, as a shell would find it (with `PATHEXT`'s extensions on Windows). */
+export async function onPath(program: string, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  const dirs = (env.PATH ?? env.Path ?? "").split(path.delimiter).filter(Boolean);
+  const extensions = process.platform === "win32" ? ["", ...(env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";").map((extension) => extension.toLowerCase())] : [""];
+  for (const dir of dirs) {
+    for (const extension of extensions) {
+      const found = await stat(path.join(dir, `${program}${extension}`)).then((entry) => entry.isFile(), () => false);
+      if (found) return true;
+    }
+  }
+  return false;
+}
+
 async function problem(installed: InstalledExtension): Promise<string | ExternalManifest> {
   let manifest: ExternalManifest;
   try {
@@ -355,6 +371,9 @@ async function problem(installed: InstalledExtension): Promise<string | External
   }
   if (manifest.name !== installed.name) return `is installed as "${installed.name}" but its manifest says "${manifest.name}"`;
   if (manifest.kit && !inKitRange(agentKitVersion(), manifest.kit)) return `works with agent-kit ${manifest.kit}, and this agent runs ${agentKitVersion()}`;
+  const missing = [];
+  for (const program of manifest.needs) if (!(await onPath(program))) missing.push(program);
+  if (missing.length) return `needs ${missing.join(", ")}, which ${missing.length === 1 ? "isn't" : "aren't"} on this computer (on the PATH)`;
   return (await serversProblem(manifest, installed.dir)) ?? manifest;
 }
 

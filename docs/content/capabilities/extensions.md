@@ -61,6 +61,7 @@ Each scope is a folder with one subfolder per extension and a lock, `extensions.
 
 - its files changed since it was installed (the hash doesn't match): install it again to trust the change;
 - its manifest says it works with other agent-kit versions (`kit`);
+- a program it needs isn't on this computer's `PATH` (`needs`);
 - its server isn't where its manifest says;
 - an extension the spec enables has its name.
 
@@ -239,6 +240,7 @@ Under `"agent-kit"`, all optional:
 | Field | What it does |
 | --- | --- |
 | `kit` | The agent-kit versions it works with: comparators separated by spaces, all of which must hold (`>=0.19.0 <0.21.0`, `0.19.2`). Outside them, it's off. |
+| `needs` | Programs it needs on this computer, looked for on the `PATH` as a shell would (`["docker", "python3"]`; on Windows with `PATHEXT`'s extensions). Without one, it's off, saying which. |
 | `provides`, `requires` | Its [capabilities](#capabilities). |
 | `readOnlyTools` | Its tools that only read (short names, of any of its servers): [plan mode](../core-concepts/modes.md#plan) lets them through; every other one is denied there. Without it, plan mode denies them all. |
 | `labels` | How the chat shows each tool (short names), per language (English when the kit's isn't there): `label` (`{field}` takes the call's input, e.g. `"Rolling {sides}"`) and `phrase`, how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
