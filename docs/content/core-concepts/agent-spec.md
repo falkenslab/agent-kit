@@ -124,7 +124,7 @@ Only `name` is required. Write the guide in English, for the person's questions,
 disallowedTools: ["mcp__playwright__browser_run_code_unsafe"],
 ```
 
-The SDK checks `disallowedTools` before anything else: a disallowed tool never reaches the kit's permission callback, let alone runs. Built-in tools can be disallowed too (Captain Whiskers disallows `Read`, `Write` and `Glob`).
+The SDK checks `disallowedTools` before anything else: a disallowed tool never reaches the kit's permission callback, let alone runs. Built-in tools can be disallowed too (`disallowedTools: ["WebSearch"]` keeps an agent off the web search).
 
 ### `humanApprovalTexts`
 
