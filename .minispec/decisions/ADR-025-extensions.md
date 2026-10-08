@@ -12,6 +12,7 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
 - **The kit's internal extensions are knowledge, sources and memory (#34), and awareness (#43).** They need what only the process gives. The options they replace go (`knowledgeBase`, and `knowledgeDir`/`sourcesDir` turning them on by themselves).
 - **Never extensions: the core.**
   - The modes and their gates (approvals, `ask_human`, `present_plan`, the step, plan and file scope gates);
+  - manual intervention (`manualLogin`): decided 8 October 2026 (#49), it stays a checkpoint of the core like the approvals, on the same interaction port, panels and response file, and is already opt-in (`manualInterventionTexts`, never in autonomous mode);
   - subagents and their three gates;
   - the transcript, languages, run folders and resuming;
   - the chats.
@@ -42,7 +43,7 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
   - The official repository's CI bundles each one's MCP server into one file with its dependencies (esbuild), with no native dependencies.
   - The kit starts it with `process.execPath` through the launcher. No install script ever runs.
   - A third-party extension that isn't bundled is the exception: `npm ci --ignore-scripts` in the store, after the same confirmation.
-  - The builder starts as a script and a workflow in the official repository, and moves into the kit when a second repository needs it.
+  - The builder starts as a script and a workflow in the official repository, and moves into the kit when a second repository needs it. Not built yet (decided 8 October 2026, #49): the only official repository is Captain Whiskers' `shipyard`, whose server has no dependencies, so there's nothing to bundle; until one has, an official extension is written dependency-free, and the shipyard is checked with `claude plugin validate` (the CLI the SDK brings) by a test.
 - **How the model learns an extension**, in layers:
   - its tools' descriptions (what and when);
   - its MCP server's `instructions` (what for, and its rules: short, always in context);
