@@ -89,6 +89,8 @@ export interface LockEntry {
   source: string;
   /** The commit it was cloned at, for a git source. */
   commit?: string;
+  /** The marketplace it was installed from (`<name>@<marketplace>`), if any. */
+  marketplace?: string;
   /** SHA-256 over its files, checked when it loads. */
   sha256: string;
   enabled: boolean;
@@ -364,19 +366,27 @@ export function isGitSource(source: string): boolean {
 }
 
 /**
- * Installs an extension into a scope from a folder or a git repository (`url#ref`, and `subdir`
- * for one inside it): copies its files (never runs a script), checks its manifest, and locks it,
- * enabled. An extension with the same name in that scope is replaced.
+ * Installs an extension into a scope from a folder or a git repository (`url#ref`, `sha` to pin
+ * a commit, and `subdir` for one inside it): copies its files (never runs a script), checks its
+ * manifest, and locks it, enabled, with the marketplace it came from when it did. An extension
+ * with the same name in that scope is replaced.
  */
-export async function addExtension(source: string, scopeDir: string, options: { subdir?: string } = {}): Promise<{ name: string; replaced: boolean; commit?: string }> {
+export async function addExtension(
+  source: string,
+  scopeDir: string,
+  options: { subdir?: string; sha?: string; marketplace?: string } = {},
+): Promise<{ name: string; replaced: boolean; commit?: string }> {
   let from = path.resolve(source);
   let commit: string | undefined;
   let clone: string | undefined;
   if (isGitSource(source)) {
     const [url, ref] = source.replace(/^github:/, "https://github.com/").split("#") as [string, string | undefined];
     clone = await mkdtemp(path.join(os.tmpdir(), "agent-kit-extension-"));
-    await exec("git", ["clone", "--depth", "1", ...(ref ? ["--branch", ref] : []), url, clone]);
+    // A pinned commit needs the history to check it out; otherwise the tip is enough.
+    await exec("git", ["clone", ...(options.sha ? [] : ["--depth", "1"]), ...(ref ? ["--branch", ref] : []), url, clone]);
+    if (options.sha) await exec("git", ["-C", clone, "checkout", "--quiet", options.sha]);
     commit = (await exec("git", ["-C", clone, "rev-parse", "HEAD"])).stdout.trim();
+    if (options.sha && commit !== options.sha.toLowerCase()) throw new Error(`${url} has no commit ${options.sha}.`);
     from = clone;
   }
   try {
@@ -393,6 +403,7 @@ export async function addExtension(source: string, scopeDir: string, options: { 
     lock[manifest.name] = {
       source: isGitSource(source) ? `${source}${options.subdir ? ` (${options.subdir})` : ""}` : from,
       ...(commit ? { commit } : {}),
+      ...(options.marketplace ? { marketplace: options.marketplace } : {}),
       sha256: await hashExtension(target),
       enabled: true,
       installed: new Date().toISOString(),

@@ -74,8 +74,10 @@ Each agent exposes the kit's command in its own binary, so the person needn't kn
 import { runExtensionCommand } from "@falkenslab/agent-kit";
 
 // Before anything else: `my-agent extension add …` does that and exits.
-if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, command: "my-agent" })) process.exit();
+if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, command: "my-agent", official: officialMarketplace })) process.exit();
 ```
+
+`official` is optional: the agent's own [marketplace](#marketplaces), a folder or a git URL.
 
 | Command | What it does |
 | --- | --- |
@@ -83,12 +85,52 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 | `extension info <name>` | Everything its manifest says (description, author, license, homepage, repository, keywords, the agent-kit versions, capabilities, tools, variables), how it was installed, and where its README is. |
 | `extension add <folder>` | Copies the folder into the agent's scope, checks its manifest, hashes it and locks it, enabled. |
 | `extension add <git URL>[#ref] [--path <subfolder>]` | Clones the repository at the ref (`https://…`, `git@…`, `file://…`, `github:owner/repo`) and records the commit. |
+| `extension add <plugin>[@<marketplace>]` | Installs a plugin of a known [marketplace](#marketplaces), from wherever the marketplace says (the marketplace's own folder, or a git repository at a ref or commit); `@<marketplace>` only when two offer that name. One from a marketplace that isn't the agent's own asks first. |
 | `extension add … --project` | Into the project's scope instead. |
 | `extension remove <name>` | Removes its files and its lock entry. |
 | `extension enable <name>` | Turns it on. |
 | `extension disable <name>` | Turns it off, keeping it installed. |
+| `extension search [words]` | What the known marketplaces offer, matching the words in a plugin's name, description, category, tags or keywords; installed ones are marked. |
+| `extension marketplace add <folder \| git URL[#ref] \| owner/repo>` | Adds a marketplace after a warning and typing its name. |
+| `extension marketplace list` | The known marketplaces: the official one marked, how many extensions each offers, where from and when it was copied. |
+| `extension marketplace update [name]` | Takes a fresh copy of one, or all; installed extensions stay as they are until added again. |
+| `extension marketplace remove <name>` | Forgets it; the extensions installed from it stay. |
 
-Without a scope, `remove`, `enable` and `disable` act where the extension is (in both: say which, `--project` or `--agent`). Installing never runs a script: a repository's install scripts, if any, don't run.
+Without a scope, `remove`, `enable` and `disable` act where the extension is (in both: say which, `--project` or `--agent`). Installing never runs a script: a repository's install scripts, if any, don't run. `--yes` answers the command's questions (a script); without a terminal, they're answered no.
+
+### Marketplaces
+
+A repository of extensions is a [Claude Code marketplace](https://code.claude.com/docs/en/plugins/marketplace-reference) as it is: a folder or git repository with `.claude-plugin/marketplace.json` listing its plugins and where each comes from. The same file serves Claude Code and agents on the kit, and `claude plugin validate <folder>` checks it (the kit's `"agent-kit"` key in a plugin shows as a warning: Claude Code ignores it).
+
+```json title="extensions/.claude-plugin/marketplace.json"
+{
+  "name": "shipyard",
+  "owner": { "name": "Falkenslab" },
+  "metadata": { "description": "Captain Whiskers' own extensions." },
+  "plugins": [
+    { "name": "jokebook", "source": "./jokebook", "description": "Classic pirate jokes.", "tags": ["jokes"] },
+    { "name": "cards", "source": { "source": "github", "repo": "falkenslab/cards", "ref": "v1.2.0" } }
+  ]
+}
+```
+
+The kit installs these sources:
+
+| `source` | From |
+| --- | --- |
+| `"./path"`, or a bare name under `metadata.pluginRoot` | A folder of the marketplace itself; one that leaves it (`..`) is refused. |
+| `{ "source": "github", "repo": "owner/repo", "ref"?, "sha"? }` | A GitHub repository, at a branch or tag, or a pinned commit. |
+| `{ "source": "url", "url": "…git", "ref"?, "sha"? }` | Any git repository. |
+| `{ "source": "git-subdir", "url": "…", "path": "…", "ref"?, "sha"? }` | A folder of a git repository. |
+
+`npm` and `archive` sources aren't installed yet, and `command` never is: it would run a program of the marketplace's on the person's computer.
+
+An agent knows the marketplaces added to it, in its agent scope (the project's when it has none): `marketplaces.json`, and a copy of each in `.marketplaces/<name>/`. Installing from one goes through the same copy, hash and lock as any extension, with the plugin's name there recorded (`jokebook@shipyard`, shown by `extension list`). Trust follows [ADR-025](https://github.com/falkenslab/agent-kit/blob/main/.minispec/decisions/ADR-025-extensions.md):
+
+- **The agent's own marketplace** (`official`) is known without asking, and its plugins install without a question. A folder is copied afresh every time the command runs, since it's the agent's own code; a git one is copied once and refreshed with `marketplace update`.
+- **Any other** is added only by hand: the command shows its name, owner and how many extensions it offers, warns that they run with the person's permissions, and asks to type its name. Installing from it shows the plugin and asks again.
+
+The functions behind the command are exported too, for a host with its own interface (a desktop app's extensions panel): `addMarketplace()`, `inspectMarketplace()` (read one without adding it), `listMarketplaces()`, `updateMarketplace()`, `removeMarketplace()`, `findPlugin()` and `installFromMarketplace()`. They ask nothing: asking the person is the host's.
 
 ### In the chat
 

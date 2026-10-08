@@ -31,9 +31,11 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
   - Installing copies the files (or clones at a ref); it never runs a script. Secrets live apart (`.env`), passed only to the extension that declares them.
   - Each agent exposes the command in its own binary (`captain extension add …`), from the kit's `runExtensionCommand()`: the agent knows its name and folders, and the person needn't know the kit.
   - Machine requirements (`requires: docker`) are checked later.
-- **Repositories and trust** (after folders and git, #37):
-  - One official repository per agent.
-  - Others are added only by hand, after a warning and a typed confirmation. Names are `<repo>/<name>` everywhere.
+- **Repositories and trust** (built 8 October 2026, #29):
+  - A repository is a Claude Code marketplace as it is (`.claude-plugin/marketplace.json`). The kit installs its folder, `github`, `url` and `git-subdir` sources; `npm` and `archive` not yet, and `command` never (it runs the marketplace's program on the person's machine). A relative source with `..` is refused, as Claude Code does.
+  - An agent's known marketplaces live in its agent scope (`marketplaces.json`, a copy of each in `.marketplaces/`); installing from one goes through `addExtension()`, the same copy, hash and lock, recording `<plugin>@<marketplace>`.
+  - One official repository per agent (`runExtensionCommand()`'s `official`): known without asking, installed from without a question; a folder one is copied afresh every time, since it's the agent's own code.
+  - Others are added only by hand, after a warning and typing the marketplace's name; installing from one asks again. Names are Claude Code's, `<plugin>@<marketplace>`, the marketplace left out when only one offers the name. The exported functions ask nothing: a host with its own interface asks the person itself.
   - Whatever the source, the kit keeps: the approvals; every MCP tool treated as publishing unless confirmed read-only; secrets only to the extension that declares them; a clean environment for its processes; tool results framed as data.
 - **Official extensions are Node, bundled when published.**
   - The official repository's CI bundles each one's MCP server into one file with its dependencies (esbuild), with no native dependencies.

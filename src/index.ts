@@ -45,6 +45,21 @@ export {
   type InstalledExtension,
   type LockEntry,
 } from "./core/externalExtensions.js";
+export {
+  addMarketplace,
+  findPlugin,
+  inspectMarketplace,
+  installFromMarketplace,
+  listMarketplaces,
+  readMarketplaceManifest,
+  removeMarketplace,
+  resolvePluginSource,
+  updateMarketplace,
+  type KnownMarketplace,
+  type MarketplaceManifest,
+  type MarketplacePlugin,
+  type PluginSource,
+} from "./core/marketplaces.js";
 export { runExtensionCommand } from "./tui/extensionCommand.js";
 export { agentKitVersion } from "./core/version.js";
 export {
