@@ -387,13 +387,14 @@ export function isGitSource(source: string): boolean {
 /**
  * Installs an extension into a scope from a folder or a git repository (`url#ref`, `sha` to pin
  * a commit, and `subdir` for one inside it): copies its files (never runs a script), checks its
- * manifest, and locks it, enabled, with the marketplace it came from when it did. An extension
- * with the same name in that scope is replaced.
+ * manifest, and locks it, enabled, with the marketplace it came from when it did (`origin`, for a
+ * temporary folder, is what the lock says it came from). An extension with the same name in that
+ * scope is replaced.
  */
 export async function addExtension(
   source: string,
   scopeDir: string,
-  options: { subdir?: string; sha?: string; marketplace?: string } = {},
+  options: { subdir?: string; sha?: string; marketplace?: string; origin?: string } = {},
 ): Promise<{ name: string; replaced: boolean; commit?: string }> {
   let from = path.resolve(source);
   let commit: string | undefined;
@@ -420,7 +421,7 @@ export async function addExtension(
     await mkdir(scopeDir, { recursive: true });
     await cp(from, target, { recursive: true, filter: (file) => path.basename(file) !== ".git" });
     lock[manifest.name] = {
-      source: isGitSource(source) ? `${source}${options.subdir ? ` (${options.subdir})` : ""}` : from,
+      source: options.origin ?? (isGitSource(source) ? `${source}${options.subdir ? ` (${options.subdir})` : ""}` : from),
       ...(commit ? { commit } : {}),
       ...(options.marketplace ? { marketplace: options.marketplace } : {}),
       sha256: await hashExtension(target),

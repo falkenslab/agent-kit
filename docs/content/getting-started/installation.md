@@ -29,8 +29,9 @@ A few tools of the kit need libraries you install only if your agent uses them (
 | --- | --- |
 | Reading DOCX, PPTX and XLSX originals (`extract_text`) | `npm install mammoth fflate turndown` |
 | Keeping a downloaded web page as markdown (`download_to_sources`) | `npm install @mozilla/readability linkedom turndown` |
+| Installing extensions from a marketplace's `npm` or `archive` sources | `npm install fflate` |
 
-Without them, those tools say what to install; nothing else changes.
+Without them, those tools (and those installs) say what to install; nothing else changes.
 
 For TypeScript without a build step:
 

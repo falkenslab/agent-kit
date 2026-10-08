@@ -123,8 +123,10 @@ The kit installs these sources:
 | `{ "source": "github", "repo": "owner/repo", "ref"?, "sha"? }` | A GitHub repository, at a branch or tag, or a pinned commit. |
 | `{ "source": "url", "url": "…git", "ref"?, "sha"? }` | Any git repository. |
 | `{ "source": "git-subdir", "url": "…", "path": "…", "ref"?, "sha"? }` | A folder of a git repository. |
+| `{ "source": "npm", "package": "@scope/name", "version"?, "registry"? }` | An npm package: the version asked for (exact, a dist-tag, `latest` by default, or a range such as `^2.0.0`), its tarball checked against the registry's `integrity` (sha512). |
+| `{ "source": "archive", "url": "https://….zip", "sha256"? }` | A zip over HTTPS, checked against `sha256` when given; the plugin is its root, or its only folder. |
 
-`npm` and `archive` sources aren't installed yet, and `command` never is: it would run a program of the marketplace's on the person's computer.
+npm and zip downloads are fetched and unpacked in the agent's own process, so a packaged agent needs neither npm nor a `tar`, and nothing in them runs (an npm package's scripts don't); unpacking takes the optional `fflate` library (see [Installation](../getting-started/installation.md#optional-libraries)). A file that would land outside the plugin's folder is refused. `command` sources never install: they would run a program of the marketplace's on the person's computer.
 
 An agent knows the marketplaces added to it, in its agent scope (the project's when it has none): `marketplaces.json`, and a copy of each in `.marketplaces/<name>/`. Installing from one goes through the same copy, hash and lock as any extension, with the plugin's name there recorded (`jokebook@shipyard`, shown by `extension list`). Trust follows [ADR-025](https://github.com/falkenslab/agent-kit/blob/main/.minispec/decisions/ADR-025-extensions.md):
 

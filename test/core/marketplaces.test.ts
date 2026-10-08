@@ -85,14 +85,14 @@ test("a marketplace is added as a copy, and its plugins install by name@marketpl
   assert.deepEqual((await listInstalled({ agent: extensions })).map((extension) => extension.name).sort(), ["cards", "dice"]);
 });
 
-test("a source leaving the marketplace, an npm or command source, and an unknown name are refused", async () => {
+test("a source leaving the marketplace, a command source and an unknown name are refused; an npm one resolves to its package", async () => {
   const { root } = makeMarketplace();
   const extensions = temp();
   await addMarketplace(root, extensions);
   const [known] = await listMarketplaces(extensions);
   const plugin = (name: string) => known!.manifest!.plugins.find((entry) => entry.name === name)!;
   assert.throws(() => resolvePluginSource(known!, plugin("leaky")), /leaves its marketplace/);
-  assert.throws(() => resolvePluginSource(known!, plugin("remote")), /"npm" source, which agent-kit doesn't install/);
+  assert.deepEqual(resolvePluginSource(known!, plugin("remote")), { npm: { name: "@x/remote" } });
   assert.throws(() => resolvePluginSource(known!, plugin("runner")), /"command" source/);
   await assert.rejects(findPlugin(extensions, "chess"), /No marketplace offers chess/);
   await assert.rejects(findPlugin(extensions, "dice@harbor"), /No marketplace harbor/);

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { addExtension, isGitSource } from "./externalExtensions.js";
+import { fetchArchivePlugin, fetchNpmPlugin } from "./pluginDownloads.js";
 
 /**
  * Marketplaces (ADR-025, #29): a repository of extensions is a Claude Code marketplace as it is,
@@ -212,8 +213,14 @@ export async function findPlugin(dir: string, spec: string): Promise<{ marketpla
   return found[0]!;
 }
 
-/** Where a plugin's source points, for `addExtension()`: a folder of the marketplace's copy, or a git repository. */
-export function resolvePluginSource(marketplace: KnownMarketplace, plugin: MarketplacePlugin): { source: string; subdir?: string; sha?: string } {
+/** Where a plugin comes from: a folder or git repository for `addExtension()`, or a download (npm, archive). */
+export type ResolvedSource =
+  | { source: string; subdir?: string; sha?: string }
+  | { npm: { name: string; version?: string; registry?: string } }
+  | { archive: { url: string; sha256?: string } };
+
+/** Where a plugin's source points: a folder of the marketplace's copy, a git repository, an npm package or a zip. */
+export function resolvePluginSource(marketplace: KnownMarketplace, plugin: MarketplacePlugin): ResolvedSource {
   const { source } = plugin;
   if (typeof source === "string") {
     // From the marketplace's root: `./plugins/x`, or a bare name under `pluginRoot`; never "..", as Claude Code.
@@ -235,9 +242,19 @@ export function resolvePluginSource(marketplace: KnownMarketplace, plugin: Marke
       return { source: `${String(entry.url)}${ref}`, ...sha };
     case "git-subdir":
       return { source: `${gitUrl(String(entry.url))}${ref}`, subdir: String(entry.path), ...sha };
+    case "npm": {
+      // "package" may carry its version ("@scope/name@^2.0.0"); "version" wins.
+      const spec = String(entry.package);
+      const at = spec.lastIndexOf("@");
+      const [name, inline] = at > 0 ? [spec.slice(0, at), spec.slice(at + 1)] : [spec, undefined];
+      const version = typeof entry.version === "string" ? entry.version : inline;
+      return { npm: { name, ...(version ? { version } : {}), ...(typeof entry.registry === "string" ? { registry: entry.registry } : {}) } };
+    }
+    case "archive":
+      return { archive: { url: String(entry.url), ...(typeof entry.sha256 === "string" ? { sha256: entry.sha256 } : {}) } };
     default:
-      // npm and archive aren't supported yet; command runs a program of the marketplace's on this machine, never.
-      throw new Error(`${plugin.name} comes from a "${source.source}" source, which agent-kit doesn't install: only folders of the marketplace, github, url and git-subdir.`);
+      // command runs a program of the marketplace's on this machine: never.
+      throw new Error(`${plugin.name} comes from a "${source.source}" source, which agent-kit doesn't install: only folders of the marketplace, github, url, git-subdir, npm and archive.`);
   }
 }
 
@@ -252,10 +269,28 @@ export async function installFromMarketplace(
 ): Promise<{ name: string; replaced: boolean; commit?: string; marketplace: string }> {
   const { marketplace, plugin } = await findPlugin(dir, spec);
   const resolved = resolvePluginSource(marketplace, plugin);
+  const from = `${plugin.name}@${marketplace.name}`;
+  if ("npm" in resolved) {
+    const { name, version, registry } = resolved.npm;
+    const fetched = await fetchNpmPlugin(name, version, registry);
+    try {
+      return { ...(await addExtension(fetched.dir, scopeDir, { marketplace: from, origin: `npm:${name}@${fetched.version}` })), marketplace: marketplace.name };
+    } finally {
+      await rm(fetched.dir, { recursive: true, force: true });
+    }
+  }
+  if ("archive" in resolved) {
+    const fetched = await fetchArchivePlugin(resolved.archive.url, resolved.archive.sha256);
+    try {
+      return { ...(await addExtension(fetched.root, scopeDir, { marketplace: from, origin: resolved.archive.url })), marketplace: marketplace.name };
+    } finally {
+      await rm(fetched.dir, { recursive: true, force: true });
+    }
+  }
   const result = await addExtension(resolved.source, scopeDir, {
     ...(resolved.subdir ? { subdir: resolved.subdir } : {}),
     ...(resolved.sha ? { sha: resolved.sha } : {}),
-    marketplace: `${plugin.name}@${marketplace.name}`,
+    marketplace: from,
   });
   return { ...result, marketplace: marketplace.name };
 }
