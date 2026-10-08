@@ -140,7 +140,7 @@ The functions behind the command are exported too, for a host with its own inter
 
 `/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and apply it (the chat must have a session opener). It works in both chats.
 
-**In the same session** when the extension was running when the session opened: its MCP servers are switched off (their tools leave the model's context) and its plugin is unloaded (its skills, commands and subagents go), and back again on `enable`. The kit's gates, the chat's labels, the commands, `/extensions` and [awareness](awareness.md)'s `about_me` follow, and the model is told with the person's next message, since the prompt's Extensions section still says what the session opened with. To do it, each session loads an installed extension's plugin from a copy in the run's folder (`<runDir>/extensions/<name>/`), which it empties and fills again; what's installed is never touched.
+**In the same session** when the extension was running when the session opened: its MCP servers are switched off (their tools leave the model's context) and its plugin is unloaded (its skills, commands and subagents go), and back again on `enable`. The kit's gates, the chat's labels, the commands, `/extensions` and [awareness](awareness.md)'s `about_me` follow, and the model is told with the person's next message, since the prompt's Extensions section still says what the session opened with. To do it, each session loads an installed extension's plugin through a link in the run's folder (`<runDir>/extensions/<name>/`, a junction on Windows), which it removes and makes again: nothing is copied, however large its `node_modules`, and what's installed is never touched. Where a link can't be made (a disk without them), it's a copy, emptied and filled.
 
 **By opening the session again**, keeping the conversation, otherwise: an extension that wasn't running when the session opened (installed since, or enabled in the lock), or whose files changed since it was installed (a new session judges them by their hash; a [linked](#developing-one) one's aren't checked, so it turns on again with its new files). A session the agent builds itself gets the same switch from `buildSessionOptions()`'s `switchExtension(name, enabled)`, which returns `false` when it takes a new session; it needs the session running through `runQuery()`.
 
@@ -260,7 +260,7 @@ An installed extension has a data folder of its own, `<scope>/.data/<name>/` (e.
 
 - It's created when a session starts the extension, outside its plugin and its hash: what the server writes there never turns the extension off.
 - It's kept when the extension is installed again or updated, and when it's removed unless the person says to delete it.
-- Never write in the plugin's own folder: a session runs the extension's plugin from a copy in its run folder, and an update replaces the installed one.
+- Never write in the plugin's own folder: an update replaces it, and a changed file leaves the extension off until it's installed again.
 
 ### Developing one
 

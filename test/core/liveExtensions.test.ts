@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { addExtension, setExtensionEnabled } from "../../src/core/externalExtensions.js";
+import { mountPlugin, unmountPlugin } from "../../src/core/liveExtensions.js";
 import { buildSessionOptions } from "../../src/core/session.js";
 import { sessionViewOf } from "../../src/core/sessionFacts.js";
 import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
@@ -46,18 +47,21 @@ async function session() {
     toggleMcpServer: async (server, enabled) => void calls.push(`${server}:${enabled ? "on" : "off"}`),
     reloadPlugins: async () => void calls.push("reload"),
   });
-  return { built, calls, scope, copy: path.join(runDir, "extensions", "dice") };
+  return { built, calls, scope, mount: path.join(runDir, "extensions", "dice") };
 }
 
-test("an installed extension is turned off and on in the running session: its servers, its plugin copy and the kit's lists", async () => {
-  const { built, calls, copy } = await session();
+test("an installed extension is turned off and on in the running session: its servers, its mounted plugin and the kit's lists", async () => {
+  const { built, calls, scope, mount } = await session();
+  // Its plugin is a link to what's installed: nothing copied.
+  assert.ok(fs.lstatSync(mount).isSymbolicLink());
   const facts = async () => (await sessionViewOf(built.options)!.facts()).extensions;
   assert.ok(built.toolLabels.mcp__dice__roll);
   assert.deepEqual(built.extensions.active, ["dice"]);
 
   assert.equal(await built.switchExtension("dice", false), true);
   assert.deepEqual(calls, ["reload", "dice:off"]);
-  assert.deepEqual(fs.readdirSync(copy), []); // its skills, commands and subagents gone at the reload
+  assert.ok(!fs.existsSync(mount)); // its skills, commands and subagents gone at the reload
+  assert.ok(fs.existsSync(path.join(scope, "dice", "skills", "roll-many", "SKILL.md"))); // the link went, not what's installed
   assert.equal(built.toolLabels.mcp__dice__roll, undefined);
   assert.deepEqual(built.extensions.active, []);
   assert.deepEqual(built.extensions.inactive, [{ name: "dice", reason: "was turned off in this session" }]);
@@ -68,7 +72,7 @@ test("an installed extension is turned off and on in the running session: its se
 
   assert.equal(await built.switchExtension("dice", true), true);
   assert.deepEqual(calls.slice(2), ["reload", "dice:on"]);
-  assert.ok(fs.existsSync(path.join(copy, "skills", "roll-many", "SKILL.md")));
+  assert.ok(fs.existsSync(path.join(mount, "skills", "roll-many", "SKILL.md")));
   assert.ok(built.toolLabels.mcp__dice__roll);
   assert.deepEqual(built.extensions.active, ["dice"]);
   assert.deepEqual(built.extensions.inactive, []);
@@ -108,4 +112,21 @@ test("a linked extension turns on again after a rebuild, with its new files: it'
   assert.equal(await built.switchExtension("dice", true), true);
   assert.deepEqual(calls, ["reload", "dice:off", "reload", "dice:on"]);
   assert.match(fs.readFileSync(path.join(runDir, "extensions", "dice", "skills", "roll-many", "SKILL.md"), "utf8"), /rebuilt/);
+});
+
+test("a plugin is mounted as a link, or a copy where a link can't be made; unmounting never touches what's installed", async () => {
+  const installed = makeExtension("dice");
+  const at = path.join(temp(), "run", "extensions", "dice");
+  assert.equal(await mountPlugin(installed, at), "link");
+  await unmountPlugin(at);
+  assert.ok(!fs.existsSync(at));
+  assert.ok(fs.existsSync(path.join(installed, "skills", "roll-many", "SKILL.md")));
+  // A copy (a run from before, or a disk without links) is emptied, keeping its path.
+  fs.mkdirSync(at, { recursive: true });
+  fs.writeFileSync(path.join(at, "old.txt"), "x");
+  await unmountPlugin(at);
+  assert.deepEqual(fs.readdirSync(at), []);
+  assert.equal(await mountPlugin(installed, at), "link"); // over an empty copy too
+  assert.ok(fs.existsSync(path.join(at, ".claude-plugin", "plugin.json")));
+  await unmountPlugin(path.join(temp(), "never-mounted")); // nothing there: nothing to do
 });

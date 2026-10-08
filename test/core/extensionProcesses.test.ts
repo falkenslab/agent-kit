@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { addExtension } from "../../src/core/externalExtensions.js";
+import { mountPlugin, unmountPlugin } from "../../src/core/liveExtensions.js";
 import { buildSessionOptions, createInputQueue } from "../../src/core/session.js";
 
 // The SDK's CLI, which starts and stops an installed extension's server: a native binary per
@@ -98,5 +99,37 @@ test("turning an installed extension off, or closing the session, ends its serve
     input.end();
     session.close();
     for (const pid of started()) if (alive(pid)) process.kill(pid);
+  }
+});
+
+test("the CLI loads an installed extension's plugin through its mount, and reloadPlugins() unloads it when the link goes and loads it when it's back", { skip: !fs.existsSync(binary) && "no Claude CLI binary for this platform", timeout: 90_000 }, async () => {
+  const plugin = path.join(temp(), "dice");
+  fs.mkdirSync(path.join(plugin, ".claude-plugin"), { recursive: true });
+  fs.mkdirSync(path.join(plugin, "skills", "roll-many"), { recursive: true });
+  fs.writeFileSync(path.join(plugin, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "dice", description: "Rolls dice." }));
+  fs.writeFileSync(path.join(plugin, "skills", "roll-many", "SKILL.md"), "---\nname: roll-many\ndescription: Rolls many dice.\n---\n\nRoll.");
+  const scope = path.join(temp(), "extensions");
+  await addExtension(plugin, scope);
+  const runDir = temp();
+  const built = await buildSessionOptions({ mode: "guided", projectDir: temp(), extensionDirs: { agent: scope } }, runDir, {
+    buildSystemPrompt: () => "P",
+    buildMcpServers: () => ({}),
+    pluginRoots: () => [],
+    buildSubagents: () => undefined,
+  });
+  const mount = path.join(runDir, "extensions", "dice");
+  const input = createInputQueue();
+  const session = query({ prompt: input.iterable, options: built.options });
+  const loaded = async () => (await session.reloadPlugins()).commands.some((command) => command.name === "dice:roll-many");
+  try {
+    assert.equal(await loaded(), true);
+    await unmountPlugin(mount);
+    assert.equal(await loaded(), false);
+    await mountPlugin(path.join(scope, "dice"), mount);
+    assert.equal(await loaded(), true);
+    assert.ok(fs.existsSync(path.join(scope, "dice", "skills", "roll-many", "SKILL.md")));
+  } finally {
+    input.end();
+    session.close();
   }
 });

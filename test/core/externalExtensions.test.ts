@@ -191,10 +191,11 @@ test("a session runs an installed extension: its server through the launcher, it
     assert.match(String(built.options.systemPrompt), /\*\*dice\*\*: Rolls dice\. Provides: dice\./);
     assert.equal((built.options.settings as { disableAllHooks?: boolean }).disableAllHooks, true);
     assert.deepEqual(built.options.agents?.["dice:croupier"]?.tools, ["Read"]);
-    // Its plugin from a copy in the run's folder, which the session can empty to turn it off (#49).
-    const copy = path.join(runDir, "extensions", "dice");
-    assert.ok(built.options.plugins?.some((plugin) => plugin.path === copy));
-    assert.ok(fs.existsSync(path.join(copy, ".claude-plugin", "plugin.json")));
+    // Its plugin mounted in the run's folder (a link), which the session can unmount to turn it off (#49).
+    const mount = path.join(runDir, "extensions", "dice");
+    assert.ok(built.options.plugins?.some((plugin) => plugin.path === mount));
+    assert.ok(fs.lstatSync(mount).isSymbolicLink());
+    assert.ok(fs.existsSync(path.join(mount, ".claude-plugin", "plugin.json")));
     assert.deepEqual(built.extensions.active, ["dice"]);
 
     // /extensions lists it; disabling it changes the lock and says which, for the chat to apply.

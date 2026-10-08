@@ -1,4 +1,4 @@
-import { cp, readdir, rm } from "node:fs/promises";
+import { cp, lstat, mkdir, readdir, rm, symlink, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { ExtensionsStatus } from "./session.js";
 import { hashExtension, listInstalled, readLock } from "./externalExtensions.js";
@@ -9,9 +9,9 @@ import type { ToolLabels } from "./toolLabels.js";
  * Turning an installed extension off and on in a running session (#49), without reopening it.
  * Only one that was running when the session opened: its MCP servers are toggled
  * (`toggleMcpServer()`, which removes their tools from the model's context and brings them back,
- * confirmed empirically) and its plugin, a copy in the run's folder, is emptied or filled again
+ * confirmed empirically) and its plugin, mounted in the run's folder, is unmounted or mounted again
  * before `reloadPlugins()` (its skills, commands and subagents go and come back, confirmed
- * empirically). The kit's own lists follow: the plan gate's read-only tools, the subagent gates'
+ * empirically, through a link too). The kit's own lists follow: the plan gate's read-only tools, the subagent gates'
  * allowed types, the chat's labels, `/extensions` and what `about_me` says. One that wasn't
  * running has no plugin path the session knows: it takes reopening the session.
  *
@@ -19,15 +19,48 @@ import type { ToolLabels } from "./toolLabels.js";
  * empirically: removing one from its set removes nothing).
  */
 
+/**
+ * Mounts an installed extension's plugin at `at`, in a run's folder, for the session to load from
+ * there: a link to it (a junction on Windows, which needs no privilege), so nothing is copied and
+ * its `node_modules` costs nothing; a copy where a link can't be made. The CLI loads a plugin
+ * through a link, and `reloadPlugins()` unloads it when the link goes and loads it when it's back
+ * (confirmed empirically).
+ */
+export async function mountPlugin(from: string, at: string): Promise<"link" | "copy"> {
+  // Whatever was there goes: a link (never what it points at), or a copy, whole.
+  const found = await lstat(at).catch(() => undefined);
+  if (found?.isSymbolicLink()) await unlink(at);
+  else if (found) await rm(at, { recursive: true, force: true });
+  await mkdir(path.dirname(at), { recursive: true });
+  try {
+    await symlink(from, at, process.platform === "win32" ? "junction" : "dir");
+    return "link";
+  } catch {
+    await cp(from, at, { recursive: true });
+    return "copy";
+  }
+}
+
+/**
+ * Takes a mounted plugin away: a link is removed, never what it points at (its contents are the
+ * installed extension); a copy is emptied, so the path stays for mounting it again.
+ */
+export async function unmountPlugin(at: string): Promise<void> {
+  const found = await lstat(at).catch(() => undefined);
+  if (!found) return;
+  if (found.isSymbolicLink()) await unlink(at);
+  else for (const entry of await readdir(at)) await rm(path.join(at, entry), { recursive: true, force: true });
+}
+
 /** What an installed extension brought to this session, to take it away and bring it back. */
 export interface LiveExtension {
   name: string;
-  /** Its plugin as installed (in its scope's folder, or where it's linked): the plugin copy is filled from there. */
+  /** Its plugin as installed (in its scope's folder, or where it's linked): what's mounted in the run's folder. */
   installedDir: string;
   /** Its scope's folder, where its lock is. */
   scopeDir: string;
-  /** Its plugin, copied into the run's folder for this session. */
-  pluginCopy: string;
+  /** Where its plugin is mounted in the run's folder for this session (`mountPlugin()`). */
+  pluginMount: string;
   servers: string[];
   readOnlyTools: string[];
   toolLabels: ToolLabels;
@@ -69,9 +102,9 @@ export function createExtensionSwitch(extensions: readonly LiveExtension[], targ
       // A linked one's aren't checked: it's being developed, and a rebuild is why it's turned on again.
       const lock = (await readLock(extension.scopeDir))[name];
       if (!lock || (!lock.linked && lock.sha256 !== (await hashExtension(extension.installedDir)))) return false;
-      await cp(extension.installedDir, extension.pluginCopy, { recursive: true });
+      await mountPlugin(extension.installedDir, extension.pluginMount);
     } else {
-      for (const entry of await readdir(extension.pluginCopy)) await rm(path.join(extension.pluginCopy, entry), { recursive: true, force: true });
+      await unmountPlugin(extension.pluginMount);
     }
     await controls.reloadPlugins();
     for (const server of extension.servers) await controls.toggleMcpServer(server, enabled);

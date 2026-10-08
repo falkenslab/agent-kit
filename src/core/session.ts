@@ -1,4 +1,4 @@
-import { cp, readdir, readFile, rm } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { HookCallbackMatcher, HookEvent, Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
@@ -25,7 +25,7 @@ import { replyLanguageInstruction, type Language } from "./language.js";
 import { chooseLanguage } from "./messages/index.js";
 import { createRunStore, type RunFolder } from "./runs.js";
 import { createSessionView, registerSessionView, type SessionView, type StaticSessionFacts } from "./sessionFacts.js";
-import { createExtensionSwitch, type ExtensionSwitch } from "./liveExtensions.js";
+import { createExtensionSwitch, mountPlugin, type ExtensionSwitch } from "./liveExtensions.js";
 import { agentKitVersion } from "./version.js";
 
 /**
@@ -108,15 +108,15 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     ...external.off,
     ...external.extensions.filter((extension) => enabledNames.has(extension.name)).map((extension) => ({ name: extension.name, reason: "has the name of one this agent already has" })),
   );
-  // Each installed one's plugin, copied into the run's folder: the running session empties and
-  // fills the copy to turn the extension off and on (liveExtensions.ts), never what's installed.
+  // Each installed one's plugin, mounted in the run's folder (a link, nothing copied): the running
+  // session unmounts and mounts it to turn the extension off and on (liveExtensions.ts), never
+  // touching what's installed.
   const installedDirs = new Map<string, { dir: string; scopeDir: string }>();
   for (const { extension } of resolved.active.filter(({ extension }) => extension.external)) {
-    const copy = path.join(runDir, "extensions", extension.name);
-    await rm(copy, { recursive: true, force: true });
-    await cp(extension.plugin, copy, { recursive: true });
+    const mount = path.join(runDir, "extensions", extension.name);
+    await mountPlugin(extension.plugin, mount);
     installedDirs.set(extension.name, { dir: extension.plugin, scopeDir: extension.installedIn ?? path.dirname(extension.plugin) });
-    extension.plugin = copy;
+    extension.plugin = mount;
   }
   const externalPlugins = new Set(resolved.active.filter(({ extension }) => extension.external).map(({ extension }) => path.resolve(extension.plugin)));
   extensionContext.capabilities = resolved.capabilities;
@@ -408,7 +408,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           name: extension.name,
           installedDir: installed.dir,
           scopeDir: installed.scopeDir,
-          pluginCopy: extension.plugin,
+          pluginMount: extension.plugin,
           servers: Object.keys(contribution?.mcpServers ?? {}),
           readOnlyTools: contribution?.readOnlyTools ?? [],
           toolLabels: contribution?.toolLabels ?? {},
