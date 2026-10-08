@@ -9,10 +9,11 @@ An installed extension that bundles dependencies (a server built with esbuild, `
 ## Context
 
 - The installed folder's SHA-256 is computed on every session start; with `node_modules` (e.g. `playwright-core`: hundreds of files, several MB) it may cost seconds. Not measured.
+- Every session also copies an installed extension's whole plugin into its run folder (`<runDir>/extensions/<name>`, so it can be emptied to turn it off, #49), `node_modules` included, though the SDK only loads its skills, commands, agents and manifest from there; its server runs from the installed folder. Measure it with the hash, and copy only what the SDK reads if it costs.
+- Depends on `extension-data-and-link.md` (done, #52): the data folder exists.
 - Plan mode lets through only the tools known to only read: an installed extension lists them in its manifest (`agent-kit.readOnlyTools`). An MCP server can already say so per tool (`annotations.readOnlyHint`), as moodle-mcp will; declaring both is repetition that drifts.
 - The annotation comes from the server itself, the code the kit trusts least: it can't outrank the manifest.
 - The only installed example, the jokebook, has no dependencies and no build: nothing shows how to build, bundle and publish one that has.
-- Depends on `extension-data-and-link.md` for the example's data folder.
 
 ## Changes
 
