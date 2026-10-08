@@ -10,8 +10,6 @@ import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, Menu, shell } from "electron";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-// What another process opens must be outside the archive (the build unpacks it).
-const unpacked = (file) => file.replace(/([\\/])app\.asar([\\/])/, "$1app.asar.unpacked$2");
 
 // One window: a second launch brings the first to the front.
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -40,16 +38,12 @@ let web = null;
 
 async function start() {
   // The captain, compiled into captain/ by `npm run build`.
-  const { createCaptain, text } = await import("./captain/captain.js");
+  const { createCaptain } = await import("./captain/captain.js");
   const { startWebChat } = await import("./captain/web/server.js");
-  const { addExtension, listInstalled } = await import("@falkenslab/agent-kit");
 
+  // Exactly his web, as `npm start -- --web` serves it: only where he keeps his things changes.
   const captain = await createCaptain({ workspace: path.join(home, "workspace"), home });
-  // His jokebook comes with him: installed for him on the first start, like any extension.
-  if (!(await listInstalled(captain.extensionDirs)).some((extension) => extension.name === "jokebook")) {
-    await addExtension(unpacked(path.join(here, "captain", "extensions", "jokebook")), captain.extensionDirs.agent);
-  }
-  web = await startWebChat(captain, { envPath, shell: "desktop" });
+  web = await startWebChat(captain, { envPath });
   // For automated checks only: where the page is.
   if (process.env.CAPTAIN_DESKTOP_URL_FILE) writeFileSync(process.env.CAPTAIN_DESKTOP_URL_FILE, web.url);
 
@@ -57,7 +51,7 @@ async function start() {
     ...savedBounds(),
     minWidth: 380,
     minHeight: 520,
-    title: text.name,
+    // The page names the window (`document.title`), in the language of the moment.
     icon: path.join(here, "build", "icon.png"),
     backgroundColor: "#0d1420",
     autoHideMenuBar: true,

@@ -2,7 +2,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
-import { agentKitVersion, createChatController, getLanguage, resolveClaudeAuth, SUPPORTED_LANGUAGES, switchLanguage, type ChatController, type Language, type Mode } from "@falkenslab/agent-kit";
+import { addExtension, agentKitVersion, createChatController, getLanguage, listInstalled, resolveClaudeAuth, SUPPORTED_LANGUAGES, switchLanguage, type ChatController, type Language, type Mode } from "@falkenslab/agent-kit";
 import { CAPTAIN_DIR, loadSettings, saveSettings, texts, version, type createCaptain } from "../captain.js";
 import { chestTexts, pageTexts } from "./texts.js";
 
@@ -20,8 +20,6 @@ export interface WebChatOptions {
   token?: string;
   /** Dónde guardar el token de Claude que la persona pegue al iniciar sesión. */
   envPath: string;
-  /** Quién la sirve: "web" (un navegador) o "desktop" (la aplicación), para lo que la página enseña. */
-  shell?: "web" | "desktop";
 }
 
 /** Lo más grande que se puede subir para el cofre. */
@@ -33,6 +31,12 @@ const MAX_UPLOAD = 50 * 1024 * 1024;
  */
 export async function startWebChat(captain: Captain, options: WebChatOptions): Promise<{ url: string; close: () => Promise<void> }> {
   const token = options.token ?? randomBytes(18).toString("base64url");
+  // His jokebook comes with him, in the browser as in the app: installed for him on the first
+  // start, like any extension. From outside the archive when he runs packaged: another process reads it.
+  if (!(await listInstalled(captain.extensionDirs)).some((extension) => extension.name === "jokebook")) {
+    const jokebook = path.join(CAPTAIN_DIR, "extensions", "jokebook").replace(/([\\/])app\.asar([\\/])/,"$1app.asar.unpacked$2");
+    await addExtension(jokebook, captain.extensionDirs.agent);
+  }
   // The language the person last chose here, kept in his home (#47).
   const saved = (await loadSettings(captain.home)).language;
   if (saved) switchLanguage(saved);
@@ -179,7 +183,6 @@ export async function startWebChat(captain: Captain, options: WebChatOptions): P
     languages: SUPPORTED_LANGUAGES,
     version,
     kit: agentKitVersion(),
-    shell: options.shell ?? "web",
     texts: pageTexts(getLanguage()),
   });
 

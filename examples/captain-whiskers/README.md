@@ -57,7 +57,7 @@ prints a URL (`http://127.0.0.1:<port>/?token=…`): open it in a browser. It's 
 
 ## As a desktop app
 
-`desktop/` is an Electron app around the same page, with an installer: his name and icon, his workspace, memory and extensions in the app's data folder (`%APPDATA%/Captain Whiskers` on Windows), signing in from the window, and his jokebook installed on the first start. From `desktop/`:
+`desktop/` is an Electron app around the same page, with an installer: his name and icon, his workspace, memory and extensions in the app's data folder (`%APPDATA%/Captain Whiskers` on Windows), and signing in from the window. It's exactly his web (the same host, page and behavior); only where he keeps his things changes. In both, his jokebook is installed for him on the first start. From `desktop/`:
 
 ```
 npm run build       # the kit packed as published, and the captain compiled into captain/

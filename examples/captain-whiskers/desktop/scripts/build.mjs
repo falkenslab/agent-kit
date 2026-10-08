@@ -1,7 +1,7 @@
 // Prepares the desktop app (`npm run build`): the kit packed as it would be published, and the
 // captain compiled to JavaScript with everything he reads next to him (his plugin, his guide,
 // the chest's samples, his web page, his jokebook to install on the first start). Run it again
-// after changing the captain or the kit; `npm install` after changing the kit.
+// after changing the captain or the kit.
 import { execSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import path from "node:path";
@@ -18,6 +18,10 @@ const packed = execSync(`npm pack "${kit}" --pack-destination "${desktop}" --sil
 rmSync(path.join(desktop, "agent-kit.tgz"), { force: true });
 renameSync(path.join(desktop, packed), path.join(desktop, "agent-kit.tgz"));
 console.log(`kit: ${packed} → agent-kit.tgz`);
+// Installed again every time: the tarball keeps the kit's version, so a plain `npm install`
+// would keep the kit it installed before, and the app would ship it.
+rmSync(path.join(desktop, "node_modules", "@falkenslab"), { recursive: true, force: true });
+run(`npm install --no-save "@falkenslab/agent-kit@file:./agent-kit.tgz"`, desktop);
 
 // The captain, compiled.
 const out = path.join(desktop, "captain");
