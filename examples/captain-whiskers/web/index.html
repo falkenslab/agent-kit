@@ -39,7 +39,7 @@
   .brand h1 { margin: 0; font-size: 16.5px; font-weight: 650; letter-spacing: 0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .brand .tagline { font-size: 12.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); display: inline-block; margin-left: 6px; vertical-align: middle; }
-  .dot.online { background: var(--ok); } .dot.working { background: var(--gold); animation: pulse 1.2s ease-in-out infinite; } .dot.offline { background: var(--warn); }
+  .dot.online { background: var(--ok); } .dot.working { background: var(--gold); animation: pulse 2.2s ease-in-out infinite; } .dot.offline { background: var(--warn); }
   @keyframes pulse { 50% { opacity: 0.35; } }
   .tools-bar { display: flex; gap: 6px; align-items: center; }
   .icon-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; min-width: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; color: var(--text-2); }
@@ -86,8 +86,10 @@
   .md h3 { font-size: 1.05em; margin: 12px 0 6px; }
   .md ul, .md ol { margin: 4px 0 9px; padding-left: 22px; } .md li { margin: 2px 0; }
   .md blockquote { margin: 6px 0; padding: 2px 12px; border-left: 3px solid var(--gold); color: var(--text-2); }
-  .copy { border: 0; background: none; color: var(--dim); padding: 0 0 0 10px; font-size: 12px; cursor: pointer; }
-  .copy:hover { color: var(--gold); }
+  .copy { border: 0; background: none; color: var(--dim); margin-left: 8px; padding: 3px; border-radius: 6px; cursor: pointer; display: inline-flex; vertical-align: middle; }
+  .copy svg { width: 15px; height: 15px; }
+  .copy:hover { color: var(--gold); background: var(--panel-2); }
+  .copy.done { color: var(--ok); }
   .card { border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius-sm); overflow: hidden; }
   .card-head { display: flex; align-items: center; gap: 9px; padding: 8px 12px; cursor: pointer; color: var(--text-2); font-size: 14px; user-select: none; }
   .card-head:hover { background: var(--panel-2); }
@@ -102,7 +104,7 @@
   .call .state { width: 16px; text-align: center; color: var(--ok); flex: none; } .call .state.err { color: var(--error); }
   .call .child { font-size: 13px; color: var(--dim); padding-left: 24px; }
   .call .out { margin: 5px 0 2px 24px; font: 12.5px/1.45 var(--mono); white-space: pre-wrap; max-height: 180px; overflow: auto; color: var(--text-2); background: var(--bg-2); border-radius: 7px; padding: 7px 9px; }
-  .spin { width: 14px; height: 14px; border: 2px solid var(--gold-soft); border-top-color: var(--gold); border-radius: 50%; animation: spin 1.4s linear infinite; flex: none; display: inline-block; }
+  .spin { width: 14px; height: 14px; border: 2px solid var(--gold-soft); border-top-color: var(--gold); border-radius: 50%; animation: spin 2s linear infinite; flex: none; display: inline-block; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .notice { align-self: center; font-size: 13px; color: var(--dim); background: var(--panel); border: 1px solid var(--line); padding: 5px 12px; border-radius: 999px; max-width: 100%; white-space: pre-wrap; text-align: center; }
   .notice.plain { color: var(--text-2); } .notice.warn { color: var(--warn); }
@@ -339,6 +341,9 @@ const LOGO = `<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient 
 for (const id of ["logo-header", "logo-signin", "logo-welcome"]) $(id).innerHTML = LOGO;
 $("favicon").href = `data:image/svg+xml,${encodeURIComponent(LOGO)}`;
 
+const COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+
 async function act(action, data = {}) {
   try {
     const response = await fetch(`/api/${action}`, { method: "POST", headers: { "content-type": "application/json", "x-token": token }, body: JSON.stringify(data) });
@@ -493,11 +498,18 @@ function buildBlock(entry, previous, live) {
         const copy = document.createElement("button");
         copy.type = "button";
         copy.className = "copy";
-        copy.textContent = T.copy;
+        // An icon, named for screen readers and on hover; a check for a moment once copied.
+        const show = (done) => {
+          copy.innerHTML = done ? CHECK_ICON : COPY_ICON;
+          copy.classList.toggle("done", done);
+          copy.title = done ? T.copied : T.copy;
+          copy.setAttribute("aria-label", copy.title);
+        };
+        show(false);
         copy.addEventListener("click", async () => {
           await navigator.clipboard?.writeText(reply).catch(() => {});
-          copy.textContent = T.copied;
-          setTimeout(() => (copy.textContent = T.copy), 1500);
+          show(true);
+          setTimeout(() => show(false), 1500);
         });
         div.append(copy);
       }
