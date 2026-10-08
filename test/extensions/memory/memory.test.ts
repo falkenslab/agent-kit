@@ -6,6 +6,7 @@ import path from "node:path";
 import type { HookCallback, UserPromptSubmitHookInput } from "@anthropic-ai/claude-agent-sdk";
 import { createMemoryStore, ENTRIES_IN_PROMPT } from "../../../src/extensions/memory/memoryStore.js";
 import { createMemoryServer, memoryIndex, saidByPerson } from "../../../src/extensions/memory/tools.js";
+import { memory } from "../../../src/extensions/memory/index.js";
 import { buildSessionOptions } from "../../../src/core/session.js";
 import type { AgentSpec, BaseSessionConfig } from "../../../src/core/agentSpec.js";
 
@@ -14,7 +15,8 @@ const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), "memory-test-"));
 type Handler = (args: unknown, extra: unknown) => Promise<{ content: { text: string }[]; isError?: boolean }>;
 const toolsOf = (server: unknown) => (server as { instance: { _registeredTools: Record<string, { handler: Handler }> } }).instance._registeredTools;
 
-const spec: AgentSpec<BaseSessionConfig> = { buildSystemPrompt: () => "P", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined, replyInLanguage: false, extensions: ["memory"] };
+type Config = BaseSessionConfig & { memoryDir?: string };
+const spec: AgentSpec<Config> = { buildSystemPrompt: () => "P", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined, replyInLanguage: false, extensions: [memory<Config>({ dir: (config) => config.memoryDir })] };
 
 test("the store keeps one file per entry, lists the most recent first, and forgets", async () => {
   const store = createMemoryStore(path.join(temp(), "memory"));
@@ -96,7 +98,7 @@ test("with the memory on, the session hears the person, lists the memory and kee
   await createMemoryStore(memoryDir).remember("teacher", { type: "user", description: "Teaches maths", body: "" });
 
   const off = await buildSessionOptions({ mode: "guided", projectDir }, temp(), spec);
-  assert.match(String(off.options.systemPrompt), /\*\*memory\*\* isn't available: it needs `memoryDir`/);
+  assert.match(String(off.options.systemPrompt), /\*\*memory\*\* isn't available: it needs a folder \(`dir`\)/);
 
   const built = await buildSessionOptions({ mode: "guided", projectDir, memoryDir }, temp(), spec);
   const prompt = String(built.options.systemPrompt);

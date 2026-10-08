@@ -47,11 +47,11 @@ workspace/                projectDir: the session's cwd
 │   └── commands/
 ├── CLAUDE.md             project instructions (loaded by default)
 ├── .mcp.json             extra MCP servers for this workspace (optional)
-├── knowledge/            knowledgeDir: the agent's notes (through the knowledge_* tools)
+├── knowledge/            knowledge({ dir }): the agent's notes (through the knowledge_* tools)
 │   ├── index.md
 │   ├── log.md
 │   └── …
-└── sources/              sourcesDir: originals (read-only for the agent; .agent-kit/ holds the kit's bookkeeping)
+└── sources/              sources({ dir }): originals (read-only for the agent; .agent-kit/ holds the kit's bookkeeping)
 ```
 
 For a single-purpose agent the workspace can be the agent's own repository (`projectDir: __dirname`, as in Captain Whiskers). An agent that serves many workspaces (one per course, per customer…) takes the workspace from its configuration and keeps its own code elsewhere.
@@ -61,7 +61,7 @@ For a single-purpose agent the workspace can be the agent's own repository (`pro
 | Folder | Set by | Page |
 | --- | --- | --- |
 | `projectDir` | `BaseSessionConfig.projectDir` | [Session config](../core-concepts/session-config.md) |
-| `knowledgeDir`, `sourcesDir` | `BaseSessionConfig`, with `extensions: ["sources", "knowledge"]` in `AgentSpec` | [Extensions](../capabilities/extensions.md), [Knowledge base](../capabilities/knowledge-base.md) |
+| The knowledge base, the sources, the memory | their extension's `dir` option, in `AgentSpec.extensions` (`knowledge({ dir })`, `sources({ dir })`, `memory({ dir })`) | [Extensions](../capabilities/extensions.md), [Knowledge base](../capabilities/knowledge-base.md) |
 | Plugin folders | `AgentSpec.pluginRoots()` | [Skills and plugins](../capabilities/skills-and-plugins.md) |
 | The runs folder | `runsDir` option of the chat | [Runs and resuming](../sessions/runs-and-resuming.md) |
 | The run folder | passed to your session opener (`run.dir`) | [Session options](../core-concepts/session-options.md) |

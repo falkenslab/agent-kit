@@ -93,13 +93,9 @@ Returning something here also gives the session the `Agent` tool, and `Bash` whe
 
 | Member | Default | What it does |
 | --- | --- | --- |
-| `identity?: AgentIdentity` | none | Who the agent is (`name`, `version`, `description`): the [awareness](../capabilities/awareness.md) extension tells the model, with agent-kit's version. See [`identity` and `helpGuide`](#identity-and-helpguide). |
-| `helpGuide?: string` | none | Absolute path of a markdown guide to the agent's own domain, which the awareness extension's `about_me` gives the agent when the person asks. |
+| `identity?: AgentIdentity` | none | Who the agent is (`name`, `version`, `description`): the [awareness](../capabilities/awareness.md) extension tells the model, with agent-kit's version. See [`identity` and the guide](#identity-and-the-guide). |
 | `disallowedTools?: string[]` | `[]` | Tools blocked whatever else allows them, e.g. an MCP tool you don't trust. Takes precedence over everything. A built-in tool also leaves the context; an MCP tool is blocked but its definition is still sent. |
-| `saveToSourcesDescription?: string` | a generic description | The description of the `save_to_sources` tool (registered with `sourcesDir`), in your domain's words. |
-| `extensions?: (string \| Extension)[]` | none | What the agent runs with besides the core: the kit's `"knowledge"` and `"sources"` by name, its own as objects. See [Extensions](../capabilities/extensions.md). |
-| `knowledgePageTypes?: PageType[]` | none | The agent's own page types, besides the kit's. See [Your own page types](../capabilities/knowledge-base.md#your-own-page-types). |
-| `knowledgeStore?(config): KnowledgeStore` | the kit's store over `knowledgeDir`'s files | Another store (a database, a vector store). See [Knowledge store](../capabilities/knowledge-store.md). |
+| `extensions?: Extension[]` | none | What the agent runs with besides the core, each with its own options: the kit's made by their factories (`awareness()`, `sources({ dir })`, `knowledge({ dir })`, `memory({ dir })`), its own as objects. See [Extensions](../capabilities/extensions.md). |
 | `humanApprovalTexts?` | generic texts | `{ description, approved, rejected }` of the approval tool (guided mode). |
 | `manualInterventionTexts?` | none | Its texts, and the opt-in, of the manual-intervention tool. |
 | `replyInLanguage?: boolean` | `true` | The line asking the agent (and each subagent) to reply in the kit's language. |
@@ -107,16 +103,15 @@ Returning something here also gives the session the `Agent` tool, and `Bash` whe
 | `skills?: string[] \| "all" \| "plugins"` | `"all"` | Which skills the agent offers: every one found, only its plugins' (`"plugins"`), or a list. |
 | `planMode?: PlanModeSpec` | none | In plan mode, the agent's plan files and its read-only MCP tools. |
 
-### `identity` and `helpGuide`
+### `identity` and the guide
 
-Who the agent is (its name, version and what it is) and a guide to its own domain (its commands, configuration, folders). The [awareness](../capabilities/awareness.md) extension uses them: it tells the model who it is, with agent-kit's version, answers what it is right now with `about_me`, gives it the guide when the person asks, and explains the kit's chat with its `help` skill. It needs `identity`; without the extension, neither field reaches the model.
+Who the agent is (its name, version and what it is), in the spec, and a guide to its own domain (its commands, configuration, folders), the [awareness](../capabilities/awareness.md) extension's `guide` option. The extension uses them: it tells the model who it is, with agent-kit's version, answers what it is right now with `about_me`, gives it the guide when the person asks, and explains the kit's chat with its `help` skill. It needs `identity`; without the extension, neither reaches the model.
 
 ```ts
 const spec: AgentSpec<Config> = {
   // …
-  extensions: ["awareness"],
   identity: { name: "padawan", version, description: "an agent that takes a Moodle course as a student" },
-  helpGuide: path.join(__dirname, "guide.md"),
+  extensions: [awareness({ guide: path.join(__dirname, "guide.md") })],
 };
 ```
 

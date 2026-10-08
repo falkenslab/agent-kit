@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { awareness } from "../../src/extensions/awareness/index.js";
+import { knowledge } from "../../src/extensions/knowledge/index.js";
 import { buildSessionOptions, pluginSkills } from "../../src/core/session.js";
 import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
 
@@ -44,9 +46,9 @@ test('skills: "plugins" offers the skills of every plugin the session loads, the
     replyInLanguage: false,
     identity: { name: "captain" },
     skills: "plugins",
-    extensions: ["awareness", "knowledge"],
+    extensions: [awareness(), knowledge({ dir: path.join(projectDir, "logbook") })],
   };
-  const config: BaseSessionConfig = { mode: "guided", projectDir, knowledgeDir: path.join(projectDir, "logbook") };
+  const config: BaseSessionConfig = { mode: "guided", projectDir };
   const { options } = await buildSessionOptions(config, temp(), spec);
   assert.deepEqual(
     [...(options.skills as string[])].sort(),

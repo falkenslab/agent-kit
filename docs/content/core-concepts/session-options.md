@@ -40,7 +40,8 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 | Condition | Tools added |
 | --- | --- |
 | always | `WebFetch`, `WebSearch`, `TodoWrite` |
-| `knowledgeDir` or `sourcesDir` | `Read`, `Write`, `Edit`, `Glob`, `Grep`; with the built-in knowledge base reached through its tools (the default), only `Read`, `Glob`, `Grep` for `sourcesDir` and `extraWritableDirs`, plus `Write`, `Edit` for the latter |
+| `config.extraWritableDirs` | `Read`, `Write`, `Edit`, `Glob`, `Grep` |
+| `config.extraReadableDirs`, or an extension that asks for them (`sources`) | `Read`, `Glob`, `Grep` |
 | file tools or at least one plugin | `Skill` |
 | `spec.buildSubagents()` returns something | `Agent`; `Bash` too when a subagent lists it in its `tools` or has no `tools` |
 
@@ -54,9 +55,9 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 | --- | --- | --- |
 | `approvals` | `request_human_approval`, `ask_human`, `present_plan` | mode is not `autonomous` |
 | `manualLogin` | `request_manual_login` | mode is not `autonomous` and `spec.manualInterventionTexts` is set |
-| `sourceFiles` | `list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode | the `sources` extension (with `config.sourcesDir`) |
+| `sourceFiles` | `list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode | the `sources` extension (with its folder) |
 | `time` | `current_time`, `date_math` | always (in `config.timeZone`, or the system's) |
-| `knowledge` | the `knowledge_*` tools (`knowledge_retire` outside autonomous mode) | the `knowledge` extension (with `config.knowledgeDir`) |
+| `knowledge` | the `knowledge_*` tools (`knowledge_retire` outside autonomous mode) | the `knowledge` extension (with its folder) |
 
 `canUseTool` is `allowAnyMcpTool`: every `mcp__*` call is approved, anything else is denied (the built-in tools above are already pre-approved, so they never reach it). `disallowedTools` is `spec.disallowedTools ?? []` and wins over everything.
 
@@ -72,14 +73,14 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 
 `PostToolUse`: the transcript logger.
 
-The result also has `knowledgeStore`, the knowledge base's store, when the agent reaches it through its tools (see [Knowledge store](../capabilities/knowledge-store.md)).
+The result also has `apis`, what each active extension hands the host, by its name: the sources' `addSource` at `apis.sources.addSource`, the knowledge base's store at `apis.knowledge.knowledgeStore` (see [Knowledge store](../capabilities/knowledge-store.md)).
 
 ### Skills, plugins and the working directory
 
 When the session has file tools or at least one plugin:
 
 - `cwd` is `config.projectDir`;
-- `additionalDirectories` are the searchable folders (`knowledgeDir`, `sourcesDir`, `extraWritableDirs`);
+- `additionalDirectories` are the searchable folders: the extensions' read-only ones (the sources folder), then `extraWritableDirs`, then `extraReadableDirs`;
 - `plugins` are `spec.pluginRoots(config)`, plus the knowledge plugin when the knowledge base is on, each loaded as a local plugin with its MCP discovery skipped;
 - `skills` is `spec.skills ?? "all"`; `"plugins"` becomes the skills of the plugins loaded (`plugin:folder`), and a list gets the enabled extensions' skills added.
 

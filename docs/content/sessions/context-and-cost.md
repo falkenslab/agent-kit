@@ -27,7 +27,7 @@ Those figures predate the kit's later built-in tools. Today the same configurati
 | `Agent` (with the list of subagents) | 4.1k | no subagents |
 | `TodoWrite` (the task list) | 3.4k | `disallowedTools: ["TodoWrite"]` |
 | The knowledge base: ten `knowledge_*` tools, its prompt section and skills | 3.4k | without the `knowledge` extension |
-| `Read`, `Glob`, `Grep` (`Grep` alone 1.4k) | 2.7k | no `sourcesDir` nor `extraWritableDirs` (with the knowledge base on its tools) |
+| `Read`, `Glob`, `Grep` (`Grep` alone 1.4k) | 2.7k | without the `sources` extension, `extraWritableDirs` nor `extraReadableDirs` |
 | The sources tools | 2.2k | without the `sources` extension |
 | `Bash` | 1.9k | no subagent listing it (the kit leaves it out then) |
 | The approval and question tools | 1.5k | autonomous mode |
@@ -40,7 +40,7 @@ The kit's MCP tools (the knowledge base's, the sources', the approvals', the dat
 
 1. **Offer only your skills**: `skills: "plugins"` (those of the plugins the agent loads), or a list, `skills: ["my-agent:a", "my-agent:b"]`. The SDK's own and unrelated skills are no longer listed. Slash commands keep working. See [Skills and plugins](../capabilities/skills-and-plugins.md#choosing-which-skills-the-agent-offers).
 2. **Load no settings files** when your plugin brings everything: `settingSources: []`. The CLAUDE.md files of parent folders (a repository's developer instructions, say) stop being sent.
-3. **Grant only the tools you need**: no file tools without a knowledge or sources folder, no `Agent` without subagents, no `Bash` unless a subagent lists it. `disallowedTools` removes a built-in tool the configuration would otherwise get; an MCP tool it only blocks, still sending its definition.
+3. **Grant only the tools you need**: no file tools without the sources extension or a folder in `extraWritableDirs`/`extraReadableDirs`, no `Agent` without subagents, no `Bash` unless a subagent lists it. `disallowedTools` removes a built-in tool the configuration would otherwise get; an MCP tool it only blocks, still sending its definition.
 4. **Keep the prompt short** and move rarely needed detail into skills, which are only loaded when they apply.
 5. **Use subagents for noisy work**: a subagent's searches and page reads stay in its own context; only its answer reaches the main one. Use a smaller `model` for them.
 

@@ -11,6 +11,7 @@ import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
 import type { Extension } from "../../src/core/extensions.js";
 import { sourcesToolLabels } from "../../src/extensions/sources/labels.js";
 import { knowledgeToolLabels } from "../../src/extensions/knowledge/labels.js";
+import { knowledge } from "../../src/extensions/knowledge/index.js";
 
 afterEach(() => setLanguage("en"));
 
@@ -54,8 +55,8 @@ test("buildSessionOptions() hands back the active extensions' labels", async () 
   fs.mkdirSync(path.join(plugin, ".claude-plugin"), { recursive: true });
   fs.writeFileSync(path.join(plugin, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "jokebook", description: "Jokes." }));
   const jokebook: Extension = { name: "jokebook", plugin, contribute: async () => ({ toolLabels: own }) };
-  const spec: AgentSpec<BaseSessionConfig> = { buildSystemPrompt: () => "P", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined, extensions: ["knowledge", jokebook] };
-  const { toolLabels } = await buildSessionOptions({ mode: "guided", projectDir, knowledgeDir: path.join(projectDir, "kb") }, temp(), spec);
+  const spec: AgentSpec<BaseSessionConfig> = { buildSystemPrompt: () => "P", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined, extensions: [knowledge({ dir: path.join(projectDir, "kb") }), jokebook] };
+  const { toolLabels } = await buildSessionOptions({ mode: "guided", projectDir }, temp(), spec);
   assert.ok(toolLabels.mcp__jokebook__classic_joke);
   assert.ok(toolLabels.mcp__knowledge__knowledge_read);
   assert.equal(toolLabels.mcp__sourceFiles__list_sources, undefined);

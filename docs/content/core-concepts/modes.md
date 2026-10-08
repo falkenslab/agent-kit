@@ -55,7 +55,7 @@ The agent declares both in [`planMode`](agent-spec.md#planmode):
 
 ```ts
 planMode: {
-  // The plan of each activity, in drafts/<slug>/plan.md (it must also be writable: knowledgeDir or extraWritableDirs).
+  // The plan of each activity, in drafts/<slug>/plan.md (it must also be writable: in extraWritableDirs).
   isPlanFile: (filePath, config) => path.basename(filePath) === "plan.md" && path.dirname(path.dirname(filePath)) === config.draftsDir,
   // The browser tools that only look.
   isReadOnlyTool: (toolName) => ["mcp__playwright__browser_snapshot", "mcp__playwright__browser_take_screenshot"].includes(toolName),

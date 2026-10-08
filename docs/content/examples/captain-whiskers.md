@@ -223,20 +223,24 @@ const { version } = JSON.parse(readFileSync(path.join(__dirname, "package.json")
 const spec: AgentSpec<BaseSessionConfig> = {
   buildSystemPrompt: () => SYSTEM_PROMPT,
   identity: { name: text.name, version, description: "a retired pirate cat who tells jokes, an example agent of agent-kit" },
-  helpGuide: path.join(__dirname, "guide.md"),
   buildMcpServers: () => ({}),
   pluginRoots: () => [path.join(__dirname, "plugin")],
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
-  extensions: ["awareness", "sources", "knowledge", "memory"],
-  knowledgePageTypes: [JOKE_PAGE],
+  extensions: [
+    awareness({ guide: path.join(__dirname, "guide.md") }),
+    sources({ dir: (config) => path.join(config.projectDir, "treasure") }),
+    knowledge({ dir: (config) => path.join(config.projectDir, "logbook"), pageTypes: [JOKE_PAGE] }),
+    // Only through its tools, never read as a file.
+    memory({ dir: (config) => path.join(config.projectDir, "memory") }),
+  ],
   skills: "plugins",
   settingSources: [],
 };
 ```
 
-- `identity` and `helpGuide`, with the `awareness` extension: the model knows his name, his version and agent-kit's, what he is at each moment (`about_me`), how his chat is used (the `help` skill) and his `guide.md`. See [Awareness](../capabilities/awareness.md).
-- `extensions`: the kit's `sources` (his chest, `treasure/`), `knowledge` (his logbook, `logbook/`) and `memory`, enabled by name. His jokebook isn't here: it's installed (see below). See [Extensions](../capabilities/extensions.md).
-- `knowledgePageTypes`: his logbook has a page type of its own, `joke`, kept in `logbook/jokes/` with the parrot's score in its index line. See [Your own page types](../capabilities/knowledge-base.md#your-own-page-types).
+- `identity`, with the `awareness` extension and its `guide`: the model knows his name, his version and agent-kit's, what he is at each moment (`about_me`), how his chat is used (the `help` skill) and his `guide.md`. See [Awareness](../capabilities/awareness.md).
+- `extensions`: the kit's `awareness`, `sources` (his chest, `treasure/`), `knowledge` (his logbook, `logbook/`) and `memory`, each made with its own options; their folders are worked out from the config's `projectDir`, his home. His jokebook isn't here: it's installed (see below). See [Extensions](../capabilities/extensions.md).
+- `pageTypes`: his logbook has a page type of its own, `joke`, kept in `logbook/jokes/` with the parrot's score in its index line. See [Your own page types](../capabilities/knowledge-base.md#your-own-page-types).
 - `skills: "plugins"` and `settingSources: []`: only the skills of his plugins (his own, the logbook's and the awareness's), not the twenty the SDK brings, and nothing from the machine's Claude Code configuration. See [Context and cost](../sessions/context-and-cost.md).
 
 ## 6. The chat
@@ -244,17 +248,12 @@ const spec: AgentSpec<BaseSessionConfig> = {
 ```ts
 const home = process.env.CAPTAIN_HOME || path.join(os.homedir(), ".captain-whiskers"); // everything he keeps
 const runsDir = path.join(home, ".run");
-const logbook = path.join(home, "logbook");
-const treasure = path.join(home, "treasure");
 const modes: Mode[] = ["autonomous", "guided", "interactive", "plan"];
 const mode = modes.find((m) => m === process.env.CAPTAIN_MODE) ?? "guided";
-await stockTheChest(treasure); // the samples, on the first start
+await stockTheChest(path.join(home, "treasure")); // the samples, on the first start
 const config: BaseSessionConfig = {
   mode,
-  projectDir: home, // his home is his project: the model sees logbook/ and treasure/
-  knowledgeDir: logbook,
-  sourcesDir: treasure,
-  memoryDir: path.join(home, "memory"), // only through the memory's tools
+  projectDir: home, // his home is his project: the model sees treasure/ (and logbook/ and memory/, through their tools)
   extensionDirs: { agent: path.join(home, "extensions") }, // one scope: his only project
   deniedPaths: [path.join(home, "config.json")], // his Claude key
 };

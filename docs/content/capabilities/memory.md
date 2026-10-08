@@ -13,19 +13,15 @@ The `memory` [extension](extensions.md) gives the agent a memory of the person i
 ```ts
 import os from "node:os";
 import path from "node:path";
+import { memory, type AgentSpec } from "@falkenslab/agent-kit";
 
 const spec: AgentSpec<Config> = {
   // …
-  extensions: ["memory"], // with others: ["sources", "knowledge", "memory"]
-};
-
-const config: Config = {
-  // …
-  memoryDir: path.join(os.homedir(), ".miyagi", "memory"),
+  extensions: [memory({ dir: path.join(os.homedir(), ".miyagi", "memory") })], // with others: [sources(…), knowledge(…), memory(…)]
 };
 ```
 
-- `memoryDir` is a folder of the agent's own, **outside any project**. Without it, the extension is left out and the agent can tell why.
+- `dir` is a folder of the agent's own, **outside any project**: a path, or a function of the session's config that returns one. Without it, the extension is left out ("needs a folder (`dir`)") and the agent can tell why.
 - **Never share it between agents.** Different agents work for different people, or the same person in different roles, and what suits one spoils another. A shared memory would also be a way for an instruction planted in one agent to reach the others.
 - One memory per agent and per user of the computer. If the agent works with several accounts and wants one memory for each, it puts the account in the path (`~/.miyagi/memory/<account>`).
 
@@ -74,7 +70,7 @@ Saying it in plain words works too ("forget that I don't like puns"). With the [
 
 ## On disk
 
-One markdown file per entry, `<memoryDir>/<name>.md`, like Claude Code's auto-memory (which the kit keeps off, since it belongs to the runner and is per folder):
+One markdown file per entry, `<dir>/<name>.md`, like Claude Code's auto-memory (which the kit keeps off, since it belongs to the runner and is per folder):
 
 ```markdown
 ---

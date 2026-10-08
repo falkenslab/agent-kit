@@ -1,7 +1,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { HookCallback } from "@anthropic-ai/claude-agent-sdk";
-import type { Extension } from "../../core/extensions.js";
+import type { BaseSessionConfig } from "../../core/agentSpec.js";
+import { folderOf, type Extension, type FolderOption } from "../../core/extensions.js";
 import { readConversation } from "../../core/runs.js";
 import { memoryToolLabels } from "./labels.js";
 import { createMemoryStore } from "./memoryStore.js";
@@ -26,35 +27,46 @@ ${index}
 - Write entries in the language you reply in.`;
 }
 
+/** The memory's options. */
+export interface MemoryOptions<TConfig extends BaseSessionConfig = BaseSessionConfig> {
+  /**
+   * Its folder, the agent's own outside any project (e.g. `~/.miyagi/memory`), kept across all
+   * the person's projects and never shared with another agent. Without a folder the extension is off.
+   */
+  dir: FolderOption<TConfig>;
+}
+
 /**
- * The memory of the person (`config.memoryDir`, #34): what the agent learns about the person it
- * works for, kept across all their projects in a folder of its own, reached only through its
- * tools (`recall`, `remember`, `forget`). What it remembers must quote the person's own messages, which it hears through
- * a `UserPromptSubmit` hook (and, for a resumed run, from the run's conversation).
+ * The memory of the person (#34): what the agent learns about the person it works for, kept
+ * across all their projects in a folder of its own, reached only through its tools (`recall`,
+ * `remember`, `forget`). What it remembers must quote the person's own messages, which it hears
+ * through a `UserPromptSubmit` hook (and, for a resumed run, from the run's conversation).
  */
-export const memoryExtension: Extension = {
-  name: "memory",
-  plugin: memoryPluginRoot(),
-  missing: ({ config }) => (config.memoryDir ? undefined : "needs `memoryDir` in the config"),
-  async contribute({ config, runDir }) {
-    const memoryDir = config.memoryDir!;
-    const store = createMemoryStore(memoryDir);
-    // What the person wrote: earlier in a resumed run, then each message as it's sent.
-    const said = (await readConversation(runDir)).filter((message) => message.role === "user").map((message) => message.text);
-    const hear: HookCallback = async (input) => {
-      if (input.hook_event_name === "UserPromptSubmit") said.push(input.prompt);
-      return {};
-    };
-    return {
-      mcpServers: { memory: createMemoryServer(store, said) },
-      promptSection: memoryPromptSection(memoryIndex(await store.list())),
-      toolOnlyDirs: [{ dir: memoryDir, instead: "its tools: recall, remember, forget" }],
-      readOnlyTools: ["mcp__memory__recall"],
-      hooks: { UserPromptSubmit: [{ hooks: [hear] }] },
-      toolLabels: memoryToolLabels(),
-      helpLines: [
-        "You keep a memory of the person across all their projects (how they like things done, who they are): `/memory:list` shows it, `/memory:forget <entry>` forgets an entry. Only what they tell you goes in it.",
-      ],
-    };
-  },
-};
+export function memory<TConfig extends BaseSessionConfig = BaseSessionConfig>(options: MemoryOptions<TConfig>): Extension {
+  return {
+    name: "memory",
+    plugin: memoryPluginRoot(),
+    missing: ({ config }) => (folderOf(options.dir, config) ? undefined : "needs a folder (`dir`)"),
+    async contribute({ config, runDir }) {
+      const memoryDir = folderOf(options.dir, config)!;
+      const store = createMemoryStore(memoryDir);
+      // What the person wrote: earlier in a resumed run, then each message as it's sent.
+      const said = (await readConversation(runDir)).filter((message) => message.role === "user").map((message) => message.text);
+      const hear: HookCallback = async (input) => {
+        if (input.hook_event_name === "UserPromptSubmit") said.push(input.prompt);
+        return {};
+      };
+      return {
+        mcpServers: { memory: createMemoryServer(store, said) },
+        promptSection: memoryPromptSection(memoryIndex(await store.list())),
+        toolOnlyDirs: [{ dir: memoryDir, instead: "its tools: recall, remember, forget" }],
+        readOnlyTools: ["mcp__memory__recall"],
+        hooks: { UserPromptSubmit: [{ hooks: [hear] }] },
+        toolLabels: memoryToolLabels(),
+        helpLines: [
+          "You keep a memory of the person across all their projects (how they like things done, who they are): `/memory:list` shows it, `/memory:forget <entry>` forgets an entry. Only what they tell you goes in it.",
+        ],
+      };
+    },
+  };
+}

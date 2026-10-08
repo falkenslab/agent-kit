@@ -10,7 +10,7 @@ import { askForText } from "../../../src/core/hooks/humanInput.js";
 import { setInteractionPort } from "../../../src/core/interaction.js";
 import { checkPlanScope } from "../../../src/core/hooks/planGate.js";
 import os from "node:os";
-import { sourcesExtension } from "../../../src/extensions/sources/index.js";
+import { sources } from "../../../src/extensions/sources/index.js";
 import type { Extension } from "../../../src/core/extensions.js";
 import type { BaseSessionConfig } from "../../../src/core/agentSpec.js";
 
@@ -19,7 +19,7 @@ const noSession = () => Promise.reject(new Error("no session in this test"));
 /** An extension's contribution, for a minimal session with `config`. */
 async function contributionOf(extension: Extension, config: BaseSessionConfig) {
   const spec = { buildSystemPrompt: () => "", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined };
-  return extension.contribute({ config, spec, runDir: os.tmpdir(), mode: config.mode, interactive: true, session: noSession });
+  return extension.contribute({ config, spec, runDir: os.tmpdir(), mode: config.mode, interactive: true, capabilities: new Set(), session: noSession });
 }
 
 
@@ -180,7 +180,7 @@ test("a text answer keeps its case, through askText or askDecision", async () =>
 });
 
 test("plan mode lets list_sources and extract_text through, as the sources extension declares, and denies the tools that add or retire", async () => {
-  const { readOnlyTools } = await contributionOf(sourcesExtension, { mode: "guided", projectDir: path.resolve("/project"), sourcesDir: path.resolve("/project/sources") });
+  const { readOnlyTools } = await contributionOf(sources({ dir: path.resolve("/project/sources") }), { mode: "guided", projectDir: path.resolve("/project") });
   const scope = { projectDir: "/project", readOnlyTools };
   assert.equal(checkPlanScope(scope, "mcp__sourceFiles__extract_text", {}), undefined);
   assert.equal(checkPlanScope(scope, "mcp__sourceFiles__list_sources", {}), undefined);
@@ -245,7 +245,7 @@ test("the sources tools name the folder as it really is, and take paths with eit
 test("the host adds a file the person gave through the extension's api: the person as its origin, a duplicate recognized, never overwriting", async () => {
   const p = await project();
   try {
-    const { api } = await contributionOf(sourcesExtension, { mode: "guided", projectDir: p.root, sourcesDir: p.sources });
+    const { api } = await contributionOf(sources({ dir: p.sources }), { mode: "guided", projectDir: p.root });
     const addSource = api?.addSource as (file: string, name: string, subfolder?: string) => Promise<{ path: string; duplicateOf?: string }>;
     const upload = path.join(p.run, "upload.tmp");
     await writeFile(upload, "Why do pirates make great singers? They hit the high Cs.\n");

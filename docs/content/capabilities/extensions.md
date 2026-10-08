@@ -16,30 +16,30 @@ There are two kinds, managed the same way:
 ## Enabling the internal ones
 
 ```ts
+import { awareness, knowledge, memory, sources, type AgentSpec } from "@falkenslab/agent-kit";
+
 const spec: AgentSpec<Config> = {
   // …
-  extensions: ["sources", "knowledge", "memory", diceExtension],
-};
-
-const config: Config = {
-  // …
-  sourcesDir: path.join(workspace, "sources"), // "sources" needs it
-  knowledgeDir: path.join(workspace, "knowledge"), // "knowledge" needs it
-  memoryDir: path.join(os.homedir(), ".my-agent", "memory"), // "memory" needs it
+  extensions: [
+    sources({ dir: (config) => path.join(config.projectDir, "sources") }),
+    knowledge({ dir: (config) => path.join(config.projectDir, "knowledge") }),
+    memory({ dir: path.join(os.homedir(), ".my-agent", "memory") }),
+    diceExtension,
+  ],
 };
 ```
 
-- The kit's are enabled **by name**; an agent's own **as an object** (see [Writing one in your agent's code](#writing-one-in-your-agents-code)).
-- **None is on by default.** A folder in the config doesn't turn anything on by itself: `knowledgeDir` without `"knowledge"` is a folder of the agent's own notes, kept with the file tools under rules it writes itself.
-- An extension the session lacks something for (its folder) is **left out**, and so is one whose required capabilities nothing enabled provides (see [Capabilities](#capabilities)). The system prompt says which ones are off and why, so the agent can tell the person.
-- An unknown name is an error.
+- The kit's are made by their **factories**, each with its own options; an agent's own is **an object** (see [Writing one in your agent's code](#writing-one-in-your-agents-code)). Both are `Extension`s.
+- A **folder option** (`dir`, a `FolderOption`) is a path, or a function of the session's config that returns one (or `undefined`): the spec is static, while the folders usually depend on the project. The factories are generic over the config type: `knowledge<Config>({ dir: (config) => config.courseDir })`.
+- **None is on by default**, and only the spec's list turns one on: a folder belongs to the extension that names it.
+- An extension the session lacks something for (its folder: "needs a folder (`dir`)") is **left out**, and so is one whose required capabilities nothing enabled provides (see [Capabilities](#capabilities)). The system prompt says which ones are off and why, so the agent can tell the person.
 
-| Extension | Needs | What it brings |
+| Extension | Options | What it brings |
 | --- | --- | --- |
-| `awareness` | `identity` in the spec | [Awareness](awareness.md): the "Who you are" prompt section, `about_me` (what the agent is right now, read from the session on every call, and its `helpGuide`) and the `help` skill (how the kit's chat is used). Provides `self-awareness`. |
-| `sources` | `sourcesDir` | The originals: the sources tools (`list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode), `Read`/`Glob`/`Grep` on the folder, never writing it, and its prompt section. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained). Provides `sources`. |
-| `knowledge` | `knowledgeDir` | The [knowledge base](knowledge-base.md): the `knowledge_*` tools over a store, its prompt section with the person's preferences, its skills and commands; the file tools never reach the folder. Provides `knowledge-base`. |
-| `memory` | `memoryDir` | The [memory of the person](memory.md), across all their projects: its tools (`recall`, `remember`, `forget`), its prompt section with what it remembers, `/memory:list` and `/memory:forget`; saved only from what the person wrote. Provides `person-memory`. |
+| `awareness` | `awareness({ guide? })`: `guide`, the absolute path of a markdown guide to the agent's domain. Needs `identity` in the spec. | [Awareness](awareness.md): the "Who you are" prompt section, `about_me` (what the agent is right now, read from the session on every call, and its `guide`) and the `help` skill (how the kit's chat is used). Provides `self-awareness`. |
+| `sources` | `sources({ dir, saveDescription? })`: `dir`, the originals' folder; `saveDescription`, the `save_to_sources` tool's description in the agent's words. | The originals: the sources tools (`list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode), `Read`/`Glob`/`Grep` on the folder, never writing it, and its prompt section. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained). Provides `sources`. |
+| `knowledge` | `knowledge({ dir, pageTypes?, store? })`: `dir`, the knowledge base's folder; `pageTypes`, [your own page types](knowledge-base.md#your-own-page-types); `store(config, dir)`, [another store](knowledge-store.md). | The [knowledge base](knowledge-base.md): the `knowledge_*` tools over a store, its prompt section with the person's preferences, its skills and commands; the file tools never reach the folder. Provides `knowledge-base`. |
+| `memory` | `memory({ dir })`: `dir`, a folder of the agent's own outside any project. | The [memory of the person](memory.md), across all their projects: its tools (`recall`, `remember`, `forget`), its prompt section with what it remembers, `/memory:list` and `/memory:forget`; saved only from what the person wrote. Provides `person-memory`. |
 
 They own their data and never call each other: the model connects them through their tools (see [Knowledge base and sources](knowledge-base.md#knowledge-base-and-sources)).
 
@@ -155,7 +155,7 @@ What you can do besides your own tools comes from these extensions; their sectio
 - **jokebook**: A jokebook: classic pirate jokes, … Provides: jokes.
 ```
 
-An extension that's off is listed too, with why ("it needs `knowledgeDir` in the config", "it requires memory, which no enabled extension provides"). With the [awareness](awareness.md) extension, `about_me` tells the agent the same at any moment, so it can tell the person. An installed extension's own rules reach the model through its server's `instructions` (see below).
+An extension that's off is listed too, with why ("it needs a folder (`dir`)", "it requires memory, which no enabled extension provides"). With the [awareness](awareness.md) extension, `about_me` tells the agent the same at any moment, so it can tell the person. An installed extension's own rules reach the model through its server's `instructions` (see below).
 
 ## Capabilities
 
@@ -298,9 +298,9 @@ What a contribution may carry (every part optional):
 | `toolLabels` | How the chat shows its tools, by full name: each one's line and how it counts in a folded summary, in the kit's language. See [An extension's labels](../terminal-ui/tool-labels.md#an-extensions-labels). |
 | `hooks` | Its SDK hooks, by event, run after the kit's own (the memory hears the person's messages with `UserPromptSubmit`). |
 | `helpLines` | What it says about itself in this session (its commands, its folder), which the [awareness](awareness.md) extension's `about_me` gives the agent. |
-| `api` | What the extension hands the host: `buildSessionOptions()` returns every active extension's under `apis`, by name, and the chat controller's `api(name)` gives it (the `sources` extension's `addSource`, the knowledge extension's store, also as `knowledgeStore`). |
+| `api` | What the extension hands the host: `buildSessionOptions()` returns every active extension's under `apis`, by name, and the chat controller's `api(name)` gives it (the `sources` extension's `addSource` at `apis.sources.addSource`, the knowledge base's store at `apis.knowledge.knowledgeStore`). |
 
-`missing(context)` says why the extension can't run in this session (a folder it needs), or `undefined`. The context has the config, the spec, the run folder, the mode and whether a person can be asked.
+`missing(context)` says why the extension can't run in this session (a folder it needs), or `undefined`. The context has the config, the spec, the run folder, the mode, whether a person can be asked, and `capabilities`: what the session's active extensions provide (their manifests' `provides`), for an extension that works differently beside another. It's known once the extensions are resolved, so it's empty in `missing()` and filled in `contribute()`: the knowledge base explains matching its summaries to the originals when `capabilities.has("sources")`.
 
 Its plugin is loaded like any of the agent's, so its skills, commands and subagents are named after it (`dice:…`); with `skills: "plugins"` its skills are offered without naming them, and its subagents (`agents/*.md`) are registered like the agent's own (see [Subagents in a plugin](subagents.md#subagents-in-a-plugin)).
 

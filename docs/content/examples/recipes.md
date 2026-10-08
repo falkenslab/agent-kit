@@ -45,7 +45,7 @@ await writeFile(settingsFile, JSON.stringify(answers, null, 2));
 
 await ensureClaudeAuth();
 const workspace = path.resolve(String(answers.workspace));
-const config = { mode: answers.mode as Mode, projectDir: workspace, knowledgeDir: path.join(workspace, "knowledge") };
+const config = { mode: answers.mode as Mode, projectDir: workspace }; // the spec's extensions put their folders in it
 
 await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
   runsDir: path.join(workspace, ".run"),
@@ -73,16 +73,18 @@ const spec: AgentSpec<Config> = {
     checkpointTitle: "Log in by hand",
     checkpointLines: ["Log in in the browser window the agent opened, then confirm here."],
   },
-  saveToSourcesDescription:
-    "Keep a document you downloaded from the site (it lands in this run's folder) in sources/, to study it in later sessions.",
-  extensions: ["sources", "knowledge"],
+  extensions: [
+    sources({
+      dir: (config) => path.join(config.projectDir, "sources"),
+      saveDescription: "Keep a document you downloaded from the site (it lands in this run's folder) in sources/, to study it in later sessions.",
+    }),
+    knowledge({ dir: (config) => path.join(config.projectDir, "knowledge") }),
+  ],
 };
 
 const config: Config = {
   mode: "guided",
   projectDir: workspace,
-  knowledgeDir: path.join(workspace, "knowledge"),
-  sourcesDir: path.join(workspace, "sources"),
   siteUrl: "https://intranet.example.com",
 };
 
@@ -171,7 +173,7 @@ const { password } = JSON.parse(await readFile(configFile, "utf8"));
 const config: Config = {
   mode: "guided",
   projectDir: workspace,
-  knowledgeDir: path.join(workspace, "knowledge"),
+  extraReadableDirs: [workspace],
   deniedPaths: [configFile, path.join(workspace, ".env")],
   secrets: [password],
   password,

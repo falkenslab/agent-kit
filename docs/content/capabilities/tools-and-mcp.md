@@ -11,7 +11,7 @@ description: The tools an agent gets, how to give it its own with in-process or 
 `buildSessionOptions()` only grants the built-in tools a configuration needs (see [Session options](../core-concepts/session-options.md#tools)):
 
 - **always**: `WebFetch`, `WebSearch` and `TodoWrite` (a task list for long jobs, which the chats show above the prompt);
-- **with folders**: `Read`, `Glob`, `Grep` for the sources (the `sources` extension) and `extraReadableDirs`; `Write`, `Edit` too for `extraWritableDirs` and a `knowledgeDir` of the agent's own notes; all [scoped](../security/file-scope.md);
+- **with folders**: `Read`, `Glob`, `Grep` for the sources (the `sources` extension) and `extraReadableDirs`; `Write`, `Edit` too for `extraWritableDirs` (a folder of the agent's own notes, say); all [scoped](../security/file-scope.md);
 - **with file tools or plugins**: `Skill`;
 - **with subagents**: `Agent`, and `Bash` (for subagents only) when one of them lists it or has no `tools`.
 

@@ -97,7 +97,7 @@ The SDK names it after the plugin and its frontmatter `name` (not its file): `jo
 
 ## Tools of a subagent
 
-A subagent can only use tools that exist in the session. The kit's session has `WebFetch`, `WebSearch`, the file tools (with a knowledge or sources folder), `Skill` (with plugins), `Bash` (when a subagent lists it) and every MCP tool from `buildMcpServers()`.
+A subagent can only use tools that exist in the session. The kit's session has `WebFetch`, `WebSearch`, the file tools (with the sources extension, `extraWritableDirs` or `extraReadableDirs`), `Skill` (with plugins), `Bash` (when a subagent lists it) and every MCP tool from `buildMcpServers()`.
 
 - **Built-in tools**: list them by name: `tools: ["WebSearch", "WebFetch"]`. A subagent with file tools is bound by the same [file scope](../security/file-scope.md) as the main agent.
 - **MCP tools**: list them by their full name: the kit's, `tools: ["mcp__time__current_time"]`, or yours, `tools: ["mcp__inventory__find_product"]`, registering the server in `buildMcpServers()`.

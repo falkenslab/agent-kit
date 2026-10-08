@@ -10,10 +10,11 @@ The [knowledge base](knowledge-base.md)'s tools work on a `KnowledgeStore`, neve
 
 ## The kit's store
 
-`createFileKnowledgeStore(knowledgeDir, { pageTypes? })` keeps pages as markdown files in the layout the knowledge base always had (see [On disk](knowledge-base.md#on-disk)). `buildSessionOptions()` creates it for you, with `spec.knowledgePageTypes`, and returns it as `knowledgeStore`, so a host can read the knowledge base too (to show it in a desktop app, say):
+`createFileKnowledgeStore(dir, { pageTypes? })` keeps pages as markdown files in the layout the knowledge base always had (see [On disk](knowledge-base.md#on-disk)). The `knowledge` extension creates it for you over its folder, with its `pageTypes` option, and `buildSessionOptions()` returns it among the extensions' `apis`, as `apis.knowledge.knowledgeStore`, so a host can read the knowledge base too (to show it in a desktop app, say):
 
 ```ts
-const { options, knowledgeStore } = await buildSessionOptions(config, runDir, spec);
+const { options, apis } = await buildSessionOptions(config, runDir, spec);
+const knowledgeStore = apis.knowledge?.knowledgeStore as KnowledgeStore | undefined;
 const topics = (await knowledgeStore?.list())?.filter((page) => page.type === "topic");
 ```
 
@@ -65,16 +66,21 @@ What a store must keep, whatever it stores the pages in:
 ## Plugging in your own
 
 ```ts
-import type { AgentSpec, KnowledgeStore } from "@falkenslab/agent-kit";
+import { knowledge, type AgentSpec } from "@falkenslab/agent-kit";
 import { createPgKnowledgeStore } from "./pgStore.js"; // yours
 
 const spec: AgentSpec<Config> = {
   // …
-  knowledgeStore: (config) => createPgKnowledgeStore(process.env.DATABASE_URL!, { pageTypes: myTypes }),
+  extensions: [
+    knowledge({
+      dir: (config) => path.join(config.projectDir, "knowledge"),
+      store: (config, dir) => createPgKnowledgeStore(process.env.DATABASE_URL!, { pageTypes: myTypes }),
+    }),
+  ],
 };
 ```
 
-With `knowledgeStore`, the kit doesn't touch `knowledgeDir`'s files; the `knowledge` extension still needs `knowledgeDir` set (it keeps the file tools out of that folder).
+`store(config, dir)` gets the session's config and the extension's folder. With it, the kit doesn't touch the folder's files; the extension still needs `dir` (it keeps the file tools out of that folder, and your store may use it).
 
 A vector store usually keeps the curated pages as the source of truth and indexes them for `search()`: similarity search on embeddings of each page (or each section), with the same `SearchHit` result. Anthropic has no embeddings API; Voyage AI is the usual choice, and local options exist (LanceDB or sqlite-vec with a local model). `index()` and `check()` don't change.
 

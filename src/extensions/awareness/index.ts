@@ -23,22 +23,34 @@ You are ${who}. You are built on agent-kit ${agentKitVersion()}, which provides 
 - Don't invent what none of them says.`;
 }
 
+/** The awareness extension's options. */
+export interface AwarenessOptions {
+  /**
+   * Absolute path of a markdown guide to the agent's own domain (its commands, configuration,
+   * folders), which `about_me` gives the agent when the person asks.
+   */
+  guide?: string;
+}
+
 /**
  * The awareness (#43): the agent knows who it is and what it is at each moment of a session,
  * and the person can ask it. A "Who you are" section, `about_me` (the session's facts, read
- * anew on every call through `ExtensionContext.session()`, and the agent's `helpGuide`), and
- * the `help` skill, how the kit's chat is used, which doesn't change.
+ * anew on every call through `ExtensionContext.session()`, and the agent's `guide`), and
+ * the `help` skill, how the kit's chat is used, which doesn't change. It needs the spec's
+ * `identity`.
  */
-export const awarenessExtension: Extension = {
-  name: "awareness",
-  plugin: awarenessPluginRoot(),
-  missing: ({ spec }) => (spec.identity ? undefined : "needs `identity` in the spec"),
-  async contribute({ spec, session }) {
-    return {
-      mcpServers: { awareness: createAwarenessServer(session, spec.helpGuide) },
-      promptSection: identityPromptSection(spec.identity!),
-      readOnlyTools: ["mcp__awareness__about_me"],
-      toolLabels: awarenessToolLabels(),
-    };
-  },
-};
+export function awareness(options: AwarenessOptions = {}): Extension {
+  return {
+    name: "awareness",
+    plugin: awarenessPluginRoot(),
+    missing: ({ spec }) => (spec.identity ? undefined : "needs `identity` in the spec"),
+    async contribute({ spec, session }) {
+      return {
+        mcpServers: { awareness: createAwarenessServer(session, options.guide) },
+        promptSection: identityPromptSection(spec.identity!),
+        readOnlyTools: ["mcp__awareness__about_me"],
+        toolLabels: awarenessToolLabels(),
+      };
+    },
+  };
+}

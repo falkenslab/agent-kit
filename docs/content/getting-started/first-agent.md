@@ -116,21 +116,21 @@ Tool schemas use [zod](https://zod.dev) (`npm install zod`); a tool without para
 
 ## Step 4: notes that survive the session
 
-Enable the kit's `knowledge` and `sources` [extensions](../capabilities/extensions.md) and give them their folders: the agent gets the [knowledge base](../capabilities/knowledge-base.md), its own tools, rules and skills to keep its notes as an interlinked wiki, and a folder of originals.
+Enable the kit's `knowledge` and `sources` [extensions](../capabilities/extensions.md), each with its folder: the agent gets the [knowledge base](../capabilities/knowledge-base.md), its own tools, rules and skills to keep its notes as an interlinked wiki, and a folder of originals.
 
 ```ts
-const config: BaseSessionConfig = {
-  mode: "guided",
-  projectDir: process.cwd(),
-  knowledgeDir: path.resolve("knowledge"), // the agent's notes, through the knowledge_* tools
-  sourcesDir: path.resolve("sources"), // originals: readable, never modified
-};
+import { knowledge, sources } from "@falkenslab/agent-kit";
 
 const spec: AgentSpec<BaseSessionConfig> = {
   // …the same as before, plus:
-  extensions: ["sources", "knowledge"],
+  extensions: [
+    sources({ dir: (config) => path.join(config.projectDir, "sources") }), // originals: readable, never modified
+    knowledge({ dir: (config) => path.join(config.projectDir, "knowledge") }), // the agent's notes, through the knowledge_* tools
+  ],
 };
 ```
+
+A folder is a path, or a function of the session's config, as here: the spec stays the same while `projectDir` changes.
 
 Now Scout keeps its notes with the `knowledge_*` tools (search, read, create, edit, log…), reads the originals in `sources/` with `Read` but never modifies them (it adds files there with the sources tools, which never overwrite, and `list_sources` with `knowledge_index` tells it what isn't ingested yet). Try `/knowledge:ingest` after dropping a PDF in `sources/`.
 

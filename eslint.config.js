@@ -2,9 +2,9 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import globals from "globals";
 
-// Extensions (ADR-025): the core imports none but through its registry (src/core/extensions.ts),
-// and no extension imports another; each owns its data. Type-only imports are allowed: the core's
-// `AgentSpec` names the knowledge base's types, and extensions use the core's.
+// Extensions (ADR-025): the core never imports one, not even a type (an agent enables them through
+// their factories, exported from src/index.ts), and no extension imports another; each owns its
+// data. Extensions use the core's types.
 const EXTENSIONS = ["awareness", "knowledge", "memory", "sources"];
 
 export default tseslint.config(
@@ -14,11 +14,10 @@ export default tseslint.config(
   { languageOptions: { globals: globals.node } },
   {
     files: ["src/core/**/*.ts", "src/tui/**/*.ts", "src/tui/**/*.tsx"],
-    ignores: ["src/core/extensions.ts"],
     rules: {
       "@typescript-eslint/no-restricted-imports": [
         "error",
-        { patterns: [{ group: ["**/extensions/*/**"], allowTypeImports: true, message: "The core reaches extensions only through src/core/extensions.ts (ADR-025)." }] },
+        { patterns: [{ group: ["**/extensions/*/**"], allowTypeImports: false, message: "The core never imports an extension: an agent enables them through their factories (ADR-025, #50)." }] },
       ],
     },
   },

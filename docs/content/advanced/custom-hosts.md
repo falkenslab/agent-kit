@@ -79,7 +79,7 @@ export async function startAgent(window: BrowserWindow, workspace: string): Prom
   setLanguage(app.getLocale().startsWith("es") ? "es" : "en");
 
   const runsDir = path.join(app.getPath("userData"), "runs");
-  const config: Config = { mode: "guided", projectDir: workspace, knowledgeDir: path.join(workspace, "knowledge") };
+  const config: Config = { mode: "guided", projectDir: workspace }; // the spec's extensions find their folders in it
   const chat = await createChatController((run) => buildSessionOptions(config, run.dir, spec, { run }), { runsDir, panels: "state" });
 
   chat.subscribe((state) => window.webContents.send("chat:state", state));

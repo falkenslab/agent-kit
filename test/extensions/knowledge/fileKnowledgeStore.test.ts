@@ -8,7 +8,7 @@ import { checkFileScope } from "../../../src/core/hooks/fileScopeGate.js";
 import { checkPlanScope } from "../../../src/core/hooks/planGate.js";
 import type { PageType } from "../../../src/extensions/knowledge/knowledgeStore.js";
 import os from "node:os";
-import { knowledgeExtension } from "../../../src/extensions/knowledge/index.js";
+import { knowledge } from "../../../src/extensions/knowledge/index.js";
 import type { Extension } from "../../../src/core/extensions.js";
 import type { BaseSessionConfig } from "../../../src/core/agentSpec.js";
 
@@ -17,7 +17,7 @@ const noSession = () => Promise.reject(new Error("no session in this test"));
 /** An extension's contribution, for a minimal session with `config`. */
 async function contributionOf(extension: Extension, config: BaseSessionConfig) {
   const spec = { buildSystemPrompt: () => "", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined };
-  return extension.contribute({ config, spec, runDir: os.tmpdir(), mode: config.mode, interactive: true, session: noSession });
+  return extension.contribute({ config, spec, runDir: os.tmpdir(), mode: config.mode, interactive: true, capabilities: new Set(), session: noSession });
 }
 
 
@@ -197,7 +197,7 @@ test("the knowledge folder is out of the file tools' reach, with a pointer to th
 test("plan mode lets the knowledge base's reading tools through, as its extension declares, and not its writing ones", async () => {
   const kb = await existing();
   try {
-    const { readOnlyTools } = await contributionOf(knowledgeExtension, { mode: "guided", projectDir: kb.root, knowledgeDir: kb.k });
+    const { readOnlyTools } = await contributionOf(knowledge({ dir: kb.k }), { mode: "guided", projectDir: kb.root });
     const plan = { projectDir: "/p", readOnlyTools };
     assert.equal(checkPlanScope(plan, "mcp__knowledge__knowledge_search", {}), undefined);
     assert.match(checkPlanScope(plan, "mcp__knowledge__knowledge_create", {}) ?? "", /Plan mode/);

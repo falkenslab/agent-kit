@@ -4,8 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  awareness,
   buildSessionOptions,
   detectLanguage,
+  knowledge,
+  memory,
+  sources,
   getLanguage,
   setLanguage,
   SUPPORTED_LANGUAGES,
@@ -167,18 +171,23 @@ export function makeSpec(): AgentSpec<BaseSessionConfig> {
     // Quién es, y su guía (comandos, carpetas): la extensión awareness se lo dice al modelo, y
     // about_me le cuenta lo que es en cada momento (su modo, sus extensiones, su tripulación).
     identity: { name, version, description: "a retired pirate cat who tells jokes, an example agent of agent-kit" },
-    helpGuide: path.join(CAPTAIN_DIR, "guide.md"),
     buildMcpServers: () => ({}),
     // Las skills pirate-joke y miau y los comandos /captain-whiskers:joke y
     // /captain-whiskers:fresh-joke (con el nombre del plugin).
     pluginRoots: () => [path.join(CAPTAIN_DIR, "plugin")],
     buildSubagents: () => ({ agents: crew, allowedSubagentTypes: Object.keys(crew) }),
-    // Las extensiones del kit con las que navega (ADR-025): su conciencia (awareness), el cofre
-    // (sources, en treasure/), el cuaderno (knowledge, en logbook/) y lo que recuerda de quien
-    // navega con él (memory). Las que se le instalan (su libro de chistes, extensions/jokebook)
-    // van aparte: config.extensionDirs.
-    extensions: ["awareness", "sources", "knowledge", "memory"],
-    knowledgePageTypes: [JOKE_PAGE],
+    // Las extensiones del kit con las que navega (ADR-025), cada una con sus opciones: su
+    // conciencia (awareness, con su guía), el cofre (sources, en treasure/), el cuaderno
+    // (knowledge, en logbook/, con su tipo de página de chistes) y lo que recuerda de quien navega
+    // con él (memory). Sus carpetas, en su casa, que es su proyecto. Las que se le instalan (su
+    // libro de chistes, del shipyard) van aparte: config.extensionDirs.
+    extensions: [
+      awareness({ guide: path.join(CAPTAIN_DIR, "guide.md") }),
+      sources({ dir: (config) => path.join(config.projectDir, "treasure") }),
+      knowledge({ dir: (config) => path.join(config.projectDir, "logbook"), pageTypes: [JOKE_PAGE] }),
+      // Solo por sus herramientas, nunca leído como fichero.
+      memory({ dir: (config) => path.join(config.projectDir, "memory") }),
+    ],
     // Solo las skills de sus plugins (las suyas, las del cuaderno y la de ayuda del chat), no la veintena
     // que trae el SDK, y ninguna configuración de Claude Code de quien lo ejecute.
     skills: "plugins",
@@ -203,21 +212,14 @@ export function modeFromEnv(): Mode {
 export async function createCaptain(options: { home?: string; mode?: Mode } = {}) {
   const home = options.home ?? CAPTAIN_HOME;
   const mode = options.mode ?? modeFromEnv();
-  // Su cuaderno de bitácora (la base de conocimiento) y su cofre (los originales). La primera
-  // vez, el cofre recibe las muestras de treasure-samples/.
-  const logbook = path.join(home, "logbook");
-  const treasure = path.join(home, "treasure");
-  await stockTheChest(treasure);
+  // La primera vez, su cofre (los originales, treasure/) recibe las muestras de treasure-samples/.
+  await stockTheChest(path.join(home, "treasure"));
   // Las extensiones que se le instalan (#37), en un solo sitio: su casa es su único proyecto.
   const extensionDirs = { agent: path.join(home, "extensions") };
   const config: BaseSessionConfig = {
     mode,
-    // Su casa es su proyecto: el modelo ve logbook/ y treasure/, y nada más de ella.
+    // Su casa es su proyecto: el modelo ve treasure/ (y logbook/ y memory/, por sus herramientas), y nada más de ella.
     projectDir: home,
-    knowledgeDir: logbook,
-    sourcesDir: treasure,
-    // Lo que recuerda de quien navega con él: solo por sus herramientas, nunca leído como fichero.
-    memoryDir: path.join(home, "memory"),
     extensionDirs,
     // Su clave de Claude, en config.json: nunca a la vista del modelo.
     deniedPaths: [configPath(home)],

@@ -32,8 +32,8 @@ An agent acts through tools, so the kit's guardrails sit on the tools: which exi
 
 ## A checklist for a new agent
 
-1. Give it the narrowest folders: `knowledgeDir` for notes, `sourcesDir` for originals, nothing more unless needed.
-2. Give it only the folders it must read (`sourcesDir`, `extraReadableDirs`): it [reads nothing else](file-scope.md#what-the-agent-can-read). Put every secret file inside them in `deniedPaths` and every secret value in `secrets`.
+1. Give it the narrowest folders: the `knowledge` extension's for notes, the `sources` extension's for originals, nothing more unless needed.
+2. Give it only the folders it must read (the sources folder, `extraReadableDirs`): it [reads nothing else](file-scope.md#what-the-agent-can-read). Put every secret file inside them in `deniedPaths` and every secret value in `secrets`.
 3. Disallow every tool you don't want, especially from third-party MCP servers.
 4. Prefer small tools to Bash; if a subagent really needs Bash, make it opt-in.
 5. Start new agents in `interactive` or `guided` mode.

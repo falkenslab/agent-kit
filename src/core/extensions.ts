@@ -6,22 +6,27 @@ import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
 import { frontmatter } from "./pluginAgents.js";
 import type { ToolLabels } from "./toolLabels.js";
 import type { SessionFacts } from "./sessionFacts.js";
-import { awarenessExtension } from "../extensions/awareness/index.js";
-import { sourcesExtension } from "../extensions/sources/index.js";
-import { knowledgeExtension } from "../extensions/knowledge/index.js";
-import { memoryExtension } from "../extensions/memory/index.js";
 
 /**
  * Extensions (ADR-025): what an agent is besides the kit's core. An extension is a Claude Code
  * plugin with the kit's data in its manifest (`.claude-plugin/plugin.json`, key `"agent-kit"`:
  * the capabilities it `provides` and `requires`), plus, for an internal one, the code that
  * says what it brings to a session. An agent enables the ones it wants (`AgentSpec.extensions`),
- * the kit's by name, its own as objects; `buildSessionOptions()` puts the contributions of the
- * active ones together, so the core names none of them. The kit's own (awareness, knowledge, sources, memory) live
- * in `src/extensions/<name>/`, their plugin in `extensions/<name>/`; this file is the only place
- * in the core that imports them (an ESLint rule keeps it so), and no extension imports another:
- * each owns its data, and the model connects them through their tools (#30).
+ * each made with its own options (the kit's through their factories, `knowledge({ dir })`…);
+ * `buildSessionOptions()` puts the contributions of the active ones together, so the core names
+ * none of them. The kit's own (awareness, knowledge, sources, memory) live in
+ * `src/extensions/<name>/`, their plugin in `extensions/<name>/`; the core never imports them
+ * (an ESLint rule keeps it so), and no extension imports another: each owns its data, and the
+ * model connects them through their tools (#30).
  */
+
+/** A folder an extension's options name: a path, or one worked out from the session's config (its project). */
+export type FolderOption<TConfig extends BaseSessionConfig = BaseSessionConfig> = string | ((config: TConfig) => string | undefined);
+
+/** The folder `option` names for this session's `config`, if any. */
+export function folderOf<TConfig extends BaseSessionConfig>(option: FolderOption<TConfig> | undefined, config: BaseSessionConfig): string | undefined {
+  return typeof option === "function" ? option(config as TConfig) : option;
+}
 
 /** What an extension sees of the session it's contributing to. */
 export interface ExtensionContext<TConfig extends BaseSessionConfig = BaseSessionConfig> {
@@ -32,6 +37,12 @@ export interface ExtensionContext<TConfig extends BaseSessionConfig = BaseSessio
   mode: Mode;
   /** A person can be asked (not autonomous): tools that ask them may exist. */
   interactive: boolean;
+  /**
+   * What the session's active extensions provide (their manifests' `provides`), for one that
+   * works differently beside another (the knowledge base beside the sources). Known once the
+   * extensions are resolved: empty in `missing()`.
+   */
+  capabilities: ReadonlySet<string>;
   /**
    * What the session is at the moment of the call (#43): its mode now, the extensions running
    * and off, their tools, the subagents, skills, commands and context. The core's facts, read
@@ -80,7 +91,7 @@ export interface Extension {
   plugin: string;
   /** Installed rather than shipped in a package (#37): its subagents get no `Bash`, and no plugin hook runs. */
   external?: boolean;
-  /** Why it can't run in this session (e.g. "needs `knowledgeDir` in the config"), or `undefined` when it can. */
+  /** Why it can't run in this session (e.g. "needs a folder (`dir`)"), or `undefined` when it can. */
   missing?(context: ExtensionContext): string | undefined;
   /** What it brings to the session, once it's active. */
   contribute(context: ExtensionContext): Promise<ExtensionContribution>;
@@ -104,9 +115,6 @@ export function readExtensionManifest(pluginRoot: string): ExtensionManifest {
   return { name: raw.name, description: raw.description ?? "", provides: raw["agent-kit"]?.provides ?? [], requires: raw["agent-kit"]?.requires ?? [] };
 }
 
-/** The kit's internal extensions, by name. */
-export const BUILT_IN_EXTENSIONS: readonly Extension[] = [awarenessExtension, sourcesExtension, knowledgeExtension, memoryExtension];
-
 /** The extensions a session runs with, and the ones it can't, with why. */
 export interface ResolvedExtensions {
   active: { extension: Extension; manifest: ExtensionManifest }[];
@@ -116,17 +124,11 @@ export interface ResolvedExtensions {
 }
 
 /**
- * Which of the `enabled` extensions (the kit's by name, an agent's own as objects) run in this
- * session, in the order given: those the session lacks something for are left out, and so are
- * those requiring a capability no active one provides, until nothing more drops out.
+ * Which of the `extensions` run in this session, in the order given: those the session lacks
+ * something for are left out, and so are those requiring a capability no active one provides,
+ * until nothing more drops out.
  */
-export function resolveExtensions(enabled: readonly (string | Extension)[], context: ExtensionContext): ResolvedExtensions {
-  const extensions = enabled.map((entry) => {
-    if (typeof entry !== "string") return entry;
-    const found = BUILT_IN_EXTENSIONS.find((extension) => extension.name === entry);
-    if (!found) throw new Error(`Unknown extension "${entry}": the kit's are ${BUILT_IN_EXTENSIONS.map((extension) => extension.name).join(", ")}; an agent's own is passed as an object.`);
-    return found;
-  });
+export function resolveExtensions(extensions: readonly Extension[], context: ExtensionContext): ResolvedExtensions {
   const inactive: { name: string; reason: string }[] = [];
   let active: ResolvedExtensions["active"] = [];
   for (const extension of extensions) {

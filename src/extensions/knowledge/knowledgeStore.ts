@@ -6,7 +6,7 @@
  * pages use that id too: `[Bowline](concept/bowline)`.
  */
 
-/** A kind of page: one of the kit's, or one an agent declares (`AgentSpec.knowledgePageTypes`). */
+/** A kind of page: one of the kit's, or one an agent declares (`knowledge({ pageTypes })`). */
 export interface PageType {
   /** Its name, lowercase: `concept`, `topic`. Page ids start with it. */
   type: string;

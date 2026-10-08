@@ -6,10 +6,15 @@ import path from "node:path";
 import type { HookCallbackMatcher } from "@anthropic-ai/claude-agent-sdk";
 import { buildSessionOptions, claudeProjectDir } from "../../src/core/session.js";
 import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
+import { knowledge } from "../../src/extensions/knowledge/index.js";
+import { sources } from "../../src/extensions/sources/index.js";
+
+/** The agent's folders, in its config: each extension takes its own. */
+type Config = BaseSessionConfig & { knowledgeDir?: string; sourcesDir?: string };
 
 const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "restrict-reads-test-"));
 const sourcesDir = path.join(projectDir, "sources");
-const config: BaseSessionConfig = {
+const config: Config = {
   mode: "autonomous",
   projectDir,
   knowledgeDir: path.join(projectDir, "knowledge"),
@@ -20,14 +25,14 @@ const pluginRoot = path.join(projectDir, "plugin");
 const home = os.homedir();
 const claudeHome = process.env.CLAUDE_CONFIG_DIR || path.join(home, ".claude");
 
-function makeSpec(overrides: Partial<AgentSpec<BaseSessionConfig>> = {}): AgentSpec<BaseSessionConfig> {
+function makeSpec(overrides: Partial<AgentSpec<Config>> = {}): AgentSpec<Config> {
   return {
     buildSystemPrompt: () => "BASE PROMPT",
     buildMcpServers: () => ({}),
     pluginRoots: () => [pluginRoot],
     buildSubagents: () => ({ agents: { reader: { description: "Reads.", prompt: "…", tools: ["Read", "Glob"] } }, allowedSubagentTypes: ["reader"] }),
     replyInLanguage: false,
-    extensions: ["sources", "knowledge"],
+    extensions: [sources<Config>({ dir: (config) => config.sourcesDir }), knowledge<Config>({ dir: (config) => config.knowledgeDir })],
     ...overrides,
   };
 }
@@ -44,7 +49,7 @@ async function verdict(hooks: HookCallbackMatcher[], tool_name: string, tool_inp
   return undefined;
 }
 
-async function sessionHooks(spec: AgentSpec<BaseSessionConfig>) {
+async function sessionHooks(spec: AgentSpec<Config>) {
   const runDir = fs.mkdtempSync(path.join(os.tmpdir(), "restrict-reads-run-"));
   const { options } = await buildSessionOptions(config, runDir, spec);
   return { hooks: options.hooks?.PreToolUse ?? [], runDir };

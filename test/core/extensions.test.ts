@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { extensionsPromptSection, readExtensionManifest, requiredCapabilities, resolveExtensions, type Extension, type ExtensionContext } from "../../src/core/extensions.js";
 import { buildSessionOptions } from "../../src/core/session.js";
+import { knowledge } from "../../src/extensions/knowledge/index.js";
+import { sources } from "../../src/extensions/sources/index.js";
 import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
 
 const noSession = () => Promise.reject(new Error("no session in this test"));
@@ -30,13 +32,13 @@ function makeSpec(overrides: Partial<AgentSpec<BaseSessionConfig>> = {}): AgentS
 }
 
 const projectDir = temp();
-const context: ExtensionContext = { config: { mode: "guided", projectDir }, spec: makeSpec(), runDir: temp(), mode: "guided", interactive: true, session: noSession };
+const context: ExtensionContext = { config: { mode: "guided", projectDir }, spec: makeSpec(), runDir: temp(), mode: "guided", interactive: true, capabilities: new Set(), session: noSession };
 
 test("an extension's manifest gives its name, description and capabilities, under the kit's key", () => {
   const manifest = readExtensionManifest(makePlugin("jokebook", { provides: ["jokes"], requires: ["knowledge-base"] }));
   assert.deepEqual(manifest, { name: "jokebook", description: "The jokebook extension.", provides: ["jokes"], requires: ["knowledge-base"] });
   // The kit's own declare theirs.
-  const kit = resolveExtensions(["sources", "knowledge"], { ...context, config: { mode: "guided", projectDir, sourcesDir: projectDir, knowledgeDir: projectDir } });
+  const kit = resolveExtensions([sources({ dir: projectDir }), knowledge({ dir: projectDir })], context);
   assert.deepEqual([...kit.capabilities].sort(), ["knowledge-base", "sources"]);
 });
 
@@ -47,11 +49,11 @@ test("enabled extensions run in order; one the session lacks something for, or w
   const judge = extension("judge", makePlugin("judge", { requires: ["scores"] }));
   const offline = extension("offline", makePlugin("offline"), { missing: () => "needs `cacheDir` in the config" });
 
-  const resolved = resolveExtensions([memory, ranking, scoring, judge, offline, "knowledge"], context);
+  const resolved = resolveExtensions([memory, ranking, scoring, judge, offline, knowledge({ dir: () => undefined })], context);
   assert.deepEqual(resolved.active.map(({ extension }) => extension.name), ["memory", "ranking"]);
   assert.deepEqual(resolved.inactive, [
     { name: "offline", reason: "needs `cacheDir` in the config" },
-    { name: "knowledge", reason: "needs `knowledgeDir` in the config" },
+    { name: "knowledge", reason: "needs a folder (`dir`)" },
     { name: "scoring", reason: "requires ranking-data, which no enabled extension provides" },
     // Dropping scoring starves judge: requirements are resolved until nothing more drops out.
     { name: "judge", reason: "requires scores, which no enabled extension provides" },
@@ -64,8 +66,7 @@ test("enabled extensions run in order; one the session lacks something for, or w
   assert.match(section, /- \*\*judge\*\* isn't available: it requires scores, which no enabled extension provides\. If the person asks for what it does, tell them why\./);
 });
 
-test("an unknown kit extension, or a plugin whose name isn't the extension's, is an error", () => {
-  assert.throws(() => resolveExtensions(["telepathy"], context), /Unknown extension "telepathy": the kit's are awareness, sources, knowledge, memory/);
+test("a plugin whose name isn't the extension's is an error", () => {
   assert.throws(() => resolveExtensions([extension("parrot", makePlugin("crow"))], context), /has the plugin "crow"/);
 });
 
@@ -93,13 +94,13 @@ test("a skill that requires a capability nothing enabled provides isn't offered,
 
   // With the knowledge base on, it's offered, and "all" stays "all".
   const knowledgeDir = path.join(temp(), "kb");
-  const withKnowledge = await buildSessionOptions({ ...config, knowledgeDir }, temp(), makeSpec({ extensions: ["knowledge", extension("jokebook", jokebook)] }));
+  const withKnowledge = await buildSessionOptions(config, temp(), makeSpec({ extensions: [knowledge({ dir: knowledgeDir }), extension("jokebook", jokebook)] }));
   assert.equal(withKnowledge.options.skills, "all");
   assert.ok(withKnowledge.options.plugins?.some((plugin) => plugin.path === jokebook));
 });
 
-test("no extensions enabled: no Extensions section, and knowledgeDir is the agent's own notes", async () => {
-  const { options } = await buildSessionOptions({ mode: "guided", projectDir, knowledgeDir: path.join(projectDir, "notes") }, temp(), makeSpec());
+test("no extensions enabled: no Extensions section, and a writable folder is the agent's own notes", async () => {
+  const { options } = await buildSessionOptions({ mode: "guided", projectDir, extraWritableDirs: [path.join(projectDir, "notes")] }, temp(), makeSpec());
   assert.equal(options.systemPrompt, "BASE PROMPT");
   assert.ok(["Read", "Write", "Edit", "Glob", "Grep"].every((tool) => (options.tools as string[]).includes(tool)));
   assert.equal(options.mcpServers?.knowledge, undefined);

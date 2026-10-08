@@ -55,15 +55,15 @@ export function describeSession(facts: SessionFacts): string {
 }
 
 /** The awareness's MCP server: `about_me`, from the session's facts and the agent's guide. */
-export function createAwarenessServer(session: () => Promise<SessionFacts>, helpGuide?: string) {
+export function createAwarenessServer(session: () => Promise<SessionFacts>, guide?: string) {
   const aboutMe = tool(
     "about_me",
     "What you are right now: your mode and the ones the person can switch to, your extensions with their tools and the ones off (with why), your subagents, the commands the person can type, how full your context is. With `part: \"guide\"`, your own guide to your domain (your commands, configuration, folders). It changes during a session: call it whenever the person asks about you, rather than answering from memory.",
     { part: z.enum(["now", "guide"]).optional().describe("`now` (the default): what you are right now. `guide`: your own guide to your domain.") },
     async ({ part }) => {
       if (part === "guide") {
-        if (!helpGuide) return ok("You have no guide of your own: for your domain, say only what your instructions tell you, and that the rest isn't documented.");
-        return ok(await readFile(helpGuide, "utf8"));
+        if (!guide) return ok("You have no guide of your own: for your domain, say only what your instructions tell you, and that the rest isn't documented.");
+        return ok(await readFile(guide, "utf8"));
       }
       return ok(describeSession(await session()));
     },

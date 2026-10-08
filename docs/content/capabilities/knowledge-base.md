@@ -6,31 +6,29 @@ description: The built-in LLM wiki - pages reached through the knowledge_* tools
 
 # Knowledge base
 
-An agent forgets everything when a session ends, except what it wrote down. The kit gives every agent with a `knowledgeDir` a built-in way to keep its notes: an interlinked wiki of pages, with rules in the system prompt, skills to maintain it (the "LLM wiki" pattern) and tools of its own to reach it. Originals the agent works from stay apart, in `sourcesDir`.
+An agent forgets everything when a session ends, except what it wrote down. The kit's `knowledge` extension gives an agent a built-in way to keep its notes: an interlinked wiki of pages, with rules in the system prompt, skills to maintain it (the "LLM wiki" pattern) and tools of its own to reach it. Originals the agent works from stay apart, in the `sources` extension's folder.
 
 ## Turning it on
 
 ```ts
-const config: BaseSessionConfig = {
-  mode: "guided",
-  projectDir: workspace,
-  knowledgeDir: path.join(workspace, "knowledge"),
-  sourcesDir: path.join(workspace, "sources"), // optional
-};
+import { knowledge, sources, type AgentSpec, type BaseSessionConfig } from "@falkenslab/agent-kit";
 
 const spec: AgentSpec<BaseSessionConfig> = {
   // …
-  extensions: ["sources", "knowledge"],
+  extensions: [
+    sources({ dir: (config) => path.join(config.projectDir, "sources") }), // optional
+    knowledge({ dir: (config) => path.join(config.projectDir, "knowledge") }),
+  ],
 };
 ```
 
-It's the kit's `knowledge` [extension](extensions.md): enabled in the spec (`extensions: ["knowledge"]`, with `"sources"` for the originals), with `knowledgeDir` set:
+It's the kit's `knowledge` [extension](extensions.md), enabled in the spec with its folder (`dir`, a path or a function of the session's config), with `sources` beside it for the originals:
 
-- the agent gets the **`knowledge_*` tools** (an MCP server, `knowledge`) and reaches the knowledge base only through them: the file tools can't read, write or search `knowledgeDir` (the [file scope](../security/file-scope.md) says so, pointing to the tools);
-- a **"Knowledge base" section** is appended to the system prompt, with the page types and the working rules;
+- the agent gets the **`knowledge_*` tools** (an MCP server, `knowledge`) and reaches the knowledge base only through them: the file tools can't read, write or search its folder (the [file scope](../security/file-scope.md) says so, pointing to the tools);
+- a **"Knowledge base" section** is appended to the system prompt, with the page types and the working rules (and, when an active extension provides `sources`, how to match summaries to their originals);
 - the **`knowledge` plugin** ships with the kit and is loaded: three skills and three commands.
 
-The file tools stay for the originals (`Read`, `Glob`, `Grep` on `sourcesDir`) and for `extraWritableDirs` (`Write`, `Edit` too). An agent with only a `knowledgeDir` has no file tools at all.
+The file tools stay for the originals (`Read`, `Glob`, `Grep` on the sources folder) and for `extraWritableDirs` (`Write`, `Edit` too). An agent with only a knowledge base has no file tools at all.
 
 ### Why tools and not files
 
@@ -91,21 +89,26 @@ They're the project's: whoever opens it with the agent gets them. What's about t
 
 ## Your own page types
 
-An agent with its own kinds of notes (a course's topics and activities) declares them, and they work like the kit's: the same tools, in the index under their own section, with their own template and fields.
+An agent with its own kinds of notes (a course's topics and activities) declares them in the extension's `pageTypes` option, and they work like the kit's: the same tools, in the index under their own section, with their own template and fields.
 
 ```ts
 const spec: AgentSpec<Config> = {
   // …
-  knowledgePageTypes: [
-    {
-      type: "topic",
-      dir: "", // at the knowledge folder's root
-      indexSection: "Topics",
-      description: "A topic of the course: what it covers and the students' mastery of it.",
-      template: "## Goals\n- <What the students learn>\n\n## Sessions\n- <Plan>",
-      indexFields: ["mastery"], // shown in the index line: (mastery: 3)
-    },
-    { type: "activity", dir: "activities", indexSection: "Activities", description: "A class activity.", template: "## Steps\n…" },
+  extensions: [
+    knowledge<Config>({
+      dir: (config) => path.join(config.courseDir, "knowledge"),
+      pageTypes: [
+        {
+          type: "topic",
+          dir: "", // at the knowledge folder's root
+          indexSection: "Topics",
+          description: "A topic of the course: what it covers and the students' mastery of it.",
+          template: "## Goals\n- <What the students learn>\n\n## Sessions\n- <Plan>",
+          indexFields: ["mastery"], // shown in the index line: (mastery: 3)
+        },
+        { type: "activity", dir: "activities", indexSection: "Activities", description: "A class activity.", template: "## Steps\n…" },
+      ],
+    }),
   ],
 };
 ```
@@ -159,7 +162,7 @@ If your spec lists its [skills](skills-and-plugins.md#choosing-which-skills-the-
 
 ## Sources: originals kept as obtained
 
-`sourcesDir` holds the material the agent works from: files the person drops in, and files the agent saves there. The agent can read and search it but never write or edit it: the [file scope](../security/file-scope.md) denies it, with a message pointing to the notes folder instead.
+The `sources` extension's folder (`sources({ dir })`) holds the material the agent works from: files the person drops in, and files the agent saves there. The agent can read and search it but never write or edit it: the [file scope](../security/file-scope.md) denies it, with a message pointing to its writable folders instead.
 
 The agent keeps it with the kit's tools (server `sourceFiles`), never with the file tools:
 
@@ -184,7 +187,7 @@ Each present original has `changedAt`, when its **content** last changed (ISO 86
 
 The kit keeps the bookkeeping in a manifest inside the folder, `sources/.agent-kit/sources.json`, where the file tools can't write: each original's hash, size, provenance (from the run, a URL, the person, or copied by hand) and `changedAt`. Hashes never leave it. A PDF's pages and a PPTX's slides are counted without parsing them, so the agent can read a long one in parts.
 
-The sources' own section of the system prompt (what the originals are, how they come and go) is there whenever `sourcesDir` is set, with or without a knowledge base.
+The sources' own section of the system prompt (what the originals are, how they come and go) is there whenever the `sources` extension is on, with or without a knowledge base.
 
 ### Adding originals
 
@@ -197,7 +200,7 @@ request_file({ description: "The official syllabus of the module, to build the c
 - `save_to_sources` takes `source` relative to **this run's folder** (`runDir`), where a browser or another tool typically downloads files; the file tools can't reach it. It tolerates accented file names in a different Unicode normalization (a browser download on macOS, say).
 - `download_to_sources` downloads up to 50 MB over http or https, without the content going through the model's context. A **web page** is also kept as its main content in markdown next to it (`web/rules.html` and `web/rules.md`), to quote it literally and read it again; `WebFetch` only returns a summary. That needs three optional libraries in your agent, `npm install @mozilla/readability linkedom turndown`; without them only the HTML is kept, and the tool says so.
 - `request_file` shows the person a panel with the description; they give a path (dragging the file into the terminal pastes it) or press Enter if they don't have it. It's copied with the person as its provenance.
-- `destination` is relative to `sourcesDir`; hidden folders are the kit's.
+- `destination` is relative to the sources folder; hidden folders are the kit's.
 - Nothing is ever **overwritten**: an existing destination is an error asking for another name.
 - A file **identical** to one already there isn't copied again: the tool returns that one's path.
 - A **new version** goes under a new name with `replaces` set to the old one (`topic-3/slides-v2.pdf` replacing `topic-3/slides.pdf`); both are kept and the manifest links them.
@@ -213,7 +216,7 @@ extract_text({ source: "topic-3/slides.pptx", from: 1, to: 10 })
 - **XLSX**: a table per sheet, up to 200 rows (the rest are counted).
 - Images are left out, and counted.
 
-It needs the optional `mammoth`, `fflate` and `turndown` libraries (see [Installation](../getting-started/installation.md#optional-libraries)); without them it says what to install. Customize `save_to_sources`' description for your domain with `saveToSourcesDescription` in the spec.
+It needs the optional `mammoth`, `fflate` and `turndown` libraries (see [Installation](../getting-started/installation.md#optional-libraries)); without them it says what to install. Customize `save_to_sources`' description for your domain with the extension's `saveDescription` option: `sources({ dir, saveDescription })`.
 
 ### Retiring an original
 
@@ -233,7 +236,7 @@ The plan gate denies every tool here but `list_sources` and `extract_text`, and 
 
 They're separate on purpose: **each owns its data, and the model connects them** with their tools. The sources know their originals and when each changed; the knowledge base knows its pages, which original each summary is about and when it was written. Neither reads nor writes the other's data, so the knowledge base's store can be anything (a database, a vector store) and the sources work without a knowledge base.
 
-The model matches them, as the `knowledge-ingest` and `knowledge-lint` skills tell it:
+The model matches them, as the `knowledge-ingest` and `knowledge-lint` skills tell it, and the knowledge base's prompt section too when an active extension provides the `sources` [capability](extensions.md#capabilities):
 
 - **To ingest**: an original that no summary is about needs ingesting; one whose `changedAt` (from `list_sources`) is after its summary's `ingested` (from `knowledge_index`) changed since, and its summary is redone with `knowledge_rewrite`, which sets `ingested` again. Both dates are ISO 8601 in UTC, so the later one sorts after as text; `date_math` is there if in doubt. (A rule to always use `date_math` was dropped: in real sessions the model compared them as text, correctly, and skipped the tool.)
 - **To retire**: after `retire_source`, the knowledge base's own tools retire or supersede the summaries, with the person's approval.
@@ -242,13 +245,18 @@ The model only carries short identifiers (an original's path, a page id) and dat
 
 ## Your own rules instead
 
-An agent that wants plain notes, or rules entirely its own, leaves `"knowledge"` out of its extensions: `knowledgeDir` is then a folder of its own notes, kept with the file tools (all five, writing included):
+An agent that wants plain notes, or rules entirely its own, leaves `knowledge()` out of its extensions and puts a folder of its own notes in `extraWritableDirs`, kept with the file tools (all five, writing included):
 
 ```ts
 const spec: AgentSpec<Config> = {
   buildSystemPrompt: (config) => `${loadPrompt("system.md")}\n\n${myNotesRules(config)}`,
   // …
-  extensions: ["sources"], // no "knowledge"
+  extensions: [sources({ dir: (config) => path.join(config.projectDir, "sources") })], // no knowledge()
+};
+
+const config: Config = {
+  // …
+  extraWritableDirs: [path.join(workspace, "notes")],
 };
 ```
 

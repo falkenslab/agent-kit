@@ -2,7 +2,7 @@
 
 ## Decision
 
-`createFileScopeGate()` is the real boundary for `Read`/`Write`/`Edit`/`Grep`, for the main agent and subagents: writes only in `knowledgeDir` and `extraWritableDirs`, `Grep` only there plus `sourcesDir`, `deniedPaths` never. `sourcesDir` is not writable; the agent adds to it only through `save_to_sources`, which copies with `COPYFILE_EXCL`.
+`createFileScopeGate()` is the real boundary for `Read`/`Write`/`Edit`/`Grep`, for the main agent and subagents: writes only in `extraWritableDirs`, `Grep` only there plus the sources folder and `extraReadableDirs`, `deniedPaths` never. The sources folder is not writable; the agent adds to it only through `save_to_sources`, which copies with `COPYFILE_EXCL`.
 
 ## Motivation
 

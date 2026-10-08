@@ -3,12 +3,12 @@ import { fileURLToPath } from "node:url";
 import type { PageType } from "./knowledgeStore.js";
 
 /**
- * The built-in knowledge base (an "LLM wiki"): `sourcesDir` holds the originals, `knowledgeDir`
- * is the wiki the agent maintains through the `knowledge_*` tools (ADR-024), and the rules below
+ * The built-in knowledge base (an "LLM wiki"): the sources folder holds the originals, its own
+ * folder is the wiki the agent maintains through the `knowledge_*` tools (ADR-024), and the rules below
  * plus the plugin's skills (knowledge-ingest, knowledge-query, knowledge-lint) and commands
  * (/knowledge:ingest, /knowledge:query, /knowledge:lint) are the schema that tells it how.
- * Domain-agnostic on purpose: an agent adds its own page types (`AgentSpec.knowledgePageTypes`),
- * or leaves it out of `AgentSpec.extensions` and writes its own rules for `knowledgeDir`.
+ * Domain-agnostic on purpose: an agent adds its own page types (`knowledge({ pageTypes })`), or
+ * leaves it out of `AgentSpec.extensions` and keeps notes of its own in `extraWritableDirs`.
  */
 
 /** Absolute path of the knowledge base's plugin shipped with the kit, next to `dist/` (or `src/` under tsx). */

@@ -6,13 +6,18 @@ import path from "node:path";
 import { knowledgePluginRoot, knowledgePromptSection, PREFERENCES_IN_PROMPT } from "../../../src/extensions/knowledge/prompt.js";
 import { createFileKnowledgeStore } from "../../../src/extensions/knowledge/fileKnowledgeStore.js";
 import { sourcesPromptSection } from "../../../src/extensions/sources/tools.js";
-import { sourcesPluginRoot } from "../../../src/extensions/sources/index.js";
+import { sources, sourcesPluginRoot } from "../../../src/extensions/sources/index.js";
+import { knowledge } from "../../../src/extensions/knowledge/index.js";
 import { buildSessionOptions } from "../../../src/core/session.js";
 import type { AgentSpec, BaseSessionConfig } from "../../../src/core/agentSpec.js";
+import type { KnowledgeStore } from "../../../src/extensions/knowledge/knowledgeStore.js";
 
 const projectDir = path.resolve("/workspace");
 
-function makeSpec(overrides: Partial<AgentSpec<BaseSessionConfig>> = {}): AgentSpec<BaseSessionConfig> {
+/** The folders of these tests' agent, in its config: each extension takes its own. */
+type Config = BaseSessionConfig & { knowledgeDir?: string; sourcesDir?: string };
+
+function makeSpec(overrides: Partial<AgentSpec<Config>> = {}): AgentSpec<Config> {
   return {
     buildSystemPrompt: () => "BASE PROMPT",
     buildMcpServers: () => ({}),
@@ -20,7 +25,7 @@ function makeSpec(overrides: Partial<AgentSpec<BaseSessionConfig>> = {}): AgentS
     buildSubagents: () => undefined,
     // The reply language line would depend on the machine's language (see language.test.ts).
     replyInLanguage: false,
-    extensions: ["sources", "knowledge"],
+    extensions: [sources<Config>({ dir: (config) => config.sourcesDir }), knowledge<Config>({ dir: (config) => config.knowledgeDir })],
     ...overrides,
   };
 }
@@ -62,24 +67,27 @@ test("the sources' section is there with or without a knowledge base, before the
   assert.doesNotMatch(alone.options.systemPrompt as string, /## Knowledge base/);
   const both = await buildSessionOptions({ mode: "autonomous", projectDir, sourcesDir, knowledgeDir: path.join(projectDir, "knowledge") }, runDir, makeSpec());
   assert.match(both.options.systemPrompt as string, /^BASE PROMPT\n\n## Extensions\n[\s\S]*\n\n## Sources\n[\s\S]*\n\n## Knowledge base\n/);
+  // Beside the sources (their capability, not a folder in the config), summaries name their original.
+  assert.match((both.options.systemPrompt as string).split("## Knowledge base")[1]!, /changedAt/);
+  const knowledgeAlone = await buildSessionOptions({ mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") }, runDir, makeSpec());
+  assert.doesNotMatch(knowledgeAlone.options.systemPrompt as string, /changedAt/);
 });
 
-test("the extensions own their data: none imports another, and the core only through its registry (#30, ADR-025)", async () => {
+test("the extensions own their data: none imports another, and the core none at all, not even a type (#30, ADR-025)", async () => {
   const sources = (dir: string) => fs.readdirSync(path.resolve(dir), { recursive: true, encoding: "utf8" }).filter((file) => file.endsWith(".ts")).map((file) => path.join(dir, file));
-  const imports = (file: string) => [...fs.readFileSync(path.resolve(file), "utf8").matchAll(/^import(?! type)[^;]*from "([^"]+)"/gm)].map((m) => m[1]);
+  const imports = (file: string, types = false) => [...fs.readFileSync(path.resolve(file), "utf8").matchAll(types ? /^import[^;]*from "([^"]+)"/gm : /^import(?! type)[^;]*from "([^"]+)"/gm)].map((m) => m[1]);
   for (const extension of ["knowledge", "sources"]) {
     for (const file of sources(`src/extensions/${extension}`)) {
       for (const target of imports(file)) assert.ok(!/^\.\.\/(?!\.\.)/.test(target), `${file} imports another extension: ${target}`);
     }
   }
   for (const file of sources("src/core")) {
-    if (file.endsWith("extensions.ts")) continue;
-    for (const target of imports(file)) assert.ok(!target.includes("extensions/"), `${file} imports an extension: ${target}`);
+    for (const target of imports(file, true)) assert.ok(!target.includes("extensions/"), `${file} imports an extension: ${target}`);
   }
 });
 
-test("with knowledgeDir set, the knowledge base rules and plugin are added on top of the spec's own", async () => {
-  const config: BaseSessionConfig = { mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") };
+test("with its folder, the knowledge base rules and plugin are added on top of the spec's own", async () => {
+  const config: Config = { mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") };
   const { options } = await buildSessionOptions(config, runDir, makeSpec({ pluginRoots: () => ["/own/plugin"] }));
   assert.match(options.systemPrompt as string, /^BASE PROMPT\n\n## Extensions\n[\s\S]*\n\n## Knowledge base/);
   assert.deepEqual(
@@ -93,7 +101,7 @@ test("the knowledge base is reached through its tools, never the file tools", as
   const sourcesDir = path.join(projectDir, "sources");
   const store = await buildSessionOptions({ mode: "guided", projectDir, knowledgeDir, sourcesDir }, runDir, makeSpec());
   assert.ok(store.options.mcpServers?.knowledge);
-  assert.ok(store.knowledgeStore);
+  assert.ok((store.apis.knowledge?.knowledgeStore as KnowledgeStore | undefined)?.list);
   assert.deepEqual(store.options.tools?.filter((t) => ["Read", "Write", "Edit", "Glob", "Grep"].includes(t as string)), ["Read", "Glob", "Grep"]);
   assert.ok(!(store.options.additionalDirectories ?? []).includes(knowledgeDir));
   assert.match(store.options.systemPrompt as string, /knowledge_search/);
@@ -103,9 +111,9 @@ test("the knowledge base is reached through its tools, never the file tools", as
   assert.deepEqual(only.options.tools?.filter((t) => ["Read", "Write", "Edit", "Glob", "Grep"].includes(t as string)), []);
 });
 
-test("without the knowledge extension, or without knowledgeDir, there's no knowledge base; knowledgeDir alone is the agent's own notes", async () => {
+test("without the knowledge extension, or without its folder, there's no knowledge base; a writable folder is the agent's own notes", async () => {
   const optedOut = await buildSessionOptions(
-    { mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") },
+    { mode: "autonomous", projectDir, extraWritableDirs: [path.join(projectDir, "notes")] },
     runDir,
     makeSpec({ extensions: [] }),
   );

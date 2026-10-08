@@ -23,12 +23,17 @@ export { buildSessionOptions, createInputQueue, createDeferred, createModeContro
 export { runQuery, type AgentEvent, type AgentRun, type SessionUsage, type ContextUsage } from "./core/runner.js";
 export type { SessionFacts } from "./core/sessionFacts.js";
 export { knowledgePluginRoot, knowledgePromptSection } from "./extensions/knowledge/prompt.js";
+export { awareness, type AwarenessOptions } from "./extensions/awareness/index.js";
+export { sources, type SourcesOptions } from "./extensions/sources/index.js";
+export { knowledge, type KnowledgeOptions } from "./extensions/knowledge/index.js";
+export { memory, type MemoryOptions } from "./extensions/memory/index.js";
 export {
   readExtensionManifest,
   type Extension,
   type ExtensionContext,
   type ExtensionContribution,
   type ExtensionManifest,
+  type FolderOption,
 } from "./core/extensions.js";
 export {
   addExtension,

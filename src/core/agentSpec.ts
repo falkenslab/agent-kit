@@ -1,6 +1,5 @@
 import type { ExtensionDirs } from "./externalExtensions.js";
 import type { AgentDefinition as SdkSubagentDefinition, McpServerConfig, SettingSource } from "@anthropic-ai/claude-agent-sdk";
-import type { KnowledgeStore, PageType } from "../extensions/knowledge/knowledgeStore.js";
 import type { Extension } from "./extensions.js";
 
 /**
@@ -27,27 +26,8 @@ export type Mode = "interactive" | "guided" | "autonomous" | "plan";
  */
 export interface BaseSessionConfig {
   mode: Mode;
-  /** Project root (the session's cwd): the folder under which the agent's notes, sources and runs live. */
+  /** Project root (the session's cwd): the folder under which the agent's folders and runs live. */
   projectDir: string;
-  /**
-   * Where the agent writes its own notes (the "wiki"). Setting this or `sourcesDir` is what
-   * gives the session the file tools (Read/Write/Edit/Glob/Grep, scoped — see
-   * hooks/fileScopeGate.ts); without either, the agent has no file access at all.
-   */
-  knowledgeDir?: string;
-  /**
-   * Original files, kept as obtained and apart from the notes in `knowledgeDir`: material
-   * the user drops in, plus whatever the agent saves with `save_to_sources` (downloaded
-   * documents, transcripts...). The agent can read and search it but never edit it — Write/
-   * Edit are scoped to `knowledgeDir` — and `save_to_sources` never overwrites.
-   */
-  sourcesDir?: string;
-  /**
-   * The memory of the person (the `memory` extension, #34): a folder of the agent's own outside
-   * any project, e.g. `~/.miyagi/memory`, kept across all the person's projects. Never share it
-   * with another agent. The extension needs it; only its tools (`recall`, `remember`, `forget`) reach it.
-   */
-  memoryDir?: string;
   /**
    * Where extensions are installed for this agent (#37): `agent` for all its projects (e.g.
    * `~/.miyagi/extensions`), `project` for this one (e.g. `<projectDir>/extensions`), which wins.
@@ -55,10 +35,15 @@ export interface BaseSessionConfig {
    * installs them.
    */
   extensionDirs?: ExtensionDirs;
-  /** Directories besides `knowledgeDir`/`sourcesDir` where Write/Edit are allowed (see hooks/fileScopeGate.ts). */
+  /**
+   * Directories where the agent reads, searches and writes with the file tools (Write/Edit,
+   * scoped — see hooks/fileScopeGate.ts), e.g. a folder of its own notes. Setting one gives the
+   * session all five file tools; an extension's folders (the sources, the knowledge base) come
+   * with the extension.
+   */
   extraWritableDirs?: string[];
   /**
-   * Directories besides `sourcesDir`/`extraWritableDirs` the agent may read and search (Read,
+   * Directories besides `extraWritableDirs` and the extensions' folders the agent may read and search (Read,
    * Glob, Grep), never write. Read and Glob reach nothing else on the disk but what the kit
    * knows the agent needs (see hooks/fileScopeGate.ts).
    */
@@ -100,25 +85,19 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    * model (with agent-kit's version), and needs it; the session's facts carry it too.
    */
   identity?: AgentIdentity;
-  /**
-   * Absolute path of a markdown guide to the agent's own domain (its commands, configuration,
-   * folders), which the `awareness` extension's `about_me` gives the agent when the person asks.
-   */
-  helpGuide?: string;
 
   /**
    * MCP servers this agent always registers (e.g. Playwright for a browser-driving
    * agent), on top of the generic ones `buildSessionOptions()` wires up itself when
-   * applicable (human approval, manual intervention, save-to-knowledge) — those aren't
-   * part of the spec because they're driven by `mode` plus this spec's own
-   * `manualInterventionTexts`/`knowledgeDir`/`sourcesDir`, not by anything else
-   * domain-specific.
+   * applicable (human approval, manual intervention) and the extensions' — those aren't
+   * part of this method because they're driven by `mode`, this spec's own
+   * `manualInterventionTexts` and its `extensions`.
    */
   buildMcpServers(config: TConfig, runDir: string): Record<string, McpServerConfig>;
 
   /**
    * Local plugin roots (skills/commands, SDK "local" plugin type) to load, in the order
-   * given, when the session has file tools (`config.knowledgeDir`/`config.sourcesDir`). Absolute paths; `buildSessionOptions()`
+   * given. Absolute paths; `buildSessionOptions()`
    * doesn't know or care where they live on disk.
    */
   pluginRoots(config: TConfig): string[];
@@ -142,30 +121,14 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    */
   disallowedTools?: string[];
 
-  /** Overrides this kit's generic `save_to_sources` tool description (registered whenever `config.sourcesDir` is set) with domain-specific wording. */
-  saveToSourcesDescription?: string;
-
   /**
-   * The extensions the agent runs with (ADR-025), in order: the kit's by name (`"knowledge"`, the
-   * built-in knowledge base in `config.knowledgeDir`; `"sources"`, the originals in
-   * `config.sourcesDir`), and the agent's own as objects (an `Extension`: its plugin and what it
-   * brings). An extension the session lacks something for (its folder), or whose required
-   * capabilities nothing enabled provides, is left out, and the prompt says why. None by default.
-   * Without `"knowledge"`, `knowledgeDir` is a folder of the agent's own notes, kept with the file
-   * tools under rules it writes itself.
+   * The extensions the agent runs with (ADR-025), in order, each made with its own options: the
+   * kit's through their factories (`awareness()`, `sources({ dir })`, `knowledge({ dir })`,
+   * `memory({ dir })`), the agent's own as `Extension` objects (its plugin and what it brings).
+   * An extension the session lacks something for (its folder), or whose required capabilities
+   * nothing enabled provides, is left out, and the prompt says why. None by default.
    */
-  extensions?: (string | Extension)[];
-  /**
-   * The agent's own page types for the built-in knowledge base, besides the kit's
-   * (summary, concept, entity, synthesis, preference): each with its folder (`""` for the root),
-   * index section, description (told to the model) and template.
-   */
-  knowledgePageTypes?: PageType[];
-  /**
-   * The knowledge base's store, instead of the kit's over markdown files in `knowledgeDir`
-   * (e.g. a database or a vector store implementing `KnowledgeStore`).
-   */
-  knowledgeStore?(config: TConfig): KnowledgeStore;
+  extensions?: Extension[];
 
   /**
    * Whether the kit tells the agent (and each subagent) to reply in the resolved language
@@ -242,8 +205,8 @@ export interface AgentIdentity {
 export interface PlanModeSpec<TConfig extends BaseSessionConfig = BaseSessionConfig> {
   /**
    * Whether `filePath` (absolute) is a plan file Write/Edit may touch in plan mode, e.g.
-   * `drafts/<slug>/plan.md`. It must also be writable under the file scope (`knowledgeDir`
-   * or `extraWritableDirs`), which still applies.
+   * `drafts/<slug>/plan.md`. It must also be writable under the file scope (`extraWritableDirs`),
+   * which still applies.
    */
   isPlanFile?(filePath: string, config: TConfig): boolean;
   /**

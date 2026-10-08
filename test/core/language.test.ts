@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { LANGUAGE_NAMES, SUPPORTED_LANGUAGES, languageArgument, replyLanguageInstruction, resolveLanguage, toLanguage } from "../../src/core/language.js";
+import { knowledge } from "../../src/extensions/knowledge/index.js";
 import { buildSessionOptions } from "../../src/core/session.js";
 import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
 
@@ -87,9 +88,9 @@ test("skills: every one by default; a spec's list gets the knowledge base's adde
   const listed = await buildSessionOptions({ mode: "autonomous", projectDir }, runDir, makeSpec({ skills: ["own:joke"] }));
   assert.deepEqual(listed.options.skills, ["own:joke"]);
   const withKnowledge = await buildSessionOptions(
-    { mode: "autonomous", projectDir, knowledgeDir: path.join(projectDir, "knowledge") },
+    { mode: "autonomous", projectDir },
     runDir,
-    makeSpec({ skills: ["own:joke"], extensions: ["knowledge"] }),
+    makeSpec({ skills: ["own:joke"], extensions: [knowledge({ dir: path.join(projectDir, "knowledge") })] }),
   );
   assert.deepEqual([...(withKnowledge.options.skills as string[])].sort(), ["knowledge:knowledge-ingest", "knowledge:knowledge-lint", "knowledge:knowledge-query", "own:joke"]);
 });

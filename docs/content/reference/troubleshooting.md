@@ -32,16 +32,16 @@ The command doesn't exist in this session. Plugin commands are namespaced: `/my-
 
 ## "… can't be written: writing is only allowed inside …"
 
-The [file scope](../security/file-scope.md) denied it. Writing is allowed in `knowledgeDir` and `extraWritableDirs` only; `sourcesDir` is read-only by design. Add a folder to `extraWritableDirs` if the agent needs it.
+The [file scope](../security/file-scope.md) denied it. Writing is allowed in `extraWritableDirs` only; the sources folder is read-only by design, and the knowledge base's and the memory's are reached only through their tools. Add a folder to `extraWritableDirs` if the agent needs it.
 
 ## "Grep only searches inside …"
 
-`Grep` needs a `path` inside `knowledgeDir`, `sourcesDir` or `extraWritableDirs`. Tell the agent where to search, or add the folder.
+`Grep` needs a `path` inside the sources folder, `extraWritableDirs` or `extraReadableDirs`. Tell the agent where to search, or add the folder.
 
 ## A subagent never runs, or "Delegation is only available for …"
 
 - Only the types in `allowedSubagentTypes` can be spawned; check the name the model uses matches a key of `agents`.
-- Every tool a subagent declares must exist in the session. A built-in tool the session doesn't have (a file tool without a knowledge or sources folder) makes the SDK refuse to spawn it.
+- Every tool a subagent declares must exist in the session. A built-in tool the session doesn't have (a file tool without the sources extension, `extraWritableDirs` or `extraReadableDirs`) makes the SDK refuse to spawn it.
 - Say in the system prompt when to use each subagent.
 
 ## An MCP server isn't there

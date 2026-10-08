@@ -17,7 +17,9 @@ import {
   buildSessionOptions,
   createProgressView,
   ensureClaudeAuth,
+  knowledge,
   runQuery,
+  sources,
   type AgentSpec,
   type BaseSessionConfig,
 } from "@falkenslab/agent-kit";
@@ -31,8 +33,6 @@ await ensureClaudeAuth();
 const config: BaseSessionConfig = {
   mode: process.stdin.isTTY ? "guided" : "autonomous", // nobody to ask in a job
   projectDir: workspace,
-  knowledgeDir: path.join(workspace, "knowledge"),
-  sourcesDir: path.join(workspace, "sources"),
 };
 
 const spec: AgentSpec<BaseSessionConfig> = {
@@ -40,7 +40,10 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildMcpServers: () => ({}),
   pluginRoots: () => [],
   buildSubagents: () => undefined,
-  extensions: ["sources", "knowledge"],
+  extensions: [
+    sources({ dir: path.join(workspace, "sources") }),
+    knowledge({ dir: path.join(workspace, "knowledge") }),
+  ],
 };
 
 const { options } = await buildSessionOptions(config, runDir, spec);

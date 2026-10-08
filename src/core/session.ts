@@ -14,7 +14,6 @@ import { createManualLoginServer } from "./tools/manualLogin.js";
 import { createTimeServer } from "./tools/time.js";
 import { TODO_TOOL } from "./todos.js";
 import { createModeControl, type ModeControl } from "./modeControl.js";
-import type { KnowledgeStore } from "../extensions/knowledge/knowledgeStore.js";
 import { extensionsPromptSection, resolveExtensions, skillsMissingCapabilities, type ExtensionContribution } from "./extensions.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { pluginAgents } from "./pluginAgents.js";
@@ -64,9 +63,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   toolLabels: ToolLabels;
   /** The installed extensions and what this session runs with, for `/extensions` (#37). */
   extensions: ExtensionsStatus;
-  /** The knowledge base's store, when the knowledge extension is on (for a host that reads the knowledge base). */
-  knowledgeStore?: KnowledgeStore;
-  /** What each active extension hands the host (its contribution's `api`), by its name: the sources' `addSource`, the knowledge base's store. */
+  /** What each active extension hands the host (its contribution's `api`), by its name: the sources' `addSource`, the knowledge base's `knowledgeStore`. */
   apis: Record<string, Record<string, unknown>>;
   /** Turns an installed extension off or on in the running session; false when that takes opening it again (#49). */
   switchExtension: ExtensionSwitch;
@@ -97,13 +94,15 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     runDir,
     mode,
     interactive: mode !== "autonomous",
+    // What the active ones provide, once they're resolved below.
+    capabilities: new Set<string>() as ReadonlySet<string>,
     session: () => (late.view ? late.view.facts() : Promise.reject(new Error("The session isn't built yet: call session() from a tool, not from contribute()."))),
   };
   // The installed ones (#37), the project's over the agent's: those that can't load are off with
   // why, and so is one named like an extension the spec enables.
   const extensionDirs = config.extensionDirs ?? {};
   const external = await loadExternalExtensions(extensionDirs);
-  const enabledNames = new Set((spec.extensions ?? []).map((entry) => (typeof entry === "string" ? entry : entry.name)));
+  const enabledNames = new Set((spec.extensions ?? []).map((extension) => extension.name));
   const resolved = resolveExtensions([...(spec.extensions ?? []), ...external.extensions.filter((extension) => !enabledNames.has(extension.name))], extensionContext);
   resolved.inactive.push(
     ...external.off,
@@ -120,22 +119,17 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     extension.plugin = copy;
   }
   const externalPlugins = new Set(resolved.active.filter(({ extension }) => extension.external).map(({ extension }) => path.resolve(extension.plugin)));
+  extensionContext.capabilities = resolved.capabilities;
   const added = await Promise.all(resolved.active.map(({ extension }) => extension.contribute(extensionContext)));
   const extensionPlugins = resolved.active.map(({ extension }) => extension.plugin);
   const fromExtensions = <T>(pick: (contribution: ExtensionContribution) => readonly T[] | undefined): T[] => added.flatMap((contribution) => pick(contribution) ?? []);
-  const knowledgeStore = added.map((contribution) => contribution.api?.knowledgeStore).find(Boolean) as KnowledgeStore | undefined;
-  // An extension may claim `knowledgeDir` as reached only through its tools (the knowledge base,
-  // ADR-024); otherwise it's a folder of the agent's own notes, kept with the file tools under
-  // its own rules.
-  const claimed = (dir: string) => fromExtensions((contribution) => contribution.toolOnlyDirs).some((only) => path.resolve(only.dir) === path.resolve(dir));
-  const notesDir = config.knowledgeDir && !claimed(config.knowledgeDir) ? config.knowledgeDir : undefined;
   const extraDirs = config.extraWritableDirs ?? [];
   const readableExtras = config.extraReadableDirs ?? [];
-  // The file tools the session needs: all five for the notes and the extra writable folders,
-  // the reading ones for the extra readable folders, and whatever the extensions ask for (the
-  // sources' reading ones); without any of them, none.
+  // The file tools the session needs: all five for the extra writable folders, the reading ones
+  // for the extra readable folders, and whatever the extensions ask for (the sources' reading
+  // ones); without any of them, none.
   const wantedFileTools = new Set([
-    ...(notesDir || extraDirs.length ? FILE_TOOLS : []),
+    ...(extraDirs.length ? FILE_TOOLS : []),
     ...(readableExtras.length ? ["Read", "Glob", "Grep"] : []),
     ...fromExtensions((contribution) => contribution.fileTools),
   ]);
@@ -146,10 +140,10 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // searchable but deliberately NOT writable: the only way to add to them is its tools.
   const readOnlyDirs = fromExtensions((contribution) => contribution.readOnlyDirs);
   const toolOnlyDirs = fromExtensions((contribution) => contribution.toolOnlyDirs);
-  const writableDirs = [notesDir, ...extraDirs].filter((d): d is string => Boolean(d));
-  const searchableDirs = [notesDir, ...readOnlyDirs, ...extraDirs, ...readableExtras].filter((d): d is string => Boolean(d));
+  const writableDirs = extraDirs;
+  const searchableDirs = [...readOnlyDirs, ...extraDirs, ...readableExtras];
   // Skills/commands/plugins are a separate concern from the file tools: an agent that
-  // wants a plugin-provided skill/command but has no notes or sources folder shouldn't have
+  // wants a plugin-provided skill/command but has no folder of its own shouldn't have
   // to invent one just to get `cwd`/`skills: "all"`/`plugins` wired up. Gated on either
   // signal, not on `pluginRoots` alone, so an agent with file tools keeps getting the SDK's
   // own project-level `.claude/skills`/`.claude/commands` discovery.
@@ -286,7 +280,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           // skills, on top of the plugin-provided built-ins from spec.pluginRoots()
           // below. skipMcpDiscovery: true on those plugins is the caller's choice.
           cwd: config.projectDir,
-          // Empty when there's no knowledgeDir/sourcesDir (the plugin-only case) — an
+          // Empty when there's no folder of the agent's or its extensions' (the plugin-only case) — an
           // empty array is a valid, no-op value for this SDK option, not omitted, since
           // this whole block is already conditioned on includeSkillsAndPlugins.
           additionalDirectories: searchableDirs,
@@ -428,7 +422,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     { readOnlyTools, allowedSubagentTypes, toolLabels, status: extensions, facts: viewBase, controls: () => late.view?.controls() ?? {} },
   );
   const apis = Object.fromEntries(resolved.active.flatMap(({ extension }, index) => (added[index]?.api ? [[extension.name, added[index]!.api!]] : [])));
-  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, apis, switchExtension, ...(knowledgeStore ? { knowledgeStore } : {}) };
+  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, apis, switchExtension };
 }
 
 export { createModeControl, togglePlanMode, type ModeControl } from "./modeControl.js";

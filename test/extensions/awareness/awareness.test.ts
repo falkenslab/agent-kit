@@ -4,7 +4,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
-import { awarenessPluginRoot, identityPromptSection } from "../../../src/extensions/awareness/index.js";
+import { awareness, awarenessPluginRoot, identityPromptSection } from "../../../src/extensions/awareness/index.js";
+import { knowledge } from "../../../src/extensions/knowledge/index.js";
+import { memory } from "../../../src/extensions/memory/index.js";
 import { buildSessionOptions } from "../../../src/core/session.js";
 import { sessionViewOf } from "../../../src/core/sessionFacts.js";
 import { agentKitVersion } from "../../../src/core/version.js";
@@ -34,7 +36,7 @@ const aboutMe = (server: McpServerConfig | undefined): Handler =>
   (server as unknown as { instance: { _registeredTools: Record<string, { handler: Handler }> } }).instance._registeredTools.about_me!.handler;
 
 test("with awareness, the prompt says who the agent is and where to look; its tool and help skill are offered", async () => {
-  const { options } = await buildSessionOptions({ mode: "guided", projectDir }, tempDir(), makeSpec({ identity, extensions: ["awareness"] }));
+  const { options } = await buildSessionOptions({ mode: "guided", projectDir }, tempDir(), makeSpec({ identity, extensions: [awareness()] }));
   const prompt = options.systemPrompt as string;
   assert.match(prompt, /## Who you are\nYou are padawan 1\.2\.3: an agent that takes a Moodle course as a student\./);
   assert.ok(prompt.includes(`agent-kit ${agentKitVersion()}`));
@@ -56,17 +58,17 @@ test("without awareness there's no section, tool or skill, identity or not; with
   assert.equal(options.mcpServers?.awareness, undefined);
   assert.equal(options.plugins, undefined);
 
-  const off = await buildSessionOptions({ mode: "guided", projectDir }, tempDir(), makeSpec({ extensions: ["awareness"] }));
+  const off = await buildSessionOptions({ mode: "guided", projectDir }, tempDir(), makeSpec({ extensions: [awareness()] }));
   assert.equal(off.options.mcpServers?.awareness, undefined);
   assert.deepEqual(off.extensions.inactive, [{ name: "awareness", reason: "needs `identity` in the spec" }]);
 });
 
 test("about_me answers with the session as it is now: the mode after a switch, the extensions' tools, what's off and why, subagents, commands, context", async () => {
   const runDir = tempDir();
-  const config: BaseSessionConfig = { mode: "guided", projectDir, knowledgeDir: path.join(projectDir, "notes") };
+  const config: BaseSessionConfig = { mode: "guided", projectDir };
   const spec = makeSpec({
     identity,
-    extensions: ["awareness", "knowledge", "memory"],
+    extensions: [awareness(), knowledge({ dir: path.join(projectDir, "notes") }), memory({ dir: () => undefined })],
     buildSubagents: () => ({ agents: { "quiz-checker": { description: "Checks a quiz's answers", prompt: "…", tools: ["Read"] } }, allowedSubagentTypes: ["quiz-checker"] }),
   });
   const { options, modeControl } = await buildSessionOptions(config, runDir, spec);
@@ -76,7 +78,7 @@ test("about_me answers with the session as it is now: the mode after a switch, t
   assert.match(now, /You are padawan 1\.2\.3/);
   assert.match(now, /## Mode\n\nYou are in \*\*guided\*\* mode now\. The person can switch it with Shift\+Tab to interactive or plan\./);
   assert.match(now, /\*\*knowledge\*\*: .*Tools: \*/); // before the session starts: its server, not its tools yet
-  assert.match(now, /\*\*memory\*\* is off: it needs `memoryDir` in the config\./);
+  assert.match(now, /\*\*memory\*\* is off: it needs a folder \(`dir`\)\./);
   assert.match(now, /\*\*quiz-checker\*\*: Checks a quiz's answers/);
 
   // Shift+Tab, and the running session telling its tools, commands and context.
@@ -98,9 +100,9 @@ test("about_me's guide part is the agent's own guide, or says there's none", asy
   const runDir = tempDir();
   const guide = path.join(runDir, "guide.md");
   fs.writeFileSync(guide, "## Commands\n\n- `/padawan:enrol` signs up for a course.\n");
-  const withGuide = await buildSessionOptions({ mode: "guided", projectDir }, runDir, makeSpec({ identity, helpGuide: guide, extensions: ["awareness"] }));
+  const withGuide = await buildSessionOptions({ mode: "guided", projectDir }, runDir, makeSpec({ identity, extensions: [awareness({ guide })] }));
   assert.match((await aboutMe(withGuide.options.mcpServers?.awareness)({ part: "guide" }, {})).content[0]!.text, /`\/padawan:enrol` signs up for a course/);
-  const without = await buildSessionOptions({ mode: "autonomous", projectDir }, tempDir(), makeSpec({ identity, extensions: ["awareness"] }));
+  const without = await buildSessionOptions({ mode: "autonomous", projectDir }, tempDir(), makeSpec({ identity, extensions: [awareness()] }));
   const ask = aboutMe(without.options.mcpServers?.awareness);
   assert.match((await ask({ part: "guide" }, {})).content[0]!.text, /no guide of your own/);
   assert.match((await ask({}, {})).content[0]!.text, /can't be switched in this session/);
