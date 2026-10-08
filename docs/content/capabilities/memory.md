@@ -70,7 +70,7 @@ The file tools never reach the folder (the denial points to its tools), and in [
 | `/memory:list` | Shows everything the agent remembers about them, by type. |
 | `/memory:forget <entry>` | Forgets an entry, by name or description. |
 
-Saying it in plain words works too ("forget that I don't like puns"). With an [identity](../core-concepts/agent-spec.md#identity-and-helpguide), `agent-help` tells the person the memory exists and how to see it.
+Saying it in plain words works too ("forget that I don't like puns"). With the [awareness](awareness.md) extension, the agent can tell the person the memory exists and how to see it.
 
 ## On disk
 

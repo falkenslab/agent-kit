@@ -5,6 +5,8 @@ import type { HookCallbackMatcher, HookEvent, McpServerConfig } from "@anthropic
 import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
 import { frontmatter } from "./pluginAgents.js";
 import type { ToolLabels } from "./toolLabels.js";
+import type { SessionFacts } from "./sessionFacts.js";
+import { awarenessExtension } from "../extensions/awareness/index.js";
 import { sourcesExtension } from "../extensions/sources/index.js";
 import { knowledgeExtension } from "../extensions/knowledge/index.js";
 import { memoryExtension } from "../extensions/memory/index.js";
@@ -15,7 +17,7 @@ import { memoryExtension } from "../extensions/memory/index.js";
  * the capabilities it `provides` and `requires`), plus, for an internal one, the code that
  * says what it brings to a session. An agent enables the ones it wants (`AgentSpec.extensions`),
  * the kit's by name, its own as objects; `buildSessionOptions()` puts the contributions of the
- * active ones together, so the core names none of them. The kit's own (knowledge, sources, memory) live
+ * active ones together, so the core names none of them. The kit's own (awareness, knowledge, sources, memory) live
  * in `src/extensions/<name>/`, their plugin in `extensions/<name>/`; this file is the only place
  * in the core that imports them (an ESLint rule keeps it so), and no extension imports another:
  * each owns its data, and the model connects them through their tools (#30).
@@ -30,6 +32,12 @@ export interface ExtensionContext<TConfig extends BaseSessionConfig = BaseSessio
   mode: Mode;
   /** A person can be asked (not autonomous): tools that ask them may exist. */
   interactive: boolean;
+  /**
+   * What the session is at the moment of the call (#43): its mode now, the extensions running
+   * and off, their tools, the subagents, skills, commands and context. The core's facts, read
+   * anew on every call; for a tool, not for `contribute()`, which runs before the session exists.
+   */
+  session(): Promise<SessionFacts>;
 }
 
 /** What an extension brings to a session. Every part is optional. */
@@ -55,7 +63,7 @@ export interface ExtensionContribution {
    * hears the person's messages with `UserPromptSubmit`).
    */
   hooks?: Partial<Record<HookEvent, HookCallbackMatcher[]>>;
-  /** Lines about it for agent-help's "This session" (its commands, its folder). */
+  /** What it says about itself in this session (its commands, its folder), for the agent to tell the person (`SessionFacts`). */
   helpLines?: string[];
   /** What the session hands back to the host (e.g. the knowledge base's store), by name. */
   api?: Record<string, unknown>;
@@ -97,7 +105,7 @@ export function readExtensionManifest(pluginRoot: string): ExtensionManifest {
 }
 
 /** The kit's internal extensions, by name. */
-export const BUILT_IN_EXTENSIONS: readonly Extension[] = [sourcesExtension, knowledgeExtension, memoryExtension];
+export const BUILT_IN_EXTENSIONS: readonly Extension[] = [awarenessExtension, sourcesExtension, knowledgeExtension, memoryExtension];
 
 /** The extensions a session runs with, and the ones it can't, with why. */
 export interface ResolvedExtensions {

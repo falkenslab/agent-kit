@@ -86,7 +86,7 @@ const restricted: FileScope = { ...scope, readableDirs: [knowledgeDir, sourcesDi
 
 test("with readableDirs, Read only reaches the allow-list, the run folder, the plugins and the session's tool results", () => {
   assert.equal(checkFileScope(restricted, "Read", { file_path: "sources/slides.pdf" }), undefined);
-  assert.equal(checkFileScope(restricted, "Read", { file_path: path.join(runDir, "agent-help", "skills", "agent-help", "SKILL.md") }), undefined);
+  assert.equal(checkFileScope(restricted, "Read", { file_path: path.join(runDir, "downloads", "page.html") }), undefined);
   assert.equal(checkFileScope(restricted, "Read", { file_path: path.join(pluginRoot, "skills", "joke", "SKILL.md") }), undefined);
   assert.equal(checkFileScope(restricted, "Read", { file_path: path.join(toolResultsRoot, "5eaccb45", "tool-results", "big.txt") }), undefined);
 

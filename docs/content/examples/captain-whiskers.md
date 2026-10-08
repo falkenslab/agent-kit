@@ -82,7 +82,7 @@ In interactive mode the kit's [step gate](../human-in-the-loop/step-gate.md) sto
 
 ### Explain himself
 
-Asked how to do something, he loads the kit's `agent-help` skill: the chat's part (resuming, keys, modes) is the kit's, the rest comes from his own `guide.md` (his commands, folders and settings). See [`identity` and `helpGuide`](../core-concepts/agent-spec.md#identity-and-helpguide).
+He has the kit's [awareness](../capabilities/awareness.md): asked what mode he's in or what he can do, he looks at himself (`about_me`) and answers with the mode after a Shift+Tab, his extensions and their tools, what's off and why, his crew; asked how to do something, he loads the `help` skill for the chat (resuming, keys, modes) and `about_me`'s guide for his own commands, folders and settings (his `guide.md`).
 
 ![The captain explains /resume and how to make him learn a document](/captain/agent-help.png)
 
@@ -224,17 +224,17 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildMcpServers: () => ({}),
   pluginRoots: () => [path.join(__dirname, "plugin")],
   buildSubagents: () => ({ agents: SUBAGENTS, allowedSubagentTypes: Object.keys(SUBAGENTS) }),
-  extensions: ["sources", "knowledge", "memory"],
+  extensions: ["awareness", "sources", "knowledge", "memory"],
   knowledgePageTypes: [JOKE_PAGE],
   skills: "plugins",
   settingSources: [],
 };
 ```
 
-- `identity` and `helpGuide`: the model knows his name, his version and agent-kit's, and the `agent-help` skill answers how to use him, from the kit's chat and his `guide.md`. See [`identity` and `helpGuide`](../core-concepts/agent-spec.md#identity-and-helpguide).
+- `identity` and `helpGuide`, with the `awareness` extension: the model knows his name, his version and agent-kit's, what he is at each moment (`about_me`), how his chat is used (the `help` skill) and his `guide.md`. See [Awareness](../capabilities/awareness.md).
 - `extensions`: the kit's `sources` (his chest, `treasure/`), `knowledge` (his logbook, `logbook/`) and `memory`, enabled by name. His jokebook isn't here: it's installed (see below). See [Extensions](../capabilities/extensions.md).
 - `knowledgePageTypes`: his logbook has a page type of its own, `joke`, kept in `logbook/jokes/` with the parrot's score in its index line. See [Your own page types](../capabilities/knowledge-base.md#your-own-page-types).
-- `skills: "plugins"` and `settingSources: []`: only the skills of his plugins (his two, the logbook's and agent-help), not the twenty the SDK brings, and nothing from the machine's Claude Code configuration. See [Context and cost](../sessions/context-and-cost.md).
+- `skills: "plugins"` and `settingSources: []`: only the skills of his plugins (his own, the logbook's and the awareness's), not the twenty the SDK brings, and nothing from the machine's Claude Code configuration. See [Context and cost](../sessions/context-and-cost.md).
 
 ## 6. The chat
 
@@ -310,7 +310,7 @@ His README has a test script that goes through every feature in order. A few:
 - `/plan`, then "Plan a pirate party": the plan in a panel, and *Run it* leaves plan mode.
 - `CAPTAIN_MODE=interactive npm start` and watch every tool call stop at the approval panel; Shift+Tab switches to plan, then guided.
 - `CAPTAIN_MODE=plan npm start` and ask for something: the crew can search, read the clock and the logbook, and anything else is denied until the plan is approved or you leave plan mode.
-- "How do I resume a conversation?" or "What does Shift+Tab do?": he answers from the `agent-help` skill.
+- "How do I resume a conversation?" or "What does Shift+Tab do?": he answers from the `help` skill; "What mode are you in?" or "What can you do?", from `about_me`.
 - Ctrl+O to fold the tool calls; drag and right-click to copy; `?` for the shortcuts.
 - "From now on, always end your answers with: Yo-ho, landlubber!", then `/exit` and `npm start`: a `preference` page, and the new session follows it.
 - `/exit`, then `npm start -- --continue`.

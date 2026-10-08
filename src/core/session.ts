@@ -17,7 +17,6 @@ import { createModeControl, type ModeControl } from "./modeControl.js";
 import type { KnowledgeStore } from "../extensions/knowledge/knowledgeStore.js";
 import { extensionsPromptSection, resolveExtensions, skillsMissingCapabilities, type ExtensionContribution } from "./extensions.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
-import { AGENT_HELP_SKILL, identityPromptSection, writeAgentHelpPlugin } from "./agentHelp.js";
 import { pluginAgents } from "./pluginAgents.js";
 import { outsideArchive, unpackedClaudeExecutable } from "./packaged.js";
 import { listInstalled, loadExternalExtensions, type ExtensionDirs, type InstalledExtension } from "./externalExtensions.js";
@@ -26,6 +25,8 @@ import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 import { replyLanguageInstruction, type Language } from "./language.js";
 import { chooseLanguage } from "./messages/index.js";
 import { createRunStore, type RunFolder } from "./runs.js";
+import { createSessionView, registerSessionView, type SessionView } from "./sessionFacts.js";
+import { agentKitVersion } from "./version.js";
 
 /**
  * Builds the `options` object passed to the Agent SDK's `query()` — everything about
@@ -85,7 +86,16 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const manualInterventionTexts = mode !== "autonomous" ? spec.manualInterventionTexts : undefined;
   // What the enabled extensions bring (ADR-025): their tools, prompt sections, plugins and
   // folders, put together here.
-  const extensionContext = { config, spec, runDir, mode, interactive: mode !== "autonomous" };
+  // `session()` reads the view built below, once the options are: an extension's tools call it later.
+  const late: { view?: SessionView } = {};
+  const extensionContext = {
+    config,
+    spec,
+    runDir,
+    mode,
+    interactive: mode !== "autonomous",
+    session: () => (late.view ? late.view.facts() : Promise.reject(new Error("The session isn't built yet: call session() from a tool, not from contribute()."))),
+  };
   // The installed ones (#37), the project's over the agent's: those that can't load are off with
   // why, and so is one named like an extension the spec enables.
   const extensionDirs = config.extensionDirs ?? {};
@@ -130,24 +140,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // to invent one just to get `cwd`/`skills: "all"`/`plugins` wired up. Gated on either
   // signal, not on `pluginRoots` alone, so an agent with file tools keeps getting the SDK's
   // own project-level `.claude/skills`/`.claude/commands` discovery.
-  // With an identity, the agent-help skill (agentHelp.ts): written into the run's folder, since
-  // it carries this session's facts (the extensions' among them) and the agent's own guide.
-  const helpPlugin = spec.identity
-    ? await writeAgentHelpPlugin(
-        path.join(runDir, "agent-help"),
-        {
-          mode,
-          switchable: modeControl.switchable,
-          extensionLines: [
-            ...fromExtensions((contribution) => contribution.helpLines),
-            ...resolved.inactive.map(({ name, reason }) => `The ${name} extension isn't available here: it ${reason}.`),
-          ],
-        },
-        spec.helpGuide,
-      )
-    : undefined;
   // Outside the archive when the agent runs packaged (Electron's app.asar): the CLI reads them (#42).
-  const pluginRoots = [...spec.pluginRoots(config), ...extensionPlugins, ...(helpPlugin ? [helpPlugin] : [])].map(outsideArchive);
+  const pluginRoots = [...spec.pluginRoots(config), ...extensionPlugins].map(outsideArchive);
   const includeSkillsAndPlugins = fileTools.length > 0 || pluginRoots.length > 0;
   // "plugins": the skills of the plugins loaded, named as the SDK names them. A skill that
   // `requires` a capability no active extension provides is left out; since the SDK's
@@ -203,7 +197,6 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
 
   const promptSections = [
     spec.buildSystemPrompt(config),
-    ...(spec.identity ? [identityPromptSection(spec.identity)] : []),
     // What's on and what isn't, then the extensions' own sections.
     ...(resolved.active.length || resolved.inactive.length ? [extensionsPromptSection(resolved)] : []),
     // The extensions' own sections, in their order (the sources' before the knowledge base's).
@@ -278,8 +271,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           // "skills" acts as a name whitelist, not an addition: "all" enables both the
           // SDK's own official skills (pdf/docx), the project's own custom ones, and the
           // plugin-provided built-ins below. A spec's own list gets the extensions' skills
-          // and agent-help added, so it only names its own.
-          skills: skillList(offeredSkills, [...(await pluginSkills(extensionPlugins)), ...(helpPlugin ? [AGENT_HELP_SKILL] : [])], missingCapabilities),
+          // added, so it only names its own.
+          skills: skillList(offeredSkills, await pluginSkills(extensionPlugins), missingCapabilities),
           plugins: pluginRoots.map((pluginPath) => ({ type: "local" as const, path: pluginPath, skipMcpDiscovery: true })),
         }
       : {}),
@@ -366,6 +359,29 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     about: Object.fromEntries(resolved.active.map(({ extension, manifest }) => [extension.name, { description: manifest.description, provides: manifest.provides }])),
     inactive: resolved.inactive,
   };
+  // What the session is, for the extensions that ask (sessionFacts.ts, #43).
+  late.view = createSessionView(
+    {
+      ...(spec.identity ? { identity: spec.identity } : {}),
+      kitVersion: agentKitVersion(),
+      language,
+      extensions: {
+        active: resolved.active.map(({ extension, manifest }, index) => ({
+          name: extension.name,
+          description: manifest.description,
+          provides: manifest.provides,
+          servers: Object.keys(added[index]?.mcpServers ?? {}),
+          help: added[index]?.helpLines ?? [],
+        })),
+        inactive: resolved.inactive,
+      },
+      subagents: Object.entries(allAgents).map(([name, agent]) => ({ name, description: agent.description })),
+      skills: sdkOptions.skills === "all" ? await pluginSkills(pluginRoots) : [...((sdkOptions.skills as string[] | undefined) ?? [])],
+      runDir,
+    },
+    modeControl,
+  );
+  registerSessionView(sdkOptions, late.view);
   const apis = Object.fromEntries(resolved.active.flatMap(({ extension }, index) => (added[index]?.api ? [[extension.name, added[index]!.api!]] : [])));
   return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, apis, ...(knowledgeStore ? { knowledgeStore } : {}) };
 }

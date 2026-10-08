@@ -16,7 +16,8 @@ description: What agent-kit is, what it gives an agent and what an agent still w
 | Oversight | Four modes: `autonomous`, `guided` (an approval before anything visible or hard to undo), `interactive` (an approval before every tool call) and `plan` (only reading and planning until the person leaves it). All but autonomous switch into one another live. |
 | Human in the loop | Approval and manual-intervention checkpoints, answered from the keyboard, from a panel in the Ink UI, from a desktop app through an `InteractionPort`, or by writing a response file. |
 | Safety | Hooks that keep the file tools inside the agent's own folders, protect paths, keep Bash for subagents only, allow only the subagents you declare and run them in the foreground. |
-| Memory | A built-in knowledge base (an "LLM wiki" the agent maintains), originals kept untouched in a sources folder, and every conversation stored in its run folder to resume it later. |
+| Memory | A built-in knowledge base (an "LLM wiki" the agent maintains), originals kept untouched in a sources folder, a memory of the person across all their projects, and every conversation stored in its run folder to resume it later. |
+| Awareness | The agent knows who it is and what it is right now (its mode, extensions and their tools, subagents, commands, context), and how its chat is used, so the person can ask it. |
 | Tools | Your own MCP servers (in-process or external), skills and slash commands in plugins, and subagents. |
 | Terminal UI | A full screen Ink chat modelled on Claude Code, a plain readline chat, a progress view for one-shot runs and a question wizard, with themes and four languages. |
 | Hosts | A core that never touches the terminal, a normalized event stream (`runQuery()`), and ports so a desktop app or a server can drive the same agent. |

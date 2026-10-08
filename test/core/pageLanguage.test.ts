@@ -19,7 +19,7 @@ test("no tool asks for \"the person's language\", which the model reads as the l
   for (const file of ["src/core/tools/humanApproval.ts", "src/extensions/knowledge/tools.ts", "src/extensions/sources/tools.ts", "src/extensions/knowledge/prompt.ts"]) {
     assert.doesNotMatch(fs.readFileSync(path.resolve(file), "utf8"), /person's language/, file);
   }
-  assert.doesNotMatch(fs.readFileSync(path.resolve("assets/agent-help/SKILL.md"), "utf8"), /person's language/);
+  assert.doesNotMatch(fs.readFileSync(path.resolve("extensions/awareness/skills/help/SKILL.md"), "utf8"), /person's language/);
 });
 
 test("a page body sent with escaped newlines gets them back (found by a real session)", () => {

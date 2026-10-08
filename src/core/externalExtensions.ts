@@ -79,7 +79,7 @@ export interface ExternalManifest {
   readOnlyTools: string[];
   /** Its tools' chat labels, by short name (of any of its servers) and language (English when the kit's isn't there). */
   labels: Record<string, Partial<Record<Language, ExternalToolLabel>>>;
-  /** What `agent-help` says about it. */
+  /** What it says about itself in a session, for the agent to tell the person (`SessionFacts`). */
   help?: string;
 }
 

@@ -44,12 +44,12 @@ test('skills: "plugins" offers the skills of every plugin the session loads, the
     replyInLanguage: false,
     identity: { name: "captain" },
     skills: "plugins",
-    extensions: ["knowledge"],
+    extensions: ["awareness", "knowledge"],
   };
   const config: BaseSessionConfig = { mode: "guided", projectDir, knowledgeDir: path.join(projectDir, "logbook") };
   const { options } = await buildSessionOptions(config, temp(), spec);
   assert.deepEqual(
     [...(options.skills as string[])].sort(),
-    ["agent-kit:agent-help", "captain:pirate-joke", "captain:renamed", "captain:untitled", "knowledge:knowledge-ingest", "knowledge:knowledge-lint", "knowledge:knowledge-query"],
+    ["awareness:help", "captain:pirate-joke", "captain:renamed", "captain:untitled", "knowledge:knowledge-ingest", "knowledge:knowledge-lint", "knowledge:knowledge-query"],
   );
 });

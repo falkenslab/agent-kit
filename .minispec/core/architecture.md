@@ -11,7 +11,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> chat contr
 
 - `src/core/` — never touches `console.*`, `process.stdout` or `readline`; usable from any Node host.
 - `src/chat/` — the chat's logic without an interface (ADR-026): the chat controller, the runs, the history, `/extensions`. No terminal: the terminal chats in `src/tui/` are views of it, and so will be the web and desktop ones.
-- `src/extensions/<name>/` — the kit's internal extensions (ADR-025): `knowledge`, `sources`, `memory`. Like the core, no terminal. They import the core; the core imports them only through `src/core/extensions.ts`, and no extension imports another (an ESLint rule enforces both).
+- `src/extensions/<name>/` — the kit's internal extensions (ADR-025): `awareness`, `knowledge`, `sources`, `memory`. Like the core, no terminal. They import the core; the core imports them only through `src/core/extensions.ts`, and no extension imports another (an ESLint rule enforces both).
 - `src/tui/` — the only code that assumes a terminal (`readline`, `picocolors`, `@inquirer/prompts`, Ink).
 - `src/index.ts` — the only file importing from both, and the whole public API (ADR-011).
 
@@ -19,7 +19,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> chat contr
 
 - `agentSpec.ts` — `AgentSpec<TConfig>`: system prompt, MCP servers, plugin roots, subagents, disallowed tools, approval/intervention texts. `BaseSessionConfig` + `Mode` (ADR-002).
 - `pluginAgents.ts` — a plugin's subagents (`agents/*.md`, named `<plugin>:<frontmatter name>` by the SDK), read so the session registers them like `buildSubagents()`'s: allowed, counted for `Agent`/`Bash`, with the reply line (a definition under the same key in `options.agents` replaces the plugin's, confirmed empirically).
-- `extensions.ts` — the extension interface (`Extension`: its name, its plugin, `missing()`, `contribute()`; `ExtensionContribution`: MCP servers, prompt section, file tools and folders, read-only and self-asking tools, hooks, chat labels, agent-help lines, the host's API), the manifest (`plugin.json`'s `"agent-kit"` key: `provides`, `requires`), the registry of the kit's (`knowledge`, `sources`, `memory`), `resolveExtensions()` (the spec's `extensions`, minus those missing something or requiring a capability nothing active provides), the prompt's Extensions section, and skills left out by their `requires:` (ADR-025).
+- `extensions.ts` — the extension interface (`Extension`: its name, its plugin, `missing()`, `contribute()`; `ExtensionContribution`: MCP servers, prompt section, file tools and folders, read-only and self-asking tools, hooks, chat labels, help lines, the host's API; `ExtensionContext.session()`, the session's facts read live), the manifest (`plugin.json`'s `"agent-kit"` key: `provides`, `requires`), the registry of the kit's (`awareness`, `knowledge`, `sources`, `memory`), `resolveExtensions()` (the spec's `extensions`, minus those missing something or requiring a capability nothing active provides), the prompt's Extensions section, and skills left out by their `requires:` (ADR-025).
 - `externalExtensions.ts` — installed extensions (#37): the two scopes (`extensionDirs`: the agent's, the project's, which wins) and their locks (`extensions.lock.json`: source, commit, SHA-256, enabled); `addExtension()` (a folder, or a git clone at a ref; never a script), `removeExtension()`, `setExtensionEnabled()`; `loadExternalExtensions()` turns each enabled one whose hash and `kit` range check out into an `Extension` (`external: true`) from its manifest: its servers from the plugin's `.mcp.json` (#38), each through `assets/extension-launcher.mjs` (Node only, the system's variables and its `env`), read-only tools, labels, help.
 - `session.ts` — `buildSessionOptions()`: resolves `spec.extensions` and puts the active ones' contributions together (it names none of them); `knowledgeDir` no extension claims is the agent's own notes; tools, hooks and MCP servers per mode, the session's `ModeControl` (guided, interactive and plan live, ADR-016, ADR-023), `settingSources`/`skills`/auto-memory defaults (ADR-018), the reply language line (ADR-019) and, with `run`, the run store (ADR-020); `createInputQueue()`.
 - `packaged.ts` — running packaged (#42): `outsideArchive()` (a path inside Electron's `app.asar` as its unpacked copy, for whatever another process opens: plugins, the extension launcher) and `unpackedClaudeExecutable()` (the SDK's CLI binary unpacked, for `pathToClaudeCodeExecutable`).
@@ -39,7 +39,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> chat contr
 - `hooks/fileScopeGate.ts` — file tool boundary (ADR-007).
 - `todos.ts` — the SDK's `TodoWrite` task list, in every session: `parseTodos()`, `todoChanges()`; the chats draw the list instead of the calls.
 - `tools/time.ts` — `current_time`, `date_math` (server `time`), in every session and mode; `config.timeZone` or the system's.
-- `agentHelp.ts` — with `spec.identity`: the "Who you are" prompt section (name, version, agent-kit's version) and the `agent-help` plugin, written into the run's folder from `assets/agent-help/SKILL.md` (the chat's part, checked against the chat's commands and keys by a test), this session's facts and `spec.helpGuide`.
+- `sessionFacts.ts` — `SessionFacts`, what a session is at the moment it's asked (#43): `buildSessionOptions()` builds the view (identity, versions, extensions and their servers, what's off, subagents, skills; the mode read from `ModeControl`) and ties it to the options under a symbol, so it survives a spread; `runQuery()` attaches the running session (its tools and skills from `init`, `supportedCommands()`, `getContextUsage()`). Extensions read it through `ExtensionContext.session()`.
 - `hooks/transcriptLogger.ts` — `transcript.jsonl`: secrets and the OAuth token redacted, long strings and base64 payloads summarized.
 - `claudeAuth.ts` — `resolveClaudeAuth()`: pure lookup, no I/O (ADR-009).
 - `toolLabels.ts`, `promptTemplate.ts` — friendly tool labels, prompt loading.
@@ -48,6 +48,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> chat contr
 
 - `knowledge/` — `index.ts` (the extension: needs `knowledgeDir`); `prompt.ts` (its prompt section, with the person's preferences, and its plugin root); `knowledgeStore.ts` (`KnowledgeStore`, `PageType`, the kit's page types: summary, concept, entity, synthesis, preference); `fileKnowledgeStore.ts` (the store over markdown files: index generated, backlinks computed, links as ids to the tools and relative paths on disk); `tools.ts` (the `knowledge_*` tools, ADR-024).
 - `sources/` — `index.ts` (the extension: needs `sourcesDir`); `tools.ts` (the sources folder's tools, `list_sources`, `save_to_sources`, `download_to_sources`, `extract_text`, and `request_file`, `retire_source` outside autonomous; its prompt section); `sources.ts` (their manifest, `sources/.agent-kit/sources.json`: statuses, `changedAt`, duplicates, versions and retiring); `extractText.ts` (DOCX/PPTX/XLSX to markdown, optional `mammoth`, `fflate`).
+- `awareness/` — what the agent knows of itself (#43): `index.ts` (the extension: needs `spec.identity`; the "Who you are" prompt section); `tools.ts` (`about_me`: `SessionFacts` as markdown, or `spec.helpGuide`).
 - `memory/` — the memory of the person (#34): `index.ts` (the extension: needs `memoryDir`, a folder of the agent's own outside any project; its prompt section with the index; a `UserPromptSubmit` hook that hears the person); `memoryStore.ts` (one markdown file per entry: name, description, type `user`/`feedback`, `updated`; `remember()` creates one or changes only what's given, a field or one exact phrase of the body); `tools.ts` (`recall`, `remember`, which takes a quote that must be in the person's messages, and `forget`, #36).
 - Each has `labels.ts`: its tools' chat labels in the kit's languages.
 
@@ -86,16 +87,12 @@ Each owns its data, and the model connects them with their tools (#30): neither 
 
 ## The extensions' plugins
 
-Each internal extension's plugin is in `extensions/<name>/`, shipped as is (`tsc` copies no markdown); every one has at least its manifest (ADR-025). `extensions/sources/` (name `sources`): only the manifest. `extensions/knowledge/` (name `knowledge`): skills `knowledge-ingest`, `knowledge-query`, `knowledge-lint` over the `knowledge_*` tools; commands `/knowledge:ingest`, `/knowledge:query`, `/knowledge:lint`. Opt out with `spec.knowledgeBase: false`.
-
-## Agent help plugin
-
-Generated per session in `<runDir>/agent-help/` (name `agent-kit`, skill `agent-help`) when the spec has an `identity`, so the agent's guide goes inside the skill and needs no file tools.
+Each internal extension's plugin is in `extensions/<name>/`, shipped as is (`tsc` copies no markdown); every one has at least its manifest (ADR-025). `extensions/sources/` (name `sources`): only the manifest. `extensions/awareness/` (name `awareness`): the `help` skill, how the kit's chat is used (checked against the chat's commands and keys by a test). `extensions/knowledge/` (name `knowledge`): skills `knowledge-ingest`, `knowledge-query`, `knowledge-lint` over the `knowledge_*` tools; commands `/knowledge:ingest`, `/knowledge:query`, `/knowledge:lint`. Opt out with `spec.knowledgeBase: false`.
 
 ## Folder map
 
 - `src/core/`, `src/tui/`, `src/index.ts` — the library.
-- `src/extensions/` — the internal extensions' code; `extensions/` — their plugins; `assets/agent-help/` — agent-help's skill template. All shipped with the package.
+- `src/extensions/` — the internal extensions' code; `extensions/` — their plugins; `assets/` — the installed extensions' launcher. All shipped with the package.
 - `test/` — `node:test` suites mirroring `src/`.
 - `examples/captain-whiskers/` — toy consumer.
 - `docs/` — the documentation site (Docusaurus, its own npm project): guides in `content/`, the API reference generated from `src/` (ADR-022); published to GitHub Pages by `.github/workflows/docs.yml`.

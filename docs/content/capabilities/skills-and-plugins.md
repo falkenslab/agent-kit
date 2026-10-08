@@ -78,7 +78,7 @@ Offer only the skills of the plugins your agent loads, without naming them:
 const spec: AgentSpec<BaseSessionConfig> = {
   // …
   pluginRoots: () => [path.join(__dirname, "plugin")],
-  skills: "plugins", // its own, the knowledge base's and agent-help's
+  skills: "plugins", // its own and its extensions'
 };
 ```
 
@@ -89,7 +89,7 @@ skills: ["captain-whiskers:pirate-joke", "captain-whiskers:miau"],
 ```
 
 - Names are a skill's `name`, or `plugin:skill` for a plugin's, where `skill` is **the skill's folder** under `skills/`, whatever its frontmatter's `name` says. A `SKILL.md` without frontmatter isn't loaded.
-- With the knowledge base on, its skills are added to your list automatically, and so is `agent-kit:agent-help` with an [identity](../core-concepts/agent-spec.md#identity-and-helpguide).
+- The enabled extensions' skills (the knowledge base's, `awareness:help`) are added to your list automatically.
 - It's a **context filter, not a sandbox**: unlisted skills are hidden from the model and refused by the `Skill` tool, but their files stay on disk.
 - **Slash commands keep working** when they aren't listed: a command is typed by the person, not chosen by the model.
 
@@ -97,7 +97,7 @@ Captain Whiskers went from about 15.7k to 11.4k input tokens per call by offerin
 
 ## Commands in the chat
 
-The chats list every command the session knows for completion (Tab after `/`) and catch a mistyped one before it reaches the model: an unknown `/command` shows "Unknown command" instead of being sent as text. The chat's own local commands are `/exit` and `/quit` (configurable), `/copy` (the last reply to the clipboard), `/resume` (with a runs folder) and `/plan` (plan mode on or off). With an [identity](../core-concepts/agent-spec.md#identity-and-helpguide), the agent can explain them itself.
+The chats list every command the session knows for completion (Tab after `/`) and catch a mistyped one before it reaches the model: an unknown `/command` shows "Unknown command" instead of being sent as text. The chat's own local commands are `/exit` and `/quit` (configurable), `/copy` (the last reply to the clipboard), `/resume` (with a runs folder) and `/plan` (plan mode on or off). With the [awareness](awareness.md) extension, the agent can explain them itself.
 
 ## Writing good skills
 

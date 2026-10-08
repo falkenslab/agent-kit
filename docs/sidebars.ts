@@ -41,6 +41,7 @@ const sidebars: SidebarsConfig = {
         "capabilities/knowledge-base",
         "capabilities/knowledge-store",
         "capabilities/memory",
+        "capabilities/awareness",
         "capabilities/prompts",
       ],
     },

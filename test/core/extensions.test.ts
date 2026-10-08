@@ -7,6 +7,8 @@ import { extensionsPromptSection, readExtensionManifest, requiredCapabilities, r
 import { buildSessionOptions } from "../../src/core/session.js";
 import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
 
+const noSession = () => Promise.reject(new Error("no session in this test"));
+
 const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), "extensions-test-"));
 
 /** A plugin named `name` whose manifest provides and requires capabilities, with `skills` (folder → SKILL.md). */
@@ -28,7 +30,7 @@ function makeSpec(overrides: Partial<AgentSpec<BaseSessionConfig>> = {}): AgentS
 }
 
 const projectDir = temp();
-const context: ExtensionContext = { config: { mode: "guided", projectDir }, spec: makeSpec(), runDir: temp(), mode: "guided", interactive: true };
+const context: ExtensionContext = { config: { mode: "guided", projectDir }, spec: makeSpec(), runDir: temp(), mode: "guided", interactive: true, session: noSession };
 
 test("an extension's manifest gives its name, description and capabilities, under the kit's key", () => {
   const manifest = readExtensionManifest(makePlugin("jokebook", { provides: ["jokes"], requires: ["knowledge-base"] }));
@@ -63,7 +65,7 @@ test("enabled extensions run in order; one the session lacks something for, or w
 });
 
 test("an unknown kit extension, or a plugin whose name isn't the extension's, is an error", () => {
-  assert.throws(() => resolveExtensions(["telepathy"], context), /Unknown extension "telepathy": the kit's are sources, knowledge/);
+  assert.throws(() => resolveExtensions(["telepathy"], context), /Unknown extension "telepathy": the kit's are awareness, sources, knowledge, memory/);
   assert.throws(() => resolveExtensions([extension("parrot", makePlugin("crow"))], context), /has the plugin "crow"/);
 });
 

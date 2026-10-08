@@ -1,4 +1,5 @@
 import { query, type Options, type SDKUserMessage, type SlashCommand } from "@anthropic-ai/claude-agent-sdk";
+import { sessionViewOf } from "./sessionFacts.js";
 
 /**
  * A transport-agnostic view of one turn's worth of output from `query()` — the same
@@ -122,6 +123,10 @@ export interface AgentRun {
  */
 export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options: Options): AgentRun {
   const result = query({ prompt, options });
+  // What the session is, for an extension that asks (sessionFacts.ts): the controls now, the
+  // tools and skills when the session starts.
+  const view = sessionViewOf(options);
+  view?.attach({ supportedCommands: () => result.supportedCommands(), contextUsage: () => contextUsage() });
 
   // The main agent's tool calls by id, to name the results that come back for them.
   const toolNames = new Map<string, string>();
@@ -129,6 +134,7 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
   async function* generateEvents(): AsyncGenerator<AgentEvent> {
     for await (const message of result) {
       if (message.type === "system" && message.subtype === "init") {
+        view?.attach({ tools: message.tools, skills: message.skills });
         const failedServers = message.mcp_servers.filter((s) => s.status === "failed").map((s) => s.name);
         if (failedServers.length > 0) yield { type: "mcp-error", failedServers };
         continue;
@@ -204,13 +210,15 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
     interrupt: () => result.interrupt(),
     close: () => result.close(),
     supportedCommands: () => result.supportedCommands(),
-    contextUsage: async () => {
-      try {
-        const usage = await result.getContextUsage();
-        return { percentage: usage.percentage, totalTokens: usage.totalTokens, maxTokens: usage.maxTokens };
-      } catch {
-        return null;
-      }
-    },
+    contextUsage,
   };
+
+  async function contextUsage(): Promise<ContextUsage | null> {
+    try {
+      const usage = await result.getContextUsage();
+      return { percentage: usage.percentage, totalTokens: usage.totalTokens, maxTokens: usage.maxTokens };
+    } catch {
+      return null;
+    }
+  }
 }

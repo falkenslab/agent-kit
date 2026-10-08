@@ -96,15 +96,13 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
   buildSystemPrompt(config: TConfig): string;
 
   /**
-   * Who the agent is. With it, the kit tells the model its name, version and what it is, plus
-   * agent-kit's version, and offers the `agent-help` skill, which answers how to use the
-   * agent: the kit's chat (modes, keys, slash commands, resuming) and `helpGuide`. Without
-   * it, neither.
+   * Who the agent is: its name, version and what it is. The `awareness` extension tells the
+   * model (with agent-kit's version), and needs it; the session's facts carry it too.
    */
   identity?: AgentIdentity;
   /**
    * Absolute path of a markdown guide to the agent's own domain (its commands, configuration,
-   * folders), which the `agent-help` skill includes. Only with `identity`.
+   * folders), which the `awareness` extension's `about_me` gives the agent when the person asks.
    */
   helpGuide?: string;
 
@@ -192,7 +190,7 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    * The skills the agent offers (the SDK's `skills`): names, or `plugin:skill` for a
    * plugin's. Default `"all"`, every skill found: the SDK's own (about twenty, whatever
    * `settingSources` says), the project's, the plugins'. `"plugins"` offers only those of the
-   * plugins the session loads (`pluginRoots`, the knowledge base's, agent-help's), without
+   * plugins the session loads (`pluginRoots`, the extensions'), without
    * naming them. A list keeps the rest out of each turn's context; the knowledge base's own
    * skills are added to it when the knowledge base is on. A context filter, not a sandbox.
    */

@@ -93,8 +93,8 @@ Returning something here also gives the session the `Agent` tool, and `Bash` whe
 
 | Member | Default | What it does |
 | --- | --- | --- |
-| `identity?: AgentIdentity` | none | Who the agent is (`name`, `version`, `description`): told to the model with agent-kit's version, and the `agent-help` skill. See [`identity` and `helpGuide`](#identity-and-helpguide). |
-| `helpGuide?: string` | none | Absolute path of a markdown guide to the agent's own domain, which the `agent-help` skill includes. Only with `identity`. |
+| `identity?: AgentIdentity` | none | Who the agent is (`name`, `version`, `description`): the [awareness](../capabilities/awareness.md) extension tells the model, with agent-kit's version. See [`identity` and `helpGuide`](#identity-and-helpguide). |
+| `helpGuide?: string` | none | Absolute path of a markdown guide to the agent's own domain, which the awareness extension's `about_me` gives the agent when the person asks. |
 | `disallowedTools?: string[]` | `[]` | Tools blocked whatever else allows them, e.g. an MCP tool you don't trust. Takes precedence over everything. A built-in tool also leaves the context; an MCP tool is blocked but its definition is still sent. |
 | `saveToSourcesDescription?: string` | a generic description | The description of the `save_to_sources` tool (registered with `sourcesDir`), in your domain's words. |
 | `extensions?: (string \| Extension)[]` | none | What the agent runs with besides the core: the kit's `"knowledge"` and `"sources"` by name, its own as objects. See [Extensions](../capabilities/extensions.md). |
@@ -109,22 +109,18 @@ Returning something here also gives the session the `Agent` tool, and `Bash` whe
 
 ### `identity` and `helpGuide`
 
-Without an identity, the model only knows what your prompt says about it, and nothing about the chat it runs in: asked "how do I go back to yesterday's conversation?" or "what does Shift+Tab do?", it improvises. With one, the kit does two things:
-
-- It appends a "Who you are" section to the system prompt: the agent's name, version and what it is, and the version of agent-kit it runs on.
-- It offers the `agent-help` skill (`agent-kit:agent-help`, added to your `skills` list if you have one). The skill holds the kit's part, the same for every agent: the modes and how to switch them, approvals and questions, the chat's keys and slash commands, resuming, `--continue` and `--language`. It adds this session's facts (the starting mode, which modes Shift+Tab goes through, the knowledge base's commands, the sources folder) and your `helpGuide` for everything domain-specific. The model answers from it, and says so when something isn't covered instead of inventing an option.
+Who the agent is (its name, version and what it is) and a guide to its own domain (its commands, configuration, folders). The [awareness](../capabilities/awareness.md) extension uses them: it tells the model who it is, with agent-kit's version, answers what it is right now with `about_me`, gives it the guide when the person asks, and explains the kit's chat with its `help` skill. It needs `identity`; without the extension, neither field reaches the model.
 
 ```ts
-const { version } = JSON.parse(readFileSync(path.join(__dirname, "package.json"), "utf8")) as { version: string };
-
 const spec: AgentSpec<Config> = {
   // …
+  extensions: ["awareness"],
   identity: { name: "padawan", version, description: "an agent that takes a Moodle course as a student" },
   helpGuide: path.join(__dirname, "guide.md"),
 };
 ```
 
-Only `name` is required. Write the guide in English, like the rest of what the model reads, and for the person's questions: the agent's own commands, its configuration (environment variables, config files), its folders, what it can do. Leave out the chat: the kit's part already covers it and changes with the kit. The guide is read when the session starts and goes inside the skill (written to `<runDir>/agent-help/`), so the agent needs no file tools to read it, and it costs no context until the skill is loaded.
+Only `name` is required. Write the guide in English, for the person's questions, and leave out the chat and what changes during a session: see [Awareness](../capabilities/awareness.md#turning-it-on).
 
 ### `disallowedTools`
 

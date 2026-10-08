@@ -31,7 +31,7 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 
 ### System prompt
 
-`spec.buildSystemPrompt(config)`, then the identity (with `spec.identity`), then the [extensions](../capabilities/extensions.md)' list and each active one's own section (the sources', the knowledge base's), then the [reply language line](../sessions/languages.md) unless `spec.replyInLanguage === false`.
+`spec.buildSystemPrompt(config)`, then the [extensions](../capabilities/extensions.md)' list and each active one's own section (the awareness's "Who you are", the sources', the knowledge base's), then the [reply language line](../sessions/languages.md) unless `spec.replyInLanguage === false`.
 
 ### Tools
 
@@ -81,7 +81,7 @@ When the session has file tools or at least one plugin:
 - `cwd` is `config.projectDir`;
 - `additionalDirectories` are the searchable folders (`knowledgeDir`, `sourcesDir`, `extraWritableDirs`);
 - `plugins` are `spec.pluginRoots(config)`, plus the knowledge plugin when the knowledge base is on, each loaded as a local plugin with its MCP discovery skipped;
-- `skills` is `spec.skills ?? "all"`; `"plugins"` becomes the skills of the plugins loaded (`plugin:folder`), and a list gets the knowledge base's skills and `agent-kit:agent-help` added when they're on.
+- `skills` is `spec.skills ?? "all"`; `"plugins"` becomes the skills of the plugins loaded (`plugin:folder`), and a list gets the enabled extensions' skills added.
 
 Otherwise the SDK's defaults apply (the process's working directory, no plugins).
 

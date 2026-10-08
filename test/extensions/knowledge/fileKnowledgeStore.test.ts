@@ -12,10 +12,12 @@ import { knowledgeExtension } from "../../../src/extensions/knowledge/index.js";
 import type { Extension } from "../../../src/core/extensions.js";
 import type { BaseSessionConfig } from "../../../src/core/agentSpec.js";
 
+const noSession = () => Promise.reject(new Error("no session in this test"));
+
 /** An extension's contribution, for a minimal session with `config`. */
 async function contributionOf(extension: Extension, config: BaseSessionConfig) {
   const spec = { buildSystemPrompt: () => "", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined };
-  return extension.contribute({ config, spec, runDir: os.tmpdir(), mode: config.mode, interactive: true });
+  return extension.contribute({ config, spec, runDir: os.tmpdir(), mode: config.mode, interactive: true, session: noSession });
 }
 
 

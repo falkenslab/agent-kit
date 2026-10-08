@@ -1,11 +1,11 @@
 ---
-name: agent-help
-description: How to use this agent - its chat's modes, keys and slash commands, resuming an earlier conversation, approvals and questions, the command line, and the agent's own commands and configuration. Load it whenever the person asks how to do something with you, what a key or command does, or what you can do.
+name: help
+description: How to use this agent's chat - its modes, keys and slash commands, resuming an earlier conversation, approvals and questions, the command line. Load it whenever the person asks how to do something with you, or what a key or command does.
 ---
 
 # Helping the person use you
 
-Answer from this page only: the chat's part below is the same for every agent built on agent-kit, and the "This session" and "This agent" sections at the end are about you. If something isn't covered here, say you don't know rather than inventing a key, command or option. Answer in the language you reply in, briefly, with the exact key or command; keys and commands are typed as written here, whatever the language.
+This page is the chat's part, the same for every agent built on agent-kit. What you are right now (your mode, the commands this session has, your extensions) comes from `about_me`, and your own domain from `about_me` with `part: "guide"`. If something is in none of them, say you don't know rather than inventing a key, command or option. Answer in the language you reply in, briefly, with the exact key or command; keys and commands are typed as written here, whatever the language.
 
 ## Modes
 

@@ -21,6 +21,7 @@ export {
 export type { Mode, BaseSessionConfig, AgentSpec, AgentIdentity, PlanModeSpec } from "./core/agentSpec.js";
 export { buildSessionOptions, createInputQueue, createDeferred, createModeControl, togglePlanMode, type ModeControl, type ExtensionsStatus } from "./core/session.js";
 export { runQuery, type AgentEvent, type AgentRun, type SessionUsage, type ContextUsage } from "./core/runner.js";
+export type { SessionFacts } from "./core/sessionFacts.js";
 export { knowledgePluginRoot, knowledgePromptSection } from "./extensions/knowledge/prompt.js";
 export {
   readExtensionManifest,

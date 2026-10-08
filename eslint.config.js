@@ -5,7 +5,7 @@ import globals from "globals";
 // Extensions (ADR-025): the core imports none but through its registry (src/core/extensions.ts),
 // and no extension imports another; each owns its data. Type-only imports are allowed: the core's
 // `AgentSpec` names the knowledge base's types, and extensions use the core's.
-const EXTENSIONS = ["knowledge", "memory", "sources"];
+const EXTENSIONS = ["awareness", "knowledge", "memory", "sources"];
 
 export default tseslint.config(
   { ignores: ["dist/**", "examples/**", "docs/**"] },

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Extensions
-description: What an agent runs with besides the kit's core - the kit's knowledge base, sources and memory, extensions installed per agent or per project, and its own - how to enable and install them, capabilities, and how to write one.
+description: What an agent runs with besides the kit's core - the kit's awareness, knowledge base, sources and memory, extensions installed per agent or per project, and its own - how to enable and install them, capabilities, and how to write one.
 ---
 
 # Extensions
@@ -10,7 +10,7 @@ An agent is the kit's core (the chat, the modes and their gates, subagents, the 
 
 There are two kinds, managed the same way:
 
-- **Internal**, shipped in a package: the kit's three (`sources`, `knowledge`, `memory`) and any an agent writes in its own code. They run in the agent's process, so they can use the kit's internals. The agent enables them in its spec.
+- **Internal**, shipped in a package: the kit's four (`awareness`, `sources`, `knowledge`, `memory`) and any an agent writes in its own code. They run in the agent's process, so they can use the kit's internals. The agent enables them in its spec.
 - **Installed**, from a folder or a git repository, into the agent (for all its projects) or into one project. Any agent on the kit can use one. Its tools are its own MCP server, which the kit runs in a separate process with a clean environment. The person installs, enables and disables them.
 
 ## Enabling the internal ones
@@ -36,6 +36,7 @@ const config: Config = {
 
 | Extension | Needs | What it brings |
 | --- | --- | --- |
+| `awareness` | `identity` in the spec | [Awareness](awareness.md): the "Who you are" prompt section, `about_me` (what the agent is right now, read from the session on every call, and its `helpGuide`) and the `help` skill (how the kit's chat is used). Provides `self-awareness`. |
 | `sources` | `sourcesDir` | The originals: the sources tools (`list_sources`, `extract_text`, `save_to_sources`, `download_to_sources`, and `request_file`, `retire_source` outside autonomous mode), `Read`/`Glob`/`Grep` on the folder, never writing it, and its prompt section. See [Sources](knowledge-base.md#sources-originals-kept-as-obtained). Provides `sources`. |
 | `knowledge` | `knowledgeDir` | The [knowledge base](knowledge-base.md): the `knowledge_*` tools over a store, its prompt section with the person's preferences, its skills and commands; the file tools never reach the folder. Provides `knowledge-base`. |
 | `memory` | `memoryDir` | The [memory of the person](memory.md), across all their projects: its tools (`recall`, `remember`, `forget`), its prompt section with what it remembers, `/memory:list` and `/memory:forget`; saved only from what the person wrote. Provides `person-memory`. |
@@ -105,7 +106,7 @@ What you can do besides your own tools comes from these extensions; their sectio
 - **jokebook**: A jokebook: classic pirate jokes, … Provides: jokes.
 ```
 
-An extension that's off is listed too, with why ("it needs `knowledgeDir` in the config", "it requires memory, which no enabled extension provides"). The [`agent-help`](../core-concepts/agent-spec.md#identity-and-helpguide) skill tells the person the same. An installed extension's own rules reach the model through its server's `instructions` (see below).
+An extension that's off is listed too, with why ("it needs `knowledgeDir` in the config", "it requires memory, which no enabled extension provides"). With the [awareness](awareness.md) extension, `about_me` tells the agent the same at any moment, so it can tell the person. An installed extension's own rules reach the model through its server's `instructions` (see below).
 
 ## Capabilities
 
@@ -124,7 +125,7 @@ requires: knowledge-base
 
 `requires: a`, `requires: [a, b]` and a YAML list all work. A skill left out this way isn't listed to the model and is refused by the `Skill` tool. Since the SDK's `skillOverrides` doesn't reach plugin skills, leaving one out makes the session's `skills` a list (the plugins' skills and the project's) even when the spec says `"all"`.
 
-The kit's capabilities are `sources`, `knowledge-base` and `person-memory`; an agent names its own (miyagi's classroom capabilities, say), and two extensions may provide the same one.
+The kit's capabilities are `self-awareness`, `sources`, `knowledge-base` and `person-memory`; an agent names its own (miyagi's classroom capabilities, say), and two extensions may provide the same one.
 
 ## Writing an installable extension
 
@@ -195,7 +196,7 @@ Under `"agent-kit"`, all optional:
 | `provides`, `requires` | Its [capabilities](#capabilities). |
 | `readOnlyTools` | Its tools that only read (short names, of any of its servers): [plan mode](../core-concepts/modes.md#plan) lets them through; every other one is denied there. Without it, plan mode denies them all. |
 | `labels` | How the chat shows each tool (short names), per language (English when the kit's isn't there): `label` (`{field}` takes the call's input, e.g. `"Rolling {sides}"`) and `phrase`, how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
-| `help` | What `agent-help` says about it. |
+| `help` | What it says about itself in a session, for the agent to tell the person (the [awareness](awareness.md) extension's `about_me`). |
 
 **A `README.md`** at its root is for people: what it does, what it offers (its tools, skills, subagents, capabilities), what it requires, how to install it. The model never reads it; `extension info` says where it is. The jokebook's is an example.
 
@@ -246,7 +247,7 @@ What a contribution may carry (every part optional):
 | `selfAskingTools` | Its tools that ask the person themselves (a panel): interactive mode doesn't ask before them. |
 | `toolLabels` | How the chat shows its tools, by full name: each one's line and how it counts in a folded summary, in the kit's language. See [An extension's labels](../terminal-ui/tool-labels.md#an-extensions-labels). |
 | `hooks` | Its SDK hooks, by event, run after the kit's own (the memory hears the person's messages with `UserPromptSubmit`). |
-| `helpLines` | What `agent-help` says about it in this session. |
+| `helpLines` | What it says about itself in this session (its commands, its folder), which the [awareness](awareness.md) extension's `about_me` gives the agent. |
 | `api` | What the extension hands the host: `buildSessionOptions()` returns every active extension's under `apis`, by name, and the chat controller's `api(name)` gives it (the `sources` extension's `addSource`, the knowledge extension's store, also as `knowledgeStore`). |
 
 `missing(context)` says why the extension can't run in this session (a folder it needs), or `undefined`. The context has the config, the spec, the run folder, the mode and whether a person can be asked.

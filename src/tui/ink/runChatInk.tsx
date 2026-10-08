@@ -97,7 +97,7 @@ export interface InkChatOptions extends ChatTuiOptions {
 }
 
 const DEFAULT_PROMPT_LABEL = "\n> ";
-/** The chat's own commands, never sent to the model (the agent-help skill lists them; a test keeps both in step). */
+/** The chat's own commands, never sent to the model (the awareness extension's help skill lists them; a test keeps both in step). */
 export const DEFAULT_EXIT_COMMANDS: readonly string[] = ["/exit", "/quit"];
 export const LOCAL_COMMANDS = { copy: "/copy", resume: "/resume", plan: "/plan", extensions: "/extensions" } as const;
 const DEFAULT_HISTORY_LIMIT = 100;
