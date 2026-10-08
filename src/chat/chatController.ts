@@ -5,13 +5,14 @@ import type { Mode } from "../core/agentSpec.js";
 import { getInteractionPort, setInteractionPort, type ApprovalPrompt, type ChoiceSettings, type InteractionPort } from "../core/interaction.js";
 import { t } from "../core/messages/index.js";
 import { runQuery, type AgentEvent, type AgentRun, type SessionUsage } from "../core/runner.js";
-import { listRuns, readConversation, readRunSession, type RunFolder } from "../core/runs.js";
+import { createRunFolder, listRuns, readConversation, readRunSession, type RunFolder } from "../core/runs.js";
 import { createInputQueue, togglePlanMode, type ExtensionsStatus, type ModeControl } from "../core/session.js";
 import { hasOpenTodos, parseTodos, TODO_TOOL, type Todo } from "../core/todos.js";
 import { withToolLabels, withToolPhrases, type ToolLabels } from "../core/toolLabels.js";
 import type { ToolPhrase } from "../core/messages/index.js";
 import { createConsoleRenderer } from "../tui/consoleRenderer.js";
 import { chatExtensionsCommand } from "./extensions.js";
+import { setExtensionEnabled } from "../core/externalExtensions.js";
 import { capHistory, loadHistory, saveHistory, slashCommandToken, type HistoryEntry } from "./history.js";
 import { firstRun, openSession, runFolderOf, runLabel, type SessionOpener } from "./runs.js";
 
@@ -526,9 +527,30 @@ export async function createChatController(options: Options | SessionOpener, set
       if (!summary || (current.run && path.resolve(summary.dir) === path.resolve(current.run.dir))) return;
       await switchTo(await runFolderOf(summary), true);
     },
+    /**
+     * Starts a new conversation in a new run, leaving the current one to resume later: what a
+     * graphical view offers instead of quitting and starting again.
+     */
+    async newConversation(): Promise<void> {
+      if (!opener || !runsDir) return;
+      queue.end();
+      run.close();
+      current = await openSession(opener, await createRunFolder(runsDir));
+      openLog();
+      update({ transcript: [], turns: 0, usage: null, contextPercent: null, todos: null, suggestion: null });
+      connect();
+      emit({ type: "session" });
+    },
     /** Enables or disables an installed extension, and opens the session again with the same conversation. */
     async setExtension(name: string, enabled: boolean): Promise<void> {
-      await controller.send(`/extensions ${enabled ? "enable" : "disable"} ${name}`);
+      // An action of its own, not a line the person typed: a graphical view's toggle.
+      if (!opener || !current.run) return notice(t().extensionsCantReopen);
+      const installed = (current.extensions?.installed ?? []).find((extension) => extension.name === name && !extension.shadowed);
+      const dir = installed ? current.extensions?.dirs[installed.scope] : undefined;
+      if (!installed || !dir) return notice(t().extensionNotInstalled(name));
+      await setExtensionEnabled(dir, name, enabled);
+      notice(t().extensionToggled(name, enabled));
+      await switchTo({ dir: current.run.dir, sessionId: await readRunSession(current.run.dir) }, false);
     },
     /** Answers the state's panel (`panels: "state"`). */
     answer(panelId: number, answer: string): void {

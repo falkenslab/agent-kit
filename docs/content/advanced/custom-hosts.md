@@ -39,7 +39,7 @@ await chat.send("Tell me a joke"); // a line: a command, or a turn (resolves whe
 | `commands`, `history` | The slash commands the person can type, and their earlier lines. |
 | `panel` | A checkpoint waiting for an answer, with `panels: "state"`: an approval (`decision`), a confirmation after a manual step (`manual`), free text (`text`) or a choice (`choice`, with its options). |
 | `choice` | A choice in place of the prompt (the conversations to resume), without `pick`. |
-| `run`, `extensions` | The run in use, and the extensions: what runs, what's off and why, what's installed. |
+| `run`, `extensions` | The run in use, and the extensions: what runs (with each one's description and capabilities, `about`), what's off and why, what's installed. |
 
 **Its actions**:
 
@@ -49,7 +49,8 @@ await chat.send("Tell me a joke"); // a line: a command, or a turn (resolves whe
 | `interrupt()` | Stops the turn running. |
 | `setMode(mode)`, `cycleMode()`, `togglePlan()` | Switches the mode as the session allows. |
 | `listRuns()`, `resume(dir?)` | The runs to resume, and switching to one (without `dir`, it asks: `pick`, or the state's `choice`). |
-| `setExtension(name, enabled)` | Enables or disables an installed extension and opens the session again, keeping the conversation. |
+| `newConversation()` | A new conversation in a new run, the current one left to resume: a graphical view's "new chat" button. |
+| `setExtension(name, enabled)` | Enables or disables an installed extension and opens the session again, keeping the conversation: an action, with a notice, not a line of the person's. |
 | `answer(panelId, answer)` | Answers the state's `panel`: `"y"`/`"n"` for a decision, the text, or the chosen options' numbers (`"1,3"`, and "Other" text on the next lines). |
 | `choose(value)` | Answers the state's `choice` (`null` cancels). |
 | `notice(text, tone)` | A notice of the host's (a welcome), in the transcript and the session log. |
@@ -114,6 +115,9 @@ Also:
 - **`ELECTRON_RUN_AS_NODE`**: with it in the environment (VS Code's terminal sets it), Electron runs as plain Node and the app fails at its first `import { app } from "electron"`. Unset it when you start the app from such a terminal.
 - **Size**: about 630 MB unpacked on Windows (Electron about 250 MB, the CLI binary 209 MB).
 - **Signing**: `electron-builder` signs every executable it packs, the CLI binary included.
+- **Installed extensions**: their servers are started with `process.execPath`, which in Electron is the app itself; the kit sets `ELECTRON_RUN_AS_NODE` for them, so they run as Node.
+
+Captain Whiskers is a full example: `examples/captain-whiskers/web/` (his web host on the controller, with signing in from the page and uploads for `request_file`) and `examples/captain-whiskers/desktop/` (his Electron app and installer).
 
 `examples/electron-probe/` in the repository is a minimal packaged app that checks all this.
 

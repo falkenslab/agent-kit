@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
@@ -8,6 +8,9 @@ import { createChatController, type ChatEvent, type ChatSettings } from "../../s
 import { getInteractionPort } from "../../src/core/interaction.js";
 import { createModeControl } from "../../src/core/session.js";
 import { createRunFolder, createRunStore } from "../../src/core/runs.js";
+import { addExtension, readLock } from "../../src/core/externalExtensions.js";
+import { buildSessionOptions } from "../../src/core/session.js";
+import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
 import type { AgentEvent, AgentRun } from "../../src/core/runner.js";
 
 const temp = () => mkdtempSync(path.join(tmpdir(), "chat-controller-test-"));
@@ -161,5 +164,39 @@ test("with runs, the run's conversation is drawn, and /resume switches to anothe
       ["agent", "an old answer"],
     ],
   );
+  // A new conversation: a new run, nothing in the transcript, the old one still listed.
+  await controller.newConversation();
+  assert.notEqual(path.resolve(controller.getState().run!.dir), path.resolve(older.dir));
+  assert.deepEqual(controller.getState().transcript, []);
+  assert.deepEqual(opened, [null, "old", null]);
+  controller.close();
+});
+
+test("an installed extension is turned off and on as an action: its lock, a notice, the session opened again, no line of the person's", async () => {
+  const projectDir = temp();
+  const source = path.join(temp(), "dice");
+  mkdirSync(path.join(source, ".claude-plugin"), { recursive: true });
+  writeFileSync(path.join(source, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "dice", description: "Rolls dice." }));
+  const scope = path.join(projectDir, "extensions");
+  await addExtension(source, scope);
+  const spec: AgentSpec<BaseSessionConfig> = { buildSystemPrompt: () => "P", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined };
+  let opened = 0;
+  const controller = await createChatController(
+    async (run) => {
+      opened++;
+      return buildSessionOptions({ mode: "guided", projectDir, extensionDirs: { project: scope } }, run.dir, spec, { run });
+    },
+    { runsDir: temp(), promptSuggestions: false, runQuery: fakeAgent(() => []) },
+  );
+  assert.deepEqual(controller.getState().extensions?.active, ["dice"]);
+  assert.equal(controller.getState().extensions?.about.dice?.description, "Rolls dice.");
+  await controller.setExtension("dice", false);
+  assert.equal((await readLock(scope)).dice?.enabled, false);
+  assert.equal(opened, 2);
+  assert.deepEqual(controller.getState().extensions?.active, []);
+  assert.equal(controller.getState().transcript.some((entry) => entry.kind === "user"), false);
+  assert.equal(controller.getState().transcript.at(-1)?.kind, "notice");
+  await controller.setExtension("dice", true);
+  assert.deepEqual(controller.getState().extensions?.active, ["dice"]);
   controller.close();
 });

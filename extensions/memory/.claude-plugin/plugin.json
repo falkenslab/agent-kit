@@ -1,6 +1,6 @@
 {
   "name": "memory",
-  "description": "Your memory of the person you work for, across all their projects: who they are and how they want things done, kept only from what they tell you, through the memory_* tools.",
+  "description": "Your memory of the person you work for, across all their projects: who they are and how they want things done, kept only from what they tell you, through its tools: recall, remember and forget.",
   "agent-kit": {
     "provides": [
       "person-memory"

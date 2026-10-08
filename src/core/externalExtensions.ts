@@ -314,7 +314,10 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
         const launch = serverLaunch(name, server, installed.dir);
         if (typeof launch === "string") continue; // checked when it loaded
         // Its `env` reaches it (the SDK merges it with the agent's); the launcher removes the rest.
-        servers[name] = { type: "stdio", command: process.execPath, args: [extensionLauncherPath(), launch.entry, JSON.stringify(Object.keys(launch.env)), ...launch.args], env: launch.env };
+        // Inside Electron, process.execPath is the app itself: ELECTRON_RUN_AS_NODE makes it run
+        // the launcher as Node (the launcher removes it, with the rest, once it runs).
+        const env = process.versions.electron ? { ...launch.env, ELECTRON_RUN_AS_NODE: "1" } : launch.env;
+        servers[name] = { type: "stdio", command: process.execPath, args: [extensionLauncherPath(), launch.entry, JSON.stringify(Object.keys(launch.env)), ...launch.args], env };
       }
       return {
         mcpServers: servers,

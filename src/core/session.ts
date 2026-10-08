@@ -361,6 +361,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     dirs: extensionDirs,
     installed: await listInstalled(extensionDirs),
     active: resolved.active.map(({ extension }) => extension.name),
+    about: Object.fromEntries(resolved.active.map(({ extension, manifest }) => [extension.name, { description: manifest.description, provides: manifest.provides }])),
     inactive: resolved.inactive,
   };
   return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, ...(knowledgeStore ? { knowledgeStore } : {}) };
@@ -374,6 +375,8 @@ export interface ExtensionsStatus {
   installed: InstalledExtension[];
   /** The names of the extensions this session runs with, the kit's and the agent's too. */
   active: string[];
+  /** What each active one is, from its manifest: for a view that lists them. */
+  about: Record<string, { description: string; provides: string[] }>;
   inactive: { name: string; reason: string }[];
 }
 
