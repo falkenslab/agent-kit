@@ -11,6 +11,8 @@ export interface PlanScope {
   isReadOnlyTool?(toolName: string, input: Record<string, unknown>): boolean;
   /** The enabled extensions' MCP tools that only read (`mcp__<server>__<tool>`). */
   readOnlyTools?: readonly string[];
+  /** Whether an MCP tool's own server marks it `readOnlyHint`, for the extensions whose manifest lists none (readOnlyHints.ts). */
+  isReadOnlyHinted?(toolName: string): Promise<boolean>;
 }
 
 /** Built-in tools that only read, search, load a skill, delegate or keep the task list (a subagent's own calls come through this gate too). */
@@ -54,6 +56,8 @@ export function createPlanGate(scope: PlanScope, isActive: () => boolean): HookC
     const pre = input as PreToolUseHookInput;
     const reason = checkPlanScope(scope, pre.tool_name, (pre.tool_input ?? {}) as Record<string, unknown>);
     if (!reason) return {};
+    // Asked last, and only for an MCP tool nothing else let through: it's a call to the session.
+    if (pre.tool_name.startsWith("mcp__") && (await scope.isReadOnlyHinted?.(pre.tool_name))) return {};
     return {
       hookSpecificOutput: {
         hookEventName: pre.hook_event_name,

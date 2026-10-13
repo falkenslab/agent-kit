@@ -131,6 +131,7 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
     contextUsage: () => contextUsage(),
     toggleMcpServer: (server, enabled) => result.toggleMcpServer(server, enabled),
     reloadPlugins: () => result.reloadPlugins(),
+    mcpServerStatus: () => result.mcpServerStatus(),
   });
 
   // The main agent's tool calls by id, to name the results that come back for them.

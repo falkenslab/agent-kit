@@ -26,6 +26,7 @@ import { chooseLanguage } from "./messages/index.js";
 import { createRunStore, type RunFolder } from "./runs.js";
 import { createSessionView, registerSessionView, type SessionView, type StaticSessionFacts } from "./sessionFacts.js";
 import { createExtensionSwitch, mountPlugin, type ExtensionSwitch } from "./liveExtensions.js";
+import { createReadOnlyHints } from "./readOnlyHints.js";
 import { agentKitVersion } from "./version.js";
 
 /**
@@ -201,6 +202,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
 
   // The extensions' read-only tools, for the plan gate: a list the live switch changes (liveExtensions.ts).
   const readOnlyTools = fromExtensions((contribution) => contribution.readOnlyTools);
+  // Those whose manifest lists none: their servers say, asked while the session runs (#53).
+  const readOnlyHintServers = fromExtensions((contribution) => contribution.readOnlyHintServers);
 
   // What no file tool may touch: the agent's denied paths and the SDK's own credentials.
   const deniedPaths = [...(config.deniedPaths ?? []), path.join(claudeConfigDir(), ".credentials.json")];
@@ -339,6 +342,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
                     {
                       projectDir: config.projectDir,
                       readOnlyTools,
+                      ...(readOnlyHintServers.length ? { isReadOnlyHinted: createReadOnlyHints(readOnlyHintServers, () => late.view?.controls().mcpServerStatus) } : {}),
                       ...(spec.planMode?.isPlanFile ? { isPlanFile: (filePath: string) => spec.planMode!.isPlanFile!(filePath, config) } : {}),
                       ...(spec.planMode?.isReadOnlyTool ? { isReadOnlyTool: spec.planMode.isReadOnlyTool } : {}),
                     },

@@ -35,6 +35,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> chat contr
 - `hooks/humanInput.ts` — `askForDecision()`, `askForManualIntervention()`: port vs response file (ADR-004).
 - `hooks/stepGate.ts` — interactive mode: pause before every tool call (registered outside autonomous, active only while the mode is interactive).
 - `hooks/planGate.ts` — plan mode: only reading, the declared plan files and read-only tools (registered outside autonomous, active only while the mode is plan; ADR-023).
+- `readOnlyHints.ts` — `createReadOnlyHints()`: plan mode asks the running session (`mcpServerStatus()`) whether a tool's server marks it `readOnlyHint`, for installed extensions whose manifest lists no `readOnlyTools` (#53).
 - `tools/humanApproval.ts` — `request_human_approval`, `ask_human` (a choice, `askForChoice()`), and `present_plan` (leaves plan mode with the person's approval); not in autonomous mode.
 - `modeControl.ts` — `ModeControl` (`subscribe()` for UIs), `createModeControl()`, `togglePlanMode()`.
 - `tools/manualLogin.ts` — `request_manual_login`, only with `manualInterventionTexts` (ADR-005).

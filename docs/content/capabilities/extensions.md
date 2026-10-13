@@ -246,9 +246,18 @@ Under `"agent-kit"`, all optional:
 | `kit` | The agent-kit versions it works with: comparators separated by spaces, all of which must hold (`>=0.19.0 <0.21.0`, `0.19.2`). Outside them, it's off. |
 | `needs` | Programs it needs on this computer, looked for on the `PATH` as a shell would (`["docker", "python3"]`; on Windows with `PATHEXT`'s extensions). Without one, it's off, saying which. |
 | `provides`, `requires` | Its [capabilities](#capabilities). |
-| `readOnlyTools` | Its tools that only read (short names, of any of its servers): [plan mode](../core-concepts/modes.md#plan) lets them through; every other one is denied there. Without it, plan mode denies them all. |
+| `readOnlyTools` | Its tools that only read (short names, of any of its servers): [plan mode](../core-concepts/modes.md#plan) lets them through; every other one is denied there. Without it, plan mode asks its servers: a tool whose server marks it `readOnlyHint: true` goes through, the rest are denied. See [Read-only tools](#read-only-tools). |
 | `labels` | How the chat shows each tool (short names), per language (English when the kit's isn't there): `label` (`{field}` takes the call's input, e.g. `"Rolling {sides}"`) and `phrase`, how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
 | `help` | What it says about itself in a session, for the agent to tell the person (the [awareness](awareness.md) extension's `about_me`). |
+
+### Read-only tools
+
+[Plan mode](../core-concepts/modes.md#plan) lets through only the tools known to only read. An installed extension says which in one of two ways:
+
+- **Its servers' hints**, when its manifest has no `readOnlyTools`: a tool whose server declares `annotations: { readOnlyHint: true }` goes through, asked of the running session when plan mode meets the call, so a server that gains a tool needs no change in the manifest. A server still connecting, one turned off, or one that doesn't answer in 3 seconds counts as no.
+- **Its manifest's list**, `readOnlyTools`: the whole answer, whatever its servers say. An empty list (`[]`) means none of its tools goes through. A server is the code the kit trusts least, so its hints only fill the list's absence; write the list when you don't trust, or can't change, what a server says.
+
+`extension info <name>` says which applies (`Only read  roll (its manifest)`, or `what its servers mark readOnlyHint`).
 
 ### Its data
 
@@ -274,7 +283,7 @@ Turning an extension off in the session, or closing the session, ends its server
 
 **What it's for and its rules** go in the `instructions` its server sends when it connects: the model has them from the start, like an internal extension's prompt section. Keep them short; procedures go in skills.
 
-**The server** runs installed as copied, with no `node_modules`: write it without dependencies, or bundle it into one file with them (esbuild). The jokebook's is a small script that speaks MCP over stdio by hand; a bigger one would use `@modelcontextprotocol/sdk`, bundled.
+**The server** runs from what's installed: write it without dependencies, or bundle it into one file with them (esbuild). A package from a marketplace's `npm` source brings no `node_modules`, and a folder installed with its development `node_modules` is hashed whole every session (seconds for tens of thousands of files): install the package, not the development folder, and use `--link` while developing. The jokebook's is a small script that speaks MCP over stdio by hand; a bigger one would use `@modelcontextprotocol/sdk`, bundled.
 
 **What it can't do**, unlike an internal one: hooks (none of its plugin's run: `settings.disableAllHooks` while one is on), the kit's panels, a store passed from code, its own folders for the file tools. Its subagents get no `Bash`: one that lists it loses it, and one without `tools` gets none. Its tools go through the same gates as any other: the approval in interactive mode, plan mode, the transcript.
 
@@ -316,6 +325,7 @@ What a contribution may carry (every part optional):
 | `readOnlyDirs` | Folders the file tools may read and search, never write. |
 | `toolOnlyDirs` | Folders reached only through its own tools, never the file tools, with what to use instead (the denial says it). |
 | `readOnlyTools` | Its tools that only read: [plan mode](../core-concepts/modes.md#plan) lets them through; every other MCP tool is denied there. |
+| `readOnlyHintServers` | Its MCP servers whose tools plan mode lets through when the server marks them `readOnlyHint: true`, asked while the session runs. An installed extension without `readOnlyTools` in its manifest sets it; one in your code usually lists `readOnlyTools` instead. |
 | `selfAskingTools` | Its tools that ask the person themselves (a panel): interactive mode doesn't ask before them. |
 | `toolLabels` | How the chat shows its tools, by full name: each one's line and how it counts in a folded summary, in the kit's language. See [An extension's labels](../terminal-ui/tool-labels.md#an-extensions-labels). |
 | `hooks` | Its SDK hooks, by event, run after the kit's own (the memory hears the person's messages with `UserPromptSubmit`). |

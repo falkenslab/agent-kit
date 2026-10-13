@@ -282,7 +282,14 @@ async function info(extension: InstalledExtension): Promise<string[]> {
     ...field("Requires", manifest.requires.join(", ") || undefined),
     ...field("Needs", manifest.needs.join(", ") || undefined),
     ...field("Servers", Object.keys(manifest.servers).join(", ") || undefined),
-    ...field("Only read", manifest.readOnlyTools.join(", ") || undefined),
+    ...field(
+      "Only read",
+      manifest.readOnlyTools
+        ? `${manifest.readOnlyTools.join(", ") || "none"} (its manifest)`
+        : Object.keys(manifest.servers).length
+          ? "what its servers mark readOnlyHint"
+          : undefined,
+    ),
     ...field("Variables", Object.values(manifest.servers).flatMap((server) => Object.keys(server.env ?? {})).join(", ") || undefined),
     ...field("Installed", `${extension.scope} scope, ${extension.lock.enabled ? "enabled" : "disabled"}, on ${extension.lock.installed}, from ${describe(extension).split("  from ")[1]}`),
     ...field("Data", (await stat(extension.dataDir).catch(() => null))?.isDirectory() ? `${extension.dataDir} (${formatSize(await folderSize(extension.dataDir))})` : undefined),

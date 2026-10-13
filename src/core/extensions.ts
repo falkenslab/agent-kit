@@ -65,6 +65,12 @@ export interface ExtensionContribution {
   toolOnlyDirs?: { dir: string; instead: string }[];
   /** Its MCP tools that only read: plan mode lets them through. */
   readOnlyTools?: string[];
+  /**
+   * Its MCP servers whose tools that only read plan mode learns from the servers themselves
+   * (`readOnlyHint`), asked while the session runs: an installed extension whose manifest lists
+   * no `readOnlyTools`. A list in the manifest wins: its servers aren't here.
+   */
+  readOnlyHintServers?: string[];
   /** Its MCP tools that ask the person themselves: interactive mode's step gate doesn't ask first. */
   selfAskingTools?: string[];
   /** How the chat shows its tools, by full name, in the kit's language: its line and how it counts in a folded group. */

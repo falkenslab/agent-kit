@@ -79,8 +79,12 @@ export interface ExternalManifest {
   needs: string[];
   /** Its MCP servers, by name (`mcp__<name>__<tool>`), from the plugin's `.mcp.json` or `plugin.json`. */
   servers: Record<string, PluginServer>;
-  /** Its tools that only read (short names, of any of its servers): plan mode lets them through. */
-  readOnlyTools: string[];
+  /**
+   * Its tools that only read (short names, of any of its servers): plan mode lets them through.
+   * Without the key, plan mode asks its servers which (their tools' `readOnlyHint`); with it, the
+   * list is the whole answer, even empty.
+   */
+  readOnlyTools?: string[];
   /** Its tools' chat labels, by short name (of any of its servers) and language (English when the kit's isn't there). */
   labels: Record<string, Partial<Record<Language, ExternalToolLabel>>>;
   /** What it says about itself in a session, for the agent to tell the person (`SessionFacts`). */
@@ -167,7 +171,7 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
     ...(kit.kit ? { kit: kit.kit } : {}),
     needs: Array.isArray(kit.needs) ? kit.needs.filter((program): program is string => typeof program === "string") : [],
     servers: await pluginServers(dir, raw),
-    readOnlyTools: kit.readOnlyTools ?? [],
+    ...(Array.isArray(kit.readOnlyTools) ? { readOnlyTools: kit.readOnlyTools.filter((tool): tool is string => typeof tool === "string") } : {}),
     labels: kit.labels ?? {},
     ...(kit.help ? { help: kit.help } : {}),
   };
@@ -363,7 +367,11 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
       }
       return {
         mcpServers: servers,
-        readOnlyTools: Object.keys(manifest.servers).flatMap((server) => manifest.readOnlyTools.map((tool) => `mcp__${server}__${tool}`)),
+        // Its manifest's list, or its servers' own word: the server is the code the kit trusts
+        // least, so its hints only fill the list's absence (ADR-025).
+        ...(manifest.readOnlyTools
+          ? { readOnlyTools: Object.keys(manifest.servers).flatMap((server) => manifest.readOnlyTools!.map((tool) => `mcp__${server}__${tool}`)) }
+          : { readOnlyTools: [], readOnlyHintServers: Object.keys(servers) }),
         toolLabels: manifestToolLabels(manifest),
         ...(manifest.help ? { helpLines: [manifest.help] } : {}),
       };

@@ -7,6 +7,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { addExtension } from "../../src/core/externalExtensions.js";
 import { mountPlugin, unmountPlugin } from "../../src/core/liveExtensions.js";
 import { buildSessionOptions, createInputQueue } from "../../src/core/session.js";
+import { runQuery } from "../../src/core/runner.js";
 
 // The SDK's CLI, which starts and stops an installed extension's server: a native binary per
 // platform. Skipped where there's none. No model is called: the session only starts its servers.
@@ -131,5 +132,70 @@ test("the CLI loads an installed extension's plugin through its mount, and reloa
   } finally {
     input.end();
     session.close();
+  }
+});
+
+/** An installed extension whose server has two tools, `peek` marked `readOnlyHint` and `roll` not, and the manifest's `agent-kit` key given. */
+function makeHinted(name: string, kit?: Record<string, unknown>): string {
+  const dir = path.join(temp(), name);
+  fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name, description: "Dice.", ...(kit ? { "agent-kit": kit } : {}) }));
+  fs.writeFileSync(path.join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { [name]: { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server.mjs"] } } }));
+  const tools = [
+    { name: "peek", description: "Looks at the die.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+    { name: "roll", description: "Rolls the die.", inputSchema: { type: "object", properties: {} } },
+  ];
+  fs.writeFileSync(
+    path.join(dir, "server.mjs"),
+    `import readline from "node:readline";
+const send = (message) => process.stdout.write(JSON.stringify(message) + "\\n");
+readline.createInterface({ input: process.stdin }).on("line", (line) => {
+  const message = JSON.parse(line);
+  if (message.method === "initialize") send({ jsonrpc: "2.0", id: message.id, result: { protocolVersion: message.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: ${JSON.stringify(name)}, version: "1" } } });
+  else if (message.method === "tools/list") send({ jsonrpc: "2.0", id: message.id, result: { tools: ${JSON.stringify(tools)} } });
+  else if (message.id !== undefined) send({ jsonrpc: "2.0", id: message.id, result: {} });
+});
+`,
+  );
+  return dir;
+}
+
+test("plan mode lets through what an installed server marks readOnlyHint when its manifest lists nothing, and only the manifest's list when it does", { skip: !fs.existsSync(binary) && "no Claude CLI binary for this platform", timeout: 90_000 }, async () => {
+  const scope = path.join(temp(), "extensions");
+  await addExtension(makeHinted("hinted"), scope);
+  await addExtension(makeHinted("listed", { readOnlyTools: ["roll"] }), scope);
+  const built = await buildSessionOptions({ mode: "guided", projectDir: temp(), extensionDirs: { agent: scope } }, temp(), {
+    buildSystemPrompt: () => "P",
+    buildMcpServers: () => ({}),
+    pluginRoots: () => [],
+    buildSubagents: () => undefined,
+  });
+  assert.ok(built.modeControl.set("plan"));
+  const hooks = built.options.hooks!.PreToolUse!.flatMap((matcher) => matcher.hooks);
+  // Whether plan mode lets a call through: no hook denies it.
+  const allowed = async (tool_name: string): Promise<boolean> => {
+    for (const hook of hooks) {
+      const output = (await hook({ hook_event_name: "PreToolUse", tool_name, tool_input: {}, tool_use_id: "t", session_id: "s", transcript_path: "", cwd: "" } as never, "t", { signal: new AbortController().signal })) as { hookSpecificOutput?: { permissionDecision?: string } };
+      if (output.hookSpecificOutput?.permissionDecision === "deny") return false;
+    }
+    return true;
+  };
+  // A conversation that never sends a message: the session only starts its servers. runQuery()
+  // attaches the session the plan gate asks.
+  const input = createInputQueue();
+  const run = runQuery(input.iterable, built.options);
+  try {
+    // Denied while the server is still connecting; let through once it's there.
+    for (const start = Date.now(); !(await allowed("mcp__hinted__peek")); ) {
+      if (Date.now() - start > 30_000) assert.fail("timed out waiting for the hinted tool to be let through");
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    assert.equal(await allowed("mcp__hinted__roll"), false);
+    // The manifest's list is the whole answer: the server's hint doesn't count.
+    assert.equal(await allowed("mcp__listed__roll"), true);
+    assert.equal(await allowed("mcp__listed__peek"), false);
+  } finally {
+    input.end();
+    run.close();
   }
 });

@@ -144,7 +144,9 @@ test("a plain Claude Code plugin is an extension: its servers from .mcp.json or 
   let [extension] = (await loadExternalExtensions({ agent: scope })).extensions;
   let contribution = await extension!.contribute({} as never);
   assert.deepEqual(Object.keys(contribution.mcpServers ?? {}), ["tools"]);
+  // No list in its manifest: plan mode asks its servers (#53).
   assert.deepEqual(contribution.readOnlyTools, []);
+  assert.deepEqual(contribution.readOnlyHintServers, ["tools"]);
 
   // mcpServers inline in plugin.json, and a script outside the folder refused.
   fs.writeFileSync(path.join(plain, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "plain", mcpServers: { inline: { command: "node", args: ["s.mjs"] } } }));
@@ -232,6 +234,7 @@ test("the command installs, lists, disables and removes, and says what it did", 
   assert.match(info, /Repository {3}https:\/\/example\.com\/dice\.git/);
   assert.match(info, /Keywords {5}dice\n/);
   assert.match(info, /Variables {4}DICE_SEED/);
+  assert.match(info, /Only read {4}roll \(its manifest\)/);
   assert.match(info, /README {7}.*README\.md/);
   lines.length = 0;
   const before = process.exitCode;
@@ -349,4 +352,24 @@ test("an extension needing a program that isn't on the PATH is off, saying which
   assert.deepEqual(loaded.off, [{ name: "dice", reason: "needs no-such-program-for-agent-kit, which isn't on this computer (on the PATH)" }]);
   await addExtension(makeExtension("dice", { needs: ["node"] }), dirs.agent);
   assert.deepEqual((await loadExternalExtensions(dirs)).extensions.map((extension) => extension.name), ["dice"]);
+});
+
+test("a manifest's read-only list wins over its servers' hints, even empty", async () => {
+  const scope = path.join(temp(), "extensions");
+  await addExtension(makeExtension(), scope);
+  let [extension] = (await loadExternalExtensions({ agent: scope })).extensions;
+  let contribution = await extension!.contribute({} as never);
+  assert.deepEqual(contribution.readOnlyTools, ["mcp__dice__roll"]);
+  assert.equal(contribution.readOnlyHintServers, undefined);
+
+  await addExtension(makeExtension("dice", { readOnlyTools: [] }), scope);
+  [extension] = (await loadExternalExtensions({ agent: scope })).extensions;
+  contribution = await extension!.contribute({} as never);
+  assert.deepEqual(contribution.readOnlyTools, []);
+  assert.equal(contribution.readOnlyHintServers, undefined);
+
+  await addExtension(makeExtension("dice", { readOnlyTools: undefined }), scope);
+  [extension] = (await loadExternalExtensions({ agent: scope })).extensions;
+  contribution = await extension!.contribute({} as never);
+  assert.deepEqual(contribution.readOnlyHintServers, ["dice"]);
 });

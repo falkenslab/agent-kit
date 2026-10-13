@@ -1,4 +1,4 @@
-import type { Options, SlashCommand } from "@anthropic-ai/claude-agent-sdk";
+import type { McpServerStatus, Options, SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentIdentity, Mode } from "./agentSpec.js";
 import type { Language } from "./language.js";
 import type { ModeControl } from "./modeControl.js";
@@ -47,6 +47,8 @@ export interface SessionLive {
   /** The running session's controls an installed extension is turned off and on with (liveExtensions.ts). */
   toggleMcpServer?: (server: string, enabled: boolean) => Promise<void>;
   reloadPlugins?: () => Promise<unknown>;
+  /** Its MCP servers as they are now: their tools and what each says of itself (plan mode's read-only hints). */
+  mcpServerStatus?: () => Promise<McpServerStatus[]>;
 }
 
 /** The facts known when the options are built: everything but the mode and what only the running session knows. */
