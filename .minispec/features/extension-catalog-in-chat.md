@@ -19,6 +19,7 @@ A person browses the agent's official marketplace and installs, updates, uninsta
 - From it: install (into the agent's scope; the project's when the agent has one, asking which), update, uninstall (asking about its data, as the command does), enable, disable, and the extension's details (`info`).
 - `update`: in the command (`extension update [name]`) and the chat, an installed extension from a marketplace is replaced by the version the marketplace lists now, its data kept; `marketplace update` first when the copy is old.
 - A newly installed or updated extension is available in the next conversation: the chat says so and offers to start one; the running session is untouched.
+- Each installed extension's settings: a form made from its `userConfig` (#55), each option by its type, title and description, sensitive ones masked and never shown back. Saving applies them live, restarting only that extension's servers (#55); while a call to one of them is running, it waits for the turn to end, saying so.
 - The same actions in the chat controller (chatController.ts), so the web and the desktop app show them; the Ink chat its own view. Texts in the kit's languages.
 - Docs: `capabilities/extensions.md`, the chats' pages, the captain's walkthrough.
 
@@ -27,4 +28,5 @@ A person browses the agent's official marketplace and installs, updates, uninsta
 - In the captain's desktop app, the jokebook can be uninstalled, found in the catalog, installed again, disabled and enabled, without a shell.
 - An extension whose marketplace lists a newer version shows it, and updates keeping its data.
 - Installing during a session doesn't change that session; the next one has it.
+- An extension's option changed in its settings form reaches its server in the same conversation, the model told; a sensitive value is never shown in the form again.
 - `verify` passes.
