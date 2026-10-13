@@ -57,15 +57,27 @@ const config: Config = {
 };
 ```
 
-Each scope is a folder with one subfolder per extension and a lock, `extensions.lock.json`: where each came from (a folder, or a git URL and the commit it was cloned at), a SHA-256 over its files, and whether it's enabled. Every enabled one in them runs with the session, alongside the internal ones and resolved the same way (capabilities, the Extensions section of the prompt), unless:
+Each scope has a lock, `extensions.lock.json`: where each extension came from (a folder, a git URL and the commit it was cloned at, a marketplace), a SHA-256 over its files, whether it's enabled and its options. The agent's scope keeps each one's code in a subfolder of its own. A project's keeps only its lock: see [A workspace's extensions](#a-workspaces-extensions). Every enabled one runs with the session, alongside the internal ones and resolved the same way (capabilities, the Extensions section of the prompt), unless:
 
 - its files changed since it was installed (the hash doesn't match): install it again to trust the change;
+- it comes with the workspace and the person hasn't trusted it there yet, or its code isn't on this computer yet (see [A workspace's extensions](#a-workspaces-extensions));
 - its manifest says it works with other agent-kit versions (`kit`);
 - a program it needs isn't on this computer's `PATH` (`needs`);
 - its server isn't where its manifest says;
 - an extension the spec enables has its name.
 
 Then it's off, and the prompt and `/extensions` say why.
+
+### A workspace's extensions
+
+A project's scope travels with the project: a repository others clone, a folder someone sends. So it keeps only what's the workspace's, and the rest stays on each computer, in the agent's folder (when the agent has a scope of its own; without one, a project's scope keeps its code and data in it, as the agent's does).
+
+- **The workspace keeps its lock**, `<project>/extensions/extensions.lock.json`: which extensions it uses, from where, at which version (the files' hash, the commit, the npx packages), and the options someone set that aren't secrets. Commit it with the project.
+- **The code is in the agent's store**, `<agent scope>/.store/<name>/<hash>/`, by content: two workspaces with the same version share one copy, and one taken elsewhere carries no code.
+- **The data and the secrets are in the workspace's private folder**, `<agent scope>/.projects/<project>-<hash>/` (`.data/<name>/`, `.secrets/<name>.json`): nothing private leaves with the project.
+- **Restore**: on another computer, or another agent, a workspace's extensions are off, saying their code isn't there yet. `extension restore` gets each from where its lock says (its marketplace, its git repository at its commit, its folder), checks it against the lock's hash, and fetches the npx packages it locks; what can't be got says why (a marketplace the agent doesn't know, another version there now, a folder that isn't on this computer).
+- **Trust**: an extension that comes with a workspace runs code on this computer, so it runs only once the person trusts it in that workspace. The chats ask when the session opens (no by default; `/extensions trust` later); `extension trust [name…]` from a shell, and `extension restore --trust` both at once. What's trusted is each one's code, kept in the agent's folder (`.trust.json`), outside the project, so a project can't trust itself: another version (the lock changed, someone updated it) asks again; turning one on or off, or its options, don't. What the person installs or updates into the project's scope is trusted as they do it. The agent's own scope never asks.
+- A session the agent builds itself reads the untrusted ones from `buildSessionOptions()`'s `extensions.untrusted`; `trustWorkspace(dirs)` and `restoreExtensions(dirs)` do the rest.
 
 ### The command
 
@@ -96,6 +108,8 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 | `extension config <name>` | Its [options](#its-options) and their values (a secret only says whether it's set). |
 | `extension config <name> <key>=<value>…` | Sets them. `<key>` alone asks for its value, without echo for a secret (so it stays out of the shell's history); `--unset <key>` clears one. |
 | `extension update [name]` | Updates one installed from a marketplace to the version it offers now (a fresh copy of the marketplace first), or every one with a newer version without a name; its data and options are kept. One installed from a folder or a repository is updated by adding it again. |
+| `extension restore [--trust]` | Gets the code a workspace's lock lists and this computer lacks, checked against the lock ([A workspace's extensions](#a-workspaces-extensions)); `--trust` trusts it too. |
+| `extension trust [name…]` | Lets the workspace's extensions (or those named) run, as their code is now. |
 | `extension search [words]` | What the known marketplaces offer, matching the words in a plugin's name, description, category, tags or keywords; installed ones are marked. |
 | `extension marketplace add <folder \| git URL[#ref] \| owner/repo>` | Adds a marketplace after a warning and typing its name. |
 | `extension marketplace list` | The known marketplaces: the official one marked, how many extensions each offers, where from and when it was copied. |
@@ -152,7 +166,7 @@ What the agent's marketplaces offer is its catalog, in the command (`search`, `a
 
 ### In the chat
 
-`/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and apply it (the chat must have a session opener). `/extensions config <name>` lists its [options](#its-options), and `/extensions config <name> <key>=<value>…` sets them and restarts its servers in the same session; never a secret, since what's typed in a chat is kept in its history. The [catalog](#the-catalog): `/extensions search [words]`, `/extensions install <name>` (`--yes` for one from another marketplace, after reading what it says), `/extensions update [name]`, `/extensions remove <name>` (`--delete-data` to delete its data) and `/extensions reload`. It works in both chats.
+`/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and apply it (the chat must have a session opener). `/extensions config <name>` lists its [options](#its-options), and `/extensions config <name> <key>=<value>…` sets them and restarts its servers in the same session; never a secret, since what's typed in a chat is kept in its history. The [catalog](#the-catalog): `/extensions search [words]`, `/extensions install <name>` (`--yes` for one from another marketplace, after reading what it says), `/extensions update [name]`, `/extensions remove <name>` (`--delete-data` to delete its data) and `/extensions reload`. `/extensions trust` trusts the workspace's extensions; a session that opens with some untrusted asks first. It works in both chats.
 
 **In the same session** when the extension was running when the session opened: its MCP servers are switched off (their tools leave the model's context) and its plugin is unloaded (its skills, commands and subagents go), and back again on `enable`. The kit's gates, the chat's labels, the commands, `/extensions` and [awareness](awareness.md)'s `about_me` follow, and the model is told with the person's next message, since the prompt's Extensions section still says what the session opened with. To do it, each session loads an installed extension's plugin through a link in the run's folder (`<runDir>/extensions/<name>/`, a junction on Windows), which it removes and makes again: nothing is copied, however large its `node_modules`, and what's installed is never touched. Where a link can't be made (a disk without them), it's a copy, emptied and filled.
 
@@ -299,14 +313,14 @@ An extension that needs values from the person (a site's URL, a token) declares 
 - **An option** has a `type` (`string`, `number`, `boolean`, `directory` or `file`), a `title` and a `description`, and may have `required`, `default`, `sensitive`, `options` (the values it may take), `multiple` (several, comma-separated) and `min`/`max` for a number. An option with another field leaves the extension off, as Claude Code refuses it; so does a server naming `${user_config.KEY}` that isn't declared.
 - **Asked when it's installed**: `extension add` asks for each one without a value, on a terminal (a secret without echo); `--set <key>=<value>` gives one without asking. `extension config` shows and changes them later, `/extensions config` in the chat too (never a secret there).
 - **A required one without a value** (nor a default) keeps the extension off, saying which and how to set it.
-- **Where the values are**: in its scope, never in the prompt, the transcript or a tool's result. Non-sensitive ones in its lock entry (`options`), sensitive ones in `<scope>/.secrets/<name>.json`, which no session's file tools reach, even with the scope's folder readable. Reinstalling keeps them; removing deletes the secrets.
+- **Where the values are**: never in the prompt, the transcript or a tool's result. Non-sensitive ones in its lock entry (`options`, so a workspace shares them), sensitive ones in its scope's private folder (`.secrets/<name>.json`: the agent's scope's own, or for a workspace's extension in the agent's folder, never the project), which no session's file tools reach, even with the scope's folder readable. Reinstalling keeps them; removing deletes the secrets.
 - **Changed while a session runs**: the launcher reads the values when it starts a server, so a change reaches it when it starts again. `/extensions config` in the chat restarts its servers in the same session (`reconnectMcpServer()`: a new process with the values as they are now), and the model is told with the next message; a call running at that moment fails. A change made with `extension config` from another terminal applies when its server starts again: a new session, or `/extensions disable` and `enable`. A session the agent builds itself gets `restartExtension(name)` from `buildSessionOptions()`, which returns `false` when it can't be done in that session.
 - **Values as text**: a boolean as `true` or `false`, a list comma-separated, one without a value as empty.
 - `${user_config.KEY}` in a skill's or subagent's content, which Claude Code also expands, isn't expanded by the kit.
 
 ### Its data
 
-An installed extension has a data folder of its own, `<scope>/.data/<name>/` (e.g. `~/.miyagi/extensions/.data/moodle/`), named in its servers' `args` and `env` as `${CLAUDE_PLUGIN_DATA}`, like Claude Code's for a plugin. Keep there what must last: a browser profile with a signed-in session, a cache, a downloaded browser.
+An installed extension has a data folder of its own, `<scope>/.data/<name>/` (e.g. `~/.miyagi/extensions/.data/moodle/`; a workspace's, in its private folder in the agent's: see [A workspace's extensions](#a-workspaces-extensions)), named in its servers' `args` and `env` as `${CLAUDE_PLUGIN_DATA}`, like Claude Code's for a plugin. Keep there what must last: a browser profile with a signed-in session, a cache, a downloaded browser.
 
 ```json
 { "mcpServers": { "moodle": { "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.mjs", "--profile", "${CLAUDE_PLUGIN_DATA}/profile"] } } }

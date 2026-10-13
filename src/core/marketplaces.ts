@@ -267,7 +267,7 @@ export async function installFromMarketplace(
   dir: string,
   spec: string,
   scopeDir: string,
-  options: { packages?: string } = {},
+  options: { packages?: string; store?: string } = {},
 ): Promise<{ name: string; replaced: boolean; commit?: string; marketplace: string }> {
   const { marketplace, plugin } = await findPlugin(dir, spec);
   const resolved = resolvePluginSource(marketplace, plugin);

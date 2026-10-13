@@ -15,6 +15,8 @@ import type { ToolPhrase } from "../core/messages/index.js";
 import { createConsoleRenderer } from "../tui/consoleRenderer.js";
 import { chatExtensionsCommand, type ExtensionAction } from "./extensions.js";
 import type { ExtensionRestart, ExtensionSwitch } from "../core/liveExtensions.js";
+import { trustWorkspace } from "../core/workspaceTrust.js";
+import { askForDecision } from "../core/hooks/humanInput.js";
 import { extensionOptionStates, listInstalled, removeExtension as removeInstalled, setExtensionEnabled, setExtensionOptions as storeExtensionOptions, type ExtensionOptionState, type ExtensionScope } from "../core/externalExtensions.js";
 import { extensionCatalog as readCatalog, installExtension as installFromCatalog, needsConfirmation, updateExtension as updateFromCatalog, type CatalogEntry } from "../core/extensionCatalog.js";
 import { capHistory, loadHistory, saveHistory, slashCommandToken, type HistoryEntry } from "./history.js";
@@ -448,6 +450,7 @@ export async function createChatController(options: Options | SessionOpener, set
         if (result.confirm) notice(t().extensionConfirm(action.spec, result.confirm.marketplace));
       } else if (action.type === "update") await controller.updateExtension(action.name);
       else if (action.type === "remove") await controller.removeExtension(action.name, { deleteData: action.deleteData });
+      else if (action.type === "trust") await controller.trustWorkspace();
       else await controller.reopen();
     } catch (error) {
       notice(`(${error instanceof Error ? error.message : String(error)})`, "warn");
@@ -462,6 +465,28 @@ export async function createChatController(options: Options | SessionOpener, set
     connect();
     emit({ type: "session" });
     if (fromResume) await showConversation(current.run as RunFolder, true);
+    void askTrust();
+  }
+
+  /**
+   * A session opened with extensions the workspace brings that the person hasn't trusted here
+   * (#57): asked once (no by default); trusted, the session opens again with them. Declined, not
+   * asked again in this chat: `/extensions trust` trusts them later.
+   */
+  let trustDeclined = false;
+  async function askTrust(): Promise<void> {
+    const untrusted = current.extensions?.untrusted ?? [];
+    if (!untrusted.length || trustDeclined || !opener || !current.run) return;
+    const answer = await askForDecision(current.run.dir, {
+      title: t().trustTitle,
+      lines: [t().trustBody, "", ...untrusted.map((extension) => `- ${extension.name}${extension.version ? ` ${extension.version}` : ""}  (${extension.source})`)],
+      question: t().trustQuestion,
+    });
+    if (answer !== "y") {
+      trustDeclined = true;
+      return notice(t().trustDeclined);
+    }
+    await controller.trustWorkspace();
   }
 
   // A choice in place of the prompt, when the view doesn't ask it itself.
@@ -536,6 +561,8 @@ export async function createChatController(options: Options | SessionOpener, set
     /** Draws the run's earlier conversation, then sends the initial prompt (for a new run). */
     async start(): Promise<void> {
       if (current.run) await showConversation(current.run, false);
+      // Asked alongside, not before: a view draws its panels once the chat has started.
+      void askTrust();
       if (settings.initialPrompt && !current.run?.sessionId) {
         // Logged but not shown: it's the agent's cue, not something the person typed.
         log(`${promptLabel}${settings.initialPrompt}\n`);
@@ -699,7 +726,7 @@ export async function createChatController(options: Options | SessionOpener, set
       if (!installed) return notice(t().extensionNotInstalled(name));
       const running = current.extensions?.active.includes(name) ?? false;
       const switched = running ? await current.switchExtension?.(name, false).catch(() => false) : true;
-      await removeInstalled(installed.scopeDir, name, { deleteData: Boolean(options.deleteData) });
+      await removeInstalled(installed.scopeDir, name, { deleteData: Boolean(options.deleteData), privateDir: installed.privateDir });
       // Gone, not off: out of what's listed as off in this session too.
       if (current.extensions) current.extensions.inactive = current.extensions.inactive.filter((off) => off.name !== name);
       await refreshInstalled();
@@ -722,7 +749,7 @@ export async function createChatController(options: Options | SessionOpener, set
     async setExtensionOptions(name: string, values: Record<string, string | undefined>): Promise<void> {
       const installed = (current.extensions?.installed ?? []).find((extension) => extension.name === name && !extension.shadowed);
       if (!installed) return notice(t().extensionNotInstalled(name));
-      await storeExtensionOptions(installed.scopeDir, name, values);
+      await storeExtensionOptions(installed, name, values);
       await refreshInstalled();
       if (current.extensions?.active.includes(name)) await applyOptions(name);
       else if (opener && current.run) {
@@ -730,6 +757,17 @@ export async function createChatController(options: Options | SessionOpener, set
         notice(t().extensionReconfiguredReopen(name));
         await switchTo({ dir: current.run.dir, sessionId: await readRunSession(current.run.dir) }, false);
       }
+    },
+    /**
+     * Trusts the workspace's extensions as they are now (#57) and opens the session again with
+     * them, keeping the conversation: what the person answers when the chat asks, or later.
+     */
+    async trustWorkspace(): Promise<void> {
+      if (!current.extensions) return;
+      const names = await trustWorkspace(current.extensions.dirs);
+      if (!names.length) return;
+      notice(t().trustGiven(names.join(", ")));
+      if (opener && current.run && !state.busy) await switchTo({ dir: current.run.dir, sessionId: await readRunSession(current.run.dir) }, false);
     },
     /** Opens the session again with what's installed now, keeping the conversation: an extension just installed or updated, now. */
     async reopen(): Promise<void> {

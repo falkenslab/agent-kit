@@ -18,7 +18,7 @@ import { extensionsPromptSection, resolveExtensions, skillsMissingCapabilities, 
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { pluginAgents } from "./pluginAgents.js";
 import { outsideArchive, unpackedClaudeExecutable } from "./packaged.js";
-import { listInstalled, loadExternalExtensions, type ExtensionDirs, type InstalledExtension } from "./externalExtensions.js";
+import { listInstalled, loadExternalExtensions, scopePrivateDir, type ExtensionDirs, type InstalledExtension } from "./externalExtensions.js";
 import type { ToolLabels } from "./toolLabels.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 import { replyLanguageInstruction, type Language } from "./language.js";
@@ -214,7 +214,10 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const deniedPaths = [
     ...(config.deniedPaths ?? []),
     path.join(claudeConfigDir(), ".credentials.json"),
-    ...Object.values(config.extensionDirs ?? {}).flatMap((dir) => (dir ? [secretsDir(dir)] : [])),
+    ...(["agent", "project"] as const).flatMap((scope) => {
+      const privateDir = config.extensionDirs ? scopePrivateDir(config.extensionDirs, scope) : undefined;
+      return privateDir ? [secretsDir(privateDir)] : [];
+    }),
   ];
 
   const transcriptPath = path.join(runDir, "transcript.jsonl");
@@ -387,6 +390,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const extensions: ExtensionsStatus = {
     dirs: extensionDirs,
     ...(config.officialMarketplace ? { official: config.officialMarketplace } : {}),
+    untrusted: external.untrusted.map((installed) => ({ name: installed.name, ...(installed.manifest?.version ? { version: installed.manifest.version } : {}), source: installed.lock.marketplace ?? installed.lock.source })),
     installed: await listInstalled(extensionDirs),
     active: resolved.active.map(({ extension }) => extension.name),
     about: Object.fromEntries(resolved.active.map(({ extension, manifest }) => [extension.name, { description: manifest.description, provides: manifest.provides }])),
@@ -450,6 +454,8 @@ export interface ExtensionsStatus {
   dirs: ExtensionDirs;
   /** The agent's own marketplace (`officialMarketplace`), for the chats' catalog. */
   official?: string;
+  /** The workspace's extensions that don't run until the person trusts them there (#57): the chats ask. */
+  untrusted: { name: string; version?: string; source: string }[];
   installed: InstalledExtension[];
   /** The names of the extensions this session runs with, the kit's and the agent's too. */
   active: string[];

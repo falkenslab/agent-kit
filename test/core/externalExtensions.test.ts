@@ -5,8 +5,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { trustWorkspace } from "../../src/core/workspaceTrust.js";
 import {
   addExtension,
+  codeStoreDir,
+  installTarget,
+  storedCodeDir,
   extensionLauncherPath,
   hashExtension,
   inKitRange,
@@ -115,10 +119,15 @@ test("add clones a git repository at a ref and records its commit", async () => 
   assert.equal(fs.existsSync(path.join(scope, "coins", ".git")), false);
 });
 
-test("the project's scope wins; a changed file, a disabled one or a kit range left out don't load", async () => {
+test("the project's scope wins once trusted, its code in the agent's store; a changed file, a disabled one or a kit range left out don't load", async () => {
   const dirs = { agent: path.join(temp(), "agent"), project: path.join(temp(), "project") };
   await addExtension(makeExtension(), dirs.agent);
-  await addExtension(makeExtension(), dirs.project);
+  await addExtension(makeExtension(), dirs.project, installTarget(dirs, "project"));
+  // The workspace keeps only its lock; its code is in the agent's store.
+  assert.deepEqual(fs.readdirSync(dirs.project), ["extensions.lock.json"]);
+  const stored = storedCodeDir(codeStoreDir(dirs)!, "dice", (await readLock(dirs.project)).dice!.sha256);
+  assert.equal((await loadExternalExtensions(dirs)).untrusted.map((extension) => extension.name).join(), "dice");
+  await trustWorkspace(dirs);
   await addExtension(makeExtension("old", { kit: ">=0.1.0 <0.2.0" }), dirs.agent);
   await addExtension(makeExtension("quiet"), dirs.agent);
   await setExtensionEnabled(dirs.agent, "quiet", false);
@@ -126,10 +135,10 @@ test("the project's scope wins; a changed file, a disabled one or a kit range le
   const installed = await listInstalled(dirs);
   assert.deepEqual(installed.map(({ name, scope, shadowed }) => `${name}:${scope}:${shadowed}`), ["dice:project:false", "dice:agent:true", "old:agent:false", "quiet:agent:false"]);
   let loaded = await loadExternalExtensions(dirs);
-  assert.deepEqual(loaded.extensions.map((extension) => [extension.name, extension.plugin]), [["dice", path.join(dirs.project, "dice")]]);
+  assert.deepEqual(loaded.extensions.map((extension) => [extension.name, extension.plugin]), [["dice", stored]]);
   assert.match(loaded.off.find((off) => off.name === "old")?.reason ?? "", /works with agent-kit >=0.1.0 <0.2.0/);
 
-  fs.appendFileSync(path.join(dirs.project, "dice", "server", "index.mjs"), "// tampered\n");
+  fs.appendFileSync(path.join(stored, "server", "index.mjs"), "// tampered\n");
   loaded = await loadExternalExtensions(dirs);
   assert.match(loaded.off.find((off) => off.name === "dice")?.reason ?? "", /changed since it was installed/);
 });

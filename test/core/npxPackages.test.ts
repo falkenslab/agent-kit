@@ -8,6 +8,7 @@ import { gzipSync } from "fflate";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { addExtension, loadExternalExtensions, readLock } from "../../src/core/externalExtensions.js";
 import { cachedPackageDir, npxServer, packageCacheDir } from "../../src/core/npxPackages.js";
+import { trustWorkspace } from "../../src/core/workspaceTrust.js";
 import { buildSessionOptions, createInputQueue } from "../../src/core/session.js";
 
 const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), "npx-packages-test-"));
@@ -105,6 +106,7 @@ test("installing fetches an npx server's package into the agent's cache, shared 
     assert.ok(fs.existsSync(path.join(cachedPackageDir(cache, "@games/dice-mcp", "1.2.3"), "dist", "server.mjs")));
     // The project's scope: the same package and version, from the cache.
     await addExtension(npxExtension(["-y", "@games/dice-mcp@1.2.3"]), dirs.project, { packages: cache });
+    await trustWorkspace(dirs);
     assert.equal(fake.state.downloads, 1);
 
     const { extensions, off } = await loadExternalExtensions(dirs);

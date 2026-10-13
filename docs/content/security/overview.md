@@ -21,6 +21,8 @@ An agent acts through tools, so the kit's guardrails sit on the tools: which exi
 | Step gate, approvals | actions a person should see first | hook and tool | [Human in the loop](../human-in-the-loop/overview.md) |
 | Plan gate | changes while the agent is only meant to plan | `PreToolUse` hook | [Modes](../core-concepts/modes.md#plan) |
 | Transcript redaction | secrets written to logs | `PreToolUse`/`PostToolUse` hook | [Transcript](transcript.md) |
+| Installed extensions apart | an installed extension's server seeing the agent's credentials, or its files changing after install | the launcher, the lock's hash | [Extensions](../capabilities/extensions.md#where-they-run) |
+| Workspace trust | a cloned or shared workspace running its extensions' code without the person agreeing | the agent's `.trust.json`, outside the project | [A workspace's extensions](../capabilities/extensions.md#a-workspaces-extensions) |
 
 ## What the kit does not protect
 

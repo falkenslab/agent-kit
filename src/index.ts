@@ -37,6 +37,9 @@ export {
 } from "./core/extensions.js";
 export {
   addExtension,
+  codeStoreDir,
+  installTarget,
+  scopePrivateDir,
   extensionDataDir,
   extensionOptionStates,
   setExtensionOptions,
@@ -72,7 +75,8 @@ export {
   type MarketplacePlugin,
   type PluginSource,
 } from "./core/marketplaces.js";
-export { extensionCatalog, installExtension, updateExtension, type CatalogEntry } from "./core/extensionCatalog.js";
+export { extensionCatalog, installExtension, restoreExtensions, updateExtension, type CatalogEntry } from "./core/extensionCatalog.js";
+export { trustWorkspace } from "./core/workspaceTrust.js";
 export { runExtensionCommand } from "./tui/extensionCommand.js";
 export { agentKitVersion } from "./core/version.js";
 export {

@@ -20,7 +20,8 @@ export type ExtensionAction =
   | { type: "install"; spec: string; confirmed: boolean }
   | { type: "update"; name?: string }
   | { type: "remove"; name: string; deleteData: boolean }
-  | { type: "reload" };
+  | { type: "reload" }
+  | { type: "trust" };
 
 /** One line for a catalog entry: what installs it, its version, whether it's installed or has an update, what it is. */
 export function describeEntry(entry: CatalogEntry): string {
@@ -64,6 +65,7 @@ export async function chatExtensionsCommand(
   if (verb === "update") return canReopen ? { lines: [], action: { type: "update", ...(name ? { name } : {}) } } : { lines: [t().extensionsCantReopen] };
   if (verb === "remove" && name) return canReopen ? { lines: [], action: { type: "remove", name, deleteData: extra.includes("--delete-data") } } : { lines: [t().extensionsCantReopen] };
   if (verb === "reload" && !name) return canReopen ? { lines: [], action: { type: "reload" } } : { lines: [t().extensionsCantReopen] };
+  if (verb === "trust" && !name) return canReopen ? { lines: [], action: { type: "trust" } } : { lines: [t().extensionsCantReopen] };
   if (action?.toLowerCase() === "config" && name) {
     const installed = (status?.installed ?? []).find((extension) => extension.name === name && !extension.shadowed);
     if (!installed) return { lines: [t().extensionNotInstalled(name)] };
@@ -79,7 +81,7 @@ export async function chatExtensionsCommand(
       typed[key] = at > 0 ? pair.slice(at + 1) || undefined : undefined;
     }
     try {
-      await setExtensionOptions(installed.scopeDir, name, typed);
+      await setExtensionOptions(installed, name, typed);
     } catch (error) {
       return { lines: [`(${error instanceof Error ? error.message : String(error)})`] };
     }

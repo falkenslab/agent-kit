@@ -13,6 +13,7 @@ import {
 import {
   addExtension,
   extensionOptionStates,
+  installTarget,
   folderSize,
   isGitSource,
   listInstalled,
@@ -24,8 +25,8 @@ import {
   type InstalledExtension,
 } from "../core/externalExtensions.js";
 import { describe, describeOptions } from "../chat/extensions.js";
-import { packageCacheDir } from "../core/npxPackages.js";
-import { extensionCatalog, knownMarketplaces as catalogMarketplaces, updateExtension } from "../core/extensionCatalog.js";
+import { extensionCatalog, knownMarketplaces as catalogMarketplaces, restoreExtensions, updateExtension } from "../core/extensionCatalog.js";
+import { trustWorkspace } from "../core/workspaceTrust.js";
 
 export { chatExtensionsCommand, describe } from "../chat/extensions.js";
 
@@ -43,6 +44,8 @@ export { chatExtensionsCommand, describe } from "../chat/extensions.js";
  * - `extension enable|disable <name> [--project | --agent]`
  * - `extension config <name> [key=value… | key… | --unset key…] [--project | --agent]`: its options; `key` alone asks for it (without echo when it's a secret)
  * - `extension update [name] [--yes]`: one installed from a marketplace (or all that have a newer version there) to the version it offers now, its data and options kept
+ * - `extension restore [--trust]`: gets the code a workspace's lock lists and this computer lacks (#57); `--trust` trusts it too
+ * - `extension trust [name…]`: lets a workspace's extensions run, as their code is now
  * - `extension search [words]`: what the known marketplaces offer
  * - `extension marketplace add <folder | git URL[#ref] | owner/repo> [--yes]`, `list`, `update [name]`, `remove <name>`
  *
@@ -109,7 +112,7 @@ export async function runExtensionCommand(
       const answer = (await (option.sensitive ? askSecret : ask)(question)).trim();
       if (answer) typed[key] = answer;
     }
-    if (Object.keys(typed).length) await setExtensionOptions(dir, name, typed);
+    if (Object.keys(typed).length) await setExtensionOptions(installed, name, typed);
     const missing = Object.entries(declared).filter(([key, option]) => option.required && !(key in typed) && !states.get(key) && option.default === undefined).map(([key]) => key);
     if (missing.length) write(`It stays off until ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} set: \`${command} extension config ${name} ${missing[0]}\`.`);
   };
@@ -142,14 +145,17 @@ export async function runExtensionCommand(
         const scope = askedScope ?? (options.dirs.agent ? "agent" : "project");
         const dir = scopeDir(scope);
         if (!dir) return fail(`This agent has no ${scope} scope for extensions.`);
-        // The packages its npx servers run, in the agent's cache, shared by both scopes (#54).
-        const cache = packageCacheDir(options.dirs);
-        const packages = cache ? { packages: cache } : {};
+        // The packages its npx servers run, in the agent's cache, shared by both scopes (#54); a
+        // project's code in the agent's store, its lock all the workspace keeps (#57).
+        const packages = installTarget(options.dirs, scope);
+        // Installed into the workspace by the person: trusted there as it is.
+        const trusted = async (name: string): Promise<void> => void (scope === "project" && (await trustWorkspace(options.dirs, [name])));
         // A plugin of a marketplace, unless it's a folder here or a git URL.
         const isFolder = await stat(path.resolve(source)).then((found) => found.isDirectory(), () => false);
         if (flag("link")) {
           if (!isFolder) return fail(`Only a folder can be linked: ${source} isn't one here.`);
-          const result = await addExtension(source, dir, { link: true, ...packages });
+          const result = await addExtension(source, dir, { link: true, ...(packages.packages ? { packages: packages.packages } : {}) });
+          await trusted(result.name);
           await configure(result.name, dir);
           write(`Linked ${result.name} in the ${scope} scope: it runs from ${path.resolve(source)}, whose files aren't checked. A rebuild takes effect when its server starts again (a new session, or \`/extensions disable\` and \`enable\` in the chat).`);
           return true;
@@ -163,12 +169,14 @@ export async function runExtensionCommand(
             if (!(await confirmed("Install it? (y/N) ", (typed) => /^(y|yes|s|si|sí)$/i.test(typed)))) return fail("Not installed.");
           }
           const result = await installFromMarketplace(marketsDir!, source, dir, packages);
+          await trusted(result.name);
           await configure(result.name, dir);
           write(`${result.replaced ? "Reinstalled" : "Installed"} ${result.name} from ${result.marketplace} in the ${scope} scope (${dir})${result.commit ? `, at ${result.commit.slice(0, 12)}` : ""}. It's enabled: it runs from the next session.`);
           return true;
         }
         const subdir = value("path");
         const result = await addExtension(source, dir, { ...(subdir ? { subdir } : {}), ...packages });
+        await trusted(result.name);
         await configure(result.name, dir);
         write(`${result.replaced ? "Reinstalled" : "Installed"} ${result.name} in the ${scope} scope (${dir})${result.commit ? `, at ${result.commit.slice(0, 12)}` : ""}. It's enabled: it runs from the next session.`);
         return true;
@@ -181,7 +189,7 @@ export async function runExtensionCommand(
         const found = (await listInstalled(options.dirs)).filter((extension) => extension.name === name && (!askedScope || extension.scope === askedScope));
         if (!found.length) return fail(`${name} isn't installed${askedScope ? ` in the ${askedScope} scope` : ""}. \`${command} extension list\` lists them.`);
         if (found.length > 1 && !askedScope) return fail(`${name} is installed in both scopes: say which, with --project or --agent.`);
-        const { scope, dataDir } = found[0]!;
+        const { scope, dataDir, privateDir } = found[0]!;
         const dir = scopeDir(scope)!;
         if (action !== "remove") {
           await setExtensionEnabled(dir, name, action === "enable");
@@ -192,7 +200,7 @@ export async function runExtensionCommand(
         const size = await folderSize(dataDir);
         const deleteData =
           size > 0 && !flag("keep-data") && (await confirmed(`Delete its data too (${dataDir}, ${formatSize(size)})? (y/N) `, (typed) => /^(y|yes|s|si|sí)$/i.test(typed)));
-        await removeExtension(dir, name, { deleteData });
+        await removeExtension(dir, name, { deleteData, privateDir });
         write(`${name} removed in the ${scope} scope${size > 0 ? (deleteData ? ", with its data" : `; its data stays in ${dataDir}`) : ""}. It applies from the next session (in the chat, \`/extensions\` reopens it).`);
         return true;
       }
@@ -215,12 +223,29 @@ export async function runExtensionCommand(
           }
         }
         if (Object.keys(typed).length) {
-          await setExtensionOptions(installed.scopeDir, name, typed);
+          await setExtensionOptions(installed, name, typed);
           write(`${name}'s options saved in the ${installed.scope} scope. They apply when its server starts again: the next session, or in a chat \`/extensions disable ${name}\` and \`enable\`.`);
         }
         const lines = await describeOptions((await listInstalled(options.dirs)).find((extension) => extension.name === name && extension.scopeDir === installed.scopeDir)!);
         if (!lines.length) write(`${name} has no options.`);
         for (const line of lines) write(line);
+        return true;
+      }
+      case "restore": {
+        const result = await restoreExtensions(options.dirs, options.official ? { official: options.official } : {});
+        for (const name of result.restored) write(`Restored ${name}.`);
+        for (const { name, reason } of result.failed) write(`${name} can't be restored: ${reason}.`);
+        if (!result.restored.length && !result.failed.length) write("This workspace's extensions are all on this computer.");
+        if (result.failed.length) process.exitCode = 1;
+        if (flag("trust")) for (const name of await trustWorkspace(options.dirs)) write(`Trusted ${name} in this workspace.`);
+        else if (options.dirs.project && options.dirs.agent) write(`They run once you trust them: \`${command} extension trust\`, or the chat asks.`);
+        return true;
+      }
+      case "trust": {
+        if (!options.dirs.project || !options.dirs.agent) return fail("This agent has no workspace scope to trust: only its own, which never asks.");
+        const names = await trustWorkspace(options.dirs, positional.length ? positional : undefined);
+        if (!names.length) write("This workspace has no extensions.");
+        for (const name of names) write(`Trusted ${name} in this workspace, as it is now: another version asks again.`);
         return true;
       }
       case "search": {
@@ -264,6 +289,8 @@ export async function runExtensionCommand(
             "  enable|disable <name> [--project | --agent]",
             "  config <name> [key=value… | key… | --unset key…]   its options (key alone asks for it)",
             "  update [name]                          to the version its marketplace offers now (all that have one, without a name)",
+            "  restore [--trust]                      gets what this workspace's lock lists and this computer lacks",
+            "  trust [name…]                          lets this workspace's extensions run, as they are now",
             "  search [words]                         what the known marketplaces offer",
             "  marketplace add <folder | git URL[#ref] | owner/repo> [--yes]",
             "  marketplace list | update [name] | remove <name>",

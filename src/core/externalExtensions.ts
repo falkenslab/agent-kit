@@ -13,6 +13,7 @@ import { truncate, type ToolLabels } from "./toolLabels.js";
 import { agentKitVersion } from "./version.js";
 import { outsideArchive } from "./packaged.js";
 import { extensionSecretsPath, missingOptions, optionsNamed, parseOptionValue, parseUserConfig, readOptionValues, removeSecrets, storeOptionValues, type ExtensionOption, type OptionValue } from "./extensionOptions.js";
+import { isTrusted } from "./workspaceTrust.js";
 import { cachedPackageDir, cachedPackageProblem, cachePackage, npxServer, packageCacheDir, packageSpec, type CachedPackage } from "./npxPackages.js";
 
 /**
@@ -106,6 +107,14 @@ export interface LockEntry {
   linked?: boolean;
   /** The commit it was cloned at, for a git source. */
   commit?: string;
+  /** The folder inside its source it was installed from (a git repository's subfolder). */
+  subdir?: string;
+  /**
+   * Its code is in the agent's store (`<agent scope>/.store/<name>/<hash>/`), not in its scope's
+   * folder (#57): a project's scope keeps only its lock, so a workspace shared with others carries
+   * what it uses and at which version, never the code itself (`restoreExtensions()` gets it).
+   */
+  stored?: boolean;
   /** The marketplace it was installed from (`<name>@<marketplace>`), if any. */
   marketplace?: string;
   /** SHA-256 over its files, checked when it loads; empty for a linked one. */
@@ -129,6 +138,41 @@ export const LOCK_FILE = "extensions.lock.json";
  */
 export function extensionDataDir(scopeDir: string, name: string): string {
   return path.join(scopeDir, ".data", name);
+}
+
+/**
+ * Where a scope keeps what's the person's, not the workspace's: its extensions' data and secrets
+ * (#57). The agent's scope, its own folder; a project's, a folder of its own in the agent's
+ * (`<agent scope>/.projects/<project>-<hash>/`), so nothing private travels with a project. An
+ * agent without a scope of its own keeps it in the project's.
+ */
+export function scopePrivateDir(dirs: ExtensionDirs, scope: ExtensionScope): string | undefined {
+  const scopeDir = dirs[scope];
+  if (!scopeDir) return undefined;
+  if (scope === "agent" || !dirs.agent) return scopeDir;
+  const resolved = path.resolve(scopeDir);
+  const key = createHash("sha256").update(resolved.toLowerCase()).digest("hex").slice(0, 12);
+  return path.join(dirs.agent, ".projects", `${path.basename(path.dirname(resolved)) || "project"}-${key}`);
+}
+
+/** The agent's store of extensions' code, by content (#57): where a project's scope keeps its extensions' code. */
+export function codeStoreDir(dirs: ExtensionDirs): string | undefined {
+  return dirs.agent ? path.join(dirs.agent, ".store") : undefined;
+}
+
+/** Where a stored extension's code is: by its name and its files' hash. */
+export function storedCodeDir(store: string, name: string, sha256: string): string {
+  return path.join(store, name, sha256.slice(0, 16));
+}
+
+/**
+ * How an install into `scope` is done: its npx packages into the agent's cache, and a project's
+ * code into the agent's store when the agent has a scope of its own.
+ */
+export function installTarget(dirs: ExtensionDirs, scope: ExtensionScope): { packages?: string; store?: string } {
+  const packages = packageCacheDir(dirs);
+  const store = scope === "project" ? codeStoreDir(dirs) : undefined;
+  return { ...(packages ? { packages } : {}), ...(store ? { store } : {}) };
 }
 
 /** A scope's lock: its extensions by name. */
@@ -349,8 +393,10 @@ export interface InstalledExtension {
   scopeDir: string;
   /** Its plugin: in its scope's folder, or where it is when it's linked. */
   dir: string;
-  /** Its data folder (`${CLAUDE_PLUGIN_DATA}`), which may not exist yet. */
+  /** Its data folder (`${CLAUDE_PLUGIN_DATA}`), which may not exist yet: in its scope's private folder. */
   dataDir: string;
+  /** Its scope's private folder (`scopePrivateDir()`): its data and secrets. */
+  privateDir: string;
   lock: LockEntry;
   /** Also installed in the project's scope, which wins: this one isn't used. */
   shadowed: boolean;
@@ -364,10 +410,12 @@ export async function listInstalled(dirs: ExtensionDirs): Promise<InstalledExten
   for (const scope of ["project", "agent"] as const) {
     const scopeDir = dirs[scope];
     if (!scopeDir) continue;
+    const privateDir = scopePrivateDir(dirs, scope)!;
+    const store = codeStoreDir(dirs);
     for (const [name, lock] of Object.entries(await readLock(scopeDir))) {
-      const dir = lock.linked ? lock.source : path.join(scopeDir, name);
+      const dir = lock.linked ? lock.source : lock.stored && store ? storedCodeDir(store, name, lock.sha256) : path.join(scopeDir, name);
       const manifest = await readExternalManifest(dir).catch(() => undefined);
-      installed.push({ name, scope, scopeDir, dir, dataDir: extensionDataDir(scopeDir, name), lock, shadowed: installed.some((other) => other.name === name), ...(manifest ? { manifest } : {}) });
+      installed.push({ name, scope, scopeDir, dir, dataDir: extensionDataDir(privateDir, name), privateDir, lock, shadowed: installed.some((other) => other.name === name), ...(manifest ? { manifest } : {}) });
     }
   }
   return installed;
@@ -416,7 +464,7 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
         const spec = {
           keep: Object.keys(launch.env),
           ...(Object.keys(manifest.userConfig).length
-            ? { options: { lock: path.join(installed.scopeDir, LOCK_FILE), secrets: extensionSecretsPath(installed.scopeDir, installed.name), name: installed.name, defaults: optionDefaults(manifest.userConfig) } }
+            ? { options: { lock: path.join(installed.scopeDir, LOCK_FILE), secrets: extensionSecretsPath(installed.privateDir, installed.name), name: installed.name, defaults: optionDefaults(manifest.userConfig) } }
             : {}),
         };
         servers[name] = { type: "stdio", command: process.execPath, args: [extensionLauncherPath(), launch.entry, JSON.stringify(spec), ...launch.args], env };
@@ -451,17 +499,24 @@ function optionsProblem(manifest: ExternalManifest, values: Record<string, Optio
 }
 
 /** The installed extensions a session runs with, and those it can't (with why). Disabled ones are neither. */
-export async function loadExternalExtensions(dirs: ExtensionDirs): Promise<{ extensions: Extension[]; off: { name: string; reason: string }[] }> {
+export async function loadExternalExtensions(dirs: ExtensionDirs): Promise<{ extensions: Extension[]; off: { name: string; reason: string }[]; untrusted: InstalledExtension[] }> {
   const extensions: Extension[] = [];
   const off: { name: string; reason: string }[] = [];
+  const untrusted: InstalledExtension[] = [];
   const cache = packageCacheDir(dirs);
   for (const installed of await listInstalled(dirs)) {
     if (installed.shadowed || !installed.lock.enabled) continue;
+    // A workspace's own: only once the person trusts it there (#57); the agent's never asks.
+    if (installed.scope === "project" && dirs.agent && !(await isTrusted(dirs.agent, installed.scopeDir, installed.name, installed.lock))) {
+      untrusted.push(installed);
+      off.push({ name: installed.name, reason: "comes with this workspace and isn't trusted here yet: `extension trust`, or the chat asks" });
+      continue;
+    }
     const reason = await problem(installed, cache);
     if (typeof reason === "string") off.push({ name: installed.name, reason });
     else extensions.push(externalExtension(installed, reason, cache));
   }
-  return { extensions, off };
+  return { extensions, off, untrusted };
 }
 
 /** Why an installed extension can't load, or its manifest when it can. */
@@ -481,6 +536,7 @@ export async function onPath(program: string, env: NodeJS.ProcessEnv = process.e
 async function problem(installed: InstalledExtension, cache: string | undefined): Promise<string | ExternalManifest> {
   let manifest: ExternalManifest;
   try {
+    if (installed.lock.stored && !(await stat(installed.dir).catch(() => null))?.isDirectory()) return "isn't on this computer yet (its workspace says which version it uses): `extension restore` gets it";
     if (!installed.lock.linked && (await hashExtension(installed.dir)) !== installed.lock.sha256) return "has files that changed since it was installed: install it again to trust them";
     manifest = await readExternalManifest(installed.dir);
   } catch (error) {
@@ -491,7 +547,7 @@ async function problem(installed: InstalledExtension, cache: string | undefined)
   const missing = [];
   for (const program of manifest.needs) if (!(await onPath(program))) missing.push(program);
   if (missing.length) return `needs ${missing.join(", ")}, which ${missing.length === 1 ? "isn't" : "aren't"} on this computer (on the PATH)`;
-  const options = optionsProblem(manifest, await readOptionValues(installed.scopeDir, installed.name, manifest.userConfig, installed.lock.options));
+  const options = optionsProblem(manifest, await readOptionValues(installed.privateDir, installed.name, manifest.userConfig, installed.lock.options));
   if (options) return options;
   return (await serversProblem(manifest, installed.dir, { cache, locked: installed.lock.packages })) ?? manifest;
 }
@@ -516,7 +572,7 @@ export function isGitSource(source: string): boolean {
 export async function addExtension(
   source: string,
   scopeDir: string,
-  options: { subdir?: string; sha?: string; marketplace?: string; origin?: string; link?: boolean; packages?: string } = {},
+  options: { subdir?: string; sha?: string; marketplace?: string; origin?: string; link?: boolean; packages?: string; store?: string } = {},
 ): Promise<{ name: string; replaced: boolean; commit?: string }> {
   if (options.link && isGitSource(source)) throw new Error("Only a folder can be linked: a git repository is installed as a copy.");
   let from = path.resolve(source);
@@ -549,6 +605,20 @@ export async function addExtension(
     if (Object.keys(kept).length) locked.options = kept;
     await rm(target, { recursive: true, force: true });
     await mkdir(scopeDir, { recursive: true });
+    const origin = options.origin ?? (isGitSource(source) ? source : from);
+    const provenance = { ...(commit ? { commit } : {}), ...(options.subdir ? { subdir: options.subdir } : {}), ...(options.marketplace ? { marketplace: options.marketplace } : {}) };
+    if (options.store && !options.link) {
+      // By content, in the agent's store: two workspaces with the same version share one copy.
+      const sha256 = await hashExtension(from);
+      const stored = storedCodeDir(options.store, manifest.name, sha256);
+      if (!(await stat(stored).catch(() => null))?.isDirectory() || (await hashExtension(stored)) !== sha256) {
+        await rm(stored, { recursive: true, force: true });
+        await cp(from, stored, { recursive: true, filter: (file) => path.basename(file) !== ".git" });
+      }
+      lock[manifest.name] = { source: origin, ...provenance, sha256, stored: true, ...locked, enabled: true, installed: new Date().toISOString() };
+      await writeLock(scopeDir, lock);
+      return { name: manifest.name, replaced, ...(commit ? { commit } : {}) };
+    }
     if (options.link) {
       lock[manifest.name] = { source: from, linked: true, sha256: "", ...locked, enabled: true, installed: new Date().toISOString() };
       await writeLock(scopeDir, lock);
@@ -556,9 +626,8 @@ export async function addExtension(
     }
     await cp(from, target, { recursive: true, filter: (file) => path.basename(file) !== ".git" });
     lock[manifest.name] = {
-      source: options.origin ?? (isGitSource(source) ? `${source}${options.subdir ? ` (${options.subdir})` : ""}` : from),
-      ...(commit ? { commit } : {}),
-      ...(options.marketplace ? { marketplace: options.marketplace } : {}),
+      source: origin,
+      ...provenance,
       sha256: await hashExtension(target),
       ...locked,
       enabled: true,
@@ -575,13 +644,15 @@ export async function addExtension(
  * Removes an extension from a scope (its files and its lock entry; a linked one's folder is left
  * where it is), and its data folder with `deleteData`; false when it wasn't there.
  */
-export async function removeExtension(scopeDir: string, name: string, options: { deleteData?: boolean } = {}): Promise<boolean> {
+export async function removeExtension(scopeDir: string, name: string, options: { deleteData?: boolean; privateDir?: string } = {}): Promise<boolean> {
+  const privateDir = options.privateDir ?? scopeDir;
   const lock = await readLock(scopeDir);
   if (!lock[name]) return false;
   delete lock[name];
   await rm(path.join(scopeDir, name), { recursive: true, force: true });
-  if (options.deleteData) await rm(extensionDataDir(scopeDir, name), { recursive: true, force: true });
-  await removeSecrets(scopeDir, name);
+  // A stored one's code stays in the store: another workspace may use the same version.
+  if (options.deleteData) await rm(extensionDataDir(privateDir, name), { recursive: true, force: true });
+  await removeSecrets(privateDir, name);
   await writeLock(scopeDir, lock);
   return true;
 }
@@ -611,11 +682,14 @@ export async function setExtensionEnabled(scopeDir: string, name: string, enable
  * clears it), checked against its `userConfig`: sensitive ones into the scope's secrets, the rest
  * into its lock. A running session's servers take them when they start again.
  */
-export async function setExtensionOptions(scopeDir: string, name: string, typed: Record<string, string | undefined>): Promise<void> {
+export async function setExtensionOptions(where: string | InstalledExtension, name: string, typed: Record<string, string | undefined>): Promise<void> {
+  // A scope's folder (the agent's, whose code and secrets are in it), or an installed one, which knows where they are.
+  const scopeDir = typeof where === "string" ? where : where.scopeDir;
+  const privateDir = typeof where === "string" ? where : where.privateDir;
   const lock = await readLock(scopeDir);
   const entry = lock[name];
   if (!entry) throw new Error(`${name} isn't installed in ${scopeDir}.`);
-  const manifest = await readExternalManifest(entry.linked ? entry.source : path.join(scopeDir, name));
+  const manifest = (typeof where === "string" ? undefined : where.manifest) ?? (await readExternalManifest(entry.linked ? entry.source : path.join(scopeDir, name)));
   const changes: Record<string, OptionValue | undefined> = {};
   for (const [key, text] of Object.entries(typed)) {
     const option = manifest.userConfig[key];
@@ -626,7 +700,7 @@ export async function setExtensionOptions(scopeDir: string, name: string, typed:
       throw new Error(`${key}: ${error instanceof Error ? error.message : String(error)}.`, { cause: error });
     }
   }
-  const options = await storeOptionValues(scopeDir, name, manifest.userConfig, entry.options ?? {}, changes);
+  const options = await storeOptionValues(privateDir, name, manifest.userConfig, entry.options ?? {}, changes);
   lock[name] = { ...entry, options };
   if (!Object.keys(options).length) delete lock[name]!.options;
   await writeLock(scopeDir, lock);
@@ -647,8 +721,8 @@ export interface ExtensionOptionState {
 /** An installed extension's options, as they are now. */
 export async function extensionOptionStates(installed: InstalledExtension): Promise<ExtensionOptionState[]> {
   const declared = installed.manifest?.userConfig ?? {};
-  const values = await readOptionValues(installed.scopeDir, installed.name, declared, installed.lock.options);
-  const secrets = await readOptionValues(installed.scopeDir, installed.name, Object.fromEntries(Object.entries(declared).map(([key, option]) => [key, { ...option, default: undefined }])), installed.lock.options);
+  const values = await readOptionValues(installed.privateDir, installed.name, declared, installed.lock.options);
+  const secrets = await readOptionValues(installed.privateDir, installed.name, Object.fromEntries(Object.entries(declared).map(([key, option]) => [key, { ...option, default: undefined }])), installed.lock.options);
   return Object.entries(declared).map(([key, option]) => {
     const value = values[key];
     const own = secrets[key];

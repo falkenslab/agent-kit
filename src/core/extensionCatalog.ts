@@ -1,8 +1,10 @@
-import { stat } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
-import { inKitRange, isGitSource, listInstalled, readExternalManifest, type ExtensionDirs, type ExtensionScope, type InstalledExtension } from "./externalExtensions.js";
+import { addExtension, codeStoreDir, hashExtension, inKitRange, installTarget, isGitSource, listInstalled, readExternalManifest, readLock, storedCodeDir, type ExtensionDirs, type ExtensionScope, type InstalledExtension } from "./externalExtensions.js";
+import { cachePackage, cachedPackageDir } from "./npxPackages.js";
+import { trustWorkspace } from "./workspaceTrust.js";
 import { addMarketplace, findPlugin, installFromMarketplace, listMarketplaces, resolvePluginSource, updateMarketplace, type KnownMarketplace, type MarketplacePlugin } from "./marketplaces.js";
-import { packageCacheDir } from "./npxPackages.js";
 
 /**
  * The agent's catalog of extensions (#56): what its known marketplaces offer, what's installed
@@ -111,8 +113,9 @@ export async function installExtension(dirs: ExtensionDirs, spec: string, option
   const scopeDir = dirs[scope];
   if (!scopeDir) throw new Error(`This agent has no ${scope} scope for extensions.`);
   await knownMarketplaces(dirs, options.official);
-  const cache = packageCacheDir(dirs);
-  const result = await installFromMarketplace(marketplacesDir(dirs)!, spec, scopeDir, cache ? { packages: cache } : {});
+  const result = await installFromMarketplace(marketplacesDir(dirs)!, spec, scopeDir, installTarget(dirs, scope));
+  // Installed into a workspace by the person: trusted there as it is (#57).
+  if (scope === "project") await trustWorkspace(dirs, [result.name]);
   return { ...result, scope };
 }
 
@@ -129,8 +132,65 @@ export async function updateExtension(dirs: ExtensionDirs, name: string, options
   const marketplace = from.slice(from.indexOf("@") + 1);
   await knownMarketplaces(dirs, options.official);
   await updateMarketplace(marketplacesDir(dirs)!, marketplace);
-  const cache = packageCacheDir(dirs);
-  await installFromMarketplace(marketplacesDir(dirs)!, from, installed.scopeDir, cache ? { packages: cache } : {});
+  await installFromMarketplace(marketplacesDir(dirs)!, from, installed.scopeDir, installTarget(dirs, installed.scope));
+  if (installed.scope === "project") await trustWorkspace(dirs, [name]);
   const after = (await listInstalled(dirs)).find((extension) => extension.name === name && extension.scopeDir === installed.scopeDir);
   return { name, scope: installed.scope, ...(installed.manifest?.version ? { from: installed.manifest.version } : {}), ...(after?.manifest?.version ? { to: after.manifest.version } : {}) };
+}
+
+/**
+ * Gets what a workspace's lock lists and this computer lacks (#57): each extension's code into
+ * the agent's store, from where it came (its marketplace, its git repository at its commit, its
+ * folder), checked against the lock's hash, and the packages its npx servers run into the
+ * agent's cache. It trusts nothing: the workspace still asks before they run. What can't be got
+ * says why (a marketplace the agent doesn't know, another version there now, a folder that isn't
+ * on this computer).
+ */
+export async function restoreExtensions(dirs: ExtensionDirs, options: { official?: string } = {}): Promise<{ restored: string[]; failed: { name: string; reason: string }[] }> {
+  const restored: string[] = [];
+  const failed: { name: string; reason: string }[] = [];
+  const store = codeStoreDir(dirs);
+  if (!dirs.project || !store) return { restored, failed };
+  const target = installTarget(dirs, "project");
+  for (const [name, lock] of Object.entries(await readLock(dirs.project))) {
+    if (lock.linked) continue;
+    try {
+      const stored = storedCodeDir(store, name, lock.sha256);
+      const have = (await stat(stored).catch(() => null))?.isDirectory() && (await hashExtension(stored)) === lock.sha256;
+      if (!have) {
+        // Installed again into a scratch scope, which puts its code in the store; its hash must be the lock's.
+        const scratch = await mkdtemp(path.join(os.tmpdir(), "agent-kit-restore-"));
+        try {
+          if (lock.marketplace) {
+            await knownMarketplaces(dirs, options.official);
+            await installFromMarketplace(marketplacesDir(dirs)!, lock.marketplace, scratch, target);
+          } else if (isGitSource(lock.source)) {
+            await addExtension(lock.source, scratch, { ...target, ...(lock.commit ? { sha: lock.commit } : {}), ...(lock.subdir ? { subdir: lock.subdir } : {}) });
+          } else if ((await stat(lock.source).catch(() => null))?.isDirectory()) {
+            await addExtension(lock.source, scratch, target);
+          } else {
+            throw new Error(`it came from a folder that isn't on this computer (${lock.source})`);
+          }
+          const got = (await readLock(scratch))[name]?.sha256;
+          if (got !== lock.sha256) throw new Error(`where it came from has another version now${lock.marketplace ? `: \`extension update ${name}\` takes it` : ""}`);
+        } finally {
+          await rm(scratch, { recursive: true, force: true });
+        }
+      }
+      // Its npx packages, the versions the lock names, checked against their hashes there.
+      const cache = target.packages;
+      for (const [spec, cached] of Object.entries(lock.packages ?? {})) {
+        const at = spec.lastIndexOf("@");
+        const [pkg, version] = [spec.slice(0, at), spec.slice(at + 1)];
+        if (!cache) throw new Error("this agent has no package cache");
+        const dir = cachedPackageDir(cache, pkg, version);
+        if ((await stat(dir).catch(() => null))?.isDirectory() && (await hashExtension(dir)) === cached.sha256) continue;
+        if ((await cachePackage(cache, pkg, version)).sha256 !== cached.sha256) throw new Error(`its package ${spec} isn't what the workspace locked`);
+      }
+      if (!have || Object.keys(lock.packages ?? {}).length) restored.push(name);
+    } catch (error) {
+      failed.push({ name, reason: error instanceof Error ? error.message.replace(/\.$/, "") : String(error) });
+    }
+  }
+  return { restored, failed };
 }

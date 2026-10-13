@@ -81,6 +81,12 @@ export interface Messages {
   elicitOutOfRange(minimum?: number, maximum?: number): string;
   elicitUrlTitle(server: string): string;
   elicitUrlQuestion: string;
+  /** A workspace's extensions to trust (#57). */
+  trustTitle: string;
+  trustBody: string;
+  trustQuestion: string;
+  trustDeclined: string;
+  trustGiven(names: string): string;
   currentRun: string;
   resumed(date: string): string;
 
@@ -210,7 +216,7 @@ export const en: Messages = {
   extensionSwitched: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}, in this same session)`,
   extensionToggled: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}: the session reopens, with the same conversation)`,
   extensionNotInstalled: (name) => `(${name} isn't installed: /extensions lists them)`,
-  extensionsUsage: "(usage: /extensions, enable|disable <name>, config <name> [key=value…], search [words], install <name>, update [name], remove <name> [--delete-data], reload)",
+  extensionsUsage: "(usage: /extensions, enable|disable <name>, config <name> [key=value…], search [words], install <name>, update [name], remove <name> [--delete-data], reload, trust)",
   extensionsCantReopen: "(this chat can't reopen its session: enable or disable it from the terminal, and start again)",
   extensionOptions: (name) => `${name}'s options:`,
   extensionNoOptions: (name) => `(${name} has no options)`,
@@ -239,6 +245,11 @@ export const en: Messages = {
   elicitOutOfRange: (minimum, maximum) => `between ${minimum ?? "…"} and ${maximum ?? "…"}`,
   elicitUrlTitle: (server) => `${server} asks you to open a page`,
   elicitUrlQuestion: "Open it yourself, then Enter when you're done (n: decline) ",
+  trustTitle: "This workspace brings extensions",
+  trustBody: "They run code on this computer with your permissions. Trust them only if you trust where this workspace came from:",
+  trustQuestion: "Trust them and run them? (y/N) ",
+  trustDeclined: "(they stay off: /extensions trust trusts them later)",
+  trustGiven: (names) => `(${names}: trusted in this workspace, as they are now; another version asks again)`,
   currentRun: "(this one)",
   resumed: (date) => `(resumed the conversation of ${date})`,
 
