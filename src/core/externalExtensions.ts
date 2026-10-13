@@ -12,6 +12,7 @@ import { getLanguage, type ToolPhrase } from "./messages/index.js";
 import { truncate, type ToolLabels } from "./toolLabels.js";
 import { agentKitVersion } from "./version.js";
 import { outsideArchive } from "./packaged.js";
+import { cachedPackageDir, cachedPackageProblem, cachePackage, npxServer, packageCacheDir, packageSpec, type CachedPackage } from "./npxPackages.js";
 
 /**
  * External extensions (ADR-025, #37): installed into an agent, for all its projects (the
@@ -19,7 +20,7 @@ import { outsideArchive } from "./packaged.js";
  * Each scope is a folder of extensions, one per subfolder, with a lock (`extensions.lock.json`)
  * that records where each came from, a SHA-256 over its files and whether it's enabled. An
  * extension is a Claude Code plugin as it is (#38): its MCP servers come from its `.mcp.json`,
- * and the kit starts each with Node through a launcher that leaves it only the system's
+ * and the kit starts each with Node (an `npx` one from its package cache, #54) through a launcher that leaves it only the system's
  * variables and its own `env`. The `"agent-kit"` key of its `plugin.json` is optional: it adds
  * what the kit's gates and chat can use (capabilities, read-only tools, labels, help). Each has a
  * data folder of its own (`${CLAUDE_PLUGIN_DATA}`, as Claude Code gives a plugin), kept across
@@ -106,6 +107,8 @@ export interface LockEntry {
   marketplace?: string;
   /** SHA-256 over its files, checked when it loads; empty for a linked one. */
   sha256: string;
+  /** The npm packages its servers run with npx (#54), by `<package>@<version>`: in the agent's package cache, checked when it loads. */
+  packages?: Record<string, CachedPackage>;
   enabled: boolean;
   /** When it was installed, ISO 8601 in UTC. */
   installed: string;
@@ -219,30 +222,67 @@ function expand(value: string, folders: PluginFolders): string {
   );
 }
 
+/** The packages an extension's npx servers run, as its lock has them, and the cache they're in (#54). */
+interface ServerPackages {
+  cache?: string;
+  locked?: Record<string, CachedPackage>;
+}
+
 /**
- * Why one of an extension's servers can't run through the launcher (only Node, its script
- * first, inside the extension), or how the kit starts it.
+ * Why one of an extension's servers can't run through the launcher (Node, its script first,
+ * inside the extension; or npx with a package at an exact version, from the cache), or how the
+ * kit starts it.
  */
-function serverLaunch(name: string, server: PluginServer, folders: PluginFolders): string | { entry: string; args: string[]; env: Record<string, string> } {
+function serverLaunch(name: string, server: PluginServer, folders: PluginFolders, packages: ServerPackages = {}): string | { entry: string; args: string[]; env: Record<string, string> } {
   const { root } = folders;
-  if (!/^node(\.exe)?$/i.test(path.basename(server.command))) return `runs its server "${name}" with "${server.command}": only Node servers can be installed`;
+  // Its folders as variables too, as Claude Code gives them to a plugin's servers.
+  const declared = Object.fromEntries(Object.entries(server.env ?? {}).map(([key, value]) => [key, expand(String(value), folders)]));
+  const env = { CLAUDE_PLUGIN_ROOT: root, CLAUDE_PLUGIN_DATA: folders.data, ...declared };
+  const npx = npxServer(server);
+  if (typeof npx === "string") return `${npx} (its server "${name}")`;
+  if (npx) {
+    const locked = packages.locked?.[packageSpec(npx)];
+    if (!packages.cache || !locked) return `runs ${packageSpec(npx)}, which wasn't fetched when it was installed: install it again`;
+    const entry = path.join(cachedPackageDir(packages.cache, npx.name, npx.version), locked.bin);
+    return { entry, args: npx.args.map((arg) => expand(arg, folders)), env };
+  }
+  if (!/^node(\.exe)?$/i.test(path.basename(server.command))) return `runs its server "${name}" with "${server.command}": only Node servers, or npx with a package's exact version, can be installed`;
   const [script, ...args] = (server.args ?? []).map((arg) => expand(arg, folders));
   if (!script) return `gives its server "${name}" no script to run`;
   const entry = path.resolve(root, script);
   if (path.relative(root, entry).startsWith("..")) return `runs its server "${name}" from outside its folder (${script})`;
-  // Its folders as variables too, as Claude Code gives them to a plugin's servers.
-  const declared = Object.fromEntries(Object.entries(server.env ?? {}).map(([key, value]) => [key, expand(String(value), folders)]));
-  return { entry, args, env: { CLAUDE_PLUGIN_ROOT: root, CLAUDE_PLUGIN_DATA: folders.data, ...declared } };
+  return { entry, args, env };
 }
 
-/** Why an extension's servers can't run, or nothing: each must be Node, with its script there. */
-async function serversProblem(manifest: ExternalManifest, root: string): Promise<string | undefined> {
+/**
+ * Why an extension's servers can't run, or nothing: each Node with its script there, or npx with
+ * a package at an exact version (in the cache, once `packages` is given: when it loads).
+ */
+async function serversProblem(manifest: ExternalManifest, root: string, packages?: ServerPackages): Promise<string | undefined> {
   for (const [name, server] of Object.entries(manifest.servers)) {
+    const npx = npxServer(server);
+    if (typeof npx === "string") return `${npx} (its server "${name}")`;
+    if (npx) {
+      const problem = packages && (await cachedPackageProblem(packages.cache, npx, packages.locked?.[packageSpec(npx)]));
+      if (problem) return problem;
+      continue;
+    }
     const launch = serverLaunch(name, server, { root, data: "" });
     if (typeof launch === "string") return launch;
     if (!(await stat(launch.entry).catch(() => null))?.isFile()) return `has no script at ${path.relative(root, launch.entry)} for its server "${name}"`;
   }
   return undefined;
+}
+
+/** Fetches the packages an extension's npx servers run into the cache (#54), as its lock records them. */
+async function fetchServerPackages(manifest: ExternalManifest, cache: string): Promise<Record<string, CachedPackage>> {
+  const packages: Record<string, CachedPackage> = {};
+  for (const server of Object.values(manifest.servers)) {
+    const npx = npxServer(server);
+    if (!npx || typeof npx === "string") continue;
+    packages[packageSpec(npx)] = await cachePackage(cache, npx.name, npx.version);
+  }
+  return packages;
 }
 
 /** SHA-256 over an extension's files (their paths and contents, in order), `.git` aside. */
@@ -347,7 +387,7 @@ function manifestToolLabels(manifest: ExternalManifest): ToolLabels {
 }
 
 /** The extension an installed one makes: its servers started through the launcher, its rules from its manifest. */
-function externalExtension(installed: InstalledExtension, manifest: ExternalManifest): Extension {
+function externalExtension(installed: InstalledExtension, manifest: ExternalManifest, cache: string | undefined): Extension {
   return {
     name: manifest.name,
     plugin: installed.dir,
@@ -357,7 +397,7 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
       const servers: Record<string, McpServerConfig> = {};
       if (Object.keys(manifest.servers).length) await mkdir(installed.dataDir, { recursive: true });
       for (const [name, server] of Object.entries(manifest.servers)) {
-        const launch = serverLaunch(name, server, { root: installed.dir, data: installed.dataDir });
+        const launch = serverLaunch(name, server, { root: installed.dir, data: installed.dataDir }, { cache, locked: installed.lock.packages });
         if (typeof launch === "string") continue; // checked when it loaded
         // Its `env` reaches it (the SDK merges it with the agent's); the launcher removes the rest.
         // Inside Electron, process.execPath is the app itself: ELECTRON_RUN_AS_NODE makes it run
@@ -383,11 +423,12 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
 export async function loadExternalExtensions(dirs: ExtensionDirs): Promise<{ extensions: Extension[]; off: { name: string; reason: string }[] }> {
   const extensions: Extension[] = [];
   const off: { name: string; reason: string }[] = [];
+  const cache = packageCacheDir(dirs);
   for (const installed of await listInstalled(dirs)) {
     if (installed.shadowed || !installed.lock.enabled) continue;
-    const reason = await problem(installed);
+    const reason = await problem(installed, cache);
     if (typeof reason === "string") off.push({ name: installed.name, reason });
-    else extensions.push(externalExtension(installed, reason));
+    else extensions.push(externalExtension(installed, reason, cache));
   }
   return { extensions, off };
 }
@@ -406,7 +447,7 @@ export async function onPath(program: string, env: NodeJS.ProcessEnv = process.e
   return false;
 }
 
-async function problem(installed: InstalledExtension): Promise<string | ExternalManifest> {
+async function problem(installed: InstalledExtension, cache: string | undefined): Promise<string | ExternalManifest> {
   let manifest: ExternalManifest;
   try {
     if (!installed.lock.linked && (await hashExtension(installed.dir)) !== installed.lock.sha256) return "has files that changed since it was installed: install it again to trust them";
@@ -419,7 +460,7 @@ async function problem(installed: InstalledExtension): Promise<string | External
   const missing = [];
   for (const program of manifest.needs) if (!(await onPath(program))) missing.push(program);
   if (missing.length) return `needs ${missing.join(", ")}, which ${missing.length === 1 ? "isn't" : "aren't"} on this computer (on the PATH)`;
-  return (await serversProblem(manifest, installed.dir)) ?? manifest;
+  return (await serversProblem(manifest, installed.dir, { cache, locked: installed.lock.packages })) ?? manifest;
 }
 
 const exec = promisify(execFile);
@@ -435,12 +476,14 @@ export function isGitSource(source: string): boolean {
  * manifest, and locks it, enabled, with the marketplace it came from when it did (`origin`, for a
  * temporary folder, is what the lock says it came from). An extension with the same name in that
  * scope is replaced; its data folder stays. With `link`, a folder is registered where it is
- * instead, to develop it: not copied, and its files not checked.
+ * instead, to develop it: not copied, and its files not checked. The packages its npx servers
+ * run are fetched into `packages` (#54), the agent's package cache (`packageCacheDir()`; by
+ * default the scope's).
  */
 export async function addExtension(
   source: string,
   scopeDir: string,
-  options: { subdir?: string; sha?: string; marketplace?: string; origin?: string; link?: boolean } = {},
+  options: { subdir?: string; sha?: string; marketplace?: string; origin?: string; link?: boolean; packages?: string } = {},
 ): Promise<{ name: string; replaced: boolean; commit?: string }> {
   if (options.link && isGitSource(source)) throw new Error("Only a folder can be linked: a git repository is installed as a copy.");
   let from = path.resolve(source);
@@ -464,12 +507,14 @@ export async function addExtension(
     const target = path.join(scopeDir, manifest.name);
     // Replacing what's installed there would delete the source itself.
     if (path.resolve(from) === path.resolve(target)) throw new Error(`${from} is where ${manifest.name} is installed: install it from another folder.`);
+    const packages = await fetchServerPackages(manifest, options.packages ?? path.join(scopeDir, ".npm"));
+    const locked = Object.keys(packages).length ? { packages } : {};
     const lock = await readLock(scopeDir);
     const replaced = Boolean(lock[manifest.name]);
     await rm(target, { recursive: true, force: true });
     await mkdir(scopeDir, { recursive: true });
     if (options.link) {
-      lock[manifest.name] = { source: from, linked: true, sha256: "", enabled: true, installed: new Date().toISOString() };
+      lock[manifest.name] = { source: from, linked: true, sha256: "", ...locked, enabled: true, installed: new Date().toISOString() };
       await writeLock(scopeDir, lock);
       return { name: manifest.name, replaced };
     }
@@ -479,6 +524,7 @@ export async function addExtension(
       ...(commit ? { commit } : {}),
       ...(options.marketplace ? { marketplace: options.marketplace } : {}),
       sha256: await hashExtension(target),
+      ...locked,
       enabled: true,
       installed: new Date().toISOString(),
     };

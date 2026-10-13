@@ -235,7 +235,7 @@ Its servers, in `.mcp.json` (or under `mcpServers` in `plugin.json`, inline or a
 ```
 
 - Each server's name gives its tools': `mcp__jokebook__classic_joke`.
-- **Only Node servers**: `command` is `node`, and the first of `args` its script, inside the extension (`${CLAUDE_PLUGIN_ROOT}` is its folder); the rest of `args` reach the script. Any other command (`python`, `npx`, `docker`) leaves the extension off, saying why: the kit runs installed code only through its launcher.
+- **Node servers, or npx**: `command` is `node`, and the first of `args` its script, inside the extension (`${CLAUDE_PLUGIN_ROOT}` is its folder); the rest of `args` reach the script. Or `command` is `npx`, with `-y` and a package at an exact version, as Claude Code runs it: see [A server published to npm](#a-server-published-to-npm). Any other command (`python`, `docker`, `npx` without an exact version) leaves the extension off, saying why: the kit runs installed code only through its launcher.
 - **Its folders**: `${CLAUDE_PLUGIN_ROOT}` is its plugin's folder and `${CLAUDE_PLUGIN_DATA}` its [data folder](#its-data), in `args` and `env`, as in Claude Code; the server gets both as variables too.
 - **Its environment**: the system's variables and those in its `env`, where `${VAR}` takes the agent's (`"JOKES_API_KEY": "${JOKES_API_KEY}"`, from its `.env`). Nothing else of the agent's: not its credentials. The system's are where things are and the desktop session: `PATH`, `TEMP`, `HOME`, `APPDATA`, `LOCALAPPDATA`, `PROGRAMFILES` and `PROGRAMFILES(X86)` (where a browser is found on Windows), `DISPLAY`, `WAYLAND_DISPLAY` and `XDG_*` (to open a window on Linux), the language and time zone, and the like.
 
@@ -284,6 +284,33 @@ Turning an extension off in the session, or closing the session, ends its server
 **What it's for and its rules** go in the `instructions` its server sends when it connects: the model has them from the start, like an internal extension's prompt section. Keep them short; procedures go in skills.
 
 **The server** runs from what's installed: write it without dependencies, or bundle it into one file with them (esbuild). A package from a marketplace's `npm` source brings no `node_modules`, and a folder installed with its development `node_modules` is hashed whole every session (seconds for tens of thousands of files): install the package, not the development folder, and use `--link` while developing. The jokebook's is a small script that speaks MCP over stdio by hand; a bigger one would use `@modelcontextprotocol/sdk`, bundled.
+
+### A server published to npm
+
+An MCP server published to npm on its own (usable with `npx` in Claude Code or Codex) needn't be copied into the extension: its `.mcp.json` runs it with `npx`, and the extension is its manifest, that file, and its skills and commands.
+
+```json
+{
+  "mcpServers": {
+    "moodle": {
+      "command": "npx",
+      "args": ["-y", "@falkenslab/moodle-mcp@0.2.0"],
+      "env": { "MOODLE_URL": "${MOODLE_URL}", "MOODLE_MCP_PROFILE_DIR": "${CLAUDE_PLUGIN_DATA}/profile" }
+    }
+  }
+}
+```
+
+Claude Code runs that `npx` as it is. The kit doesn't run npx: it would need npm, a `node` on the `PATH` (npm's shims call it) and the network while the server connects, none of which the desktop app has. Instead:
+
+- **When the extension is installed**, the kit fetches the package from the npm registry, checks it against the registry's `integrity` (sha512) and keeps it in the agent's package cache, `<agent scope>/.npm/<package>/<version>/`, shared by both scopes: two extensions, or two scopes, running the same version share one copy. The lock records it (`packages`: its integrity, a SHA-256 over its files, its `bin`); `extension info` lists it.
+- **When a session starts**, the server is the package's `bin` run with the agent's own Node (Electron's, in a desktop app) through the launcher, like any installed server: its `env`, its folders, the arguments after the package. No npm, no network: a package missing from the cache, or whose files changed there, leaves the extension off, saying to install it again.
+- **Only an exact version**: `<package>@x.y.z`. A published npm version never changes, so the extension runs the same code every time; without a version, a range or a tag (`@latest`), it can't be installed. The only option is `-y` (`--yes`).
+- **The package brings what it needs**: the kit installs no dependencies and runs no script. A package whose `dependencies` aren't all in `bundleDependencies`, with install scripts (`preinstall`, `install`, `postinstall`) or native code to build (`binding.gyp`) can't be installed, saying why. Bundle the server (esbuild), and list in `bundleDependencies` what can't be bundled (`playwright-core`).
+- **Its `bin`**: the package's only one, or the one named like the package (`moodle-mcp` for `@falkenslab/moodle-mcp`), as npx picks it.
+- **Updating the server** is a new version in `.mcp.json` and installing the extension again; skills written for that version go in the same change.
+
+The registry is `https://registry.npmjs.org`.
 
 **What it can't do**, unlike an internal one: hooks (none of its plugin's run: `settings.disableAllHooks` while one is on), the kit's panels, a store passed from code, its own folders for the file tools. Its subagents get no `Bash`: one that lists it loses it, and one without `tools` gets none. Its tools go through the same gates as any other: the approval in interactive mode, plan mode, the transcript.
 

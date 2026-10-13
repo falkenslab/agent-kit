@@ -99,8 +99,8 @@ export function pickVersion(versions: readonly string[], wanted: string): string
   }).at(-1);
 }
 
-/** An npm package into a new temporary folder: `{ dir, version }`. */
-export async function fetchNpmPlugin(name: string, wanted = "latest", registry = "https://registry.npmjs.org"): Promise<{ dir: string; version: string }> {
+/** An npm package into a new temporary folder: `{ dir, version, integrity }` (the registry's `sha512-…`, checked). */
+export async function fetchNpmPlugin(name: string, wanted = "latest", registry = "https://registry.npmjs.org"): Promise<{ dir: string; version: string; integrity: string }> {
   if (!/^(@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*$/i.test(name)) throw new Error(`"${name}" isn't an npm package name.`);
   const response = await fetch(`${registry.replace(/\/+$/, "")}/${name.replace("/", "%2f")}`, { headers: { accept: "application/json" } });
   if (!response.ok) throw new Error(`The registry has no package ${name} (${response.status}).`);
@@ -118,7 +118,7 @@ export async function fetchNpmPlugin(name: string, wanted = "latest", registry =
     // npm puts a package's files under package/.
     const files = [...untar(gunzipSync(tarball))].flatMap(([file, data]): [string, Uint8Array][] => (file.startsWith("package/") ? [[file.slice("package/".length), data]] : []));
     await writeFiles(dir, files);
-    return { dir, version };
+    return { dir, version, integrity: dist.integrity! };
   } catch (error) {
     await rm(dir, { recursive: true, force: true });
     throw error;

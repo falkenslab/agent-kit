@@ -23,6 +23,7 @@ import {
   type InstalledExtension,
 } from "../core/externalExtensions.js";
 import { describe } from "../chat/extensions.js";
+import { packageCacheDir } from "../core/npxPackages.js";
 
 export { chatExtensionsCommand, describe } from "../chat/extensions.js";
 
@@ -117,11 +118,14 @@ export async function runExtensionCommand(
         const scope = askedScope ?? (options.dirs.agent ? "agent" : "project");
         const dir = scopeDir(scope);
         if (!dir) return fail(`This agent has no ${scope} scope for extensions.`);
+        // The packages its npx servers run, in the agent's cache, shared by both scopes (#54).
+        const cache = packageCacheDir(options.dirs);
+        const packages = cache ? { packages: cache } : {};
         // A plugin of a marketplace, unless it's a folder here or a git URL.
         const isFolder = await stat(path.resolve(source)).then((found) => found.isDirectory(), () => false);
         if (flag("link")) {
           if (!isFolder) return fail(`Only a folder can be linked: ${source} isn't one here.`);
-          const result = await addExtension(source, dir, { link: true });
+          const result = await addExtension(source, dir, { link: true, ...packages });
           write(`Linked ${result.name} in the ${scope} scope: it runs from ${path.resolve(source)}, whose files aren't checked. A rebuild takes effect when its server starts again (a new session, or \`/extensions disable\` and \`enable\` in the chat).`);
           return true;
         }
@@ -133,12 +137,12 @@ export async function runExtensionCommand(
             write("It will run on this computer with your permissions.");
             if (!(await confirmed("Install it? (y/N) ", (typed) => /^(y|yes|s|si|sí)$/i.test(typed)))) return fail("Not installed.");
           }
-          const result = await installFromMarketplace(marketsDir!, source, dir);
+          const result = await installFromMarketplace(marketsDir!, source, dir, packages);
           write(`${result.replaced ? "Reinstalled" : "Installed"} ${result.name} from ${result.marketplace} in the ${scope} scope (${dir})${result.commit ? `, at ${result.commit.slice(0, 12)}` : ""}. It's enabled: it runs from the next session.`);
           return true;
         }
         const subdir = value("path");
-        const result = await addExtension(source, dir, subdir ? { subdir } : {});
+        const result = await addExtension(source, dir, { ...(subdir ? { subdir } : {}), ...packages });
         write(`${result.replaced ? "Reinstalled" : "Installed"} ${result.name} in the ${scope} scope (${dir})${result.commit ? `, at ${result.commit.slice(0, 12)}` : ""}. It's enabled: it runs from the next session.`);
         return true;
       }
@@ -290,6 +294,7 @@ async function info(extension: InstalledExtension): Promise<string[]> {
           ? "what its servers mark readOnlyHint"
           : undefined,
     ),
+    ...field("Packages", Object.keys(extension.lock.packages ?? {}).join(", ") || undefined),
     ...field("Variables", Object.values(manifest.servers).flatMap((server) => Object.keys(server.env ?? {})).join(", ") || undefined),
     ...field("Installed", `${extension.scope} scope, ${extension.lock.enabled ? "enabled" : "disabled"}, on ${extension.lock.installed}, from ${describe(extension).split("  from ")[1]}`),
     ...field("Data", (await stat(extension.dataDir).catch(() => null))?.isDirectory() ? `${extension.dataDir} (${formatSize(await folderSize(extension.dataDir))})` : undefined),

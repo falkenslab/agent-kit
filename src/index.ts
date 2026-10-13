@@ -51,6 +51,7 @@ export {
   type InstalledExtension,
   type LockEntry,
 } from "./core/externalExtensions.js";
+export { packageCacheDir, type CachedPackage } from "./core/npxPackages.js";
 export {
   addMarketplace,
   findPlugin,

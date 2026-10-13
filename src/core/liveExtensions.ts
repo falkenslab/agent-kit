@@ -2,6 +2,7 @@ import { cp, lstat, mkdir, readdir, rm, symlink, unlink } from "node:fs/promises
 import path from "node:path";
 import type { ExtensionsStatus } from "./session.js";
 import { hashExtension, listInstalled, readLock } from "./externalExtensions.js";
+import { cachedPackagesIntact, packageCacheDir } from "./npxPackages.js";
 import type { SessionLive, StaticSessionFacts } from "./sessionFacts.js";
 import type { ToolLabels } from "./toolLabels.js";
 
@@ -102,6 +103,8 @@ export function createExtensionSwitch(extensions: readonly LiveExtension[], targ
       // A linked one's aren't checked: it's being developed, and a rebuild is why it's turned on again.
       const lock = (await readLock(extension.scopeDir))[name];
       if (!lock || (!lock.linked && lock.sha256 !== (await hashExtension(extension.installedDir)))) return false;
+      // The packages its npx servers run (#54), checked whether it's linked or not.
+      if (!(await cachedPackagesIntact(packageCacheDir(targets.status.dirs), lock.packages))) return false;
       await mountPlugin(extension.installedDir, extension.pluginMount);
     } else {
       await unmountPlugin(extension.pluginMount);

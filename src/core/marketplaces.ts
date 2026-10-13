@@ -260,12 +260,14 @@ export function resolvePluginSource(marketplace: KnownMarketplace, plugin: Marke
 
 /**
  * Installs `<plugin>@<marketplace>` (or a plugin only one known marketplace offers) into a scope,
- * locked with where it came from. Its name in the agent is its `plugin.json`'s, as for any extension.
+ * locked with where it came from (the packages its npx servers run into `options.packages`, #54).
+ * Its name in the agent is its `plugin.json`'s, as for any extension.
  */
 export async function installFromMarketplace(
   dir: string,
   spec: string,
   scopeDir: string,
+  options: { packages?: string } = {},
 ): Promise<{ name: string; replaced: boolean; commit?: string; marketplace: string }> {
   const { marketplace, plugin } = await findPlugin(dir, spec);
   const resolved = resolvePluginSource(marketplace, plugin);
@@ -274,7 +276,7 @@ export async function installFromMarketplace(
     const { name, version, registry } = resolved.npm;
     const fetched = await fetchNpmPlugin(name, version, registry);
     try {
-      return { ...(await addExtension(fetched.dir, scopeDir, { marketplace: from, origin: `npm:${name}@${fetched.version}` })), marketplace: marketplace.name };
+      return { ...(await addExtension(fetched.dir, scopeDir, { ...options, marketplace: from, origin: `npm:${name}@${fetched.version}` })), marketplace: marketplace.name };
     } finally {
       await rm(fetched.dir, { recursive: true, force: true });
     }
@@ -282,12 +284,13 @@ export async function installFromMarketplace(
   if ("archive" in resolved) {
     const fetched = await fetchArchivePlugin(resolved.archive.url, resolved.archive.sha256);
     try {
-      return { ...(await addExtension(fetched.root, scopeDir, { marketplace: from, origin: resolved.archive.url })), marketplace: marketplace.name };
+      return { ...(await addExtension(fetched.root, scopeDir, { ...options, marketplace: from, origin: resolved.archive.url })), marketplace: marketplace.name };
     } finally {
       await rm(fetched.dir, { recursive: true, force: true });
     }
   }
   const result = await addExtension(resolved.source, scopeDir, {
+    ...options,
     ...(resolved.subdir ? { subdir: resolved.subdir } : {}),
     ...(resolved.sha ? { sha: resolved.sha } : {}),
     marketplace: from,

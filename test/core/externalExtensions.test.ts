@@ -96,7 +96,7 @@ test("add copies a folder into a scope, locks it by hash and enables it; remove,
   await assert.rejects(addExtension(noServer, scope), /no script at server[\\/]index\.mjs/);
   const python = makeExtension("snake");
   fs.writeFileSync(path.join(python, ".mcp.json"), JSON.stringify({ mcpServers: { snake: { command: "python", args: ["server.py"] } } }));
-  await assert.rejects(addExtension(python, scope), /with "python": only Node servers can be installed/);
+  await assert.rejects(addExtension(python, scope), /with "python": only Node servers, or npx with a package.s exact version, can be installed/);
 });
 
 test("add clones a git repository at a ref and records its commit", async () => {
