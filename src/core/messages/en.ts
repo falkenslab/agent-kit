@@ -73,6 +73,14 @@ export interface Messages {
   extensionConfirm(spec: string, marketplace: string): string;
   extensionsBusy: string;
   extensionsReloaded: string;
+  /** MCP elicitation (#58): a server asking the person for something. */
+  elicitTitle(server: string): string;
+  elicitQuestion: string;
+  elicitAgain: string;
+  elicitNotANumber(text: string): string;
+  elicitOutOfRange(minimum?: number, maximum?: number): string;
+  elicitUrlTitle(server: string): string;
+  elicitUrlQuestion: string;
   currentRun: string;
   resumed(date: string): string;
 
@@ -224,6 +232,13 @@ export const en: Messages = {
   extensionConfirm: (spec, marketplace) => `(${spec} comes from ${marketplace}, not this agent's own marketplace: it would run on this computer with your permissions. /extensions install ${spec} --yes installs it)`,
   extensionsBusy: "(after this turn: the agent is working)",
   extensionsReloaded: "(the session reopens with the extensions installed now, keeping the conversation)",
+  elicitTitle: (server) => `${server} asks you`,
+  elicitQuestion: "Answer it? (Enter/y: answer, n: decline, q: cancel) ",
+  elicitAgain: "That isn't a valid value: try again, or leave it empty.",
+  elicitNotANumber: (text) => `"${text}" isn't a number`,
+  elicitOutOfRange: (minimum, maximum) => `between ${minimum ?? "…"} and ${maximum ?? "…"}`,
+  elicitUrlTitle: (server) => `${server} asks you to open a page`,
+  elicitUrlQuestion: "Open it yourself, then Enter when you're done (n: decline) ",
   currentRun: "(this one)",
   resumed: (date) => `(resumed the conversation of ${date})`,
 

@@ -1,3 +1,5 @@
+import type { FormAnswer, FormRequest } from "./elicitation.js";
+
 /** What a checkpoint shows the person: a title, detail lines and, in a plain terminal, the question. */
 export interface ApprovalPrompt {
   title: string;
@@ -45,6 +47,12 @@ export interface InteractionPort {
    * `askDecision()`, with the options numbered in the prompt.
    */
   askChoice?(prompt: ApprovalPrompt, choice: ChoiceSettings, signal: AbortSignal): Promise<string>;
+  /**
+   * A form an MCP server asks for (elicitation, #58), whole: its fields, and the person's
+   * values, or that they declined or cancelled. Optional: without it the kit asks field by
+   * field through the other methods. Never written to a log: the answer is the server's.
+   */
+  askForm?(form: FormRequest, signal: AbortSignal): Promise<FormAnswer>;
   /** A one-way message for the person. */
   notify(message: string): void;
 }

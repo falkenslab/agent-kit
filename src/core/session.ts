@@ -27,6 +27,7 @@ import { createRunStore, type RunFolder } from "./runs.js";
 import { createSessionView, registerSessionView, type SessionView, type StaticSessionFacts } from "./sessionFacts.js";
 import { createExtensionRestart, createExtensionSwitch, mountPlugin, type ExtensionRestart, type ExtensionSwitch } from "./liveExtensions.js";
 import { secretsDir } from "./extensionOptions.js";
+import { createElicitationHandler } from "./elicitation.js";
 import { createReadOnlyHints } from "./readOnlyHints.js";
 import { agentKitVersion } from "./version.js";
 
@@ -315,6 +316,9 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       // The date and date arithmetic, in every session and mode: only reads (tools/time.ts).
       time: createTimeServer(config.timeZone),
     },
+    // A server asking the person for something mid-tool (MCP elicitation, #58): through the
+    // interaction port, never the model; declined when no one can be asked (autonomous).
+    onElicitation: createElicitationHandler(runDir, () => modeControl.mode !== "autonomous"),
     hooks: {
       PreToolUse: [
         { hooks: [transcriptLogger.preToolUse] },

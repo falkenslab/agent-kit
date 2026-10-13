@@ -3,6 +3,7 @@ import path from "node:path";
 import type { Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { Mode } from "../core/agentSpec.js";
 import { getInteractionPort, setInteractionPort, type ApprovalPrompt, type ChoiceSettings, type InteractionPort } from "../core/interaction.js";
+import type { FormAnswer, FormRequest } from "../core/elicitation.js";
 import { getLanguage, switchLanguage, t } from "../core/messages/index.js";
 import { LANGUAGE_NAMES, type Language } from "../core/language.js";
 import { runQuery, type AgentEvent, type AgentRun, type SessionUsage } from "../core/runner.js";
@@ -90,7 +91,11 @@ export type TranscriptEntry =
 export type NoticeTone = "plain" | "dim" | "warn" | "error";
 
 /** What a checkpoint asks: an approval, a confirmation after a manual step, free text, or a choice. */
-export type ChatQuestion = { kind: "decision" | "manual" | "text"; prompt: ApprovalPrompt } | { kind: "choice"; prompt: ApprovalPrompt; choice: ChoiceSettings };
+export type ChatQuestion =
+  | { kind: "decision" | "manual" | "text"; prompt: ApprovalPrompt }
+  | { kind: "choice"; prompt: ApprovalPrompt; choice: ChoiceSettings }
+  /** A form an MCP server asks for (#58): answered with `answer(id, JSON.stringify({ action, content }))`. */
+  | { kind: "form"; prompt: ApprovalPrompt; form: FormRequest };
 
 /** A checkpoint waiting for the person's answer, with `panels: "state"`. */
 export type ChatPanel = ChatQuestion & { id: number };
@@ -493,6 +498,16 @@ export async function createChatController(options: Options | SessionOpener, set
     askManualIntervention: (prompt, signal) => ask({ kind: "manual", prompt }, signal),
     askText: (prompt, signal) => ask({ kind: "text", prompt }, signal),
     askChoice: (prompt, choice, signal) => ask({ kind: "choice", prompt, choice }, signal),
+    // The answer is the form's, JSON; anything else (the panel dropped) is a cancel.
+    askForm: async (form, signal) => {
+      const raw = await ask({ kind: "form", prompt: { title: form.server, lines: [form.message] }, form }, signal);
+      try {
+        const answer = JSON.parse(raw) as FormAnswer;
+        return answer.action === "accept" ? { action: "accept", content: answer.content ?? {} } : { action: answer.action === "decline" ? "decline" : "cancel" };
+      } catch {
+        return { action: "cancel" };
+      }
+    },
     notify: (message) => notice(message),
   };
   const previousPort = settings.panels === "state" ? getInteractionPort() : null;

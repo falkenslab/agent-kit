@@ -136,6 +136,8 @@ If a server fails to connect, the session still starts and the chat shows a noti
 
 A workspace's own `.mcp.json` (in `projectDir`) can declare more servers, loaded with the project's settings (see [Permissions and isolation](../security/permissions-and-isolation.md)). The kit approves their tools without knowing their names in advance.
 
+A server can also ask the person for something while a tool runs (a form, or a page to open): see [Servers asking the person](../human-in-the-loop/elicitation.md).
+
 ## How MCP tools are approved
 
 The kit passes `canUseTool: allowAnyMcpTool`: any `mcp__<server>__<tool>` call is approved silently, anything else that reaches it is denied. There's no per-server allow list to maintain, because an `allowedTools` wildcard like `mcp__*` doesn't match `mcp__<server>__<tool>` in the SDK (confirmed by hand), and servers from `.mcp.json` aren't known ahead of time.

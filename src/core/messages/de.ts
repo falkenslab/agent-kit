@@ -60,6 +60,13 @@ export const de: Partial<Messages> = {
   extensionConfirm: (spec, marketplace) => `(${spec} kommt aus ${marketplace}, nicht aus dem Marketplace dieses Agenten: es liefe auf diesem Computer mit deinen Rechten. /extensions install ${spec} --yes installiert es)`,
   extensionsBusy: "(nach diesem Zug: der Agent arbeitet)",
   extensionsReloaded: "(die Sitzung wird mit den jetzt installierten Erweiterungen neu geöffnet, mit demselben Gespräch)",
+  elicitTitle: (server) => `${server} fragt dich`,
+  elicitQuestion: "Antworten? (Enter/y: antworten, n: ablehnen, q: abbrechen) ",
+  elicitAgain: "Das ist kein gültiger Wert: versuch es nochmal, oder lass es leer.",
+  elicitNotANumber: (text) => `„${text}“ ist keine Zahl`,
+  elicitOutOfRange: (minimum, maximum) => `zwischen ${minimum ?? "…"} und ${maximum ?? "…"}`,
+  elicitUrlTitle: (server) => `${server} bittet dich, eine Seite zu öffnen`,
+  elicitUrlQuestion: "Öffne sie selbst, dann Enter, wenn du fertig bist (n: ablehnen) ",
   currentRun: "(dieses)",
   resumed: (date) => `(Gespräch vom ${date} fortgesetzt)`,
 

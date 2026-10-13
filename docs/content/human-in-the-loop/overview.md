@@ -14,6 +14,7 @@ A **checkpoint** is a moment when the agent stops and waits for a person. The ki
 | Manual intervention | the [manual login tool](manual-intervention.md) | Done, continue | [Manual intervention](manual-intervention.md) |
 | Choice | `ask_human`, and `present_plan` in plan mode | One or more options, or one's own words | [Choices and plans](choices-and-plans.md) |
 | Text | `request_file` | A path, or nothing | [Sources](../capabilities/knowledge-base.md#adding-originals) |
+| Form, or a page to open | an MCP server, mid-tool (elicitation) | Its values, or declined, or cancelled; the answer goes to the server, not the model | [Servers asking the person](elicitation.md) |
 
 Your own tools and hooks can ask too, with the same functions: [`askForDecision()`](#asking-from-your-own-code), `askForManualIntervention()`, [`askForChoice()`](choices-and-plans.md#asking-from-your-own-code) and `askForText()`.
 

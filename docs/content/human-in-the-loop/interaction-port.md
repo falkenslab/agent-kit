@@ -25,6 +25,8 @@ interface InteractionPort {
   askText?(prompt: ApprovalPrompt, signal: AbortSignal): Promise<string>;
   /** Optional: a choice; resolves to the numbers ("1", "1,3") and/or the person's own words on the next line. */
   askChoice?(prompt: ApprovalPrompt, choice: { options: readonly string[]; multiple: boolean }, signal: AbortSignal): Promise<string>;
+  /** Optional: a form an MCP server asks for, whole; resolves to { action, content? }. */
+  askForm?(form: FormRequest, signal: AbortSignal): Promise<FormAnswer>;
   /** A one-way message for the person. */
   notify(message: string): void;
 }
@@ -32,7 +34,7 @@ interface InteractionPort {
 
 One port is installed per process: `setInteractionPort(port)` and `getInteractionPort()`.
 
-`askText` and `askChoice` are optional: a port without them gets the question through `askDecision` (a choice with its options numbered in the lines), which a terminal reads as text anyway; the kit's own ports implement both (the Ink port with a text field, and a list with "Other"). Their answers keep their case, unlike a decision's. An `ApprovalPrompt` with `markdown: true` (a plan) should be rendered as markdown where the UI can.
+`askForm` is optional too: without it, [a form a server asks for](elicitation.md) is asked field by field through the other methods; the chat controller's port (`panels: "state"`) has it. `askText` and `askChoice` are optional: a port without them gets the question through `askDecision` (a choice with its options numbered in the lines), which a terminal reads as text anyway; the kit's own ports implement both (the Ink port with a text field, and a list with "Other"). Their answers keep their case, unlike a decision's. An `ApprovalPrompt` with `markdown: true` (a plan) should be rendered as markdown where the UI can.
 
 ## The ports the kit installs
 

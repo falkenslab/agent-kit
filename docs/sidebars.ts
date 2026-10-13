@@ -54,6 +54,7 @@ const sidebars: SidebarsConfig = {
         "human-in-the-loop/approvals",
         "human-in-the-loop/choices-and-plans",
         "human-in-the-loop/manual-intervention",
+        "human-in-the-loop/elicitation",
         "human-in-the-loop/response-file",
         "human-in-the-loop/interaction-port",
       ],

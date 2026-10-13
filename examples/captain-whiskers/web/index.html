@@ -195,7 +195,7 @@
   .ext { padding: 12px 13px; border: 1px solid var(--line); background: var(--bg-2); border-radius: 12px; margin-bottom: 8px; }
   .ext .top { display: flex; align-items: center; gap: 10px; }
   .ext .name { font-weight: 650; flex: 1; } .ext .ver { font-size: 12px; color: var(--dim); font-weight: 400; margin-left: 6px; }
-  .ext .desc { font-size: 13.5px; color: var(--text-2); margin-top: 4px; } .ext .why { font-size: 13px; color: var(--warn); margin-top: 4px; }
+  .ext .desc { font-size: 13.5px; color: var(--text-2); margin-top: 4px; } .ext .why, .dialog .why { font-size: 13px; color: var(--warn); margin-top: 4px; }
   .ext .badge, .opt .badge { font-size: 11.5px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
   .ext .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
   .tabs { display: flex; gap: 6px; margin: 2px 0 12px; }
@@ -836,6 +836,84 @@ const button = (label, cls, onClick) => {
   return b;
 };
 
+// A form an MCP server asks for (#58): who asks, its message, a field per value; what the person
+// sends goes back to the server, never to the captain.
+function buildForm(dialog, form, done) {
+  dialog.innerHTML = `<div class="kicker">${escape(fillIn(T.formFrom, { server: form.server }))}</div><h2>${escape(form.message)}</h2>`;
+  const fields = [];
+  for (const field of form.fields) {
+    const wrap = document.createElement("label");
+    wrap.className = "opt";
+    wrap.innerHTML = `<div class="opt-title">${escape(field.title)}${field.required ? ` <span class="badge">${escape(T.required)}</span>` : ""}</div>${field.description ? `<div class="desc">${escape(field.description)}</div>` : ""}`;
+    let input;
+    if (field.type === "boolean") {
+      input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = field.default === true;
+    } else if (field.options && field.multiple) {
+      input = document.createElement("div");
+      for (const option of field.options) {
+        const line = document.createElement("label");
+        line.className = "check";
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.value = option.value;
+        box.checked = Array.isArray(field.default) && field.default.includes(option.value);
+        line.append(box, document.createTextNode(` ${option.label}`));
+        input.append(line);
+      }
+    } else if (field.options) {
+      input = document.createElement("select");
+      input.className = "field";
+      for (const option of field.options) {
+        const item = document.createElement("option");
+        item.value = option.value;
+        item.textContent = option.label;
+        item.selected = String(field.default) === option.value;
+        input.append(item);
+      }
+    } else {
+      input = document.createElement("input");
+      input.className = "field";
+      input.type = field.type === "string" ? "text" : "number";
+      if (field.minimum !== undefined) input.min = field.minimum;
+      if (field.maximum !== undefined) input.max = field.maximum;
+      input.value = field.default === undefined ? "" : String(field.default);
+    }
+    if (!fields.length) input.dataset.autofocus = "1";
+    wrap.append(input);
+    dialog.append(wrap);
+    fields.push({ field, input });
+  }
+  const error = document.createElement("div");
+  error.className = "why";
+  const row = document.createElement("div");
+  row.className = "actions";
+  const send = () => {
+    const content = {};
+    for (const { field, input } of fields) {
+      let value;
+      if (field.type === "boolean") value = input.checked;
+      else if (field.options && field.multiple) value = [...input.querySelectorAll("input:checked")].map((box) => box.value);
+      else if (field.options) value = field.type === "string" ? input.value : Number(input.value);
+      else if (input.value.trim() === "") value = undefined;
+      else value = field.type === "string" ? input.value : Number(input.value);
+      if (value === undefined || (Array.isArray(value) && !value.length)) {
+        if (field.required) return void (error.textContent = fillIn(T.formMissing, { field: field.title }));
+        continue;
+      }
+      if (typeof value === "number" && (Number.isNaN(value) || (field.type === "integer" && !Number.isInteger(value)))) return void (error.textContent = fillIn(T.formMissing, { field: field.title }));
+      content[field.key] = value;
+    }
+    done({ action: "accept", content });
+  };
+  row.append(button(T.cancel, "", () => done({ action: "cancel" })), button(T.formDecline, "", () => done({ action: "decline" })), button(T.formSend, "primary", send));
+  dialog.append(error, row);
+  dialogKeys = (event) => {
+    if (event.key === "Escape") done({ action: "cancel" });
+  };
+}
+
 function renderDialog(chat) {
   const key = chat.panel ? `panel-${chat.panel.id}` : chat.choice ? `choice-${chat.choice.title}-${chat.choice.options.length}` : null;
   if (key === shownKey) return;
@@ -847,6 +925,7 @@ function renderDialog(chat) {
 
 function buildPanel(dialog, panel) {
   const answer = (value) => void act("answer", { panelId: panel.id, answer: value });
+  if (panel.kind === "form") return buildForm(dialog, panel.form, (result) => answer(JSON.stringify(result)));
   const kicker = { decision: T.approval, manual: T.manual, text: T.question, choice: T.question }[panel.kind] ?? "";
   // A question's first line is the question: the title, under the captain's kicker (the kit's
   // own title, "The agent asks", says the same). An approval keeps its title.
