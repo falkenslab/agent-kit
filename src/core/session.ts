@@ -382,6 +382,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const toolLabels: ToolLabels = Object.assign({}, ...added.map((contribution) => contribution.toolLabels ?? {}));
   const extensions: ExtensionsStatus = {
     dirs: extensionDirs,
+    ...(config.officialMarketplace ? { official: config.officialMarketplace } : {}),
     installed: await listInstalled(extensionDirs),
     active: resolved.active.map(({ extension }) => extension.name),
     about: Object.fromEntries(resolved.active.map(({ extension, manifest }) => [extension.name, { description: manifest.description, provides: manifest.provides }])),
@@ -443,6 +444,8 @@ export { createModeControl, togglePlanMode, type ModeControl } from "./modeContr
 /** The extensions of a session: where they're installed, what's installed, what runs and what can't (with why). */
 export interface ExtensionsStatus {
   dirs: ExtensionDirs;
+  /** The agent's own marketplace (`officialMarketplace`), for the chats' catalog. */
+  official?: string;
   installed: InstalledExtension[];
   /** The names of the extensions this session runs with, the kit's and the agent's too. */
   active: string[];

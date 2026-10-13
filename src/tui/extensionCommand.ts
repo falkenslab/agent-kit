@@ -6,7 +6,6 @@ import {
   findPlugin,
   inspectMarketplace,
   installFromMarketplace,
-  listMarketplaces,
   removeMarketplace,
   updateMarketplace,
   type KnownMarketplace,
@@ -26,6 +25,7 @@ import {
 } from "../core/externalExtensions.js";
 import { describe, describeOptions } from "../chat/extensions.js";
 import { packageCacheDir } from "../core/npxPackages.js";
+import { extensionCatalog, knownMarketplaces as catalogMarketplaces, updateExtension } from "../core/extensionCatalog.js";
 
 export { chatExtensionsCommand, describe } from "../chat/extensions.js";
 
@@ -42,6 +42,7 @@ export { chatExtensionsCommand, describe } from "../chat/extensions.js";
  * - `extension remove <name> [--project | --agent] [--yes | --keep-data]`: asks before deleting its data folder
  * - `extension enable|disable <name> [--project | --agent]`
  * - `extension config <name> [key=value… | key… | --unset key…] [--project | --agent]`: its options; `key` alone asks for it (without echo when it's a secret)
+ * - `extension update [name] [--yes]`: one installed from a marketplace (or all that have a newer version there) to the version it offers now, its data and options kept
  * - `extension search [words]`: what the known marketplaces offer
  * - `extension marketplace add <folder | git URL[#ref] | owner/repo> [--yes]`, `list`, `update [name]`, `remove <name>`
  *
@@ -114,16 +115,7 @@ export async function runExtensionCommand(
   };
   const confirmed = async (question: string, accepts: (typed: string) => boolean): Promise<boolean> => flag("yes") || accepts((await ask(question)).trim());
   // The agent's own marketplace, known without asking; a folder is copied afresh each time (it's the agent's own code).
-  const knownMarketplaces = async (): Promise<KnownMarketplace[]> => {
-    if (!marketsDir) throw new Error("This agent has no folder for extensions.");
-    const known = await listMarketplaces(marketsDir);
-    const official = options.official;
-    if (official && !(isGitSource(official) && known.some((marketplace) => marketplace.official))) {
-      await addMarketplace(official, marketsDir, { official: true });
-      return listMarketplaces(marketsDir);
-    }
-    return known;
-  };
+  const knownMarketplaces = (): Promise<KnownMarketplace[]> => catalogMarketplaces(options.dirs, options.official);
 
   try {
     switch (action) {
@@ -232,19 +224,29 @@ export async function runExtensionCommand(
         return true;
       }
       case "search": {
-        const words = positional.map((word) => word.toLowerCase());
-        const installed = new Set((await listInstalled(options.dirs)).map((extension) => extension.name));
-        const offered = (await knownMarketplaces()).flatMap((marketplace) => (marketplace.manifest?.plugins ?? []).map((plugin) => ({ marketplace, plugin })));
-        const matching = offered.filter(({ plugin }) => {
-          const text = [plugin.name, plugin.description, plugin.category, ...(plugin.tags ?? []), ...(plugin.keywords ?? [])].join(" ").toLowerCase();
-          return words.every((word) => text.includes(word));
-        });
+        const matching = await extensionCatalog(options.dirs, { ...(options.official ? { official: options.official } : {}), words: positional });
         if (!matching.length) {
-          write(offered.length ? "No extension matches." : `No marketplace offers extensions yet. \`${command} extension marketplace add <folder | git URL | owner/repo>\` adds one.`);
+          const offered = (await knownMarketplaces()).some((marketplace) => marketplace.manifest?.plugins.length);
+          write(offered ? "No extension matches." : `No marketplace offers extensions yet. \`${command} extension marketplace add <folder | git URL | owner/repo>\` adds one.`);
           return true;
         }
-        for (const { marketplace, plugin } of matching) {
-          write(`${plugin.name}@${marketplace.name}${plugin.version ? ` ${plugin.version}` : ""}${installed.has(plugin.name) ? " (installed)" : ""}${plugin.description ? `  ${plugin.description}` : ""}`);
+        for (const entry of matching) {
+          const state = entry.installed ? (entry.update ? ` (installed: ${entry.installed.manifest?.version ?? "?"}, update available)` : " (installed)") : "";
+          write(`${entry.spec}${entry.version ? ` ${entry.version}` : ""}${state}${entry.plugin.description ? `  ${entry.plugin.description}` : ""}`);
+        }
+        return true;
+      }
+      case "update": {
+        const name = positional[0];
+        const official = options.official ? { official: options.official } : {};
+        const names = name ? [name] : (await extensionCatalog(options.dirs, official)).filter((entry) => entry.update).map((entry) => entry.plugin.name);
+        if (!names.length) {
+          write("Every extension from a marketplace is up to date.");
+          return true;
+        }
+        for (const each of names) {
+          const result = await updateExtension(options.dirs, each, official);
+          write(`Updated ${each}${result.from || result.to ? ` (${result.from ?? "?"} → ${result.to ?? "?"})` : ""} in the ${result.scope} scope: its data and options kept. It runs from the next session.`);
         }
         return true;
       }
@@ -261,6 +263,7 @@ export async function runExtensionCommand(
             "  remove <name> [--project | --agent] [--yes | --keep-data]",
             "  enable|disable <name> [--project | --agent]",
             "  config <name> [key=value… | key… | --unset key…]   its options (key alone asks for it)",
+            "  update [name]                          to the version its marketplace offers now (all that have one, without a name)",
             "  search [words]                         what the known marketplaces offer",
             "  marketplace add <folder | git URL[#ref] | owner/repo> [--yes]",
             "  marketplace list | update [name] | remove <name>",

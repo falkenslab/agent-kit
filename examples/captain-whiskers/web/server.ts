@@ -2,7 +2,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
-import { addMarketplace, agentKitVersion, createChatController, getLanguage, installFromMarketplace, listInstalled, resolveClaudeAuth, SUPPORTED_LANGUAGES, switchLanguage, type ChatController, type Language, type Mode } from "@falkenslab/agent-kit";
+import { addMarketplace, agentKitVersion, createChatController, getLanguage, installFromMarketplace, listMarketplaces, resolveClaudeAuth, SUPPORTED_LANGUAGES, switchLanguage, type ChatController, type Language, type Mode } from "@falkenslab/agent-kit";
 import { CAPTAIN_DIR, claudeKeyVariable, SHIPYARD, loadConfig, saveConfig, texts, useSavedClaudeKey, version, type createCaptain } from "../captain.js";
 import { chestTexts, pageTexts } from "./texts.js";
 
@@ -30,8 +30,9 @@ const MAX_UPLOAD = 50 * 1024 * 1024;
 export async function startWebChat(captain: Captain, options: WebChatOptions = {}): Promise<{ url: string; close: () => Promise<void> }> {
   const token = options.token ?? randomBytes(18).toString("base64url");
   // His jokebook comes with him, in the browser as in the app: installed for him on the first
-  // start from his official marketplace, like any extension.
-  if (!(await listInstalled(captain.extensionDirs)).some((extension) => extension.name === "jokebook")) {
+  // start from his official marketplace, like any extension. Only the first: once he knows his
+  // marketplace, one the person uninstalled stays uninstalled.
+  if (!(await listMarketplaces(captain.extensionDirs.agent)).length) {
     await addMarketplace(SHIPYARD, captain.extensionDirs.agent, { official: true });
     await installFromMarketplace(captain.extensionDirs.agent, "jokebook@shipyard", captain.extensionDirs.agent);
   }
@@ -136,6 +137,40 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
       case "extension":
         if (current.getState().busy) return { error: "busy" };
         await current.setExtension(String(data.name), Boolean(data.enabled));
+        return {};
+      // His extensions' catalog (#56): what his shipyard (and any other marketplace he knows)
+      // offers, installing, updating, uninstalling and their settings, without a shell.
+      case "catalog":
+        return {
+          entries: (await current.extensionCatalog(String(data.words ?? "").split(/s+/).filter(Boolean))).map((entry) => ({
+            spec: entry.spec,
+            name: entry.plugin.name,
+            marketplace: entry.marketplace,
+            official: entry.official,
+            version: entry.version ?? null,
+            description: entry.plugin.description ?? "",
+            installed: Boolean(entry.installed),
+            update: entry.update,
+          })),
+        };
+      case "install":
+        return await current.installExtension(String(data.spec), { confirmed: Boolean(data.confirmed) });
+      case "update":
+        return { updated: await current.updateExtension(data.name ? String(data.name) : undefined) };
+      case "remove":
+        if (current.getState().busy) return { error: "busy" };
+        await current.removeExtension(String(data.name), { deleteData: Boolean(data.deleteData) });
+        return {};
+      case "options":
+        return { options: await current.extensionOptions(String(data.name)) };
+      case "set-options":
+        if (current.getState().busy) return { error: "busy" };
+        // null clears a value (JSON has no undefined).
+        await current.setExtensionOptions(String(data.name), Object.fromEntries(Object.entries((data.values ?? {}) as Record<string, unknown>).map(([key, value]) => [key, value === null ? undefined : String(value)])));
+        return {};
+      case "reload":
+        if (current.getState().busy) return { error: "busy" };
+        await current.reopen();
         return {};
       case "language": {
         const language = String(data.language) as Language;

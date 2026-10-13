@@ -95,6 +95,7 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 | `extension disable <name>` | Turns it off, keeping it installed. |
 | `extension config <name>` | Its [options](#its-options) and their values (a secret only says whether it's set). |
 | `extension config <name> <key>=<value>…` | Sets them. `<key>` alone asks for its value, without echo for a secret (so it stays out of the shell's history); `--unset <key>` clears one. |
+| `extension update [name]` | Updates one installed from a marketplace to the version it offers now (a fresh copy of the marketplace first), or every one with a newer version without a name; its data and options are kept. One installed from a folder or a repository is updated by adding it again. |
 | `extension search [words]` | What the known marketplaces offer, matching the words in a plugin's name, description, category, tags or keywords; installed ones are marked. |
 | `extension marketplace add <folder \| git URL[#ref] \| owner/repo>` | Adds a marketplace after a warning and typing its name. |
 | `extension marketplace list` | The known marketplaces: the official one marked, how many extensions each offers, where from and when it was copied. |
@@ -139,9 +140,19 @@ An agent knows the marketplaces added to it, in its agent scope (the project's w
 
 The functions behind the command are exported too, for a host with its own interface (a desktop app's extensions panel): `addMarketplace()`, `inspectMarketplace()` (read one without adding it), `listMarketplaces()`, `updateMarketplace()`, `removeMarketplace()`, `findPlugin()` and `installFromMarketplace()`. They ask nothing: asking the person is the host's.
 
+### The catalog
+
+What the agent's marketplaces offer is its catalog, in the command (`search`, `add`, `update`) and in the chats, so a person without a shell (a desktop app) installs and updates extensions too. The agent names its own marketplace in its config, `officialMarketplace` (a folder or a git URL), as it passes `official` to the command: the chats offer what it has, installed without a confirmation; one from any other marketplace the agent knows asks first.
+
+- **What it lists**: each extension with the version it offers (its `plugin.json`'s, which wins over the marketplace's entry, as in Claude Code), whether it's installed, and whether one installed from that marketplace has a newer version there.
+- **Installing** puts it in the agent's scope, enabled; the running session is untouched, so the conversation going on isn't changed under it. It's there in a new conversation, or now: `/extensions reload` (`reopen()`) opens the session again with it, keeping the conversation.
+- **Updating** takes a fresh copy of its marketplace and installs it again in the same scope, its data and options kept.
+- **Uninstalling** turns it off in the running session first, and deletes its data only when asked.
+- In a host of your own, the chat controller's `extensionCatalog()`, `installExtension()`, `updateExtension()`, `removeExtension()`, `extensionOptions()`, `setExtensionOptions()` and `reopen()` do it (see [Custom hosts](../advanced/custom-hosts.md)); the core's `extensionCatalog()`, `installExtension()` and `updateExtension()` without a chat.
+
 ### In the chat
 
-`/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and apply it (the chat must have a session opener). `/extensions config <name>` lists its [options](#its-options), and `/extensions config <name> <key>=<value>…` sets them and restarts its servers in the same session; never a secret, since what's typed in a chat is kept in its history. It works in both chats.
+`/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and apply it (the chat must have a session opener). `/extensions config <name>` lists its [options](#its-options), and `/extensions config <name> <key>=<value>…` sets them and restarts its servers in the same session; never a secret, since what's typed in a chat is kept in its history. The [catalog](#the-catalog): `/extensions search [words]`, `/extensions install <name>` (`--yes` for one from another marketplace, after reading what it says), `/extensions update [name]`, `/extensions remove <name>` (`--delete-data` to delete its data) and `/extensions reload`. It works in both chats.
 
 **In the same session** when the extension was running when the session opened: its MCP servers are switched off (their tools leave the model's context) and its plugin is unloaded (its skills, commands and subagents go), and back again on `enable`. The kit's gates, the chat's labels, the commands, `/extensions` and [awareness](awareness.md)'s `about_me` follow, and the model is told with the person's next message, since the prompt's Extensions section still says what the session opened with. To do it, each session loads an installed extension's plugin through a link in the run's folder (`<runDir>/extensions/<name>/`, a junction on Windows), which it removes and makes again: nothing is copied, however large its `node_modules`, and what's installed is never touched. Where a link can't be made (a disk without them), it's a copy, emptied and filled.
 

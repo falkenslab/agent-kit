@@ -2,6 +2,7 @@ import path from "node:path";
 import { extensionOptionStates, setExtensionEnabled, setExtensionOptions, type InstalledExtension } from "../core/externalExtensions.js";
 import type { ExtensionsStatus } from "../core/session.js";
 import { t } from "../core/messages/index.js";
+import { extensionCatalog, type CatalogEntry } from "../core/extensionCatalog.js";
 
 /** One line for an installed extension: name and version, scope, on or off, its author, where it came from. */
 export function describe(extension: InstalledExtension): string {
@@ -12,6 +13,19 @@ export function describe(extension: InstalledExtension): string {
   const version = extension.manifest?.version ? ` ${extension.manifest.version}` : "";
   const author = extension.manifest?.author ? `  by ${extension.manifest.author.name}` : "";
   return `${extension.name}${version}  [${extension.scope}]  ${state}${author}  from ${source}`;
+}
+
+/** What the chat does for `/extensions install|update|remove|reload` (#56). */
+export type ExtensionAction =
+  | { type: "install"; spec: string; confirmed: boolean }
+  | { type: "update"; name?: string }
+  | { type: "remove"; name: string; deleteData: boolean }
+  | { type: "reload" };
+
+/** One line for a catalog entry: what installs it, its version, whether it's installed or has an update, what it is. */
+export function describeEntry(entry: CatalogEntry): string {
+  const state = entry.installed ? (entry.update ? ` ${t().extensionUpdateAvailable(entry.installed.manifest?.version ?? "?")}` : ` ${t().extensionIsInstalled}`) : "";
+  return `${entry.spec}${entry.version ? ` ${entry.version}` : ""}${state}${entry.plugin.description ? `  ${entry.plugin.description}` : ""}`;
 }
 
 /** An installed extension's options, one line each: its value, its default, or whether a sensitive one is set (never its value). */
@@ -28,16 +42,28 @@ export async function describeOptions(extension: InstalledExtension): Promise<st
  * says which (`toggled`): the chat turns it on or off in the running session when it can (#49),
  * and opens the session again otherwise, keeping the conversation. With `config <name>`, its
  * options; with `key=value` after it, sets them (`reconfigured`: the chat restarts its servers,
- * #55). A sensitive one isn't set here: what's typed in a chat is kept in its history. `null`
- * when `line` isn't this command.
+ * #55). A sensitive one isn't set here: what's typed in a chat is kept in its history. The
+ * catalog (#56): `search [words]` lists what the agent's marketplaces offer; `install <name>`,
+ * `update [name]`, `remove <name> [--delete-data]` and `reload` are the chat's to do (`action`),
+ * since they change what the session has. `null` when `line` isn't this command.
  */
 export async function chatExtensionsCommand(
   line: string,
   status: ExtensionsStatus | undefined,
   canReopen: boolean,
-): Promise<{ lines: string[]; toggled?: { name: string; enabled: boolean }; reconfigured?: string } | null> {
+): Promise<{ lines: string[]; toggled?: { name: string; enabled: boolean }; reconfigured?: string; action?: ExtensionAction } | null> {
   const [command, action, name, ...extra] = line.trim().split(/\s+/);
   if (command?.toLowerCase() !== "/extensions") return null;
+  const verb = action?.toLowerCase();
+  if (verb === "search") {
+    const words = [name, ...extra].filter((word): word is string => Boolean(word));
+    const entries = status ? await extensionCatalog(status.dirs, { ...(status.official ? { official: status.official } : {}), words }).catch(() => []) : [];
+    return { lines: entries.length ? entries.map((entry) => `  ${describeEntry(entry)}`) : [t().extensionsNoMatch] };
+  }
+  if (verb === "install" && name) return canReopen ? { lines: [], action: { type: "install", spec: name, confirmed: extra.includes("--yes") } } : { lines: [t().extensionsCantReopen] };
+  if (verb === "update") return canReopen ? { lines: [], action: { type: "update", ...(name ? { name } : {}) } } : { lines: [t().extensionsCantReopen] };
+  if (verb === "remove" && name) return canReopen ? { lines: [], action: { type: "remove", name, deleteData: extra.includes("--delete-data") } } : { lines: [t().extensionsCantReopen] };
+  if (verb === "reload" && !name) return canReopen ? { lines: [], action: { type: "reload" } } : { lines: [t().extensionsCantReopen] };
   if (action?.toLowerCase() === "config" && name) {
     const installed = (status?.installed ?? []).find((extension) => extension.name === name && !extension.shadowed);
     if (!installed) return { lines: [t().extensionNotInstalled(name)] };

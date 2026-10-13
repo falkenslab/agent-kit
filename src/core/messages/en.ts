@@ -62,6 +62,17 @@ export interface Messages {
   extensionOptionsSaved(name: string): string;
   extensionRestarted(name: string): string;
   extensionReconfiguredReopen(name: string): string;
+  /** The catalog in the chat (#56). */
+  extensionsNoMatch: string;
+  extensionIsInstalled: string;
+  extensionUpdateAvailable(installed: string): string;
+  extensionInstalled(name: string): string;
+  extensionUpdated(name: string, from: string, to: string): string;
+  extensionsUpToDate: string;
+  extensionRemoved(name: string, withData: boolean): string;
+  extensionConfirm(spec: string, marketplace: string): string;
+  extensionsBusy: string;
+  extensionsReloaded: string;
   currentRun: string;
   resumed(date: string): string;
 
@@ -191,7 +202,7 @@ export const en: Messages = {
   extensionSwitched: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}, in this same session)`,
   extensionToggled: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}: the session reopens, with the same conversation)`,
   extensionNotInstalled: (name) => `(${name} isn't installed: /extensions lists them)`,
-  extensionsUsage: "(usage: /extensions, /extensions enable <name>, /extensions disable <name>, /extensions config <name> [key=value…])",
+  extensionsUsage: "(usage: /extensions, enable|disable <name>, config <name> [key=value…], search [words], install <name>, update [name], remove <name> [--delete-data], reload)",
   extensionsCantReopen: "(this chat can't reopen its session: enable or disable it from the terminal, and start again)",
   extensionOptions: (name) => `${name}'s options:`,
   extensionNoOptions: (name) => `(${name} has no options)`,
@@ -203,6 +214,16 @@ export const en: Messages = {
   extensionOptionsSaved: (name) => `(${name}'s options saved: they apply when its server starts again)`,
   extensionRestarted: (name) => `(${name}'s options saved, and its server restarted with them, in this same session)`,
   extensionReconfiguredReopen: (name) => `(${name}'s options saved: the session reopens, with the same conversation)`,
+  extensionsNoMatch: "(no extension matches: /extensions search with other words, or none to list them all)",
+  extensionIsInstalled: "(installed)",
+  extensionUpdateAvailable: (installed) => `(installed: ${installed}, update available)`,
+  extensionInstalled: (name) => `(${name} installed: it's there in a new conversation, or now with /extensions reload, keeping this one)`,
+  extensionUpdated: (name, from, to) => `(${name} updated, ${from} → ${to}: it's there in a new conversation, or now with /extensions reload)`,
+  extensionsUpToDate: "(every extension from a marketplace is up to date)",
+  extensionRemoved: (name, withData) => `(${name} removed${withData ? ", with its data" : "; its data is kept for a reinstall"})`,
+  extensionConfirm: (spec, marketplace) => `(${spec} comes from ${marketplace}, not this agent's own marketplace: it would run on this computer with your permissions. /extensions install ${spec} --yes installs it)`,
+  extensionsBusy: "(after this turn: the agent is working)",
+  extensionsReloaded: "(the session reopens with the extensions installed now, keeping the conversation)",
   currentRun: "(this one)",
   resumed: (date) => `(resumed the conversation of ${date})`,
 

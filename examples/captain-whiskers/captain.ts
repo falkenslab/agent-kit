@@ -221,6 +221,8 @@ export async function createCaptain(options: { home?: string; mode?: Mode } = {}
     // Su casa es su proyecto: el modelo ve treasure/ (y logbook/ y memory/, por sus herramientas), y nada más de ella.
     projectDir: home,
     extensionDirs,
+    // Su astillero: el catálogo de /extensions (en la terminal, la web y la app) ofrece lo que tiene.
+    officialMarketplace: SHIPYARD,
     // Su clave de Claude, en config.json: nunca a la vista del modelo.
     deniedPaths: [configPath(home)],
   };

@@ -140,7 +140,7 @@ test("the command: the agent's own marketplace without asking; another after typ
   try {
     // The official one is known without adding it, and installs without a question.
     await run("search", "dice");
-    assert.equal(lines.at(-1), "dice@shipyard  Rolls dice.");
+    assert.equal(lines.at(-1), "dice@shipyard 1.0.0  Rolls dice.");
     await run("add", "dice@shipyard");
     assert.match(lines.at(-1)!, /Installed dice from shipyard in the agent scope/);
     assert.equal(asked.length, 0);
@@ -165,7 +165,7 @@ test("the command: the agent's own marketplace without asking; another after typ
     await run("add", "cards@harbor", "--yes");
     assert.match(lines.at(-1)!, /Installed cards from harbor/);
     await run("search");
-    assert.ok(lines.some((line) => line.startsWith("dice@shipyard (installed)")));
+    assert.ok(lines.some((line) => line.startsWith("dice@shipyard 1.0.0 (installed)")));
   } finally {
     process.exitCode = exit;
   }

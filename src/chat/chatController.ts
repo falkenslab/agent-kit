@@ -12,9 +12,10 @@ import { hasOpenTodos, parseTodos, TODO_TOOL, type Todo } from "../core/todos.js
 import { withToolLabels, withToolPhrases, type ToolLabels } from "../core/toolLabels.js";
 import type { ToolPhrase } from "../core/messages/index.js";
 import { createConsoleRenderer } from "../tui/consoleRenderer.js";
-import { chatExtensionsCommand } from "./extensions.js";
+import { chatExtensionsCommand, type ExtensionAction } from "./extensions.js";
 import type { ExtensionRestart, ExtensionSwitch } from "../core/liveExtensions.js";
-import { setExtensionEnabled } from "../core/externalExtensions.js";
+import { extensionOptionStates, listInstalled, removeExtension as removeInstalled, setExtensionEnabled, setExtensionOptions as storeExtensionOptions, type ExtensionOptionState, type ExtensionScope } from "../core/externalExtensions.js";
+import { extensionCatalog as readCatalog, installExtension as installFromCatalog, needsConfirmation, updateExtension as updateFromCatalog, type CatalogEntry } from "../core/extensionCatalog.js";
 import { capHistory, loadHistory, saveHistory, slashCommandToken, type HistoryEntry } from "./history.js";
 import { firstRun, openSession, runFolderOf, runLabel, type SessionOpener } from "./runs.js";
 
@@ -316,7 +317,7 @@ export async function createChatController(options: Options | SessionOpener, set
         ...viewCommands,
         ...(runsDir ? [{ name: "resume", description: t().commandResume, argumentHint: "" }] : []),
         ...(control?.switchable.includes("plan") ? [{ name: "plan", description: t().commandPlan, argumentHint: "" }] : []),
-        { name: "extensions", description: t().commandExtensions, argumentHint: "[enable|disable <name>]" },
+        { name: "extensions", description: t().commandExtensions, argumentHint: "[enable|disable|config|search|install|update|remove|reload]" },
       ];
       const details = new Map<string, { name: string; description: string; argumentHint: string }>();
       for (const command of [...(commands ?? []).map(({ name, description, argumentHint }) => ({ name, description: description ?? "", argumentHint: argumentHint ?? "" })), ...local]) details.set(command.name, command);
@@ -426,6 +427,28 @@ export async function createChatController(options: Options | SessionOpener, set
     await switchTo({ dir: current.run!.dir, sessionId: await readRunSession(current.run!.dir) }, false);
   }
 
+  /** The installed extensions as they are now on disk, into the state (after installing, updating or removing one). */
+  async function refreshInstalled(): Promise<void> {
+    if (!current.extensions) return;
+    // In place: the session's live switch keeps a hold of the same status (liveExtensions.ts).
+    current.extensions.installed = await listInstalled(current.extensions.dirs);
+    update({ extensions: { ...current.extensions } });
+  }
+
+  /** What `/extensions install|update|remove|reload` asks for, through the controller's own actions. */
+  async function runExtensionAction(action: ExtensionAction): Promise<void> {
+    try {
+      if (action.type === "install") {
+        const result = await controller.installExtension(action.spec, { confirmed: action.confirmed });
+        if (result.confirm) notice(t().extensionConfirm(action.spec, result.confirm.marketplace));
+      } else if (action.type === "update") await controller.updateExtension(action.name);
+      else if (action.type === "remove") await controller.removeExtension(action.name, { deleteData: action.deleteData });
+      else await controller.reopen();
+    } catch (error) {
+      notice(`(${error instanceof Error ? error.message : String(error)})`, "warn");
+    }
+  }
+
   async function switchTo(folder: RunFolder, fromResume: boolean): Promise<void> {
     queue.end();
     run.close();
@@ -530,6 +553,7 @@ export async function createChatController(options: Options | SessionOpener, set
         for (const text of extensions.lines) notice(text);
         if (extensions.toggled) await applyExtension(extensions.toggled.name, extensions.toggled.enabled);
         if (extensions.reconfigured) await applyOptions(extensions.reconfigured);
+        if (extensions.action) await runExtensionAction(extensions.action);
         return;
       }
       const token = slashCommandToken(line);
@@ -613,6 +637,91 @@ export async function createChatController(options: Options | SessionOpener, set
       if (!installed || !dir) return notice(t().extensionNotInstalled(name));
       await setExtensionEnabled(dir, name, enabled);
       await applyExtension(name, enabled);
+    },
+    /**
+     * The catalog (#56): what the agent's marketplaces offer (its `officialMarketplace` among
+     * them), matching `words` when given, with what's installed and what has an update.
+     */
+    async extensionCatalog(words: readonly string[] = []): Promise<CatalogEntry[]> {
+      if (!current.extensions) return [];
+      return readCatalog(current.extensions.dirs, { ...(current.extensions.official ? { official: current.extensions.official } : {}), words });
+    },
+    /**
+     * Installs an extension from the catalog (`<name>@<marketplace>`, or a name only one offers)
+     * into the agent's scope, or `scope`. One from a marketplace that isn't the agent's own isn't
+     * installed until `confirmed`: the result says which (`confirm`), for the view to ask the
+     * person. The running session is untouched: it's there in a new conversation, or with `reopen()`.
+     */
+    async installExtension(spec: string, options: { scope?: ExtensionScope; confirmed?: boolean } = {}): Promise<{ name?: string; confirm?: { marketplace: string; description?: string } }> {
+      if (!current.extensions) throw new Error("This chat's session has no extensions folder.");
+      const official = current.extensions.official ? { official: current.extensions.official } : {};
+      const foreign = await needsConfirmation(current.extensions.dirs, spec, current.extensions.official);
+      if (foreign && !options.confirmed) return { confirm: { marketplace: foreign.marketplace.name, ...(foreign.plugin.description ? { description: foreign.plugin.description } : {}) } };
+      const result = await installFromCatalog(current.extensions.dirs, spec, { ...official, ...(options.scope ? { scope: options.scope } : {}) });
+      await refreshInstalled();
+      notice(t().extensionInstalled(result.name));
+      return { name: result.name };
+    },
+    /** Updates one installed extension from its marketplace, or every one with a newer version there; the names updated. */
+    async updateExtension(name?: string): Promise<string[]> {
+      if (!current.extensions) return [];
+      const official = current.extensions.official ? { official: current.extensions.official } : {};
+      const names = name ? [name] : (await readCatalog(current.extensions.dirs, official)).filter((entry) => entry.update).map((entry) => entry.plugin.name);
+      if (!names.length) notice(t().extensionsUpToDate);
+      for (const each of names) {
+        const result = await updateFromCatalog(current.extensions.dirs, each, official);
+        notice(t().extensionUpdated(each, result.from ?? "?", result.to ?? "?"));
+      }
+      await refreshInstalled();
+      return names;
+    },
+    /**
+     * Uninstalls an extension, and its data with `deleteData`: turned off in the running session
+     * first when it's running (#49), the session opened again when that can't be done.
+     */
+    async removeExtension(name: string, options: { deleteData?: boolean } = {}): Promise<void> {
+      const installed = (current.extensions?.installed ?? []).find((extension) => extension.name === name && !extension.shadowed);
+      if (!installed) return notice(t().extensionNotInstalled(name));
+      const running = current.extensions?.active.includes(name) ?? false;
+      const switched = running ? await current.switchExtension?.(name, false).catch(() => false) : true;
+      await removeInstalled(installed.scopeDir, name, { deleteData: Boolean(options.deleteData) });
+      // Gone, not off: out of what's listed as off in this session too.
+      if (current.extensions) current.extensions.inactive = current.extensions.inactive.filter((off) => off.name !== name);
+      await refreshInstalled();
+      notice(t().extensionRemoved(name, Boolean(options.deleteData)));
+      if (running && switched) {
+        extensionNotices.push(`<system-reminder>The user uninstalled the ${name} extension: its tools, skills, commands and subagents are gone, whatever your instructions or earlier messages say.</system-reminder>`);
+        loadCommands();
+      } else if (running && opener && current.run) await switchTo({ dir: current.run.dir, sessionId: await readRunSession(current.run.dir) }, false);
+    },
+    /** An installed extension's options as they are now (a secret's value is never given). */
+    async extensionOptions(name: string): Promise<ExtensionOptionState[]> {
+      const installed = (current.extensions?.installed ?? []).find((extension) => extension.name === name && !extension.shadowed);
+      return installed ? extensionOptionStates(installed) : [];
+    },
+    /**
+     * Sets an installed extension's options from a view's form (`undefined` clears one), secrets
+     * too: a form isn't kept in the chat's history, as a typed line is. Its servers restart with
+     * them in the running session (#55), or the session opens again.
+     */
+    async setExtensionOptions(name: string, values: Record<string, string | undefined>): Promise<void> {
+      const installed = (current.extensions?.installed ?? []).find((extension) => extension.name === name && !extension.shadowed);
+      if (!installed) return notice(t().extensionNotInstalled(name));
+      await storeExtensionOptions(installed.scopeDir, name, values);
+      await refreshInstalled();
+      if (current.extensions?.active.includes(name)) await applyOptions(name);
+      else if (opener && current.run) {
+        // Off for want of a value, maybe: a new session may run it now.
+        notice(t().extensionReconfiguredReopen(name));
+        await switchTo({ dir: current.run.dir, sessionId: await readRunSession(current.run.dir) }, false);
+      }
+    },
+    /** Opens the session again with what's installed now, keeping the conversation: an extension just installed or updated, now. */
+    async reopen(): Promise<void> {
+      if (!opener || !current.run) return notice(t().extensionsCantReopen);
+      if (state.busy) return notice(t().extensionsBusy);
+      notice(t().extensionsReloaded);
+      await switchTo({ dir: current.run.dir, sessionId: await readRunSession(current.run.dir) }, false);
     },
     /**
      * Switches the kit's language (`switchLanguage()`) and opens the session again in it, keeping

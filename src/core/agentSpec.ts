@@ -36,6 +36,12 @@ export interface BaseSessionConfig {
    */
   extensionDirs?: ExtensionDirs;
   /**
+   * The agent's own marketplace of extensions (a folder or a git URL, `#ref`): the chats' catalog
+   * (`/extensions`, #56) offers what it has, installed without a confirmation, as
+   * `runExtensionCommand()`'s `official` does.
+   */
+  officialMarketplace?: string;
+  /**
    * Directories where the agent reads, searches and writes with the file tools (Write/Edit,
    * scoped — see hooks/fileScopeGate.ts), e.g. a folder of its own notes. Setting one gives the
    * session all five file tools; an extension's folders (the sources, the knowledge base) come

@@ -72,6 +72,7 @@ export {
   type MarketplacePlugin,
   type PluginSource,
 } from "./core/marketplaces.js";
+export { extensionCatalog, installExtension, updateExtension, type CatalogEntry } from "./core/extensionCatalog.js";
 export { runExtensionCommand } from "./tui/extensionCommand.js";
 export { agentKitVersion } from "./core/version.js";
 export {

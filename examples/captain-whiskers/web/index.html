@@ -196,7 +196,11 @@
   .ext .top { display: flex; align-items: center; gap: 10px; }
   .ext .name { font-weight: 650; flex: 1; } .ext .ver { font-size: 12px; color: var(--dim); font-weight: 400; margin-left: 6px; }
   .ext .desc { font-size: 13.5px; color: var(--text-2); margin-top: 4px; } .ext .why { font-size: 13px; color: var(--warn); margin-top: 4px; }
-  .ext .badge { font-size: 11.5px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+  .ext .badge, .opt .badge { font-size: 11.5px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+  .ext .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+  .tabs { display: flex; gap: 6px; margin: 2px 0 12px; }
+  .opt { display: block; margin: 12px 0; } .opt-title { font-weight: 600; } .opt .desc { font-size: 13px; color: var(--text-2); margin: 2px 0 6px; }
+  .check { display: flex; gap: 8px; align-items: center; margin: 12px 0; }
   .toast { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line-2); color: var(--text); padding: 9px 16px; border-radius: 12px; box-shadow: var(--shadow); font-size: 14px; z-index: 20; display: none; max-width: calc(100vw - 32px); }
   .toast.on { display: block; animation: fade 0.2s ease-out; }
   @keyframes fade { from { opacity: 0; } }
@@ -468,7 +472,7 @@ function buildBlock(entry, previous, live) {
       const head = running
         ? `<span class="spin"></span><span class="label">${escape(lastCall.label)}</span>`
         : `<span class="chev">›</span><span class="label">${escape(entry.calls.map((call) => call.label).join(" · "))}</span>`;
-      card.innerHTML = `<div class="card-head">${head}<span class="count">${escape(fill(T.tools?.[entry.calls.length === 1 ? 0 : 1] ?? "{n}", entry.calls.length))}</span></div><div class="card-body"></div>`;
+      card.innerHTML = `<div class="card-head">${head}<span class="count">${escape(fillIn(T.tools?.[entry.calls.length === 1 ? 0 : 1] ?? "{n}", entry.calls.length))}</span></div><div class="card-body"></div>`;
       const body = card.querySelector(".card-body");
       for (const call of entry.calls) {
         const row = document.createElement("div");
@@ -1015,48 +1019,264 @@ $("runs-button").addEventListener("click", async () => {
   });
 });
 
-$("ext-button").addEventListener("click", () => {
+// --- Sus extensiones (#56): las instaladas (encender, apagar, ajustes, actualizar, desinstalar)
+// y el catálogo de su astillero (y de cualquier otro marketplace que conozca).
+let extTab = "installed";
+let extSearch = "";
+const fillIn = (text, values) => String(text ?? "").replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
+async function openExtensions(tab = extTab) {
+  extTab = tab;
+  const catalog = (await act("catalog")).entries ?? [];
+  openDrawer(T.extensions, (body) => buildExtensions(body, catalog));
+}
+$("ext-button").addEventListener("click", () => void openExtensions());
+
+function buildExtensions(body, catalog) {
+  const tabs = document.createElement("div");
+  tabs.className = "tabs";
+  for (const [id, label] of [["installed", T.installedTab], ["catalog", T.catalogTab]]) {
+    tabs.append(button(label, id === extTab ? "primary" : "", () => {
+      extTab = id;
+      body.innerHTML = "";
+      buildExtensions(body, catalog);
+    }));
+  }
+  body.append(tabs);
+  if (extTab === "installed") buildInstalled(body, catalog);
+  else buildCatalog(body, catalog);
+}
+
+function buildInstalled(body, catalog) {
   const extensions = state?.chat?.extensions;
-  openDrawer(T.extensions, (body) => {
-    const installed = (name) => extensions?.installed.find((extension) => extension.name === name && !extension.shadowed);
-    const card = (name, extra) => {
-      const ext = installed(name);
-      const div = document.createElement("div");
-      div.className = "ext";
-      const description = ext?.manifest?.description ?? extensions?.about?.[name]?.description ?? "";
-      div.innerHTML = `<div class="top"><span class="name">${escape(name)}${ext?.manifest?.version ? `<span class="ver">${escape(ext.manifest.version)}</span>` : ""}</span>${ext ? "" : `<span class="badge">${escape(T.builtIn)}</span>`}</div>${description ? `<div class="desc">${escape(description)}</div>` : ""}${extra ?? ""}`;
-      return div;
-    };
-    body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.active)}</div>`);
-    for (const name of extensions?.active ?? []) {
-      const div = card(name);
-      if (installed(name)) {
-        div.querySelector(".top").append(button(T.turnOff, "", async () => {
-          closeDrawer();
-          await act("extension", { name, enabled: false });
-        }));
-      }
+  const installed = (name) => extensions?.installed.find((extension) => extension.name === name && !extension.shadowed);
+  const card = (name, extra) => {
+    const ext = installed(name);
+    const div = document.createElement("div");
+    div.className = "ext";
+    const description = ext?.manifest?.description ?? extensions?.about?.[name]?.description ?? "";
+    div.innerHTML = `<div class="top"><span class="name">${escape(name)}${ext?.manifest?.version ? `<span class="ver">${escape(ext.manifest.version)}</span>` : ""}</span>${ext ? "" : `<span class="badge">${escape(T.builtIn)}</span>`}</div>${description ? `<div class="desc">${escape(description)}</div>` : ""}${extra ?? ""}`;
+    return div;
+  };
+  // What can be done with an installed one, by how it stands.
+  const actions = (name, { on = false, off = false } = {}) => {
+    const ext = installed(name);
+    const row = document.createElement("div");
+    row.className = "actions";
+    if (!ext) return row;
+    if (on) row.append(button(T.turnOn, "primary", async () => {
+      closeDrawer();
+      await act("extension", { name, enabled: true });
+    }));
+    if (off) row.append(button(T.turnOff, "", async () => {
+      closeDrawer();
+      await act("extension", { name, enabled: false });
+    }));
+    if (Object.keys(ext.manifest?.userConfig ?? {}).length) row.append(button(T.settings, "", () => void openSettings(name)));
+    if (catalog.some((entry) => entry.name === name && entry.installed && entry.update)) {
+      row.append(button(T.update, "primary", async () => {
+        await act("update", { name });
+        await openExtensions("installed");
+      }));
+    }
+    row.append(button(T.uninstall, "danger", () => confirmRemove(name)));
+    return row;
+  };
+  body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.active)}</div>`);
+  for (const name of extensions?.active ?? []) {
+    const div = card(name);
+    div.append(actions(name, { off: true }));
+    body.append(div);
+  }
+  const off = extensions?.inactive ?? [];
+  if (off.length) {
+    body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.inactive)}</div>`);
+    for (const item of off) {
+      const div = card(item.name, `<div class="why">${escape(item.reason)}</div>`);
+      div.append(actions(item.name));
       body.append(div);
     }
-    const off = extensions?.inactive ?? [];
-    if (off.length) {
-      body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.inactive)}</div>`);
-      for (const item of off) body.append(card(item.name, `<div class="why">${escape(item.reason)}</div>`));
+  }
+  // Installed (or turned on in the lock) since the session opened: there from the next one, or now.
+  const pending = (extensions?.installed ?? []).filter((extension) => extension.lock.enabled && !extension.shadowed && !(extensions?.active ?? []).includes(extension.name) && !off.some((item) => item.name === extension.name));
+  if (pending.length) {
+    body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.pending)}</div>`);
+    for (const extension of pending) {
+      const div = card(extension.name);
+      const row = actions(extension.name);
+      row.prepend(button(T.useNow, "primary", async () => {
+        closeDrawer();
+        await act("reload");
+      }));
+      div.append(row);
+      body.append(div);
     }
-    const disabled = (extensions?.installed ?? []).filter((extension) => !extension.lock.enabled && !extension.shadowed);
-    if (disabled.length) {
-      body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.disabled)}</div>`);
-      for (const extension of disabled) {
-        const div = card(extension.name);
-        div.querySelector(".top").append(button(T.turnOn, "primary", async () => {
-          closeDrawer();
-          await act("extension", { name: extension.name, enabled: true });
+  }
+  const disabled = (extensions?.installed ?? []).filter((extension) => !extension.lock.enabled && !extension.shadowed);
+  if (disabled.length) {
+    body.insertAdjacentHTML("beforeend", `<div class="section">${escape(T.disabled)}</div>`);
+    for (const extension of disabled) {
+      const div = card(extension.name);
+      div.append(actions(extension.name, { on: true }));
+      body.append(div);
+    }
+  }
+}
+
+function buildCatalog(body, catalog) {
+  const search = document.createElement("input");
+  search.className = "field";
+  search.type = "search";
+  search.placeholder = T.search;
+  search.value = extSearch;
+  const list = document.createElement("div");
+  const render = () => {
+    list.innerHTML = "";
+    const words = search.value.toLowerCase().split(/\s+/).filter(Boolean);
+    const shown = catalog.filter((entry) => words.every((word) => `${entry.name} ${entry.description} ${entry.marketplace}`.toLowerCase().includes(word)));
+    if (!shown.length) list.insertAdjacentHTML("beforeend", `<p style="color:var(--dim)">${escape(T.noMatch)}</p>`);
+    for (const entry of shown) {
+      const div = document.createElement("div");
+      div.className = "ext";
+      div.innerHTML = `<div class="top"><span class="name">${escape(entry.name)}${entry.version ? `<span class="ver">${escape(entry.version)}</span>` : ""}</span><span class="badge">${escape(entry.marketplace)}</span></div>${entry.description ? `<div class="desc">${escape(entry.description)}</div>` : ""}`;
+      const row = document.createElement("div");
+      row.className = "actions";
+      if (!entry.installed) row.append(button(T.install, "primary", () => void install(entry)));
+      else if (entry.update) {
+        row.append(button(T.update, "primary", async () => {
+          await act("update", { name: entry.name });
+          await openExtensions("catalog");
         }));
-        body.append(div);
-      }
+      } else row.insertAdjacentHTML("beforeend", `<span class="badge">${escape(T.isInstalled)}</span>`);
+      div.append(row);
+      list.append(div);
     }
+  };
+  search.addEventListener("input", () => {
+    extSearch = search.value;
+    render();
   });
-});
+  body.append(search, list);
+  render();
+}
+
+/** Installs one from the catalog: one from another marketplace only after the person says so. */
+async function install(entry, confirmed = false) {
+  const result = await act("install", { spec: entry.spec, confirmed });
+  if (result.confirm) return confirmForeign(entry, result.confirm);
+  if (result.error) return;
+  await openExtensions("installed");
+  // Then: use it now, keeping the conversation, or in a new one.
+  const note = document.createElement("div");
+  note.className = "ext";
+  note.innerHTML = `<div class="desc">${escape(T.installedNote)}</div>`;
+  const row = document.createElement("div");
+  row.className = "actions";
+  row.append(
+    button(T.useNow, "primary", async () => {
+      closeDrawer();
+      await act("reload");
+    }),
+    button(T.newConversation, "", async () => {
+      closeDrawer();
+      await act("new");
+    }),
+  );
+  note.append(row);
+  $("drawer-body").querySelector(".tabs").after(note);
+}
+
+function confirmForeign(entry, confirm) {
+  openDialog((dialog) => {
+    dialog.innerHTML = `<div class="kicker">${escape(T.foreignTitle)}</div><h2>${escape(entry.spec)}</h2><div class="body">${escape(fillIn(T.foreignBody, { spec: entry.spec, marketplace: confirm.marketplace }))}</div>`;
+    const row = document.createElement("div");
+    row.className = "actions";
+    row.append(button(T.cancel, "", closeDialog), button(T.install, "primary", async () => {
+      closeDialog();
+      await install(entry, true);
+    }));
+    dialog.append(row);
+    dialogKeys = (event) => event.key === "Escape" && closeDialog();
+  });
+}
+
+function confirmRemove(name) {
+  openDialog((dialog) => {
+    dialog.innerHTML = `<h2>${escape(fillIn(T.removeTitle, { name }))}</h2>`;
+    const label = document.createElement("label");
+    label.className = "check";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    label.append(box, document.createTextNode(` ${T.deleteData}`));
+    const row = document.createElement("div");
+    row.className = "actions";
+    row.append(button(T.cancel, "", closeDialog), button(T.uninstall, "danger", async () => {
+      closeDialog();
+      closeDrawer();
+      await act("remove", { name, deleteData: box.checked });
+    }));
+    dialog.append(label, row);
+    dialogKeys = (event) => event.key === "Escape" && closeDialog();
+  });
+}
+
+/** Its settings: a field per option, by its type; a secret is never shown, only whether it's set. */
+async function openSettings(name) {
+  const options = (await act("options", { name })).options ?? [];
+  openDialog((dialog) => {
+    dialog.innerHTML = `<div class="kicker">${escape(T.settings)}</div><h2>${escape(name)}</h2>`;
+    if (!options.length) dialog.insertAdjacentHTML("beforeend", `<div class="body">${escape(T.noOptions)}</div>`);
+    const fields = [];
+    for (const { key, option, value, set } of options) {
+      const wrap = document.createElement("label");
+      wrap.className = "opt";
+      wrap.innerHTML = `<div class="opt-title">${escape(option.title)}${option.required ? ` <span class="badge">${escape(T.required)}</span>` : ""}</div><div class="desc">${escape(option.description)}</div>`;
+      let field;
+      if (option.type === "boolean") {
+        field = document.createElement("input");
+        field.type = "checkbox";
+        field.checked = value === true;
+      } else if (option.options?.length && !option.multiple) {
+        field = document.createElement("select");
+        field.className = "field";
+        for (const choice of option.options) {
+          const item = document.createElement("option");
+          item.value = String(choice);
+          item.textContent = String(choice);
+          item.selected = String(value) === String(choice);
+          field.append(item);
+        }
+      } else {
+        field = document.createElement("input");
+        field.className = "field";
+        field.type = option.sensitive ? "password" : option.type === "number" ? "number" : "text";
+        field.value = option.sensitive || value === undefined ? "" : Array.isArray(value) ? value.join(", ") : String(value);
+        if (option.sensitive && set) field.placeholder = T.secretSet;
+      }
+      if (!fields.length) field.dataset.autofocus = "1";
+      wrap.append(field);
+      dialog.append(wrap);
+      fields.push({ key, option, field, initial: field.type === "checkbox" ? field.checked : field.value });
+    }
+    const row = document.createElement("div");
+    row.className = "actions";
+    row.append(button(T.cancel, "", closeDialog), button(T.save, "primary", async () => {
+      // Only what changed; an emptied field clears its value, an empty secret keeps it.
+      const values = {};
+      for (const { key, option, field, initial } of fields) {
+        const now = field.type === "checkbox" ? field.checked : field.value.trim();
+        if (option.sensitive) {
+          if (now) values[key] = now;
+        } else if (now !== initial) values[key] = now === "" ? null : String(now);
+      }
+      closeDialog();
+      if (!Object.keys(values).length) return;
+      closeDrawer();
+      await act("set-options", { name, values });
+    }));
+    dialog.append(row);
+    dialogKeys = (event) => event.key === "Escape" && closeDialog();
+  });
+}
 
 // --- Escribir.
 const input = $("input");
