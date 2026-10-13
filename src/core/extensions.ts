@@ -9,7 +9,7 @@ import type { SessionFacts } from "./sessionFacts.js";
 
 /**
  * Extensions (ADR-025): what an agent is besides the kit's core. An extension is a Claude Code
- * plugin with the kit's data in its manifest (`.claude-plugin/plugin.json`, key `"agent-kit"`:
+ * plugin with the kit's data in its manifest (`.claude-plugin/plugin.json`, under `metadata["agent-kit"]`:
  * the capabilities it `provides` and `requires`), plus, for an internal one, the code that
  * says what it brings to a session. An agent enables the ones it wants (`AgentSpec.extensions`),
  * each made with its own options (the kit's through their factories, `knowledge({ dir })`…);
@@ -118,9 +118,10 @@ export interface ExtensionManifest {
 /** Reads an extension's manifest from its plugin. */
 export function readExtensionManifest(pluginRoot: string): ExtensionManifest {
   const file = path.join(pluginRoot, ".claude-plugin", "plugin.json");
-  const raw = JSON.parse(readFileSync(file, "utf8")) as { name?: string; description?: string; "agent-kit"?: { provides?: string[]; requires?: string[] } };
+  const raw = JSON.parse(readFileSync(file, "utf8")) as { name?: string; description?: string; metadata?: { "agent-kit"?: { provides?: string[]; requires?: string[] } } };
   if (!raw.name) throw new Error(`${file} has no "name".`);
-  return { name: raw.name, description: raw.description ?? "", provides: raw["agent-kit"]?.provides ?? [], requires: raw["agent-kit"]?.requires ?? [] };
+  const kit = raw.metadata?.["agent-kit"];
+  return { name: raw.name, description: raw.description ?? "", provides: kit?.provides ?? [], requires: kit?.requires ?? [] };
 }
 
 /** The extensions a session runs with, and the ones it can't, with why. */

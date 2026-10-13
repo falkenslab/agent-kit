@@ -51,6 +51,17 @@ export interface Messages {
   extensionNotInstalled(name: string): string;
   extensionsUsage: string;
   extensionsCantReopen: string;
+  /** An installed extension's options in the chat (#55). */
+  extensionOptions(name: string): string;
+  extensionNoOptions(name: string): string;
+  optionNotSet: string;
+  optionSecretSet: string;
+  optionDefault: string;
+  optionRequired: string;
+  optionSensitiveInChat(key: string, name: string): string;
+  extensionOptionsSaved(name: string): string;
+  extensionRestarted(name: string): string;
+  extensionReconfiguredReopen(name: string): string;
   currentRun: string;
   resumed(date: string): string;
 
@@ -180,8 +191,18 @@ export const en: Messages = {
   extensionSwitched: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}, in this same session)`,
   extensionToggled: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}: the session reopens, with the same conversation)`,
   extensionNotInstalled: (name) => `(${name} isn't installed: /extensions lists them)`,
-  extensionsUsage: "(usage: /extensions, /extensions enable <name>, /extensions disable <name>)",
+  extensionsUsage: "(usage: /extensions, /extensions enable <name>, /extensions disable <name>, /extensions config <name> [key=value…])",
   extensionsCantReopen: "(this chat can't reopen its session: enable or disable it from the terminal, and start again)",
+  extensionOptions: (name) => `${name}'s options:`,
+  extensionNoOptions: (name) => `(${name} has no options)`,
+  optionNotSet: "(not set)",
+  optionSecretSet: "(set, hidden)",
+  optionDefault: "(default)",
+  optionRequired: "required",
+  optionSensitiveInChat: (key, name) => `(${key} is a secret: what's typed in the chat is kept in its history, so set it from the terminal: extension config ${name} ${key})`,
+  extensionOptionsSaved: (name) => `(${name}'s options saved: they apply when its server starts again)`,
+  extensionRestarted: (name) => `(${name}'s options saved, and its server restarted with them, in this same session)`,
+  extensionReconfiguredReopen: (name) => `(${name}'s options saved: the session reopens, with the same conversation)`,
   currentRun: "(this one)",
   resumed: (date) => `(resumed the conversation of ${date})`,
 

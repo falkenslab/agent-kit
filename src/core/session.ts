@@ -25,7 +25,8 @@ import { replyLanguageInstruction, type Language } from "./language.js";
 import { chooseLanguage } from "./messages/index.js";
 import { createRunStore, type RunFolder } from "./runs.js";
 import { createSessionView, registerSessionView, type SessionView, type StaticSessionFacts } from "./sessionFacts.js";
-import { createExtensionSwitch, mountPlugin, type ExtensionSwitch } from "./liveExtensions.js";
+import { createExtensionRestart, createExtensionSwitch, mountPlugin, type ExtensionRestart, type ExtensionSwitch } from "./liveExtensions.js";
+import { secretsDir } from "./extensionOptions.js";
 import { createReadOnlyHints } from "./readOnlyHints.js";
 import { agentKitVersion } from "./version.js";
 
@@ -68,6 +69,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   apis: Record<string, Record<string, unknown>>;
   /** Turns an installed extension off or on in the running session; false when that takes opening it again (#49). */
   switchExtension: ExtensionSwitch;
+  /** Restarts an installed extension's servers in the running session, with its options as they are now (#55). */
+  restartExtension: ExtensionRestart;
 }> {
   const { mode } = config;
   // The kit's language (`--language`, then config.language, then the system's), chosen here
@@ -206,7 +209,12 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const readOnlyHintServers = fromExtensions((contribution) => contribution.readOnlyHintServers);
 
   // What no file tool may touch: the agent's denied paths and the SDK's own credentials.
-  const deniedPaths = [...(config.deniedPaths ?? []), path.join(claudeConfigDir(), ".credentials.json")];
+  // And the installed extensions' sensitive option values (#55), in each scope's .secrets/.
+  const deniedPaths = [
+    ...(config.deniedPaths ?? []),
+    path.join(claudeConfigDir(), ".credentials.json"),
+    ...Object.values(config.extensionDirs ?? {}).flatMap((dir) => (dir ? [secretsDir(dir)] : [])),
+  ];
 
   const transcriptPath = path.join(runDir, "transcript.jsonl");
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);
@@ -401,32 +409,33 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   };
   late.view = createSessionView(viewBase, modeControl);
   registerSessionView(sdkOptions, late.view);
-  // Turning an installed extension off and on while the session runs (#49).
-  const switchExtension = createExtensionSwitch(
-    resolved.active.flatMap(({ extension, manifest }, index) => {
-      const installed = installedDirs.get(extension.name);
-      if (!installed) return [];
-      const contribution = added[index];
-      return [
-        {
-          name: extension.name,
-          installedDir: installed.dir,
-          scopeDir: installed.scopeDir,
-          pluginMount: extension.plugin,
-          servers: Object.keys(contribution?.mcpServers ?? {}),
-          readOnlyTools: contribution?.readOnlyTools ?? [],
-          toolLabels: contribution?.toolLabels ?? {},
-          agents: Object.keys(fromPlugins).filter((agent) => agent.startsWith(`${extension.name}:`)),
-          description: manifest.description,
-          provides: manifest.provides,
-          help: contribution?.helpLines ?? [],
-        },
-      ];
-    }),
-    { readOnlyTools, allowedSubagentTypes, toolLabels, status: extensions, facts: viewBase, controls: () => late.view?.controls() ?? {} },
-  );
+  // Turning an installed extension off and on while the session runs (#49), and restarting its
+  // servers when its options change (#55).
+  const liveExtensions = resolved.active.flatMap(({ extension, manifest }, index) => {
+    const installed = installedDirs.get(extension.name);
+    if (!installed) return [];
+    const contribution = added[index];
+    return [
+      {
+        name: extension.name,
+        installedDir: installed.dir,
+        scopeDir: installed.scopeDir,
+        pluginMount: extension.plugin,
+        servers: Object.keys(contribution?.mcpServers ?? {}),
+        readOnlyTools: contribution?.readOnlyTools ?? [],
+        toolLabels: contribution?.toolLabels ?? {},
+        agents: Object.keys(fromPlugins).filter((agent) => agent.startsWith(`${extension.name}:`)),
+        description: manifest.description,
+        provides: manifest.provides,
+        help: contribution?.helpLines ?? [],
+      },
+    ];
+  });
+  const liveTargets = { readOnlyTools, allowedSubagentTypes, toolLabels, status: extensions, facts: viewBase, controls: () => late.view?.controls() ?? {} };
+  const switchExtension = createExtensionSwitch(liveExtensions, liveTargets);
+  const restartExtension = createExtensionRestart(liveExtensions, liveTargets);
   const apis = Object.fromEntries(resolved.active.flatMap(({ extension }, index) => (added[index]?.api ? [[extension.name, added[index]!.api!]] : [])));
-  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, apis, switchExtension };
+  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, apis, switchExtension, restartExtension };
 }
 
 export { createModeControl, togglePlanMode, type ModeControl } from "./modeControl.js";

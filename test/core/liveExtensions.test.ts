@@ -27,7 +27,7 @@ function makeExtension(name: string): string {
   fs.mkdirSync(path.join(dir, "agents"));
   fs.writeFileSync(
     path.join(dir, ".claude-plugin", "plugin.json"),
-    JSON.stringify({ name, description: "Rolls dice.", "agent-kit": { readOnlyTools: ["roll"], labels: { roll: { en: { label: "Rolling" } } }, help: "Dice: `roll` rolls one." } }),
+    JSON.stringify({ name, description: "Rolls dice.", metadata: { "agent-kit": { readOnlyTools: ["roll"], labels: { roll: { en: { label: "Rolling" } } }, help: "Dice: `roll` rolls one." } } }),
   );
   fs.writeFileSync(path.join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { [name]: { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server.mjs"] } } }));
   fs.writeFileSync(path.join(dir, "server.mjs"), "// a server\n");

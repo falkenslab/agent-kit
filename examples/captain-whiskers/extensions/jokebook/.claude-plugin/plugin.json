@@ -1,25 +1,27 @@
 {
   "name": "jokebook",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A jokebook: classic pirate jokes, and ranking the jokes kept in a knowledge base by their score.",
   "author": { "name": "Falkenslab", "url": "https://github.com/falkenslab" },
   "homepage": "https://falkenslab.github.io/agent-kit/docs/capabilities/extensions",
   "repository": "https://github.com/falkenslab/agent-kit",
   "license": "MIT",
   "keywords": ["jokes", "pirates", "example"],
-  "agent-kit": {
-    "kit": ">=0.18.0 <0.20.0",
-    "provides": ["jokes"],
-    "requires": [],
-    "readOnlyTools": ["classic_joke"],
-    "labels": {
-      "classic_joke": {
-        "en": { "label": "Opening the jokebook", "phrase": ["opened the jokebook", "opened the jokebook {n} times"] },
-        "es": { "label": "Abriendo el libro de chistes", "phrase": ["abrió el libro de chistes", "abrió el libro de chistes {n} veces"] },
-        "fr": { "label": "Ouverture du recueil de blagues", "phrase": ["a ouvert le recueil de blagues", "a ouvert le recueil de blagues {n} fois"] },
-        "de": { "label": "Witzebuch aufschlagen", "phrase": ["Witzebuch aufgeschlagen", "Witzebuch {n}-mal aufgeschlagen"] }
-      }
-    },
-    "help": "The jokebook: `classic_joke` gives a classic pirate joke; the `jokebook:rank-jokes` skill ranks the knowledge base's jokes by their score."
+  "metadata": {
+    "agent-kit": {
+      "kit": ">=0.21.0",
+      "provides": ["jokes"],
+      "requires": [],
+      "readOnlyTools": ["classic_joke"],
+      "labels": {
+        "classic_joke": {
+          "en": { "label": "Opening the jokebook", "phrase": ["opened the jokebook", "opened the jokebook {n} times"] },
+          "es": { "label": "Abriendo el libro de chistes", "phrase": ["abrió el libro de chistes", "abrió el libro de chistes {n} veces"] },
+          "fr": { "label": "Ouverture du recueil de blagues", "phrase": ["a ouvert le recueil de blagues", "a ouvert le recueil de blagues {n} fois"] },
+          "de": { "label": "Witzebuch aufschlagen", "phrase": ["Witzebuch aufgeschlagen", "Witzebuch {n}-mal aufgeschlagen"] }
+        }
+      },
+      "help": "The jokebook: `classic_joke` gives a classic pirate joke; the `jokebook:rank-jokes` skill ranks the knowledge base's jokes by their score."
+    }
   }
 }

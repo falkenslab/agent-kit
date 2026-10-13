@@ -38,6 +38,8 @@ export {
 export {
   addExtension,
   extensionDataDir,
+  extensionOptionStates,
+  setExtensionOptions,
   removeExtension,
   setExtensionEnabled,
   listInstalled,
@@ -50,7 +52,10 @@ export {
   type PluginServer,
   type InstalledExtension,
   type LockEntry,
+  type ExtensionOptionState,
 } from "./core/externalExtensions.js";
+export type { ExtensionOption, OptionValue } from "./core/extensionOptions.js";
+export type { ExtensionRestart, ExtensionSwitch } from "./core/liveExtensions.js";
 export { packageCacheDir, type CachedPackage } from "./core/npxPackages.js";
 export {
   addMarketplace,

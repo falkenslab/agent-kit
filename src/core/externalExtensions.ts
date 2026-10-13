@@ -12,6 +12,7 @@ import { getLanguage, type ToolPhrase } from "./messages/index.js";
 import { truncate, type ToolLabels } from "./toolLabels.js";
 import { agentKitVersion } from "./version.js";
 import { outsideArchive } from "./packaged.js";
+import { extensionSecretsPath, missingOptions, optionsNamed, parseOptionValue, parseUserConfig, readOptionValues, removeSecrets, storeOptionValues, type ExtensionOption, type OptionValue } from "./extensionOptions.js";
 import { cachedPackageDir, cachedPackageProblem, cachePackage, npxServer, packageCacheDir, packageSpec, type CachedPackage } from "./npxPackages.js";
 
 /**
@@ -21,7 +22,7 @@ import { cachedPackageDir, cachedPackageProblem, cachePackage, npxServer, packag
  * that records where each came from, a SHA-256 over its files and whether it's enabled. An
  * extension is a Claude Code plugin as it is (#38): its MCP servers come from its `.mcp.json`,
  * and the kit starts each with Node (an `npx` one from its package cache, #54) through a launcher that leaves it only the system's
- * variables and its own `env`. The `"agent-kit"` key of its `plugin.json` is optional: it adds
+ * variables and its own `env`. The `metadata["agent-kit"]` of its `plugin.json` is optional: it adds
  * what the kit's gates and chat can use (capabilities, read-only tools, labels, help). Each has a
  * data folder of its own (`${CLAUDE_PLUGIN_DATA}`, as Claude Code gives a plugin), kept across
  * sessions and updates; one being developed is linked rather than copied (#52).
@@ -61,7 +62,7 @@ export interface ExtensionAuthor {
 
 /**
  * An external extension's manifest: its `plugin.json`, the plugin's own metadata (Claude Code's
- * fields, which its validator checks) and the kit's key (`"agent-kit"`, which it ignores).
+ * fields, which its validator checks) and the kit's data (`metadata["agent-kit"]`, which it doesn't read).
  */
 export interface ExternalManifest {
   name: string;
@@ -90,6 +91,8 @@ export interface ExternalManifest {
   labels: Record<string, Partial<Record<Language, ExternalToolLabel>>>;
   /** What it says about itself in a session, for the agent to tell the person (`SessionFacts`). */
   help?: string;
+  /** Its options (`userConfig`, as Claude Code declares them, #55): its servers take them as `${user_config.KEY}`. */
+  userConfig: Record<string, ExtensionOption>;
 }
 
 /** One extension in a scope's lock. */
@@ -107,6 +110,8 @@ export interface LockEntry {
   marketplace?: string;
   /** SHA-256 over its files, checked when it loads; empty for a linked one. */
   sha256: string;
+  /** Its options' non-sensitive values (#55); the sensitive ones are in the scope's `.secrets/`. */
+  options?: Record<string, OptionValue>;
   /** The npm packages its servers run with npx (#54), by `<package>@<version>`: in the agent's package cache, checked when it loads. */
   packages?: Record<string, CachedPackage>;
   enabled: boolean;
@@ -153,7 +158,9 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
   }
   const name = raw.name;
   if (typeof name !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) throw new Error(`${file}: "name" must be kebab-case.`);
-  const kit = (raw["agent-kit"] ?? {}) as Partial<ExternalManifest>;
+  // The kit's data, where Claude Code keeps a plugin's own (`metadata`, which it doesn't read): a
+  // top-level key would fail `claude plugin validate --strict` (#55).
+  const kit = ((raw.metadata as Record<string, unknown> | undefined)?.["agent-kit"] ?? {}) as Partial<ExternalManifest>;
   const text = (key: string): Record<string, string> => (typeof raw[key] === "string" ? { [key]: raw[key] as string } : {});
   const author = raw.author as Partial<ExtensionAuthor> | undefined;
   // `repository` may be a URL or `{ url }`, as in package.json.
@@ -177,6 +184,7 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
     ...(Array.isArray(kit.readOnlyTools) ? { readOnlyTools: kit.readOnlyTools.filter((tool): tool is string => typeof tool === "string") } : {}),
     labels: kit.labels ?? {},
     ...(kit.help ? { help: kit.help } : {}),
+    userConfig: parseUserConfig(raw.userConfig),
   };
 }
 
@@ -403,7 +411,15 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
         // Inside Electron, process.execPath is the app itself: ELECTRON_RUN_AS_NODE makes it run
         // the launcher as Node (the launcher removes it, with the rest, once it runs).
         const env = process.versions.electron ? { ...launch.env, ELECTRON_RUN_AS_NODE: "1" } : launch.env;
-        servers[name] = { type: "stdio", command: process.execPath, args: [extensionLauncherPath(), launch.entry, JSON.stringify(Object.keys(launch.env)), ...launch.args], env };
+        // The launcher's own spec: the variables it keeps, and where its options' values are, read
+        // when it starts the server, so a changed value reaches a server started again (#55).
+        const spec = {
+          keep: Object.keys(launch.env),
+          ...(Object.keys(manifest.userConfig).length
+            ? { options: { lock: path.join(installed.scopeDir, LOCK_FILE), secrets: extensionSecretsPath(installed.scopeDir, installed.name), name: installed.name, defaults: optionDefaults(manifest.userConfig) } }
+            : {}),
+        };
+        servers[name] = { type: "stdio", command: process.execPath, args: [extensionLauncherPath(), launch.entry, JSON.stringify(spec), ...launch.args], env };
       }
       return {
         mcpServers: servers,
@@ -417,6 +433,21 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
       };
     },
   };
+}
+
+/** Its options' defaults, for the launcher. */
+function optionDefaults(declared: Record<string, ExtensionOption>): Record<string, OptionValue> {
+  return Object.fromEntries(Object.entries(declared).flatMap(([key, option]) => (option.default === undefined ? [] : [[key, option.default]])));
+}
+
+/** Why its options keep it from running (a server naming one it doesn't declare, a required one without a value), or nothing. */
+function optionsProblem(manifest: ExternalManifest, values: Record<string, OptionValue>): string | undefined {
+  const named = optionsNamed(Object.values(manifest.servers).flatMap((server) => [server.command, ...(server.args ?? []), ...Object.values(server.env ?? {}).map(String)]));
+  const undeclared = named.filter((key) => !manifest.userConfig[key]);
+  if (undeclared.length) return `names ${undeclared.map((key) => "${user_config." + key + "}").join(", ")}, which its userConfig doesn't declare`;
+  const missing = missingOptions(manifest.userConfig, values);
+  if (missing.length) return `needs ${missing.map((key) => `${key} (${manifest.userConfig[key]!.title})`).join(", ")} set: \`extension config ${manifest.name} ${missing[0]}=<value>\``;
+  return undefined;
 }
 
 /** The installed extensions a session runs with, and those it can't (with why). Disabled ones are neither. */
@@ -460,6 +491,8 @@ async function problem(installed: InstalledExtension, cache: string | undefined)
   const missing = [];
   for (const program of manifest.needs) if (!(await onPath(program))) missing.push(program);
   if (missing.length) return `needs ${missing.join(", ")}, which ${missing.length === 1 ? "isn't" : "aren't"} on this computer (on the PATH)`;
+  const options = optionsProblem(manifest, await readOptionValues(installed.scopeDir, installed.name, manifest.userConfig, installed.lock.options));
+  if (options) return options;
   return (await serversProblem(manifest, installed.dir, { cache, locked: installed.lock.packages })) ?? manifest;
 }
 
@@ -508,9 +541,12 @@ export async function addExtension(
     // Replacing what's installed there would delete the source itself.
     if (path.resolve(from) === path.resolve(target)) throw new Error(`${from} is where ${manifest.name} is installed: install it from another folder.`);
     const packages = await fetchServerPackages(manifest, options.packages ?? path.join(scopeDir, ".npm"));
-    const locked = Object.keys(packages).length ? { packages } : {};
+    const locked: Partial<LockEntry> = Object.keys(packages).length ? { packages } : {};
     const lock = await readLock(scopeDir);
     const replaced = Boolean(lock[manifest.name]);
+    // Reinstalled, it keeps the values it had for the options it still declares, as it keeps its data.
+    const kept = Object.fromEntries(Object.entries(lock[manifest.name]?.options ?? {}).filter(([key]) => manifest.userConfig[key] && !manifest.userConfig[key]!.sensitive));
+    if (Object.keys(kept).length) locked.options = kept;
     await rm(target, { recursive: true, force: true });
     await mkdir(scopeDir, { recursive: true });
     if (options.link) {
@@ -545,6 +581,7 @@ export async function removeExtension(scopeDir: string, name: string, options: {
   delete lock[name];
   await rm(path.join(scopeDir, name), { recursive: true, force: true });
   if (options.deleteData) await rm(extensionDataDir(scopeDir, name), { recursive: true, force: true });
+  await removeSecrets(scopeDir, name);
   await writeLock(scopeDir, lock);
   return true;
 }
@@ -567,4 +604,54 @@ export async function setExtensionEnabled(scopeDir: string, name: string, enable
   lock[name] = { ...lock[name], enabled };
   await writeLock(scopeDir, lock);
   return true;
+}
+
+/**
+ * Sets an installed extension's options (#55), each from what the person typed (`undefined`
+ * clears it), checked against its `userConfig`: sensitive ones into the scope's secrets, the rest
+ * into its lock. A running session's servers take them when they start again.
+ */
+export async function setExtensionOptions(scopeDir: string, name: string, typed: Record<string, string | undefined>): Promise<void> {
+  const lock = await readLock(scopeDir);
+  const entry = lock[name];
+  if (!entry) throw new Error(`${name} isn't installed in ${scopeDir}.`);
+  const manifest = await readExternalManifest(entry.linked ? entry.source : path.join(scopeDir, name));
+  const changes: Record<string, OptionValue | undefined> = {};
+  for (const [key, text] of Object.entries(typed)) {
+    const option = manifest.userConfig[key];
+    if (!option) throw new Error(`${name} has no option "${key}"${Object.keys(manifest.userConfig).length ? `: it has ${Object.keys(manifest.userConfig).join(", ")}` : ""}.`);
+    try {
+      changes[key] = text === undefined ? undefined : parseOptionValue(option, text);
+    } catch (error) {
+      throw new Error(`${key}: ${error instanceof Error ? error.message : String(error)}.`, { cause: error });
+    }
+  }
+  const options = await storeOptionValues(scopeDir, name, manifest.userConfig, entry.options ?? {}, changes);
+  lock[name] = { ...entry, options };
+  if (!Object.keys(options).length) delete lock[name]!.options;
+  await writeLock(scopeDir, lock);
+}
+
+/** One of an installed extension's options and its value now (a sensitive one's value is never given: only whether it's set). */
+export interface ExtensionOptionState {
+  key: string;
+  option: ExtensionOption;
+  /** Its value, when it has one and isn't sensitive. */
+  value?: OptionValue;
+  /** Whether it has a value (its own or its default). */
+  set: boolean;
+  /** Its value is its default, not one the person gave. */
+  isDefault: boolean;
+}
+
+/** An installed extension's options, as they are now. */
+export async function extensionOptionStates(installed: InstalledExtension): Promise<ExtensionOptionState[]> {
+  const declared = installed.manifest?.userConfig ?? {};
+  const values = await readOptionValues(installed.scopeDir, installed.name, declared, installed.lock.options);
+  const secrets = await readOptionValues(installed.scopeDir, installed.name, Object.fromEntries(Object.entries(declared).map(([key, option]) => [key, { ...option, default: undefined }])), installed.lock.options);
+  return Object.entries(declared).map(([key, option]) => {
+    const value = values[key];
+    const own = secrets[key];
+    return { key, option, ...(value !== undefined && !option.sensitive ? { value } : {}), set: value !== undefined && value !== "", isDefault: value !== undefined && own === undefined };
+  });
 }

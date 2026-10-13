@@ -119,6 +119,32 @@ export function createExtensionSwitch(extensions: readonly LiveExtension[], targ
   };
 }
 
+/**
+ * Restarts `name`'s MCP servers in the running session, so they take its options as they are now
+ * (#55): the launcher reads them when it starts a server. `reconnectMcpServer()` ends a server's
+ * process and starts a new one with the session's config (confirmed empirically; `setMcpServers()`
+ * replaced every server of the session and left the old process running). False when it can't
+ * be done here (not running in this session, or the session hasn't started): the next session
+ * takes them.
+ */
+export type ExtensionRestart = (name: string) => Promise<boolean>;
+
+/** The restart for a session's installed extensions. */
+export function createExtensionRestart(extensions: readonly LiveExtension[], targets: LiveTargets): ExtensionRestart {
+  return async (name) => {
+    const extension = extensions.find((candidate) => candidate.name === name);
+    const reconnect = targets.controls().reconnectMcpServer;
+    if (!extension || !reconnect || !extension.servers.length) return false;
+    try {
+      for (const server of extension.servers) await reconnect(server);
+      return true;
+    } catch {
+      // Turned off in the session: it starts with them when it's turned on again.
+      return false;
+    }
+  };
+}
+
 /** The kit's lists, as the extension is now. */
 function follow(extension: LiveExtension, enabled: boolean, targets: LiveTargets): void {
   const without = <T>(list: T[], items: readonly T[]) => {

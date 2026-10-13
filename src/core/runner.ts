@@ -131,6 +131,7 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
     contextUsage: () => contextUsage(),
     toggleMcpServer: (server, enabled) => result.toggleMcpServer(server, enabled),
     reloadPlugins: () => result.reloadPlugins(),
+    reconnectMcpServer: (server) => result.reconnectMcpServer(server),
     mcpServerStatus: () => result.mcpServerStatus(),
   });
 

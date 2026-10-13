@@ -17,7 +17,7 @@ const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), "extensions-test-"));
 function makePlugin(name: string, kit: { provides?: string[]; requires?: string[] } = {}, skills: Record<string, string> = {}): string {
   const root = temp();
   fs.mkdirSync(path.join(root, ".claude-plugin"));
-  fs.writeFileSync(path.join(root, ".claude-plugin", "plugin.json"), JSON.stringify({ name, description: `The ${name} extension.`, "agent-kit": kit }));
+  fs.writeFileSync(path.join(root, ".claude-plugin", "plugin.json"), JSON.stringify({ name, description: `The ${name} extension.`, metadata: { "agent-kit": kit } }));
   for (const [folder, content] of Object.entries(skills)) {
     fs.mkdirSync(path.join(root, "skills", folder), { recursive: true });
     fs.writeFileSync(path.join(root, "skills", folder, "SKILL.md"), content);

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { addExtension } from "../../src/core/externalExtensions.js";
+import { addExtension, setExtensionOptions } from "../../src/core/externalExtensions.js";
 import { mountPlugin, unmountPlugin } from "../../src/core/liveExtensions.js";
 import { buildSessionOptions, createInputQueue } from "../../src/core/session.js";
 import { runQuery } from "../../src/core/runner.js";
@@ -139,7 +139,7 @@ test("the CLI loads an installed extension's plugin through its mount, and reloa
 function makeHinted(name: string, kit?: Record<string, unknown>): string {
   const dir = path.join(temp(), name);
   fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
-  fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name, description: "Dice.", ...(kit ? { "agent-kit": kit } : {}) }));
+  fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name, description: "Dice.", ...(kit ? { metadata: { "agent-kit": kit } } : {}) }));
   fs.writeFileSync(path.join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { [name]: { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server.mjs"] } } }));
   const tools = [
     { name: "peek", description: "Looks at the die.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
@@ -194,6 +194,62 @@ test("plan mode lets through what an installed server marks readOnlyHint when it
     // The manifest's list is the whole answer: the server's hint doesn't count.
     assert.equal(await allowed("mcp__listed__roll"), true);
     assert.equal(await allowed("mcp__listed__peek"), false);
+  } finally {
+    input.end();
+    run.close();
+  }
+});
+
+test("changing an installed extension's option in a session restarts its server, which takes the new value", { skip: !fs.existsSync(binary) && "no Claude CLI binary for this platform", timeout: 90_000 }, async () => {
+  const root = temp();
+  const log = path.join(root, "starts.jsonl");
+  const dir = path.join(root, "probe");
+  fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, ".claude-plugin", "plugin.json"),
+    JSON.stringify({ name: "probe", description: "Probe.", userConfig: { site: { type: "string", title: "Site", description: "Its site.", required: true } } }),
+  );
+  fs.writeFileSync(path.join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { probe: { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server.mjs"], env: { SITE: "${user_config.site}", PROBE_LOG: log } } } }));
+  // On each start, its pid and the site it was given.
+  fs.writeFileSync(
+    path.join(dir, "server.mjs"),
+    [
+      'import fs from "node:fs";',
+      'import readline from "node:readline";',
+      "fs.appendFileSync(process.env.PROBE_LOG, JSON.stringify({ pid: process.pid, site: process.env.SITE }) + String.fromCharCode(10));",
+      "const send = (message) => process.stdout.write(JSON.stringify(message) + String.fromCharCode(10));",
+      'readline.createInterface({ input: process.stdin }).on("line", (line) => {',
+      "  const message = JSON.parse(line);",
+      '  if (message.method === "initialize") send({ jsonrpc: "2.0", id: message.id, result: { protocolVersion: message.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: "probe", version: "1" } } });',
+      '  else if (message.method === "tools/list") send({ jsonrpc: "2.0", id: message.id, result: { tools: [] } });',
+      "  else if (message.id !== undefined) send({ jsonrpc: '2.0', id: message.id, result: {} });",
+      "});",
+    ].join("\n"),
+  );
+  const scope = path.join(root, "extensions");
+  await addExtension(dir, scope);
+  await setExtensionOptions(scope, "probe", { site: "https://a.example" });
+  const built = await buildSessionOptions({ mode: "guided", projectDir: temp(), extensionDirs: { agent: scope } }, temp(), {
+    buildSystemPrompt: () => "P",
+    buildMcpServers: () => ({}),
+    pluginRoots: () => [],
+    buildSubagents: () => undefined,
+  });
+  const starts = (): { pid: number; site: string }[] => (fs.existsSync(log) ? fs.readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []);
+  const input = createInputQueue();
+  const run = runQuery(input.iterable, built.options);
+  try {
+    await until(() => starts().length === 1, "the server's start");
+    // The CLI passes the placeholder through untouched: the launcher puts the value in.
+    assert.equal(starts()[0]!.site, "https://a.example");
+    await setExtensionOptions(scope, "probe", { site: "https://b.example" });
+    assert.equal(await built.restartExtension("probe"), true);
+    await until(() => starts().length === 2, "the server's restart");
+    const [first, second] = starts();
+    assert.equal(second!.site, "https://b.example");
+    assert.notEqual(second!.pid, first!.pid);
+    await until(() => !alive(first!.pid), "the first server to end");
+    assert.equal(await built.restartExtension("missing"), false);
   } finally {
     input.end();
     run.close();

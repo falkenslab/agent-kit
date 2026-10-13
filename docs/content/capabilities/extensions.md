@@ -89,9 +89,12 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 | `extension add <plugin>[@<marketplace>]` | Installs a plugin of a known [marketplace](#marketplaces), from wherever the marketplace says (the marketplace's own folder, or a git repository at a ref or commit); `@<marketplace>` only when two offer that name. One from a marketplace that isn't the agent's own asks first. |
 | `extension add <folder> --link` | Registers the folder where it is, to [develop it](#developing-one): not copied, its files not checked. `list` shows it as linked. |
 | `extension add … --project` | Into the project's scope instead. |
+| `extension add … --set <key>=<value>` | Gives one of its [options](#its-options) (as many `--set` as needed); those not given are asked, on a terminal. |
 | `extension remove <name>` | Removes its files and its lock entry (a linked one's folder stays where it is). When it has [data](#its-data), asks whether to delete it too: `--yes` deletes it, `--keep-data` keeps it. |
 | `extension enable <name>` | Turns it on. |
 | `extension disable <name>` | Turns it off, keeping it installed. |
+| `extension config <name>` | Its [options](#its-options) and their values (a secret only says whether it's set). |
+| `extension config <name> <key>=<value>…` | Sets them. `<key>` alone asks for its value, without echo for a secret (so it stays out of the shell's history); `--unset <key>` clears one. |
 | `extension search [words]` | What the known marketplaces offer, matching the words in a plugin's name, description, category, tags or keywords; installed ones are marked. |
 | `extension marketplace add <folder \| git URL[#ref] \| owner/repo>` | Adds a marketplace after a warning and typing its name. |
 | `extension marketplace list` | The known marketplaces: the official one marked, how many extensions each offers, where from and when it was copied. |
@@ -102,7 +105,7 @@ Without a scope, `remove`, `enable` and `disable` act where the extension is (in
 
 ### Marketplaces
 
-A repository of extensions is a [Claude Code marketplace](https://code.claude.com/docs/en/plugins/marketplace-reference) as it is: a folder or git repository with `.claude-plugin/marketplace.json` listing its plugins and where each comes from. The same file serves Claude Code and agents on the kit, and `claude plugin validate <folder>` checks it (the kit's `"agent-kit"` key in a plugin shows as a warning: Claude Code ignores it).
+A repository of extensions is a [Claude Code marketplace](https://code.claude.com/docs/en/plugins/marketplace-reference) as it is: a folder or git repository with `.claude-plugin/marketplace.json` listing its plugins and where each comes from. The same file serves Claude Code and agents on the kit, and `claude plugin validate --strict <folder>` checks it: the kit's data in a plugin is in `metadata`, which Claude Code doesn't read, so a marketplace's CI can fail on any warning.
 
 ```json title="extensions/.claude-plugin/marketplace.json"
 {
@@ -138,7 +141,7 @@ The functions behind the command are exported too, for a host with its own inter
 
 ### In the chat
 
-`/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and apply it (the chat must have a session opener). It works in both chats.
+`/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and apply it (the chat must have a session opener). `/extensions config <name>` lists its [options](#its-options), and `/extensions config <name> <key>=<value>…` sets them and restarts its servers in the same session; never a secret, since what's typed in a chat is kept in its history. It works in both chats.
 
 **In the same session** when the extension was running when the session opened: its MCP servers are switched off (their tools leave the model's context) and its plugin is unloaded (its skills, commands and subagents go), and back again on `enable`. The kit's gates, the chat's labels, the commands, `/extensions` and [awareness](awareness.md)'s `about_me` follow, and the model is told with the person's next message, since the prompt's Extensions section still says what the session opened with. To do it, each session loads an installed extension's plugin through a link in the run's folder (`<runDir>/extensions/<name>/`, a junction on Windows), which it removes and makes again: nothing is copied, however large its `node_modules`, and what's installed is never touched. Where a link can't be made (a disk without them), it's a copy, emptied and filled.
 
@@ -179,7 +182,7 @@ The kit's capabilities are `self-awareness`, `sources`, `knowledge-base` and `pe
 
 ## Writing an installable extension
 
-**Any Claude Code plugin is one**, as it is: its skills, commands and subagents load as they do in Claude Code, and its MCP servers start from its own `.mcp.json`. The kit's key in its manifest, `"agent-kit"`, is optional: it adds what the kit's gates and chat can use. Captain Whiskers' `jokebook` is one:
+**Any Claude Code plugin is one**, as it is: its skills, commands and subagents load as they do in Claude Code, and its MCP servers start from its own `.mcp.json`. The kit's data in its manifest, `metadata["agent-kit"]`, is optional: it adds what the kit's gates and chat can use. Captain Whiskers' `jokebook` is one:
 
 ```text
 jokebook/
@@ -192,37 +195,40 @@ jokebook/
 └── agents/loro-critico.md        its subagents, if any
 ```
 
-The manifest is the plugin's: its metadata in [Claude Code's fields](https://code.claude.com/docs/en/plugins-reference#plugin-manifest-schema), and the kit's data under `"agent-kit"`:
+The manifest is the plugin's: its metadata in [Claude Code's fields](https://code.claude.com/docs/en/plugins-reference#plugin-manifest-schema), and the kit's data under `metadata["agent-kit"]`:
 
 ```json
 {
   "name": "jokebook",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A jokebook: classic pirate jokes, and ranking the jokes kept in a knowledge base by their score.",
   "author": { "name": "Falkenslab", "url": "https://github.com/falkenslab" },
   "homepage": "https://falkenslab.github.io/agent-kit/docs/capabilities/extensions",
   "repository": "https://github.com/falkenslab/agent-kit",
   "license": "MIT",
   "keywords": ["jokes", "pirates", "example"],
-  "agent-kit": {
-    "kit": ">=0.18.0 <0.20.0",
-    "provides": ["jokes"],
-    "requires": [],
-    "readOnlyTools": ["classic_joke"],
-    "labels": {
-      "classic_joke": {
-        "en": { "label": "Opening the jokebook", "phrase": ["opened the jokebook", "opened the jokebook {n} times"] },
-        "es": { "label": "Abriendo el libro de chistes", "phrase": ["abrió el libro de chistes", "abrió el libro de chistes {n} veces"] }
-      }
-    },
-    "help": "The jokebook: `classic_joke` gives a classic pirate joke; the `jokebook:rank-jokes` skill ranks the knowledge base's jokes by their score."
+  "metadata": {
+    "agent-kit": {
+      "kit": ">=0.21.0",
+      "provides": ["jokes"],
+      "requires": [],
+      "readOnlyTools": ["classic_joke"],
+      "labels": {
+        "classic_joke": {
+          "en": { "label": "Opening the jokebook", "phrase": ["opened the jokebook", "opened the jokebook {n} times"] },
+          "es": { "label": "Abriendo el libro de chistes", "phrase": ["abrió el libro de chistes", "abrió el libro de chistes {n} veces"] }
+        }
+      },
+      "help": "The jokebook: `classic_joke` gives a classic pirate joke; the `jokebook:rank-jokes` skill ranks the knowledge base's jokes by their score."
+    }
   }
 }
 ```
 
 - **Metadata** goes in Claude Code's own fields, in its format: `name` (kebab-case), `version`, `description`, `author` (an object, `{ name, email?, url? }`: a plain string fails validation), `homepage`, `repository`, `license`, `keywords`. `extension list` and `extension info` show them.
-- **The kit's data** goes under `"agent-kit"`, the only key the kit reads. Claude Code ignores it: `claude plugin validate` passes with a warning ("Unknown field 'agent-kit'"). Anything else you add is ignored by both: keep your own data out of the manifest.
-- Check it with `claude plugin validate <folder>`.
+- **The kit's data** goes under `metadata["agent-kit"]`, the only place the kit reads. `metadata` is where Claude Code keeps a plugin's own data, which it doesn't read, so `claude plugin validate --strict` passes; a top-level key would be a warning ("Unknown field"), and a failure with `--strict`. Anything else you add is ignored by both.
+- **Its options** go in Claude Code's own `userConfig`: see [Its options](#its-options).
+- Check it with `claude plugin validate --strict <folder>`.
 
 Its servers, in `.mcp.json` (or under `mcpServers` in `plugin.json`, inline or as a path), as Claude Code reads them:
 
@@ -237,13 +243,14 @@ Its servers, in `.mcp.json` (or under `mcpServers` in `plugin.json`, inline or a
 - Each server's name gives its tools': `mcp__jokebook__classic_joke`.
 - **Node servers, or npx**: `command` is `node`, and the first of `args` its script, inside the extension (`${CLAUDE_PLUGIN_ROOT}` is its folder); the rest of `args` reach the script. Or `command` is `npx`, with `-y` and a package at an exact version, as Claude Code runs it: see [A server published to npm](#a-server-published-to-npm). Any other command (`python`, `docker`, `npx` without an exact version) leaves the extension off, saying why: the kit runs installed code only through its launcher.
 - **Its folders**: `${CLAUDE_PLUGIN_ROOT}` is its plugin's folder and `${CLAUDE_PLUGIN_DATA}` its [data folder](#its-data), in `args` and `env`, as in Claude Code; the server gets both as variables too.
+- **Its options**: `${user_config.KEY}` in `args` and `env` takes one of its [options](#its-options)' value, as in Claude Code.
 - **Its environment**: the system's variables and those in its `env`, where `${VAR}` takes the agent's (`"JOKES_API_KEY": "${JOKES_API_KEY}"`, from its `.env`). Nothing else of the agent's: not its credentials. The system's are where things are and the desktop session: `PATH`, `TEMP`, `HOME`, `APPDATA`, `LOCALAPPDATA`, `PROGRAMFILES` and `PROGRAMFILES(X86)` (where a browser is found on Windows), `DISPLAY`, `WAYLAND_DISPLAY` and `XDG_*` (to open a window on Linux), the language and time zone, and the like.
 
-Under `"agent-kit"`, all optional:
+Under `metadata["agent-kit"]`, all optional:
 
 | Field | What it does |
 | --- | --- |
-| `kit` | The agent-kit versions it works with: comparators separated by spaces, all of which must hold (`>=0.19.0 <0.21.0`, `0.19.2`). Outside them, it's off. |
+| `kit` | The agent-kit versions it works with: comparators separated by spaces, all of which must hold (`>=0.21.0`, `>=0.21.0 <0.23.0`, `0.21.2`). Outside them, it's off, saying why. An upper bound turns it off with the next minor release of the kit until it's raised: leave it out unless a version is known to break it. |
 | `needs` | Programs it needs on this computer, looked for on the `PATH` as a shell would (`["docker", "python3"]`; on Windows with `PATHEXT`'s extensions). Without one, it's off, saying which. |
 | `provides`, `requires` | Its [capabilities](#capabilities). |
 | `readOnlyTools` | Its tools that only read (short names, of any of its servers): [plan mode](../core-concepts/modes.md#plan) lets them through; every other one is denied there. Without it, plan mode asks its servers: a tool whose server marks it `readOnlyHint: true` goes through, the rest are denied. See [Read-only tools](#read-only-tools). |
@@ -258,6 +265,33 @@ Under `"agent-kit"`, all optional:
 - **Its manifest's list**, `readOnlyTools`: the whole answer, whatever its servers say. An empty list (`[]`) means none of its tools goes through. A server is the code the kit trusts least, so its hints only fill the list's absence; write the list when you don't trust, or can't change, what a server says.
 
 `extension info <name>` says which applies (`Only read  roll (its manifest)`, or `what its servers mark readOnlyHint`).
+
+### Its options
+
+An extension that needs values from the person (a site's URL, a token) declares them as Claude Code does, under `userConfig` in its `plugin.json`, and its servers take them as `${user_config.KEY}` in their `args` and `env`. The same folder works in Claude Code, which asks for them itself.
+
+```json
+{
+  "name": "moodle",
+  "userConfig": {
+    "moodle_url": { "type": "string", "title": "Moodle URL", "description": "Your Moodle site, e.g. https://campus.example.org", "required": true },
+    "token": { "type": "string", "title": "Token", "description": "A web service token, if your site gives you one.", "sensitive": true },
+    "headless": { "type": "boolean", "title": "Without a window", "description": "Run the browser without a window.", "default": false }
+  }
+}
+```
+
+```json title=".mcp.json"
+{ "mcpServers": { "moodle": { "command": "npx", "args": ["-y", "@falkenslab/moodle-mcp@0.2.0"], "env": { "MOODLE_URL": "${user_config.moodle_url}", "MOODLE_MCP_HEADLESS": "${user_config.headless}" } } } }
+```
+
+- **An option** has a `type` (`string`, `number`, `boolean`, `directory` or `file`), a `title` and a `description`, and may have `required`, `default`, `sensitive`, `options` (the values it may take), `multiple` (several, comma-separated) and `min`/`max` for a number. An option with another field leaves the extension off, as Claude Code refuses it; so does a server naming `${user_config.KEY}` that isn't declared.
+- **Asked when it's installed**: `extension add` asks for each one without a value, on a terminal (a secret without echo); `--set <key>=<value>` gives one without asking. `extension config` shows and changes them later, `/extensions config` in the chat too (never a secret there).
+- **A required one without a value** (nor a default) keeps the extension off, saying which and how to set it.
+- **Where the values are**: in its scope, never in the prompt, the transcript or a tool's result. Non-sensitive ones in its lock entry (`options`), sensitive ones in `<scope>/.secrets/<name>.json`, which no session's file tools reach, even with the scope's folder readable. Reinstalling keeps them; removing deletes the secrets.
+- **Changed while a session runs**: the launcher reads the values when it starts a server, so a change reaches it when it starts again. `/extensions config` in the chat restarts its servers in the same session (`reconnectMcpServer()`: a new process with the values as they are now), and the model is told with the next message; a call running at that moment fails. A change made with `extension config` from another terminal applies when its server starts again: a new session, or `/extensions disable` and `enable`. A session the agent builds itself gets `restartExtension(name)` from `buildSessionOptions()`, which returns `false` when it can't be done in that session.
+- **Values as text**: a boolean as `true` or `false`, a list comma-separated, one without a value as empty.
+- `${user_config.KEY}` in a skill's or subagent's content, which Claude Code also expands, isn't expanded by the kit.
 
 ### Its data
 

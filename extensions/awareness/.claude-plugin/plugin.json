@@ -1,10 +1,18 @@
 {
   "name": "awareness",
+  "version": "1.0.0",
   "description": "You know who you are and what you are right now (your mode, extensions, tools, subagents, commands, context) through about_me, and how your chat is used through the help skill.",
-  "agent-kit": {
-    "provides": [
-      "self-awareness"
-    ],
-    "requires": []
+  "author": {
+    "name": "Falkenslab",
+    "url": "https://github.com/falkenslab"
+  },
+  "license": "MIT",
+  "metadata": {
+    "agent-kit": {
+      "provides": [
+        "self-awareness"
+      ],
+      "requires": []
+    }
   }
 }

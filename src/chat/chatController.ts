@@ -13,7 +13,7 @@ import { withToolLabels, withToolPhrases, type ToolLabels } from "../core/toolLa
 import type { ToolPhrase } from "../core/messages/index.js";
 import { createConsoleRenderer } from "../tui/consoleRenderer.js";
 import { chatExtensionsCommand } from "./extensions.js";
-import type { ExtensionSwitch } from "../core/liveExtensions.js";
+import type { ExtensionRestart, ExtensionSwitch } from "../core/liveExtensions.js";
 import { setExtensionEnabled } from "../core/externalExtensions.js";
 import { capHistory, loadHistory, saveHistory, slashCommandToken, type HistoryEntry } from "./history.js";
 import { firstRun, openSession, runFolderOf, runLabel, type SessionOpener } from "./runs.js";
@@ -168,7 +168,7 @@ export async function createChatController(options: Options | SessionOpener, set
   let historyEntries: HistoryEntry[] = settings.historyPath ? capHistory(await loadHistory(settings.historyPath), historyLimit) : [];
 
   // The session in use: with runs, the run's folder, opened again on /resume or /extensions.
-  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; apis?: Record<string, Record<string, unknown>>; switchExtension?: ExtensionSwitch; run: RunFolder | null } =
+  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; apis?: Record<string, Record<string, unknown>>; switchExtension?: ExtensionSwitch; restartExtension?: ExtensionRestart; run: RunFolder | null } =
     opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
   const modeControl = (): ModeControl | undefined => current.modeControl ?? settings.modeControl;
   const formatAction = withToolLabels(() => current.toolLabels ?? settings.toolLabels, settings.formatAction);
@@ -415,6 +415,17 @@ export async function createChatController(options: Options | SessionOpener, set
     await switchTo({ dir: current.run!.dir, sessionId: await readRunSession(current.run!.dir) }, false);
   }
 
+  /** An extension whose options just changed: its servers restarted in the running session if they can be, the session opened again if not (#55). */
+  async function applyOptions(name: string): Promise<void> {
+    if (await current.restartExtension?.(name).catch(() => false)) {
+      notice(t().extensionRestarted(name));
+      extensionNotices.push(`<system-reminder>The user changed the ${name} extension's settings: its server restarted with them. A call that failed just now may work again.</system-reminder>`);
+      return;
+    }
+    notice(t().extensionReconfiguredReopen(name));
+    await switchTo({ dir: current.run!.dir, sessionId: await readRunSession(current.run!.dir) }, false);
+  }
+
   async function switchTo(folder: RunFolder, fromResume: boolean): Promise<void> {
     queue.end();
     run.close();
@@ -518,6 +529,7 @@ export async function createChatController(options: Options | SessionOpener, set
       if (extensions) {
         for (const text of extensions.lines) notice(text);
         if (extensions.toggled) await applyExtension(extensions.toggled.name, extensions.toggled.enabled);
+        if (extensions.reconfigured) await applyOptions(extensions.reconfigured);
         return;
       }
       const token = slashCommandToken(line);

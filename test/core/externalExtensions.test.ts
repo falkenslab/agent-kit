@@ -41,12 +41,14 @@ function makeExtension(name = "dice", kit: Record<string, unknown> = {}): string
       license: "MIT",
       repository: { url: "https://example.com/dice.git" },
       keywords: ["dice", 7],
-      "agent-kit": {
-        provides: ["dice"],
-        readOnlyTools: ["roll"],
-        labels: { roll: { en: { label: "Rolling {sides}", phrase: ["rolled once", "rolled {n} times"] }, es: { label: "Tirando un dado de {sides}" } } },
-        help: "Dice: `roll` rolls one.",
-        ...kit,
+      metadata: {
+        "agent-kit": {
+          provides: ["dice"],
+          readOnlyTools: ["roll"],
+          labels: { roll: { en: { label: "Rolling {sides}", phrase: ["rolled once", "rolled {n} times"] }, es: { label: "Tirando un dado de {sides}" } } },
+          help: "Dice: `roll` rolls one.",
+          ...kit,
+        },
       },
     }),
   );
@@ -162,7 +164,7 @@ test("the launcher leaves the server only the system's variables and those it de
   const dir = temp();
   const entry = path.join(dir, "env.mjs");
   fs.writeFileSync(entry, "process.stdout.write(JSON.stringify({ names: Object.keys(process.env), argv: process.argv.slice(2) }));");
-  const out = execFileSync(process.execPath, [extensionLauncherPath(), entry, JSON.stringify(["DICE_SEED"]), "--fair"], {
+  const out = execFileSync(process.execPath, [extensionLauncherPath(), entry, JSON.stringify({ keep: ["DICE_SEED"] }), "--fair"], {
     env: { ...process.env, DICE_SEED: "7", CLAUDE_CODE_OAUTH_TOKEN: "secret", ANTHROPIC_API_KEY: "secret", SOMETHING_ELSE: "x", PROGRAMFILES: "C:\\Program Files", DISPLAY: ":0" },
   }).toString();
   const { names, argv } = JSON.parse(out) as { names: string[]; argv: string[] };
@@ -183,7 +185,7 @@ test("a session runs an installed extension: its server through the launcher, it
     const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, runDir, spec);
     const server = (built.options.mcpServers as Record<string, { type: string; command: string; args: string[]; env: Record<string, string> }>).dice!;
     assert.equal(server.command, process.execPath);
-    assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server", "index.mjs"), '["CLAUDE_PLUGIN_ROOT","CLAUDE_PLUGIN_DATA","DICE_SEED"]', "--fair"]);
+    assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server", "index.mjs"), '{"keep":["CLAUDE_PLUGIN_ROOT","CLAUDE_PLUGIN_DATA","DICE_SEED"]}', "--fair"]);
     // Its folders as Claude Code gives them to a plugin's servers, and its own variables.
     const data = path.join(dirs.project, ".data", "dice");
     assert.deepEqual(server.env, { CLAUDE_PLUGIN_ROOT: path.join(dirs.project, "dice"), CLAUDE_PLUGIN_DATA: data, DICE_SEED: process.env.DICE_SEED ?? "" });

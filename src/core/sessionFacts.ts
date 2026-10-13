@@ -47,6 +47,8 @@ export interface SessionLive {
   /** The running session's controls an installed extension is turned off and on with (liveExtensions.ts). */
   toggleMcpServer?: (server: string, enabled: boolean) => Promise<void>;
   reloadPlugins?: () => Promise<unknown>;
+  /** Restarts one of its MCP servers: an installed extension's, when its options change (#55). */
+  reconnectMcpServer?: (server: string) => Promise<void>;
   /** Its MCP servers as they are now: their tools and what each says of itself (plan mode's read-only hints). */
   mcpServerStatus?: () => Promise<McpServerStatus[]>;
 }
