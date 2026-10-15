@@ -177,18 +177,18 @@ What the agent's marketplaces offer is its catalog, in the command (`search`, `a
 
 Outside an agent, a marketplace shows its extensions from one file, `catalog.json` at its root: each extension's name, version, description, topics, category, author, links, install commands, and its logo and banner as URLs anyone can load. A page draws a grid from it (Falken's Lab's [extensions page](https://falkenslab.github.io/agent-kit-extensions/) does), and any client reads it without cloning the repository. Agents don't need it: their catalog reads the marketplace's copy.
 
-`@falkenslab/build-catalog` writes it, with no dependencies, at the marketplace's root:
+`@falkenslab/agent-kit-catalog` writes it, with no dependencies, at the marketplace's root:
 
 ```bash
-npx @falkenslab/build-catalog            # writes catalog.json
-npx @falkenslab/build-catalog --check    # in CI: fails when it's out of date
+npx @falkenslab/agent-kit-catalog            # writes catalog.json
+npx @falkenslab/agent-kit-catalog --check    # in CI: fails when it's out of date
 ```
 
 - **Where its links point**: `--repo owner/name`, else `GITHUB_REPOSITORY` (GitHub Actions), else the `origin` remote, else the `repository` every `plugin.json` names; the branch `--branch`, else `main` (never the one checked out, so the file reads the same on every branch and `--check` passes on pull requests).
 - **What it checks**: each extension's `plugin.json` version matches its marketplace entry, its images exist inside its folder, and its `metadata["agent-kit"]` fits agent-kit's schema; it says every problem at once and writes nothing.
 - **Only extensions kept in the repository** are cataloged (a `source` path); a marketplace listing others' repositories or npm packages isn't, yet.
 
-**The contract** is two JSON Schemas shipped in `@falkenslab/agent-kit`, in `schemas/`: `catalog.schema.json` (the file) and `agent-kit-metadata.schema.json` (`metadata["agent-kit"]` in a `plugin.json`: `kit`, `provides`, `requires`, `needs`, `readOnlyTools`, `labels`, `help`, `catalog`). An editor validates a manifest with the second; the kit's tests check its own plugins and what the generator writes against both, so a change to the format is released with the code that reads and writes it.
+**The contract** is two JSON Schemas shipped in `@falkenslab/agent-kit`, in `schemas/`: `marketplace-catalog.schema.json` (the file) and `agent-kit-metadata.schema.json` (`metadata["agent-kit"]` in a `plugin.json`: `kit`, `provides`, `requires`, `needs`, `readOnlyTools`, `labels`, `help`, `catalog`). An editor validates a manifest with the second; the kit's tests check its own plugins and what the generator writes against both, so a change to the format is released with the code that reads and writes it.
 
 ### In the chat
 

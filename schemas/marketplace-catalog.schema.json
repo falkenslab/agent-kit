@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://falkenslab.github.io/agent-kit/schemas/catalog.schema.json",
+  "$id": "https://falkenslab.github.io/agent-kit/schemas/marketplace-catalog.schema.json",
   "title": "A marketplace's catalog.json",
-  "description": "A Claude Code marketplace's extensions as one file, for a page or a client to show without cloning the repository: written by @falkenslab/build-catalog from .claude-plugin/marketplace.json and each extension's plugin.json.",
+  "description": "A Claude Code marketplace's extensions as one file, for a page or a client to show without cloning the repository: written by @falkenslab/agent-kit-catalog from .claude-plugin/marketplace.json and each extension's plugin.json.",
   "type": "object",
   "additionalProperties": false,
   "required": ["marketplace", "description", "repository", "add", "extensions"],

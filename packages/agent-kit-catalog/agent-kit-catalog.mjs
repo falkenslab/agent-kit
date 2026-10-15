@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-// @falkenslab/build-catalog: a Claude Code marketplace's extensions as one file, catalog.json — each
+// @falkenslab/agent-kit-catalog: a Claude Code marketplace's extensions as one file, catalog.json — each
 // one's name, version, description, topics, category, author, links, install commands and images
 // (as raw.githubusercontent.com URLs) — from .claude-plugin/marketplace.json and each extension's
 // plugin.json. A page or a client shows the marketplace from it without cloning the repository.
 // No dependencies: it runs with npx in any CI.
 //
-//   npx @falkenslab/build-catalog [folder]           writes <folder>/catalog.json (folder: the current one)
-//   npx @falkenslab/build-catalog [folder] --check   fails when catalog.json isn't what it would write
+//   npx @falkenslab/agent-kit-catalog [folder]           writes <folder>/catalog.json (folder: the current one)
+//   npx @falkenslab/agent-kit-catalog [folder] --check   fails when catalog.json isn't what it would write
 //   --repo owner/name   the GitHub repository its links point to; else GITHUB_REPOSITORY (GitHub Actions),
 //                       else the origin remote, else the `repository` every plugin.json names
 //   --branch name       the branch its links point to; main by default (never the one checked out, so the
 //                       file reads the same on every branch and --check passes on pull requests)
 //
-// The format is agent-kit's contract (schemas/catalog.schema.json and agent-kit-metadata.schema.json in
+// The format is agent-kit's contract (schemas/marketplace-catalog.schema.json and agent-kit-metadata.schema.json in
 // @falkenslab/agent-kit): what it writes fits the first, and an extension's metadata["agent-kit"] must
 // fit the second, or it stops saying what doesn't.
 import { execFileSync } from "node:child_process";
@@ -164,7 +164,7 @@ async function main(argv) {
     return argv[at].includes("=") ? argv[at].slice(argv[at].indexOf("=") + 1) : argv[at + 1];
   };
   if (argv.includes("--help") || argv.includes("-h")) {
-    console.log("Usage: build-catalog [folder] [--check] [--repo owner/name] [--branch name]");
+    console.log("Usage: agent-kit-catalog [folder] [--check] [--repo owner/name] [--branch name]");
     return 0;
   }
   const positional = argv.filter((arg, index) => !arg.startsWith("--") && !["--repo", "--branch"].includes(argv[index - 1]));
@@ -176,7 +176,7 @@ async function main(argv) {
     if (argv.includes("--check")) {
       const current = await readFile(target, "utf8").catch(() => "");
       if (current.replace(/\r\n/g, "\n") !== text) {
-        console.error("catalog.json is out of date: run npx @falkenslab/build-catalog and commit it.");
+        console.error("catalog.json is out of date: run npx @falkenslab/agent-kit-catalog and commit it.");
         return 1;
       }
       console.log(`catalog.json is up to date (${count} extension${count === 1 ? "" : "s"}).`);
@@ -191,5 +191,5 @@ async function main(argv) {
   }
 }
 
-// Run as a program (npx, node build-catalog.mjs), not when imported.
+// Run as a program (npx, node agent-kit-catalog.mjs), not when imported.
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = await main(process.argv.slice(2));

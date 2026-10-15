@@ -5,16 +5,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { buildCatalog, catalogText, metadataProblems } from "../../packages/build-catalog/build-catalog.mjs";
+import { buildCatalog, catalogText, metadataProblems } from "../../packages/agent-kit-catalog/agent-kit-catalog.mjs";
 
 // agent-kit's contract for a marketplace's catalog (#60): the schemas it ships, checked here with
-// ajv; the generator (packages/build-catalog) checks the same rules by hand, with no dependencies.
+// ajv; the generator (packages/agent-kit-catalog) checks the same rules by hand, with no dependencies.
 const read = (file: string) => JSON.parse(fs.readFileSync(file, "utf8"));
 const ajv = new Ajv2020({ allErrors: true });
 const validMetadata = ajv.compile(read("schemas/agent-kit-metadata.schema.json"));
-const validCatalog = ajv.compile(read("schemas/catalog.schema.json"));
-const generator = path.resolve("packages/build-catalog/build-catalog.mjs");
-const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), "build-catalog-test-"));
+const validCatalog = ajv.compile(read("schemas/marketplace-catalog.schema.json"));
+const generator = path.resolve("packages/agent-kit-catalog/agent-kit-catalog.mjs");
+const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), "agent-kit-catalog-test-"));
 
 test("the kit's own plugins and the captain's jokebook fit agent-kit's metadata schema", () => {
   const plugins = [...fs.readdirSync("extensions").map((name) => `extensions/${name}`), "examples/captain-whiskers/extensions/jokebook"];
@@ -105,7 +105,7 @@ test("the generator refuses what doesn't fit, saying every problem at once", asy
   });
 });
 
-test("npx build-catalog writes catalog.json, and --check fails when it's stale", () => {
+test("npx agent-kit-catalog writes catalog.json, and --check fails when it's stale", () => {
   const root = makeMarketplace();
   const run = (...args: string[]) => spawnSync(process.execPath, [generator, root, "--repo", "ada/harbor", ...args], { encoding: "utf8", env: { ...process.env, GITHUB_REPOSITORY: "" } });
   let result = run("--check");

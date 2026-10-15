@@ -1,4 +1,4 @@
-/** One extension in a marketplace's catalog.json (agent-kit's schemas/catalog.schema.json). */
+/** One extension in a marketplace's catalog.json (agent-kit's schemas/marketplace-catalog.schema.json). */
 export interface CatalogExtension {
   name: string;
   version: string;

@@ -2,26 +2,26 @@
 
 <img src="https://raw.githubusercontent.com/falkenslab/agent-kit/main/docs/static/img/logo.svg" alt="agent-kit logo" width="112"/>
 
-# @falkenslab/build-catalog
+# @falkenslab/agent-kit-catalog
 
 **A Claude Code marketplace's extensions as one `catalog.json`, ready to show as a grid.**<br/>
 Names, versions, topics, install commands and images, checked in CI, with no dependencies.
 
-[![npm](https://img.shields.io/npm/v/@falkenslab/build-catalog?color=cb3837&logo=npm)](https://www.npmjs.com/package/@falkenslab/build-catalog)
+[![npm](https://img.shields.io/npm/v/@falkenslab/agent-kit-catalog?color=cb3837&logo=npm)](https://www.npmjs.com/package/@falkenslab/agent-kit-catalog)
 ![Node.js 20+](https://img.shields.io/badge/node-20%2B-339933?logo=node.js&logoColor=white)
 ![Claude Code marketplace](https://img.shields.io/badge/Claude%20Code-marketplace-d97757)
-[![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)](https://github.com/falkenslab/agent-kit/blob/main/packages/build-catalog/LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)](https://github.com/falkenslab/agent-kit/blob/main/packages/agent-kit-catalog/LICENSE)
 
 **[📖 Documentation](https://falkenslab.github.io/agent-kit/docs/next/capabilities/extensions#a-marketplaces-catalog)**
 
 </div>
 
-build-catalog reads a [Claude Code marketplace](https://code.claude.com/docs/en/plugins/marketplace-reference) (`.claude-plugin/marketplace.json` and each extension's `.claude-plugin/plugin.json`) and writes `catalog.json`: one file a web page, an agent or any client reads to show the marketplace without cloning it. It's the format [agent-kit](https://github.com/falkenslab/agent-kit) defines, and it works for any marketplace whose extensions live in its repository.
+agent-kit-catalog reads a [Claude Code marketplace](https://code.claude.com/docs/en/plugins/marketplace-reference) (`.claude-plugin/marketplace.json` and each extension's `.claude-plugin/plugin.json`) and writes `catalog.json`: one file a web page, an agent or any client reads to show the marketplace without cloning it. It's the format [agent-kit](https://github.com/falkenslab/agent-kit) defines, and it works for any marketplace whose extensions live in its repository.
 
-## ✨ Why build-catalog
+## ✨ Why agent-kit-catalog
 
 - 🧩 **No dependencies.** `npx` runs it in a second, in any CI.
-- 📐 **One contract.** What it writes fits agent-kit's `catalog.schema.json`, and an extension's `metadata["agent-kit"]` must fit `agent-kit-metadata.schema.json`, or it says what doesn't.
+- 📐 **One contract.** What it writes fits agent-kit's `marketplace-catalog.schema.json`, and an extension's `metadata["agent-kit"]` must fit `agent-kit-metadata.schema.json`, or it says what doesn't.
 - 🔁 **Never stale.** `--check` fails when `catalog.json` isn't what it would write: a pull request that changes an extension and forgets the catalog doesn't pass.
 - 🌿 **The same on every branch.** Its links point to `main` (or `--branch`), never the branch checked out.
 - 🖼️ **Images that load anywhere.** An extension's logo and banner become `raw.githubusercontent.com` URLs.
@@ -31,8 +31,8 @@ build-catalog reads a [Claude Code marketplace](https://code.claude.com/docs/en/
 You need [Node.js](https://nodejs.org) 20 or later. At the root of the marketplace's repository:
 
 ```bash
-npx @falkenslab/build-catalog            # writes catalog.json
-npx @falkenslab/build-catalog --check    # in CI: fails when it's out of date
+npx @falkenslab/agent-kit-catalog            # writes catalog.json
+npx @falkenslab/agent-kit-catalog --check    # in CI: fails when it's out of date
 ```
 
 The repository its links point to comes from `--repo owner/name`, else `GITHUB_REPOSITORY` (set in GitHub Actions), else the `origin` remote, else the `repository` every `plugin.json` names; the branch from `--branch`, else `main`.
@@ -48,7 +48,7 @@ The repository its links point to comes from `--repo owner/name`, else `GITHUB_R
 
 ## 🛠️ Developing
 
-It lives in agent-kit's repository (`packages/build-catalog/`), next to the schemas it follows (`schemas/`), and agent-kit's tests check what it writes against them.
+It lives in agent-kit's repository (`packages/agent-kit-catalog/`), next to the schemas it follows (`schemas/`), and agent-kit's tests check what it writes against them.
 
 <div align="center">
 
