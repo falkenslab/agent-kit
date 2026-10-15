@@ -1,8 +1,5 @@
 <h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-readme-dark.svg">
-    <img src="docs/assets/logo-readme.svg" alt="agent-kit" height="64">
-  </picture>
+  <img src="https://raw.githubusercontent.com/falkenslab/agent-kit/main/docs/assets/logo-readme-any.svg" alt="agent-kit" height="64">
 </h1>
 
 [![npm](https://img.shields.io/npm/v/@falkenslab/agent-kit?logo=npm)](https://www.npmjs.com/package/@falkenslab/agent-kit)
