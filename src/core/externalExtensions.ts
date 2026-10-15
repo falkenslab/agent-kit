@@ -348,7 +348,17 @@ async function fetchServerPackages(manifest: ExternalManifest, cache: string): P
   return packages;
 }
 
-/** SHA-256 over an extension's files (their paths and contents, in order), `.git` aside. */
+/** A text file's bytes with CRLF as LF (latin1 maps each byte to itself); a binary one's (a NUL byte in it) as they are. */
+function withoutCarriageReturns(bytes: Buffer): Buffer {
+  if (bytes.includes(0) || !bytes.includes(13)) return bytes;
+  return Buffer.from(bytes.toString("latin1").replace(/\r\n/g, "\n"), "latin1");
+}
+
+/**
+ * SHA-256 over an extension's files (their paths and contents, in order), `.git` aside. A text
+ * file's line endings don't count (CRLF is taken as LF): git checks the same commit out with CRLF
+ * on one computer and LF on another, and a workspace's lock must match on both (#57).
+ */
 export async function hashExtension(dir: string): Promise<string> {
   const hash = createHash("sha256");
   async function walk(relative: string): Promise<void> {
@@ -356,7 +366,7 @@ export async function hashExtension(dir: string): Promise<string> {
     for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
       const child = relative ? `${relative}/${entry.name}` : entry.name;
       if (entry.isDirectory()) await walk(child);
-      else if (entry.isFile()) hash.update(`${child}\0`).update(await readFile(path.join(dir, child))).update("\0");
+      else if (entry.isFile()) hash.update(`${child}\0`).update(withoutCarriageReturns(await readFile(path.join(dir, child)))).update("\0");
     }
   }
   await walk("");

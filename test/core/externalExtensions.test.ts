@@ -384,3 +384,22 @@ test("a manifest's read-only list wins over its servers' hints, even empty", asy
   contribution = await extension!.contribute({} as never);
   assert.deepEqual(contribution.readOnlyHintServers, ["dice"]);
 });
+
+test("an extension's hash doesn't count text files' line endings, as git checks them out on each computer; a binary file counts as it is", async () => {
+  const write = (dir: string, files: Record<string, string | Uint8Array>) => {
+    for (const [name, content] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(dir, name)), { recursive: true });
+      fs.writeFileSync(path.join(dir, name), content);
+    }
+    return dir;
+  };
+  const binary = new Uint8Array([0, 13, 10, 255]);
+  const lf = write(temp(), { "server.mjs": "a\nb\n", "skills/x/SKILL.md": "# x\n\nbody\n", "logo.png": binary });
+  const crlf = write(temp(), { "server.mjs": "a\r\nb\r\n", "skills/x/SKILL.md": "# x\r\n\r\nbody\r\n", "logo.png": binary });
+  assert.equal(await hashExtension(crlf), await hashExtension(lf));
+  // A real change still shows, and a binary file's bytes all count.
+  write(crlf, { "server.mjs": "a\r\nc\r\n" });
+  assert.notEqual(await hashExtension(crlf), await hashExtension(lf));
+  const other = write(temp(), { "server.mjs": "a\nb\n", "skills/x/SKILL.md": "# x\n\nbody\n", "logo.png": new Uint8Array([0, 10, 255]) });
+  assert.notEqual(await hashExtension(other), await hashExtension(lf));
+});
