@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://falkenslab.github.io/agent-kit/schemas/catalog.schema.json",
+  "title": "A marketplace's catalog.json",
+  "description": "A Claude Code marketplace's extensions as one file, for a page or a client to show without cloning the repository: written by @falkenslab/build-catalog from .claude-plugin/marketplace.json and each extension's plugin.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["marketplace", "description", "repository", "add", "extensions"],
+  "properties": {
+    "marketplace": { "description": "The marketplace's name, as <extension>@<marketplace> names an extension.", "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "repository": { "description": "The GitHub repository's page.", "type": "string", "pattern": "^https://github\\.com/[\\w.-]+/[\\w.-]+$" },
+    "add": {
+      "description": "How to add the marketplace.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claudeCode", "agentKit"],
+      "properties": {
+        "claudeCode": { "type": "string" },
+        "agentKit": { "description": "After the agent's own command (<agent> …).", "type": "string" }
+      }
+    },
+    "extensions": {
+      "description": "Sorted by name.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/extension" }
+    }
+  },
+  "$defs": {
+    "url": { "type": "string", "pattern": "^https://" },
+    "extension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "description", "category", "topics", "author", "license", "homepage", "readme", "install"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        "version": { "description": "Its plugin.json's, the same as its marketplace entry's.", "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "category": { "type": ["string", "null"] },
+        "topics": {
+          "description": "Its plugin.json's keywords and its entry's tags, keywords and category, lowercased, without repeats.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[^A-Z]+$" }
+        },
+        "author": { "type": ["string", "null"] },
+        "license": { "type": ["string", "null"] },
+        "homepage": { "$ref": "#/$defs/url" },
+        "readme": { "$ref": "#/$defs/url" },
+        "install": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["claudeCode", "agentKit"],
+          "properties": {
+            "claudeCode": { "type": "string" },
+            "agentKit": { "description": "After the agent's own command (<agent> …).", "type": "string" }
+          }
+        },
+        "logo": { "description": "A URL anyone can load.", "$ref": "#/$defs/url" },
+        "banner": { "description": "A URL anyone can load.", "$ref": "#/$defs/url" }
+      }
+    }
+  }
+}

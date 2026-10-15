@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://falkenslab.github.io/agent-kit/schemas/agent-kit-metadata.schema.json",
+  "title": "agent-kit's data in an extension's plugin.json",
+  "description": "What goes under metadata[\"agent-kit\"] in a Claude Code plugin's .claude-plugin/plugin.json, for agent-kit's gates, chats and catalog. Claude Code doesn't read metadata. Every field is optional.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "kit": {
+      "description": "The agent-kit versions it works with: comparators separated by spaces, all of which must hold (\">=0.22.0\", \">=0.22.0 <0.24.0\").",
+      "type": "string",
+      "pattern": "^\\s*(?:(?:>=|<=|>|<|=)?\\s*v?\\d+(?:\\.\\d+){0,2})(?:\\s+(?:>=|<=|>|<|=)?\\s*v?\\d+(?:\\.\\d+){0,2})*\\s*$"
+    },
+    "provides": { "description": "Capabilities it lets the agent use.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "requires": { "description": "Capabilities another enabled extension must provide.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "needs": { "description": "Programs it needs on the computer's PATH.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "readOnlyTools": {
+      "description": "Its tools that only read (short names): plan mode lets them through. Without it, plan mode asks its servers (readOnlyHint).",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "labels": {
+      "description": "How the chat shows each tool (short name), per language (en, es, fr, de): {field} takes the call's input.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": { "enum": ["en", "es", "fr", "de"] },
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label"],
+          "properties": {
+            "label": { "type": "string", "minLength": 1 },
+            "phrase": {
+              "description": "How it counts in a folded summary: once, and {n} times.",
+              "type": "array",
+              "prefixItems": [{ "type": "string" }, { "type": "string" }],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      }
+    },
+    "help": { "description": "What it says about itself in a session, for the agent to tell the person.", "type": "string" },
+    "catalog": {
+      "description": "How a catalog shows it: images inside its folder (SVG, PNG, JPEG or WebP).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "logo": { "description": "Square.", "$ref": "#/$defs/image" },
+        "banner": { "description": "Wide, about 3:1.", "$ref": "#/$defs/image" }
+      }
+    }
+  },
+  "$defs": {
+    "image": {
+      "type": "string",
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+\\.(?:svg|png|jpe?g|webp)$"
+    }
+  }
+}

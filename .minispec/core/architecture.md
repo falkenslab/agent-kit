@@ -101,6 +101,7 @@ Each internal extension's plugin is in `extensions/<name>/`, shipped as is (`tsc
 ## Folder map
 
 - `src/core/`, `src/tui/`, `src/index.ts` — the library.
+- `schemas/` — the catalog's contract (#60): `catalog.schema.json` and `agent-kit-metadata.schema.json`, shipped in the package. `packages/build-catalog/` — `@falkenslab/build-catalog`, published apart: writes and checks a marketplace's `catalog.json`, no dependencies.
 - `src/extensions/` — the internal extensions' code; `extensions/` — their plugins; `assets/` — the installed extensions' launcher. All shipped with the package.
 - `test/` — `node:test` suites mirroring `src/`.
 - `examples/captain-whiskers/` — toy consumer.

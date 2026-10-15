@@ -1,0 +1,43 @@
+{
+  "name": "@falkenslab/build-catalog",
+  "version": "0.1.0",
+  "description": "A Claude Code marketplace's extensions as one catalog.json, for a page or a client to show them: name, version, topics, install commands and images. No dependencies.",
+  "keywords": [
+    "claude-code",
+    "marketplace",
+    "plugins",
+    "catalog",
+    "agent-kit"
+  ],
+  "license": "MIT",
+  "author": "Falkenslab",
+  "homepage": "https://falkenslab.github.io/agent-kit/docs/capabilities/extensions",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/falkenslab/agent-kit.git",
+    "directory": "packages/build-catalog"
+  },
+  "type": "module",
+  "bin": {
+    "build-catalog": "build-catalog.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./build-catalog.d.mts",
+      "default": "./build-catalog.mjs"
+    }
+  },
+  "files": [
+    "build-catalog.mjs",
+    "build-catalog.d.mts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "types": "build-catalog.d.mts"
+}

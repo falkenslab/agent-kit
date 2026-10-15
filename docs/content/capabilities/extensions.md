@@ -173,6 +173,23 @@ What the agent's marketplaces offer is its catalog, in the command (`search`, `a
 - **Uninstalling** turns it off in the running session first, and deletes its data only when asked.
 - In a host of your own, the chat controller's `extensionCatalog()`, `installExtension()`, `updateExtension()`, `removeExtension()`, `extensionOptions()`, `setExtensionOptions()` and `reopen()` do it (see [Custom hosts](../advanced/custom-hosts.md)); the core's `extensionCatalog()`, `installExtension()` and `updateExtension()` without a chat.
 
+### A marketplace's catalog
+
+Outside an agent, a marketplace shows its extensions from one file, `catalog.json` at its root: each extension's name, version, description, topics, category, author, links, install commands, and its logo and banner as URLs anyone can load. A page draws a grid from it (Falken's Lab's [extensions page](https://falkenslab.github.io/agent-kit-extensions/) does), and any client reads it without cloning the repository. Agents don't need it: their catalog reads the marketplace's copy.
+
+`@falkenslab/build-catalog` writes it, with no dependencies, at the marketplace's root:
+
+```bash
+npx @falkenslab/build-catalog            # writes catalog.json
+npx @falkenslab/build-catalog --check    # in CI: fails when it's out of date
+```
+
+- **Where its links point**: `--repo owner/name`, else `GITHUB_REPOSITORY` (GitHub Actions), else the `origin` remote, else the `repository` every `plugin.json` names; the branch `--branch`, else `main` (never the one checked out, so the file reads the same on every branch and `--check` passes on pull requests).
+- **What it checks**: each extension's `plugin.json` version matches its marketplace entry, its images exist inside its folder, and its `metadata["agent-kit"]` fits agent-kit's schema; it says every problem at once and writes nothing.
+- **Only extensions kept in the repository** are cataloged (a `source` path); a marketplace listing others' repositories or npm packages isn't, yet.
+
+**The contract** is two JSON Schemas shipped in `@falkenslab/agent-kit`, in `schemas/`: `catalog.schema.json` (the file) and `agent-kit-metadata.schema.json` (`metadata["agent-kit"]` in a `plugin.json`: `kit`, `provides`, `requires`, `needs`, `readOnlyTools`, `labels`, `help`, `catalog`). An editor validates a manifest with the second; the kit's tests check its own plugins and what the generator writes against both, so a change to the format is released with the code that reads and writes it.
+
 ### In the chat
 
 `/extensions` says what the session runs with, what's off and why, and what's installed. `/extensions disable <name>` and `/extensions enable <name>` change the lock and apply it (the chat must have a session opener). `/extensions config <name>` lists its [options](#its-options), and `/extensions config <name> <key>=<value>…` sets them and restarts its servers in the same session; never a secret, since what's typed in a chat is kept in its history. The [catalog](#the-catalog): `/extensions search [words]`, `/extensions install <name>` (`--yes` for one from another marketplace, after reading what it says), `/extensions update [name]`, `/extensions remove <name>` (`--delete-data` to delete its data) and `/extensions reload`. `/extensions trust` trusts the workspace's extensions; a session that opens with some untrusted asks first. It works in both chats.

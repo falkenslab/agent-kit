@@ -64,6 +64,8 @@ gh release create vX.Y.Z --verify-tag --title "vX.Y.Z" --notes "<notes>"
 npm publish
 ```
 
+**The catalog generator** (`packages/build-catalog`, published apart as `@falkenslab/build-catalog`): when it or `schemas/` changed since the last tag (`git diff <last tag>..HEAD --stat -- packages/build-catalog schemas`), bump its own version in `packages/build-catalog/package.json` (same rules as above, from its own version), commit it with the release, and publish it too: `cd packages/build-catalog && npm publish` (the same one-time code applies). It has no build step and no dependencies; `npm test` at the root already covered it.
+
 `npm publish` runs `prepublishOnly` (typecheck, lint, tests, build) first and publishes with public access (`publishConfig`). If the account has two-factor authentication, it asks for a one-time code: ask the user for it and run `npm publish --otp=<code>`. A published version can't be reused; if something is wrong after publishing, fix it with a new patch release.
 
 ## 4b. Captain Whiskers' installer
