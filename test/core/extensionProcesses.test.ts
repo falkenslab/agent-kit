@@ -86,6 +86,10 @@ test("turning an installed extension off, or closing the session, ends its serve
   const session = query({ prompt: input.iterable, options: built.options });
   try {
     await until(() => started().length === 2, "the server's child and grandchild");
+    // Connected, not only started: under load a server still connecting outlives turning it off.
+    for (const start = Date.now(); (await session.mcpServerStatus()).find((server) => server.name === "spawner")?.status !== "connected"; await new Promise((resolve) => setTimeout(resolve, 200))) {
+      if (Date.now() - start > 30_000) assert.fail("timed out waiting for the server to connect");
+    }
     const first = started();
     await session.toggleMcpServer("spawner", false);
     await until(() => first.every((pid) => !alive(pid)), "the first tree to end when the extension is turned off");
