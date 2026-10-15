@@ -116,7 +116,7 @@ Tool schemas use [zod](https://zod.dev) (`npm install zod`); a tool without para
 
 ## Step 4: notes that survive the session
 
-Enable the kit's `knowledge` and `sources` [extensions](../capabilities/extensions.md), each with its folder: the agent gets the [knowledge base](../capabilities/knowledge-base.md), its own tools, rules and skills to keep its notes as an interlinked wiki, and a folder of originals.
+Enable the kit's `knowledge` and `sources` [extensions](../extensions/overview.md), each with its folder: the agent gets the [knowledge base](../capabilities/knowledge-base.md), its own tools, rules and skills to keep its notes as an interlinked wiki, and a folder of originals.
 
 ```ts
 import { knowledge, sources } from "@falkenslab/agent-kit";

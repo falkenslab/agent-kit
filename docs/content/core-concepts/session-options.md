@@ -31,7 +31,7 @@ function buildSessionOptions<TConfig extends BaseSessionConfig>(
 
 ### System prompt
 
-`spec.buildSystemPrompt(config)`, then the [extensions](../capabilities/extensions.md)' list and each active one's own section (the awareness's "Who you are", the sources', the knowledge base's), then the [reply language line](../sessions/languages.md) unless `spec.replyInLanguage === false`.
+`spec.buildSystemPrompt(config)`, then the [extensions](../extensions/overview.md)' list and each active one's own section (the awareness's "Who you are", the sources', the knowledge base's), then the [reply language line](../sessions/languages.md) unless `spec.replyInLanguage === false`.
 
 ### Tools
 

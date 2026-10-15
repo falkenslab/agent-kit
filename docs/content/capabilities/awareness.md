@@ -6,7 +6,7 @@ description: The awareness extension - the agent knows who it is and what it is 
 
 # Awareness
 
-The `awareness` [extension](extensions.md) lets the agent know itself. Without it, the model only knows what your prompt says: asked "what mode are you in?", "what can you do?" or "how do I go back to yesterday's conversation?", it improvises, and a session changes under it (Shift+Tab, plan mode, an extension turned off). With it:
+The `awareness` [extension](../extensions/overview.md) lets the agent know itself. Without it, the model only knows what your prompt says: asked "what mode are you in?", "what can you do?" or "how do I go back to yesterday's conversation?", it improvises, and a session changes under it (Shift+Tab, plan mode, an extension turned off). With it:
 
 - **A "Who you are" section** in the system prompt: the agent's name, version and what it is, the agent-kit version it runs on, and where to look for the rest.
 - **`about_me`**, a read-only tool that says what the agent is right now, read from the session on every call: its mode and the ones the person can switch to, its extensions with their tools and the ones off (with why), its subagents, its built-in tools, the commands the person can type, and how full its context is. With `part: "guide"`, the agent's own guide to its domain (the extension's `guide` option).

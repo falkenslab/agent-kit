@@ -61,7 +61,7 @@ For a single-purpose agent the workspace can be the agent's own repository (`pro
 | Folder | Set by | Page |
 | --- | --- | --- |
 | `projectDir` | `BaseSessionConfig.projectDir` | [Session config](../core-concepts/session-config.md) |
-| The knowledge base, the sources, the memory | their extension's `dir` option, in `AgentSpec.extensions` (`knowledge({ dir })`, `sources({ dir })`, `memory({ dir })`) | [Extensions](../capabilities/extensions.md), [Knowledge base](../capabilities/knowledge-base.md) |
+| The knowledge base, the sources, the memory | their extension's `dir` option, in `AgentSpec.extensions` (`knowledge({ dir })`, `sources({ dir })`, `memory({ dir })`) | [Extensions](../extensions/overview.md), [Knowledge base](../capabilities/knowledge-base.md) |
 | Plugin folders | `AgentSpec.pluginRoots()` | [Skills and plugins](../capabilities/skills-and-plugins.md) |
 | The runs folder | `runsDir` option of the chat | [Runs and resuming](../sessions/runs-and-resuming.md) |
 | The run folder | passed to your session opener (`run.dir`) | [Session options](../core-concepts/session-options.md) |

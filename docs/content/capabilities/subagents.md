@@ -79,7 +79,7 @@ buildSubagents: (config) => (config.withResearch ? { agents: { researcher }, all
 
 ## Subagents in a plugin
 
-A plugin can bring subagents too, as markdown files in its `agents/` folder: your own plugins (`pluginRoots`) and your [extensions](extensions.md)'. The frontmatter gives the subagent's name, description, tools, model and turns; the body is its prompt:
+A plugin can bring subagents too, as markdown files in its `agents/` folder: your own plugins (`pluginRoots`) and your [extensions](../extensions/overview.md)'. The frontmatter gives the subagent's name, description, tools, model and turns; the body is its prompt:
 
 ```markdown
 ---

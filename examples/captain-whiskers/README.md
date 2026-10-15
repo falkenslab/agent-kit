@@ -70,7 +70,7 @@ If npm blocks install scripts (it says `allow-scripts`), `node node_modules/elec
 
 ## Extensions
 
-He runs with the kit's `sources` (his chest), `knowledge` (his logbook) and `memory` (what he remembers of you, in his home's `memory/`), and `awareness` (what he knows of himself), enabled in his code ([agent-kit's Extensions](https://falkenslab.github.io/agent-kit/docs/capabilities/extensions)).
+He runs with the kit's `sources` (his chest), `knowledge` (his logbook) and `memory` (what he remembers of you, in his home's `memory/`), and `awareness` (what he knows of himself), enabled in his code ([agent-kit's Extensions](https://falkenslab.github.io/agent-kit/docs/extensions/overview)).
 
 His `jokebook` is installed instead, from his own marketplace, `shipyard`: `extensions/` is a Claude Code marketplace (`extensions/.claude-plugin/marketplace.json`, which `claude plugin validate extensions` checks), the kit's command knows it without asking, and `extensions/jokebook/` is an extension any agent on the kit could use, with its manifest, its own MCP server (`server/index.mjs`, a small Node script with no dependencies that the kit runs in a separate process), the `rank-jokes` skill (which requires the `knowledge-base` capability: without the logbook, it isn't offered) with its command `/jokebook:best-jokes`, and the parrot. It declares its server in a `.mcp.json`, as any Claude Code plugin does. Nothing of the captain's names it: without it, his commands still work (`fresh-joke` just skips the parrot). The browser and the app install it on their first start; in the terminal, install it once (it has a single scope, his home, since his home is his only project):
 

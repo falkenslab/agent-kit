@@ -34,7 +34,7 @@ The SDK already uses `AgentDefinition` for a single subagent's definition. `Agen
 
 The system prompt for this session. Everything role-, mode- or domain-specific belongs here. The kit appends to it:
 
-- with [extensions](../capabilities/extensions.md) enabled, an Extensions section and each one's own (the [knowledge base](../capabilities/knowledge-base.md)'s, the sources');
+- with [extensions](../extensions/overview.md) enabled, an Extensions section and each one's own (the [knowledge base](../capabilities/knowledge-base.md)'s, the sources');
 - one line asking to reply in the [kit's language](../sessions/languages.md), unless `replyInLanguage` is `false`.
 
 Long prompts are easier to maintain as files: see [Prompts](../capabilities/prompts.md) and `createPromptLoader()`.
@@ -95,7 +95,7 @@ Returning something here also gives the session the `Agent` tool, and `Bash` whe
 | --- | --- | --- |
 | `identity?: AgentIdentity` | none | Who the agent is (`name`, `version`, `description`): the [awareness](../capabilities/awareness.md) extension tells the model, with agent-kit's version. See [`identity` and the guide](#identity-and-the-guide). |
 | `disallowedTools?: string[]` | `[]` | Tools blocked whatever else allows them, e.g. an MCP tool you don't trust. Takes precedence over everything. A built-in tool also leaves the context; an MCP tool is blocked but its definition is still sent. |
-| `extensions?: Extension[]` | none | What the agent runs with besides the core, each with its own options: the kit's made by their factories (`awareness()`, `sources({ dir })`, `knowledge({ dir })`, `memory({ dir })`), its own as objects. See [Extensions](../capabilities/extensions.md). |
+| `extensions?: Extension[]` | none | What the agent runs with besides the core, each with its own options: the kit's made by their factories (`awareness()`, `sources({ dir })`, `knowledge({ dir })`, `memory({ dir })`), its own as objects. See [Extensions](../extensions/overview.md). |
 | `humanApprovalTexts?` | generic texts | `{ description, approved, rejected }` of the approval tool (guided mode). |
 | `manualInterventionTexts?` | none | Its texts, and the opt-in, of the manual-intervention tool. |
 | `replyInLanguage?: boolean` | `true` | The line asking the agent (and each subagent) to reply in the kit's language. |

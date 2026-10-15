@@ -33,7 +33,7 @@ Any other tool gets its name with underscores as spaces. An MCP tool from a serv
 
 ## An extension's labels
 
-An [extension](../capabilities/extensions.md) brings its tools' labels with what it contributes (`toolLabels`), so the chat shows them without the agent doing anything. The kit's own:
+An [extension](../extensions/overview.md) brings its tools' labels with what it contributes (`toolLabels`), so the chat shows them without the agent doing anything. The kit's own:
 
 | Extension | Tool | Label |
 | --- | --- | --- |
@@ -57,7 +57,7 @@ An [extension](../capabilities/extensions.md) brings its tools' labels with what
 | `memory` | `remember` | `Remembering "<entry>"` |
 | `memory` | `forget` | `Forgetting "<entry>"` |
 
-An [installed extension](../capabilities/extensions.md#writing-an-installable-extension) gives them in its manifest (`labels`, per tool and language). One written in your agent's code gives each tool, by its full name, a `label` from its input and, optionally, the `phrase` it counts with in a [folded summary](#folded-summaries), in the kit's language (`getLanguage()`, already chosen when `contribute()` runs):
+An [installed extension](../extensions/writing.md) gives them in its manifest (`labels`, per tool and language). One written in your agent's code gives each tool, by its full name, a `label` from its input and, optionally, the `phrase` it counts with in a [folded summary](#folded-summaries), in the kit's language (`getLanguage()`, already chosen when `contribute()` runs):
 
 ```ts
 import { getLanguage, type Extension, type Language, type ToolPhrase } from "@falkenslab/agent-kit";

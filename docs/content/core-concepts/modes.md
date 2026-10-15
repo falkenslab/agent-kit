@@ -49,7 +49,7 @@ Think before building: the agent reads, researches and presents a plan, and noth
 
 - **Goes through:** `Read`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Skill`, `Agent`, `TodoWrite`, the approval and manual-intervention tools, the date and time tools, `list_sources`, `extract_text`, the knowledge base's reading tools (`knowledge_index`, `knowledge_search`, `knowledge_read`, `knowledge_check`), and the MCP tools the agent declares read-only.
 - **Writes:** `Write`/`Edit` only to the agent's plan files, if it declares any. Without them the agent presents the plan in its reply.
-- **Denied:** everything else: other writes, `Bash`, the tools that add to or retire from the sources folder, and every MCP tool the agent doesn't vouch for (an installed extension vouches for its own, in its manifest or through its servers' `readOnlyHint`: see [Read-only tools](../capabilities/extensions.md#read-only-tools)), so a forgotten tool can't change anything. The denial tells the model it's in plan mode and that the person leaves it when they want the plan carried out.
+- **Denied:** everything else: other writes, `Bash`, the tools that add to or retire from the sources folder, and every MCP tool the agent doesn't vouch for (an installed extension vouches for its own, in its manifest or through its servers' `readOnlyHint`: see [Read-only tools](../extensions/writing.md#read-only-tools)), so a forgotten tool can't change anything. The denial tells the model it's in plan mode and that the person leaves it when they want the plan carried out.
 
 The agent declares both in [`planMode`](agent-spec.md#planmode):
 

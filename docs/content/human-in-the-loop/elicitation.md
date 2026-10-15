@@ -33,7 +33,7 @@ The server sends a message and a flat JSON Schema of the values it wants: text, 
 - **Any other port** (the terminal chats) asks field by field with its usual panels: first who asks, the message and the fields (Enter answers, `n` declines, `q` cancels), then each value: a choice for options and yes/no, text for the rest, asked again (up to three times) when it isn't a value of its type. A required one left empty declines.
 - The [response file](response-file.md) answers each step as for any checkpoint.
 
-What the person answers is never written to the transcript or the session log. MCP says a server mustn't ask for secrets in a form (a sign-in goes through a page), so the kit doesn't mask the fields; an extension's secrets go in its [options](../capabilities/extensions.md#its-options).
+What the person answers is never written to the transcript or the session log. MCP says a server mustn't ask for secrets in a form (a sign-in goes through a page), so the kit doesn't mask the fields; an extension's secrets go in its [options](../extensions/configuring.md).
 
 ## A page to open
 

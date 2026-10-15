@@ -22,7 +22,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
 };
 ```
 
-It's the kit's `knowledge` [extension](extensions.md), enabled in the spec with its folder (`dir`, a path or a function of the session's config), with `sources` beside it for the originals:
+It's the kit's `knowledge` [extension](../extensions/overview.md), enabled in the spec with its folder (`dir`, a path or a function of the session's config), with `sources` beside it for the originals:
 
 - the agent gets the **`knowledge_*` tools** (an MCP server, `knowledge`) and reaches the knowledge base only through them: the file tools can't read, write or search its folder (the [file scope](../security/file-scope.md) says so, pointing to the tools);
 - a **"Knowledge base" section** is appended to the system prompt, with the page types and the working rules (and, when an active extension provides `sources`, how to match summaries to their originals);
@@ -236,7 +236,7 @@ The plan gate denies every tool here but `list_sources` and `extract_text`, and 
 
 They're separate on purpose: **each owns its data, and the model connects them** with their tools. The sources know their originals and when each changed; the knowledge base knows its pages, which original each summary is about and when it was written. Neither reads nor writes the other's data, so the knowledge base's store can be anything (a database, a vector store) and the sources work without a knowledge base.
 
-The model matches them, as the `knowledge-ingest` and `knowledge-lint` skills tell it, and the knowledge base's prompt section too when an active extension provides the `sources` [capability](extensions.md#capabilities):
+The model matches them, as the `knowledge-ingest` and `knowledge-lint` skills tell it, and the knowledge base's prompt section too when an active extension provides the `sources` [capability](../extensions/overview.md#capabilities):
 
 - **To ingest**: an original that no summary is about needs ingesting; one whose `changedAt` (from `list_sources`) is after its summary's `ingested` (from `knowledge_index`) changed since, and its summary is redone with `knowledge_rewrite`, which sets `ingested` again. Both dates are ISO 8601 in UTC, so the later one sorts after as text; `date_math` is there if in doubt. (A rule to always use `date_math` was dropped: in real sessions the model compared them as text, correctly, and skipped the tool.)
 - **To retire**: after `retire_source`, the knowledge base's own tools retire or supersede the summaries, with the person's approval.

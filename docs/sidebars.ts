@@ -36,13 +36,27 @@ const sidebars: SidebarsConfig = {
       items: [
         "capabilities/tools-and-mcp",
         "capabilities/skills-and-plugins",
-        "capabilities/extensions",
         "capabilities/subagents",
         "capabilities/knowledge-base",
         "capabilities/knowledge-store",
         "capabilities/memory",
         "capabilities/awareness",
         "capabilities/prompts",
+      ],
+    },
+    {
+      type: "category",
+      label: "Extensions",
+      items: [
+        "extensions/overview",
+        "extensions/the-kits-own",
+        "extensions/installing",
+        "extensions/configuring",
+        "extensions/workspaces",
+        "extensions/writing",
+        "extensions/developing",
+        "extensions/publishing",
+        "extensions/reference",
       ],
     },
     {

@@ -23,9 +23,9 @@ interface Config extends BaseSessionConfig {
 | --- | --- | --- | --- |
 | `mode` | `"interactive" \| "guided" \| "autonomous" \| "plan"` | yes | How much a human is in the loop. See [Modes](modes.md). |
 | `projectDir` | `string` | yes | The project root: the session's working directory when the agent has file tools or plugins, and the base for relative paths in the file scope. |
-| `officialMarketplace` | `string` | no | The agent's own [marketplace](../capabilities/extensions.md#marketplaces) (a folder or a git URL, `#ref`): the chats' [catalog](../capabilities/extensions.md#the-catalog) offers what it has, installed without a confirmation. The same as `runExtensionCommand()`'s `official`. |
-| `catalogTopics` | `string[]` | no | The topics of the extensions this agent offers its users (`["miyagi"]`): the chats' [catalog](../capabilities/extensions.md#the-catalog) shows only those with one of them. Without it, every one. |
-| `extensionDirs` | `{ agent?: string; project?: string }` | no | Where [extensions are installed](../capabilities/extensions.md#installing-extensions) for this agent: `agent` for all its projects, `project` for this one (it wins). The enabled ones whose files match their lock run with the session. |
+| `officialMarketplace` | `string` | no | The agent's own [marketplace](../extensions/installing.md#marketplaces) (a folder or a git URL, `#ref`): the chats' [catalog](../extensions/installing.md#the-catalog) offers what it has, installed without a confirmation. The same as `runExtensionCommand()`'s `official`. |
+| `catalogTopics` | `string[]` | no | The topics of the extensions this agent offers its users (`["miyagi"]`): the chats' [catalog](../extensions/installing.md#the-catalog) shows only those with one of them. Without it, every one. |
+| `extensionDirs` | `{ agent?: string; project?: string }` | no | Where [extensions are installed](../extensions/installing.md) for this agent: `agent` for all its projects, `project` for this one (it wins). The enabled ones whose files match their lock run with the session. |
 | `extraWritableDirs` | `string[]` | no | Folders the agent reads, searches and writes with the file tools (all five), e.g. a folder of its own notes. |
 | `extraReadableDirs` | `string[]` | no | More folders the agent may read and search (`Read`, `Glob`, `Grep`), never write. Besides them, `extraWritableDirs` and its extensions' folders (the sources), the agent reads nothing on the disk (see [What the agent can read](../security/file-scope.md#what-the-agent-can-read)). |
 | `deniedPaths` | `string[]` | no | Files or folders the agent must never read, search or write, e.g. a config file holding a password. |
@@ -61,7 +61,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
 };
 ```
 
-The agent keeps its notes in `knowledge/` through the `knowledge_*` tools only, reads and searches `sources/`, and adds to `sources/` only through the sources tools (`save_to_sources`, `download_to_sources`, `request_file`). See [Extensions](../capabilities/extensions.md).
+The agent keeps its notes in `knowledge/` through the `knowledge_*` tools only, reads and searches `sources/`, and adds to `sources/` only through the sources tools (`save_to_sources`, `download_to_sources`, `request_file`). See [Extensions](../extensions/overview.md).
 
 ### Protecting a secret
 

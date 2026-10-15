@@ -6,7 +6,7 @@ description: How the file scope hook limits Read, Write, Edit, Grep and Glob to 
 
 # File scope
 
-Without it, the SDK's file tools can reach the whole working directory, and keeping the agent out of your own files would rest on the prompt alone. The file scope gate is a `PreToolUse` hook, registered whenever the session has file tools, that checks every `Read`, `Write`, `Edit`, `Grep` and `Glob` call against the folders in the [session config](../core-concepts/session-config.md) and those of the [extensions](../capabilities/extensions.md) the session runs with.
+Without it, the SDK's file tools can reach the whole working directory, and keeping the agent out of your own files would rest on the prompt alone. The file scope gate is a `PreToolUse` hook, registered whenever the session has file tools, that checks every `Read`, `Write`, `Edit`, `Grep` and `Glob` call against the folders in the [session config](../core-concepts/session-config.md) and those of the [extensions](../extensions/overview.md) the session runs with.
 
 ## The scope
 

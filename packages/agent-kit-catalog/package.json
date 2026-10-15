@@ -11,7 +11,7 @@
   ],
   "license": "MIT",
   "author": "Falkenslab",
-  "homepage": "https://falkenslab.github.io/agent-kit/docs/capabilities/extensions",
+  "homepage": "https://falkenslab.github.io/agent-kit/docs/extensions/publishing",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/falkenslab/agent-kit.git",

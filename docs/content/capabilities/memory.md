@@ -6,7 +6,7 @@ description: The memory extension - what the agent learns about the person it wo
 
 # Memory of the person
 
-The `memory` [extension](extensions.md) gives the agent a memory of the person it works for: who they are (their name, their role) and how they want things done (their corrections, how they like answers). It lasts across sessions and across **all their projects**, which a project's [knowledge base](knowledge-base.md) can't: padawan learning how a student studies, course after course; miyagi learning a teacher's style.
+The `memory` [extension](../extensions/overview.md) gives the agent a memory of the person it works for: who they are (their name, their role) and how they want things done (their corrections, how they like answers). It lasts across sessions and across **all their projects**, which a project's [knowledge base](knowledge-base.md) can't: padawan learning how a student studies, course after course; miyagi learning a teacher's style.
 
 ## Turning it on
 

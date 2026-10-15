@@ -12,7 +12,7 @@ Names, versions, topics, install commands and images, checked in CI, with no dep
 ![Claude Code marketplace](https://img.shields.io/badge/Claude%20Code-marketplace-d97757)
 [![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)](https://github.com/falkenslab/agent-kit/blob/main/packages/agent-kit-catalog/LICENSE)
 
-**[📖 Documentation](https://falkenslab.github.io/agent-kit/docs/next/capabilities/extensions#a-marketplaces-catalog)**
+**[📖 Documentation](https://falkenslab.github.io/agent-kit/docs/next/extensions/publishing#the-catalog-file)**
 
 </div>
 
