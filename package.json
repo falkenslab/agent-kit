@@ -48,7 +48,7 @@
     "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.3.234",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.300",
     "@inkjs/ui": "^2.0.0",
     "@inquirer/prompts": "^8.5.2",
     "@types/react": "^19.3.0",
@@ -85,10 +85,10 @@
   },
   "peerDependencies": {
     "@mozilla/readability": ">=0.5.0",
+    "fflate": ">=0.8.0",
     "linkedom": ">=0.16.0",
-    "turndown": ">=7.0.0",
     "mammoth": ">=1.6.0",
-    "fflate": ">=0.8.0"
+    "turndown": ">=7.0.0"
   },
   "peerDependenciesMeta": {
     "@mozilla/readability": {
