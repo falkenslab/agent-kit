@@ -10,7 +10,7 @@
       "name": "jokebook",
       "source": "./jokebook",
       "description": "A jokebook: classic pirate jokes, and ranking the jokes kept in a knowledge base by their score.",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "category": "fun",
       "tags": ["jokes", "pirates"]
     }

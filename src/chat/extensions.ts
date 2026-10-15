@@ -58,7 +58,7 @@ export async function chatExtensionsCommand(
   const verb = action?.toLowerCase();
   if (verb === "search") {
     const words = [name, ...extra].filter((word): word is string => Boolean(word));
-    const entries = status ? await extensionCatalog(status.dirs, { ...(status.official ? { official: status.official } : {}), words }).catch(() => []) : [];
+    const entries = status ? await extensionCatalog(status.dirs, { ...(status.official ? { official: status.official } : {}), ...(status.catalogTopics ? { topics: status.catalogTopics } : {}), words }).catch(() => []) : [];
     return { lines: entries.length ? entries.map((entry) => `  ${describeEntry(entry)}`) : [t().extensionsNoMatch] };
   }
   if (verb === "install" && name) return canReopen ? { lines: [], action: { type: "install", spec: name, confirmed: extra.includes("--yes") } } : { lines: [t().extensionsCantReopen] };

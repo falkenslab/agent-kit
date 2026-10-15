@@ -63,6 +63,8 @@ export async function runExtensionCommand(
     write?: (line: string) => void;
     /** The agent's official marketplace: a folder or a git URL (`#ref`). */
     official?: string;
+    /** The topics of the extensions `search` shows (#59), as the agent's `catalogTopics`; without it, every one. */
+    catalogTopics?: string[];
     /** Asks the person (a confirmation, an option's value); by default on the terminal, and nothing without one. */
     ask?: (question: string) => Promise<string>;
     /** Asks for a secret (a sensitive option), without echo; by default on the terminal. */
@@ -249,7 +251,7 @@ export async function runExtensionCommand(
         return true;
       }
       case "search": {
-        const matching = await extensionCatalog(options.dirs, { ...(options.official ? { official: options.official } : {}), words: positional });
+        const matching = await extensionCatalog(options.dirs, { ...(options.official ? { official: options.official } : {}), ...(options.catalogTopics?.length ? { topics: options.catalogTopics } : {}), words: positional });
         if (!matching.length) {
           const offered = (await knownMarketplaces()).some((marketplace) => marketplace.manifest?.plugins.length);
           write(offered ? "No extension matches." : `No marketplace offers extensions yet. \`${command} extension marketplace add <folder | git URL | owner/repo>\` adds one.`);

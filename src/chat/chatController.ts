@@ -434,6 +434,9 @@ export async function createChatController(options: Options | SessionOpener, set
     await switchTo({ dir: current.run!.dir, sessionId: await readRunSession(current.run!.dir) }, false);
   }
 
+  /** The catalog as the view last listed it (#59): what its images are served from. */
+  let lastCatalog: CatalogEntry[] | undefined;
+
   /** The installed extensions as they are now on disk, into the state (after installing, updating or removing one). */
   async function refreshInstalled(): Promise<void> {
     if (!current.extensions) return;
@@ -686,7 +689,17 @@ export async function createChatController(options: Options | SessionOpener, set
      */
     async extensionCatalog(words: readonly string[] = []): Promise<CatalogEntry[]> {
       if (!current.extensions) return [];
-      return readCatalog(current.extensions.dirs, { ...(current.extensions.official ? { official: current.extensions.official } : {}), words });
+      const entries = await readCatalog(current.extensions.dirs, { ...(current.extensions.official ? { official: current.extensions.official } : {}), ...(current.extensions.catalogTopics ? { topics: current.extensions.catalogTopics } : {}), words });
+      if (!words.length) lastCatalog = entries;
+      return entries;
+    },
+    /**
+     * A catalog entry's logo or banner (#59), as a file for a view to serve; `undefined` when it
+     * has none, or isn't offered. From the catalog the view last listed, when it has.
+     */
+    async extensionImage(spec: string, kind: "logo" | "banner"): Promise<string | undefined> {
+      const entries = lastCatalog ?? (await controller.extensionCatalog());
+      return entries.find((entry) => entry.spec === spec)?.[kind];
     },
     /**
      * Installs an extension from the catalog (`<name>@<marketplace>`, or a name only one offers)
@@ -709,6 +722,7 @@ export async function createChatController(options: Options | SessionOpener, set
       if (!current.extensions) return [];
       const official = current.extensions.official ? { official: current.extensions.official } : {};
       const names = name ? [name] : (await readCatalog(current.extensions.dirs, official)).filter((entry) => entry.update).map((entry) => entry.plugin.name);
+      // Updating what's installed isn't offering: every installed one, whatever its topics.
       if (!names.length) notice(t().extensionsUpToDate);
       for (const each of names) {
         const result = await updateFromCatalog(current.extensions.dirs, each, official);

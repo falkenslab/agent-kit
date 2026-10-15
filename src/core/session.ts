@@ -390,6 +390,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const extensions: ExtensionsStatus = {
     dirs: extensionDirs,
     ...(config.officialMarketplace ? { official: config.officialMarketplace } : {}),
+    ...(config.catalogTopics?.length ? { catalogTopics: config.catalogTopics } : {}),
     untrusted: external.untrusted.map((installed) => ({ name: installed.name, ...(installed.manifest?.version ? { version: installed.manifest.version } : {}), source: installed.lock.marketplace ?? installed.lock.source })),
     installed: await listInstalled(extensionDirs),
     active: resolved.active.map(({ extension }) => extension.name),
@@ -454,6 +455,8 @@ export interface ExtensionsStatus {
   dirs: ExtensionDirs;
   /** The agent's own marketplace (`officialMarketplace`), for the chats' catalog. */
   official?: string;
+  /** The topics the chats' catalog shows (`catalogTopics`); none, every extension. */
+  catalogTopics?: string[];
   /** The workspace's extensions that don't run until the person trusts them there (#57): the chats ask. */
   untrusted: { name: string; version?: string; source: string }[];
   installed: InstalledExtension[];

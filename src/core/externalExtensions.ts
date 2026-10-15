@@ -94,6 +94,8 @@ export interface ExternalManifest {
   help?: string;
   /** Its options (`userConfig`, as Claude Code declares them, #55): its servers take them as `${user_config.KEY}`. */
   userConfig: Record<string, ExtensionOption>;
+  /** How a catalog shows it (#59): its `logo` (square) and `banner` (wide), paths inside its folder, as its manifest gives them. */
+  catalog?: { logo?: string; banner?: string };
 }
 
 /** One extension in a scope's lock. */
@@ -229,7 +231,16 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
     labels: kit.labels ?? {},
     ...(kit.help ? { help: kit.help } : {}),
     userConfig: parseUserConfig(raw.userConfig),
+    ...catalogLook((kit as { catalog?: unknown }).catalog),
   };
+}
+
+/** A manifest's `catalog` (#59): only its `logo` and `banner`, when they're paths. */
+function catalogLook(raw: unknown): { catalog?: { logo?: string; banner?: string } } {
+  if (!raw || typeof raw !== "object") return {};
+  const { logo, banner } = raw as { logo?: unknown; banner?: unknown };
+  const look = { ...(typeof logo === "string" ? { logo } : {}), ...(typeof banner === "string" ? { banner } : {}) };
+  return Object.keys(look).length ? { catalog: look } : {};
 }
 
 /**

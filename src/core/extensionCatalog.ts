@@ -25,6 +25,19 @@ export function marketplacesDir(dirs: ExtensionDirs): string | undefined {
 export async function knownMarketplaces(dirs: ExtensionDirs, official?: string): Promise<KnownMarketplace[]> {
   const dir = marketplacesDir(dirs);
   if (!dir) throw new Error("This agent has no folder for extensions.");
+  // Calls at the same time share one look (a page asking for several images at once): two copies
+  // of the same marketplace taken together would clash.
+  const key = path.resolve(dir);
+  const pending = looking.get(key);
+  if (pending) return pending;
+  const look = lookAt(dir, official).finally(() => looking.delete(key));
+  looking.set(key, look);
+  return look;
+}
+
+const looking = new Map<string, Promise<KnownMarketplace[]>>();
+
+async function lookAt(dir: string, official: string | undefined): Promise<KnownMarketplace[]> {
   const known = await listMarketplaces(dir);
   if (official && !(isGitSource(official) && known.some((marketplace) => marketplace.official))) {
     await addMarketplace(official, dir, { official: true });
@@ -47,20 +60,40 @@ export interface CatalogEntry {
   installed?: InstalledExtension;
   /** Installed from this marketplace with an older version than it offers. */
   update: boolean;
+  /** What it's about and who it's for (#59): its `plugin.json`'s `keywords` and its entry's `tags`, `keywords` and `category`, lowercased. */
+  topics: string[];
+  /** Its logo and banner (#59), as files of the marketplace's copy, when it has them. */
+  logo?: string;
+  banner?: string;
 }
 
-/** The version a marketplace offers of a plugin, as Claude Code computes it: its `plugin.json` wins over the entry. */
-async function offeredVersion(marketplace: KnownMarketplace, plugin: MarketplacePlugin): Promise<string | undefined> {
+/** The images a catalog shows: these types only. */
+const IMAGE = /\.(svg|png|jpe?g|webp)$/i;
+
+/**
+ * What a marketplace offers of a plugin, from its folder in the marketplace's copy when it has one:
+ * the version (its `plugin.json` wins over the entry, as Claude Code computes it), its keywords,
+ * and its look, an image inside its folder only.
+ */
+async function offered(marketplace: KnownMarketplace, plugin: MarketplacePlugin): Promise<{ version?: string; keywords: string[]; logo?: string; banner?: string }> {
   try {
     const resolved = resolvePluginSource(marketplace, plugin);
     if ("source" in resolved && !isGitSource(resolved.source) && (await stat(resolved.source).catch(() => null))?.isDirectory()) {
-      const version = (await readExternalManifest(resolved.source).catch(() => undefined))?.version;
-      if (version) return version;
+      const manifest = await readExternalManifest(resolved.source).catch(() => undefined);
+      const image = async (relative: string | undefined): Promise<string | undefined> => {
+        if (!relative || !IMAGE.test(relative)) return undefined;
+        const file = path.resolve(resolved.source, relative);
+        if (path.relative(resolved.source, file).startsWith("..") || !(await stat(file).catch(() => null))?.isFile()) return undefined;
+        return file;
+      };
+      const [logo, banner] = [await image(manifest?.catalog?.logo), await image(manifest?.catalog?.banner)];
+      const version = manifest?.version ?? plugin.version;
+      return { ...(version ? { version } : {}), keywords: manifest?.keywords ?? [], ...(logo ? { logo } : {}), ...(banner ? { banner } : {}) };
     }
   } catch {
-    // A source the kit doesn't install: the entry's version, if any.
+    // A source the kit doesn't install: the entry's own fields.
   }
-  return plugin.version;
+  return { ...(plugin.version ? { version: plugin.version } : {}), keywords: [] };
 }
 
 /** Whether `offered` is newer than `installed` (x.y.z); a version that can't be compared isn't. */
@@ -70,15 +103,20 @@ export function isNewer(offered: string | undefined, installed: string | undefin
 }
 
 /** Everything the known marketplaces offer, matching `words` (in its name, description, category, tags or keywords) when given. */
-export async function extensionCatalog(dirs: ExtensionDirs, options: { official?: string; words?: readonly string[] } = {}): Promise<CatalogEntry[]> {
+export async function extensionCatalog(dirs: ExtensionDirs, options: { official?: string; words?: readonly string[]; topics?: readonly string[] } = {}): Promise<CatalogEntry[]> {
   const installed = (await listInstalled(dirs)).filter((extension) => !extension.shadowed);
   const words = (options.words ?? []).map((word) => word.toLowerCase());
+  // What the agent offers its users (#59): only what has one of its topics.
+  const wanted = options.topics?.length ? new Set(options.topics.map((topic) => topic.toLowerCase())) : undefined;
   const entries: CatalogEntry[] = [];
   for (const marketplace of await knownMarketplaces(dirs, options.official)) {
     for (const plugin of marketplace.manifest?.plugins ?? []) {
-      const text = [plugin.name, plugin.description, plugin.category, ...(plugin.tags ?? []), ...(plugin.keywords ?? [])].join(" ").toLowerCase();
+      const look = await offered(marketplace, plugin);
+      const topics = [...new Set([...look.keywords, ...(plugin.tags ?? []), ...(plugin.keywords ?? []), ...(plugin.category ? [plugin.category] : [])].map((topic) => topic.toLowerCase()))];
+      if (wanted && !topics.some((topic) => wanted.has(topic))) continue;
+      const text = [plugin.name, plugin.description, ...topics].join(" ").toLowerCase();
       if (!words.every((word) => text.includes(word))) continue;
-      const version = await offeredVersion(marketplace, plugin);
+      const version = look.version;
       const mine = installed.find((extension) => extension.name === plugin.name);
       const fromHere = mine?.lock.marketplace === `${plugin.name}@${marketplace.name}`;
       entries.push({
@@ -89,6 +127,9 @@ export async function extensionCatalog(dirs: ExtensionDirs, options: { official?
         ...(version ? { version } : {}),
         ...(mine ? { installed: mine } : {}),
         update: Boolean(fromHere && isNewer(version, mine?.manifest?.version)),
+        topics,
+        ...(look.logo ? { logo: look.logo } : {}),
+        ...(look.banner ? { banner: look.banner } : {}),
       });
     }
   }

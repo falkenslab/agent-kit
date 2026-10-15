@@ -42,6 +42,11 @@ export interface BaseSessionConfig {
    */
   officialMarketplace?: string;
   /**
+   * The topics of the extensions this agent offers its users (#59), e.g. `["miyagi"]`: the chats'
+   * catalog and `extension search` show only those with one of them. Without it, every one.
+   */
+  catalogTopics?: string[];
+  /**
    * Directories where the agent reads, searches and writes with the file tools (Write/Edit,
    * scoped — see hooks/fileScopeGate.ts), e.g. a folder of its own notes. Setting one gives the
    * session all five file tools; an extension's folders (the sources, the knowledge base) come

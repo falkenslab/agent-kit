@@ -199,6 +199,18 @@
   .ext .badge, .opt .badge { font-size: 11.5px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
   .ext .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
   .tabs { display: flex; gap: 6px; margin: 2px 0 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .chip { font: inherit; font-size: 12px; color: var(--text-2); background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+  .chip.on { color: var(--gold-ink); background: var(--gold); border-color: transparent; }
+  .ext-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .ext-card { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); background: var(--bg-2); border-radius: 12px; cursor: pointer; }
+  .ext-card:hover, .ext-card:focus-visible { border-color: var(--gold); outline: none; }
+  .ext-card .name { font-weight: 650; } .ext-card .ver, .dialog .ver { font-size: 12px; color: var(--dim); font-weight: 400; margin-left: 6px; }
+  .ext-card .desc { font-size: 13px; color: var(--text-2); margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; } .tag { font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; }
+  .logo { border-radius: 10px; flex: none; object-fit: contain; } .logo.initial { display: grid; place-items: center; background: var(--line); color: var(--text-2); font-weight: 700; font-size: 18px; }
+  .dialog .banner { width: calc(100% + 2px); max-height: 180px; object-fit: cover; border-radius: 10px; margin-bottom: 12px; }
+  .entry-head { display: flex; gap: 12px; align-items: center; } .entry-head h2 { margin: 0; }
   .opt { display: block; margin: 12px 0; } .opt-title { font-weight: 600; } .opt .desc { font-size: 13px; color: var(--text-2); margin: 2px 0 6px; }
   .check { display: flex; gap: 8px; align-items: center; margin: 12px 0; }
   .toast { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line-2); color: var(--text); padding: 9px 16px; border-radius: 12px; box-shadow: var(--shadow); font-size: 14px; z-index: 20; display: none; max-width: calc(100vw - 32px); }
@@ -1201,41 +1213,130 @@ function buildInstalled(body, catalog) {
   }
 }
 
+// The catalog as a grid (#59): a card per extension, its logo, name, version, description and
+// topics; a search and topic chips to filter; a card opens its details, with its banner.
+let extTopics = new Set();
+const imageUrl = (entry, kind) => `/api/extension-image?spec=${encodeURIComponent(entry.spec)}&kind=${kind}&token=${encodeURIComponent(token)}`;
+function logoOf(entry, size) {
+  if (entry.logo) {
+    const img = document.createElement("img");
+    img.className = "logo";
+    img.alt = "";
+    img.width = size;
+    img.height = size;
+    img.src = imageUrl(entry, "logo");
+    return img;
+  }
+  // No logo: its initial on a tile.
+  const tile = document.createElement("div");
+  tile.className = "logo initial";
+  tile.style.width = tile.style.height = `${size}px`;
+  tile.textContent = entry.name.slice(0, 1).toUpperCase();
+  return tile;
+}
+function actionFor(entry, after) {
+  if (!entry.installed) return button(T.install, "primary", () => void install(entry));
+  if (entry.update) {
+    return button(T.update, "primary", async () => {
+      await act("update", { name: entry.name });
+      await after();
+    });
+  }
+  const done = document.createElement("span");
+  done.className = "badge";
+  done.textContent = T.isInstalled;
+  return done;
+}
 function buildCatalog(body, catalog) {
   const search = document.createElement("input");
   search.className = "field";
   search.type = "search";
   search.placeholder = T.search;
   search.value = extSearch;
-  const list = document.createElement("div");
+  const chips = document.createElement("div");
+  chips.className = "chips";
+  const grid = document.createElement("div");
+  grid.className = "ext-grid";
+  const topics = [...new Set(catalog.flatMap((entry) => entry.topics ?? []))].sort();
+  const renderChips = () => {
+    chips.innerHTML = "";
+    for (const topic of topics) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = `chip${extTopics.has(topic) ? " on" : ""}`;
+      chip.textContent = topic;
+      chip.addEventListener("click", () => {
+        if (extTopics.has(topic)) extTopics.delete(topic);
+        else extTopics.add(topic);
+        renderChips();
+        render();
+      });
+      chips.append(chip);
+    }
+  };
   const render = () => {
-    list.innerHTML = "";
+    grid.innerHTML = "";
     const words = search.value.toLowerCase().split(/\s+/).filter(Boolean);
-    const shown = catalog.filter((entry) => words.every((word) => `${entry.name} ${entry.description} ${entry.marketplace}`.toLowerCase().includes(word)));
-    if (!shown.length) list.insertAdjacentHTML("beforeend", `<p style="color:var(--dim)">${escape(T.noMatch)}</p>`);
+    const shown = catalog.filter(
+      (entry) =>
+        [...extTopics].every((topic) => (entry.topics ?? []).includes(topic)) &&
+        words.every((word) => `${entry.name} ${entry.description} ${(entry.topics ?? []).join(" ")}`.toLowerCase().includes(word)),
+    );
+    if (!shown.length) grid.insertAdjacentHTML("beforeend", `<p style="color:var(--dim)">${escape(T.noMatch)}</p>`);
     for (const entry of shown) {
-      const div = document.createElement("div");
-      div.className = "ext";
-      div.innerHTML = `<div class="top"><span class="name">${escape(entry.name)}${entry.version ? `<span class="ver">${escape(entry.version)}</span>` : ""}</span><span class="badge">${escape(entry.marketplace)}</span></div>${entry.description ? `<div class="desc">${escape(entry.description)}</div>` : ""}`;
-      const row = document.createElement("div");
-      row.className = "actions";
-      if (!entry.installed) row.append(button(T.install, "primary", () => void install(entry)));
-      else if (entry.update) {
-        row.append(button(T.update, "primary", async () => {
-          await act("update", { name: entry.name });
-          await openExtensions("catalog");
-        }));
-      } else row.insertAdjacentHTML("beforeend", `<span class="badge">${escape(T.isInstalled)}</span>`);
-      div.append(row);
-      list.append(div);
+      const card = document.createElement("div");
+      card.className = "ext-card";
+      card.tabIndex = 0;
+      card.append(logoOf(entry, 44));
+      const text = document.createElement("div");
+      text.className = "text";
+      text.innerHTML = `<div class="name">${escape(entry.name)}${entry.version ? `<span class="ver">${escape(entry.version)}</span>` : ""}</div>${entry.description ? `<div class="desc">${escape(entry.description)}</div>` : ""}<div class="tags">${(entry.topics ?? []).slice(0, 4).map((topic) => `<span class="tag">${escape(topic)}</span>`).join("")}</div>`;
+      card.append(text);
+      const action = actionFor(entry, () => openExtensions("catalog"));
+      action.addEventListener("click", (event) => event.stopPropagation());
+      card.append(action);
+      const open = () => openEntry(entry);
+      card.addEventListener("click", open);
+      card.addEventListener("keydown", (event) => (event.key === "Enter" || event.key === " ") && (event.preventDefault(), open()));
+      grid.append(card);
     }
   };
   search.addEventListener("input", () => {
     extSearch = search.value;
     render();
   });
-  body.append(search, list);
+  body.append(search, chips, grid);
+  renderChips();
   render();
+}
+/** An extension's details: its banner, logo, description, topics and where it comes from. */
+function openEntry(entry) {
+  openDialog((dialog) => {
+    dialog.innerHTML = "";
+    if (entry.banner) {
+      const banner = document.createElement("img");
+      banner.className = "banner";
+      banner.alt = "";
+      banner.src = imageUrl(entry, "banner");
+      dialog.append(banner);
+    }
+    const head = document.createElement("div");
+    head.className = "entry-head";
+    head.append(logoOf(entry, 52));
+    const title = document.createElement("div");
+    title.innerHTML = `<h2>${escape(entry.name)}${entry.version ? ` <span class="ver">${escape(entry.version)}</span>` : ""}</h2><div class="desc">${escape(entry.marketplace)}</div>`;
+    head.append(title);
+    dialog.append(head);
+    if (entry.description) dialog.insertAdjacentHTML("beforeend", `<div class="body">${escape(entry.description)}</div>`);
+    if (entry.topics?.length) dialog.insertAdjacentHTML("beforeend", `<div class="tags">${entry.topics.map((topic) => `<span class="tag">${escape(topic)}</span>`).join("")}</div>`);
+    const row = document.createElement("div");
+    row.className = "actions";
+    const action = actionFor(entry, () => openExtensions("catalog"));
+    action.addEventListener("click", () => closeDialog());
+    row.append(button(T.close, "", closeDialog), action);
+    dialog.append(row);
+    dialogKeys = (event) => event.key === "Escape" && closeDialog();
+  });
 }
 
 /** Installs one from the catalog: one from another marketplace only after the person says so. */

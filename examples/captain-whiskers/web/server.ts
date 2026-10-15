@@ -151,6 +151,9 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
             description: entry.plugin.description ?? "",
             installed: Boolean(entry.installed),
             update: entry.update,
+            topics: entry.topics,
+            logo: Boolean(entry.logo),
+            banner: Boolean(entry.banner),
           })),
         };
       case "install":
@@ -264,6 +267,19 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
           })
           // Read on every load: a few KB, and a change to it shows on reload.
           .end(await readFile(path.join(CAPTAIN_DIR, "web", "index.html"), "utf8"));
+        return;
+      }
+      // A catalog entry's logo or banner (#59), from the marketplace's copy: the page's <img>.
+      if (request.method === "GET" && url.pathname === "/api/extension-image") {
+        const kind = url.searchParams.get("kind") === "banner" ? "banner" : "logo";
+        const file = chat ? await (chat as ChatController).extensionImage(url.searchParams.get("spec") ?? "", kind).catch(() => undefined) : undefined;
+        if (!file) {
+          response.writeHead(404).end();
+          return;
+        }
+        const types: Record<string, string> = { ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" };
+        response.writeHead(200, { "content-type": types[path.extname(file).toLowerCase()] ?? "application/octet-stream", "cache-control": "max-age=300", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" });
+        response.end(await readFile(file).catch(() => ""));
         return;
       }
       if (request.method === "GET" && url.pathname === "/api/events") {

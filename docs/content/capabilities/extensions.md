@@ -158,7 +158,16 @@ The functions behind the command are exported too, for a host with its own inter
 
 What the agent's marketplaces offer is its catalog, in the command (`search`, `add`, `update`) and in the chats, so a person without a shell (a desktop app) installs and updates extensions too. The agent names its own marketplace in its config, `officialMarketplace` (a folder or a git URL), as it passes `official` to the command: the chats offer what it has, installed without a confirmation; one from any other marketplace the agent knows asks first.
 
-- **What it lists**: each extension with the version it offers (its `plugin.json`'s, which wins over the marketplace's entry, as in Claude Code), whether it's installed, and whether one installed from that marketplace has a newer version there.
+- **What it lists**: each extension with the version it offers (its `plugin.json`'s, which wins over the marketplace's entry, as in Claude Code), whether it's installed, whether one installed from that marketplace has a newer version there, its **topics** and its **look** (see below).
+- **Topics**: what it's about and who it's for, from Claude Code's own fields: its `plugin.json`'s `keywords`, and its marketplace entry's `tags`, `keywords` and `category`, lowercased. An audience is a topic like any other (`"miyagi"`), and the search matches topics too.
+- **What an agent offers**: `catalogTopics` in its config (`["miyagi"]`) keeps its chats' catalog, and `extension search` (`runExtensionCommand()`'s `catalogTopics`), to the extensions with one of them; without it, every one. What's already installed is listed whatever its topics, and updates the same.
+- **Its look**: a `logo` (square) and a `banner` (wide) in its `plugin.json`, under `metadata["agent-kit"].catalog`, paths inside its folder (SVG, PNG, JPEG or WebP; anything else, or outside its folder, isn't shown):
+
+  ```json
+  "metadata": { "agent-kit": { "catalog": { "logo": "assets/logo.svg", "banner": "assets/banner.png" } } }
+  ```
+
+  The catalog gives them as files of the marketplace's copy (`logo`, `banner`); a host serves them to its page (the chat controller's `extensionImage(spec, kind)`). Captain Whiskers' catalog is a grid of cards, each with its logo, name, version, description and topics, a search and topic chips to filter, and a card opening its details with its banner.
 - **Installing** puts it in the agent's scope, enabled; the running session is untouched, so the conversation going on isn't changed under it. It's there in a new conversation, or now: `/extensions reload` (`reopen()`) opens the session again with it, keeping the conversation.
 - **Updating** takes a fresh copy of its marketplace and installs it again in the same scope, its data and options kept.
 - **Uninstalling** turns it off in the running session first, and deletes its data only when asked.

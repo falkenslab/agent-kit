@@ -176,3 +176,56 @@ test("the chat installs, updates and removes from the catalog, asks before anoth
   assert.equal(controller.getState().extensions?.inactive.some((off) => off.name === "dice"), false);
   controller.close();
 });
+
+test("an entry's topics and look: keywords, tags and category; a logo or banner only inside its folder; an agent's topics filter what it offers", async () => {
+  const root = path.join(temp(), "harbor");
+  fs.mkdirSync(path.join(root, ".claude-plugin"), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, ".claude-plugin", "marketplace.json"),
+    JSON.stringify({ name: "harbor", owner: { name: "Ada" }, plugins: [{ name: "campus", source: "./campus", category: "Education", tags: ["Moodle", "miyagi"] }, { name: "notes", source: "./notes", tags: ["notes"] }] }),
+  );
+  const look = { logo: "assets/logo.svg", banner: "../outside.png" };
+  for (const [name, manifest] of [["campus", { keywords: ["lms", "moodle"], metadata: { "agent-kit": { catalog: look } } }], ["notes", {}]] as const) {
+    fs.mkdirSync(path.join(root, name, ".claude-plugin"), { recursive: true });
+    fs.writeFileSync(path.join(root, name, ".claude-plugin", "plugin.json"), JSON.stringify({ name, version: "1.0.0", description: name, ...manifest }));
+  }
+  fs.mkdirSync(path.join(root, "campus", "assets"));
+  fs.writeFileSync(path.join(root, "campus", "assets", "logo.svg"), "<svg/>");
+  fs.writeFileSync(path.join(root, "outside.png"), "");
+  const dirs = { agent: path.join(temp(), "extensions") };
+  await addMarketplace(root, dirs.agent);
+
+  const all = await extensionCatalog(dirs);
+  const campus = all.find((entry) => entry.plugin.name === "campus")!;
+  assert.deepEqual(campus.topics, ["lms", "moodle", "miyagi", "education"]);
+  assert.ok(campus.logo?.endsWith(path.join("campus", "assets", "logo.svg")));
+  // A banner outside its folder isn't shown.
+  assert.equal(campus.banner, undefined);
+  assert.equal(all.find((entry) => entry.plugin.name === "notes")!.logo, undefined);
+  // An agent offering only its topic's; words match topics too.
+  assert.deepEqual((await extensionCatalog(dirs, { topics: ["Miyagi"] })).map((entry) => entry.plugin.name), ["campus"]);
+  assert.deepEqual((await extensionCatalog(dirs, { words: ["education"] })).map((entry) => entry.plugin.name), ["campus"]);
+});
+
+test("the chat's catalog offers only the agent's catalogTopics, and serves an entry's images", async () => {
+  const official = makeMarketplace("shipyard");
+  const root = official;
+  const manifest = path.join(root, ".claude-plugin", "marketplace.json");
+  const market = JSON.parse(fs.readFileSync(manifest, "utf8"));
+  market.plugins[0].tags = ["games", "miyagi"];
+  fs.writeFileSync(manifest, JSON.stringify(market));
+  const projectDir = temp();
+  const dirs = { agent: path.join(projectDir, "extensions") };
+  const spec: AgentSpec<BaseSessionConfig> = { buildSystemPrompt: () => "P", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined };
+  const controller = await createChatController((run) => buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs, officialMarketplace: official, catalogTopics: ["miyagi"] }, run.dir, spec, { run }), {
+    runsDir: temp(),
+    promptSuggestions: false,
+    runQuery: quietAgent,
+  });
+  try {
+    assert.deepEqual((await controller.extensionCatalog()).map((entry) => entry.plugin.name), ["dice"]);
+    assert.equal(await controller.extensionImage("dice@shipyard", "logo"), undefined);
+  } finally {
+    controller.close();
+  }
+});

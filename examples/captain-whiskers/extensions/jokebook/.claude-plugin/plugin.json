@@ -1,6 +1,6 @@
 {
   "name": "jokebook",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A jokebook: classic pirate jokes, and ranking the jokes kept in a knowledge base by their score.",
   "author": { "name": "Falkenslab", "url": "https://github.com/falkenslab" },
   "homepage": "https://falkenslab.github.io/agent-kit/docs/capabilities/extensions",
@@ -10,6 +10,7 @@
   "metadata": {
     "agent-kit": {
       "kit": ">=0.21.0",
+      "catalog": { "logo": "assets/logo.svg" },
       "provides": ["jokes"],
       "requires": [],
       "readOnlyTools": ["classic_joke"],
