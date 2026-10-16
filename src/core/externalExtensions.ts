@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
-import type { Extension } from "./extensions.js";
+import { capabilitiesProblem, parseCapabilities, providedBy, type Extension, type ExtensionCapability } from "./extensions.js";
 import type { Language } from "./language.js";
 import { getLanguage, type ToolPhrase } from "./messages/index.js";
 import { truncate, type ToolLabels } from "./toolLabels.js";
@@ -74,8 +74,11 @@ export interface ExternalManifest {
   repository?: string;
   license?: string;
   keywords?: string[];
+  /** What it lets the agent use: its `provides` and its capabilities' ids. */
   provides: string[];
   requires: string[];
+  /** What it lets the agent do, described for the person (#62): skills and tools together. */
+  capabilities: ExtensionCapability[];
   /** The agent-kit versions it works with, e.g. `">=0.19.0 <0.21.0"`. */
   kit?: string;
   /** Programs it needs on this computer, found on the `PATH` (`"docker"`, `"python3"`): without one it's off, saying which. */
@@ -211,6 +214,7 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
   const author = raw.author as Partial<ExtensionAuthor> | undefined;
   // `repository` may be a URL or `{ url }`, as in package.json.
   const repository = typeof raw.repository === "string" ? raw.repository : (raw.repository as { url?: unknown } | undefined)?.url;
+  const capabilities = parseCapabilities((kit as { capabilities?: unknown }).capabilities);
   return {
     name,
     description: typeof raw.description === "string" ? raw.description : "",
@@ -222,8 +226,9 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
     ...(typeof repository === "string" ? { repository } : {}),
     ...text("license"),
     ...(Array.isArray(raw.keywords) ? { keywords: raw.keywords.filter((keyword): keyword is string => typeof keyword === "string") } : {}),
-    provides: kit.provides ?? [],
+    provides: providedBy(kit.provides, capabilities),
     requires: kit.requires ?? [],
+    capabilities,
     ...(kit.kit ? { kit: kit.kit } : {}),
     needs: Array.isArray(kit.needs) ? kit.needs.filter((program): program is string => typeof program === "string") : [],
     servers: await pluginServers(dir, raw),
@@ -568,6 +573,8 @@ async function problem(installed: InstalledExtension, cache: string | undefined)
   const missing = [];
   for (const program of manifest.needs) if (!(await onPath(program))) missing.push(program);
   if (missing.length) return `needs ${missing.join(", ")}, which ${missing.length === 1 ? "isn't" : "aren't"} on this computer (on the PATH)`;
+  const capabilities = await capabilitiesProblem(installed.dir, manifest.capabilities);
+  if (capabilities) return capabilities;
   const options = optionsProblem(manifest, await readOptionValues(installed.privateDir, installed.name, manifest.userConfig, installed.lock.options));
   if (options) return options;
   return (await serversProblem(manifest, installed.dir, { cache, locked: installed.lock.packages })) ?? manifest;
@@ -612,7 +619,7 @@ export async function addExtension(
   try {
     if (options.subdir) from = path.join(from, options.subdir);
     const manifest = await readExternalManifest(from);
-    const servers = await serversProblem(manifest, from);
+    const servers = (await serversProblem(manifest, from)) ?? (await capabilitiesProblem(from, manifest.capabilities));
     if (servers) throw new Error(`${manifest.name} can't be installed: it ${servers}.`);
     const target = path.join(scopeDir, manifest.name);
     // Replacing what's installed there would delete the source itself.

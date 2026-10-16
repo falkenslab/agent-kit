@@ -47,7 +47,8 @@ All optional; checked by `schemas/agent-kit-metadata.schema.json`.
 | Field | What it does |
 | --- | --- |
 | `kit` | The agent-kit versions it works with: comparators separated by spaces, all of which must hold (`>=0.22.0`, `>=0.22.0 <0.24.0`, `0.22.1`). Outside them, it's off. Leave out an upper bound unless a version is known to break it. |
-| `provides`, `requires` | Its [capabilities](overview.md#capabilities). |
+| `provides`, `requires` | Its [capabilities](overview.md#capabilities), by name. |
+| `capabilities` | What it lets the agent do, for the person: a list of `{ id, skills, tools, texts }`. `id` is kebab-case and counts as provided; `skills` are folders of its `skills/` (each must exist), `tools` short names of any of its servers; `texts` gives a `label` (required) and a `description` per language (`en`, `es`, `fr`, `de`), English where the person's is missing. |
 | `needs` | Programs it needs on the computer's `PATH` (`["docker"]`; on Windows with `PATHEXT`'s extensions). Without one, it's off, saying which. |
 | `readOnlyTools` | Its tools that only read (short names, of any of its servers): plan mode lets them through. Without it, plan mode asks its servers (`readOnlyHint`); with it, the list is the whole answer, even empty. |
 | `labels` | How the chat shows each tool (short name), per language (`en`, `es`, `fr`, `de`; English when the kit's isn't there): `label`, with `{field}` taking the call's input, and `phrase`, `[once, "{n} times"]`, for a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
@@ -129,5 +130,6 @@ An enabled extension doesn't run, and the prompt and `/extensions` say why, when
 - a server isn't Node or npx with an exact version, has no script where it says, or its npx package isn't in the cache;
 - a server names `${user_config.KEY}` its `userConfig` doesn't declare, or a required option has no value;
 - its `userConfig` has an option with an unknown field;
+- a capability names a skill it doesn't have, or two have the same id;
 - it requires a capability no enabled extension provides;
 - an extension the spec enables has its name.

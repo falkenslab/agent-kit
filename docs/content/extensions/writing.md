@@ -164,6 +164,17 @@ What the kit's chat, gates and catalog use goes under `metadata["agent-kit"]` in
 "metadata": {
   "agent-kit": {
     "catalog": { "logo": "assets/logo.svg" },
+    "capabilities": [
+      {
+        "id": "weather-forecast",
+        "skills": ["plan-the-day"],
+        "tools": ["forecast"],
+        "texts": {
+          "en": { "label": "Planning around the weather", "description": "Today's and the next days' forecast in your city, and a plan B when rain is likely." },
+          "es": { "label": "Planificar según el tiempo", "description": "El tiempo de hoy y de los próximos días en tu ciudad, y un plan B si va a llover." }
+        }
+      }
+    ],
     "help": "Weather: `forecast` gives today and the next days in your city; /weather:today sums up the day.",
     "labels": {
       "forecast": {
@@ -176,6 +187,7 @@ What the kit's chat, gates and catalog use goes under `metadata["agent-kit"]` in
 ```
 
 - **`labels`**: how the chat shows each tool, per language: the line while it runs (`{city}` takes the call's input) and how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). Without them, the chat shows the tool's name.
+- **`capabilities`**: what the agent can do with it, for the person: each one's `skills` (their folders in `skills/`) and `tools` (short names) together, with a `label` and a `description` per language (English where the person's is missing). `/extensions`, `about_me`, `extension info` and the catalog show them; their ids count as [provided](overview.md#capabilities). Installing checks that every skill named exists; the tools only a running server lists, so `/extensions` says when one isn't offered. Group the tools by what the person gets done, not one capability per tool: an extension with 140 tools reads as a handful of capabilities.
 - **`help`**: what it says about itself, for the agent to tell the person ([awareness](../capabilities/awareness.md)'s `about_me`).
 - **`catalog`**: its look in a catalog ([below](#6-its-look-in-a-catalog)).
 - **Read-only tools**: nothing to declare here, since `forecast` says `readOnlyHint: true` itself and plan mode asks the server ([Read-only tools](#read-only-tools)).

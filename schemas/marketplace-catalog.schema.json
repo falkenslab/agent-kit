@@ -56,6 +56,11 @@
             "agentKit": { "description": "After the agent's own command (<agent> …).", "type": "string" }
           }
         },
+        "capabilities": {
+          "description": "What it lets the agent do: its metadata[\"agent-kit\"].capabilities as it declares them, texts in every language it gives.",
+          "type": "array",
+          "items": { "$ref": "https://falkenslab.github.io/agent-kit/schemas/agent-kit-metadata.schema.json#/$defs/capability" }
+        },
         "logo": { "description": "A URL anyone can load.", "$ref": "#/$defs/url" },
         "banner": { "description": "A URL anyone can load.", "$ref": "#/$defs/url" }
       }

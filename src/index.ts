@@ -28,8 +28,13 @@ export { sources, type SourcesOptions } from "./extensions/sources/index.js";
 export { knowledge, type KnowledgeOptions } from "./extensions/knowledge/index.js";
 export { memory, type MemoryOptions } from "./extensions/memory/index.js";
 export {
+  describeCapability,
   readExtensionManifest,
+  type AboutExtension,
+  type CapabilityText,
+  type DescribedCapability,
   type Extension,
+  type ExtensionCapability,
   type ExtensionContext,
   type ExtensionContribution,
   type ExtensionManifest,

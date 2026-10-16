@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // @falkenslab/agent-kit-catalog: a Claude Code marketplace's extensions as one file, catalog.json — each
-// one's name, version, description, topics, category, author, links, install commands and images
+// one's name, version, description, topics, category, author, links, install commands, capabilities and images
 // (as raw.githubusercontent.com URLs) — from .claude-plugin/marketplace.json and each extension's
 // plugin.json. A page or a client shows the marketplace from it without cloning the repository.
 // No dependencies: it runs with npx in any CI.
@@ -33,11 +33,37 @@ export function metadataProblems(kit) {
   if (kit === undefined) return [];
   if (!kit || typeof kit !== "object" || Array.isArray(kit)) return ['metadata["agent-kit"] isn\'t an object'];
   const problems = [];
-  const known = new Set(["kit", "provides", "requires", "needs", "readOnlyTools", "labels", "help", "catalog"]);
+  const known = new Set(["kit", "provides", "requires", "capabilities", "needs", "readOnlyTools", "labels", "help", "catalog"]);
   for (const key of Object.keys(kit)) if (!known.has(key)) problems.push(`metadata["agent-kit"] has an unknown field, ${key}`);
   if (kit.kit !== undefined && (typeof kit.kit !== "string" || !KIT_RANGE.test(kit.kit))) problems.push(`its kit range isn't comparators like ">=0.22.0": ${JSON.stringify(kit.kit)}`);
   for (const key of ["provides", "requires", "needs", "readOnlyTools"]) if (kit[key] !== undefined && !isStrings(kit[key])) problems.push(`its ${key} isn't a list of names`);
   if (kit.help !== undefined && typeof kit.help !== "string") problems.push("its help isn't text");
+  if (kit.capabilities !== undefined) {
+    if (!Array.isArray(kit.capabilities)) problems.push("its capabilities aren't a list");
+    else {
+      const ids = new Set();
+      for (const capability of kit.capabilities) {
+        const id = capability?.id;
+        if (typeof id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) {
+          problems.push(`a capability's id isn't kebab-case: ${JSON.stringify(id)}`);
+          continue;
+        }
+        if (ids.has(id)) problems.push(`its capability ${id} is declared twice`);
+        ids.add(id);
+        if (Object.keys(capability).some((key) => !["id", "skills", "tools", "texts"].includes(key))) problems.push(`its capability ${id} has an unknown field`);
+        for (const key of ["skills", "tools"]) if (capability[key] !== undefined && !isStrings(capability[key])) problems.push(`its capability ${id}'s ${key} isn't a list of names`);
+        const texts = capability.texts;
+        if (!texts || typeof texts !== "object" || Array.isArray(texts) || !Object.keys(texts).length) problems.push(`its capability ${id} has no texts`);
+        else
+          for (const [language, text] of Object.entries(texts)) {
+            if (!LANGUAGES.has(language)) problems.push(`its capability ${id} has a language agent-kit doesn't speak, ${language}`);
+            if (!text || typeof text.label !== "string" || !text.label) problems.push(`its capability ${id} has no ${language} label`);
+            if (text && Object.keys(text).some((key) => key !== "label" && key !== "description")) problems.push(`its capability ${id}'s ${language} text has an unknown field`);
+            if (text?.description !== undefined && typeof text.description !== "string") problems.push(`its capability ${id}'s ${language} description isn't text`);
+          }
+      }
+    }
+  }
   if (kit.labels !== undefined) {
     if (!kit.labels || typeof kit.labels !== "object" || Array.isArray(kit.labels)) problems.push("its labels aren't an object");
     else
@@ -116,6 +142,10 @@ export async function buildCatalog(root, options = {}) {
     if (manifest.version !== entry.version) problems.push(`${entry.name}: plugin.json says ${manifest.version}, marketplace.json ${entry.version}`);
     const kit = manifest.metadata?.["agent-kit"];
     for (const problem of metadataProblems(kit)) problems.push(`${entry.name}: ${problem}`);
+    // The skills its capabilities name are files: they must be there. Its tools only a running server lists.
+    for (const capability of Array.isArray(kit?.capabilities) ? kit.capabilities : [])
+      for (const skill of isStrings(capability?.skills) ? capability.skills : [])
+        if (!(await stat(path.join(root, folder, "skills", skill, "SKILL.md")).catch(() => null))?.isFile()) problems.push(`${entry.name}: its capability ${capability.id} names the skill ${skill}, and it has no skills/${skill}/SKILL.md`);
     const image = async (relative) => {
       if (typeof relative !== "string" || !IMAGE.test(relative)) return undefined;
       const file = path.resolve(root, folder, relative);
@@ -140,6 +170,7 @@ export async function buildCatalog(root, options = {}) {
       homepage: typeof manifest.homepage === "string" && manifest.homepage.startsWith("https://") ? manifest.homepage : `https://github.com/${repo}/tree/${branch}/${folder}`,
       readme: `https://github.com/${repo}/blob/${branch}/${folder}/README.md`,
       install: { claudeCode: `claude plugin install ${entry.name}@${marketplace.name}`, agentKit: `extension add ${entry.name}@${marketplace.name}` },
+      ...(Array.isArray(kit?.capabilities) && kit.capabilities.length ? { capabilities: kit.capabilities } : {}),
       ...(logo ? { logo } : {}),
       ...(banner ? { banner } : {}),
     });

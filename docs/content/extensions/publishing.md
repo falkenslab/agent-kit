@@ -45,7 +45,7 @@ A topic is any word an extension is about or for, lowercased: `weather`, `moodle
 
 ## The catalog file
 
-Outside an agent, a marketplace shows its extensions from one file, `catalog.json` at its root: each extension's name, version, description, topics, category, author, links, install commands, and its logo and banner as URLs anyone can load. A page draws a grid from it, and any client reads it without cloning the repository. Agents don't need it: their catalog reads the marketplace's copy.
+Outside an agent, a marketplace shows its extensions from one file, `catalog.json` at its root: each extension's name, version, description, topics, category, author, links, install commands, its [capabilities](overview.md#capabilities) (every language it gives, for the page to choose), and its logo and banner as URLs anyone can load. A page draws a grid from it, and any client reads it without cloning the repository. Agents don't need it: their catalog reads the marketplace's copy.
 
 `@falkenslab/agent-kit-catalog` writes it, with no dependencies:
 
@@ -55,7 +55,7 @@ npx @falkenslab/agent-kit-catalog --check    # in CI: fails when it's out of dat
 ```
 
 - **Where its links point**: `--repo owner/name`, else `GITHUB_REPOSITORY` (GitHub Actions), else the `origin` remote, else the `repository` every `plugin.json` names; the branch `--branch`, else `main` (never the one checked out, so the file reads the same on every branch and `--check` passes on pull requests).
-- **What it checks**: each extension's version matches its entry, its images exist inside its folder, and its `metadata["agent-kit"]` fits agent-kit's schema; it says every problem at once and writes nothing.
+- **What it checks**: each extension's version matches its entry, its images exist inside its folder, the skills its capabilities name exist, and its `metadata["agent-kit"]` fits agent-kit's schema; it says every problem at once and writes nothing.
 - **Only extensions kept in the repository** are cataloged (a `./folder` source).
 
 ```json title="catalog.json (one extension)"
@@ -70,6 +70,9 @@ npx @falkenslab/agent-kit-catalog --check    # in CI: fails when it's out of dat
   "homepage": "https://github.com/ada/my-extensions/tree/main/weather",
   "readme": "https://github.com/ada/my-extensions/blob/main/weather/README.md",
   "install": { "claudeCode": "claude plugin install weather@ada", "agentKit": "extension add weather@ada" },
+  "capabilities": [
+    { "id": "weather-forecast", "skills": ["plan-the-day"], "tools": ["forecast"], "texts": { "en": { "label": "Planning around the weather", "description": "Today's and the next days' forecast in your city." } } }
+  ],
   "logo": "https://raw.githubusercontent.com/ada/my-extensions/main/weather/assets/logo.svg"
 }
 ```

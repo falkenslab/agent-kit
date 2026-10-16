@@ -207,6 +207,7 @@
   .ext-card:hover, .ext-card:focus-visible { border-color: var(--gold); outline: none; }
   .ext-card .name { font-weight: 650; } .ext-card .ver, .dialog .ver { font-size: 12px; color: var(--dim); font-weight: 400; margin-left: 6px; }
   .ext-card .desc { font-size: 13px; color: var(--text-2); margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .can h3 { font-size: 13px; margin: 10px 0 4px; color: var(--dim); font-weight: 600; } .can ul { margin: 0; padding-left: 18px; font-size: 13.5px; } .can li { margin: 2px 0; }
   .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; } .tag { font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; }
   .logo { border-radius: 10px; flex: none; object-fit: contain; } .logo.initial { display: grid; place-items: center; background: var(--line); color: var(--text-2); font-weight: 700; font-size: 18px; }
   .dialog .banner { width: calc(100% + 2px); max-height: 180px; object-fit: cover; border-radius: 10px; margin-bottom: 12px; }
@@ -1280,7 +1281,7 @@ function buildCatalog(body, catalog) {
     const shown = catalog.filter(
       (entry) =>
         [...extTopics].every((topic) => (entry.topics ?? []).includes(topic)) &&
-        words.every((word) => `${entry.name} ${entry.description} ${(entry.topics ?? []).join(" ")}`.toLowerCase().includes(word)),
+        words.every((word) => `${entry.name} ${entry.description} ${(entry.topics ?? []).join(" ")} ${(entry.capabilities ?? []).map(({ label, description }) => `${label} ${description}`).join(" ")}`.toLowerCase().includes(word)),
     );
     if (!shown.length) grid.insertAdjacentHTML("beforeend", `<p style="color:var(--dim)">${escape(T.noMatch)}</p>`);
     for (const entry of shown) {
@@ -1309,7 +1310,7 @@ function buildCatalog(body, catalog) {
   renderChips();
   render();
 }
-/** An extension's details: its banner, logo, description, topics and where it comes from. */
+/** An extension's details: its banner, logo, description, what it lets the agent do, topics and where it comes from. */
 function openEntry(entry) {
   openDialog((dialog) => {
     dialog.innerHTML = "";
@@ -1328,6 +1329,8 @@ function openEntry(entry) {
     head.append(title);
     dialog.append(head);
     if (entry.description) dialog.insertAdjacentHTML("beforeend", `<div class="body">${escape(entry.description)}</div>`);
+    if (entry.capabilities?.length)
+      dialog.insertAdjacentHTML("beforeend", `<div class="can"><h3>${escape(T.canDo)}</h3><ul>${entry.capabilities.map(({ label, description }) => `<li><b>${escape(label)}</b>${description ? `: ${escape(description)}` : ""}</li>`).join("")}</ul></div>`);
     if (entry.topics?.length) dialog.insertAdjacentHTML("beforeend", `<div class="tags">${entry.topics.map((topic) => `<span class="tag">${escape(topic)}</span>`).join("")}</div>`);
     const row = document.createElement("div");
     row.className = "actions";

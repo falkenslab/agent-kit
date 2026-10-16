@@ -365,6 +365,35 @@ test("an extension needing a program that isn't on the PATH is off, saying which
   assert.deepEqual((await loadExternalExtensions(dirs)).extensions.map((extension) => extension.name), ["dice"]);
 });
 
+/** dice's capability, as #62 writes one: its tool, texts in two languages. */
+const rolling = { id: "dice-rolling", tools: ["roll", "shuffle"], texts: { en: { label: "Rolling dice", description: "Rolls fair dice of any size." }, es: { label: "Tirar dados", description: "Tira dados justos de cualquier tamaño." } } };
+
+test("an installed extension's capabilities: refused when one names a skill it lacks, provided, and shown in the person's language with the tools its server doesn't offer", async () => {
+  await assert.rejects(
+    addExtension(makeExtension("dice", { capabilities: [{ ...rolling, skills: ["odds"] }] }), path.join(temp(), "extensions")),
+    /dice can't be installed: it names the skill odds in its capability dice-rolling, and has no skills\/odds\/SKILL\.md/,
+  );
+  const projectDir = temp();
+  const dirs = { agent: path.join(projectDir, "extensions") };
+  await addExtension(makeExtension("dice", { capabilities: [rolling] }), dirs.agent);
+  setLanguage("es");
+  try {
+    const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, temp(), spec);
+    // The model reads it in English, by its id and label.
+    assert.match(String(built.options.systemPrompt), /\*\*dice\*\*: Rolls dice\. Provides: dice, dice-rolling \(Rolling dice\)\./);
+    assert.deepEqual(built.extensions.about.dice?.capabilities, [{ id: "dice-rolling", label: "Tirar dados", description: "Tira dados justos de cualquier tamaño.", tools: ["mcp__dice__roll", "mcp__dice__shuffle"] }]);
+    let lines = (await chatExtensionsCommand("/extensions", built.extensions, true))?.lines ?? [];
+    assert.ok(lines.includes("Lo que tu agente puede hacer con dice:"), lines.join("\n"));
+    assert.ok(lines.includes("  - Tirar dados: Tira dados justos de cualquier tamaño."), lines.join("\n"));
+    // Once the session runs, a tool it names that its server doesn't offer is said.
+    built.extensions.sessionTools = () => ["mcp__dice__roll"];
+    lines = (await chatExtensionsCommand("/extensions", built.extensions, true))?.lines ?? [];
+    assert.ok(lines.includes("  - Tirar dados: Tira dados justos de cualquier tamaño. (su servidor no ofrece shuffle)"), lines.join("\n"));
+  } finally {
+    setLanguage("en");
+  }
+});
+
 test("a manifest's read-only list wins over its servers' hints, even empty", async () => {
   const scope = path.join(temp(), "extensions");
   await addExtension(makeExtension(), scope);

@@ -185,7 +185,8 @@ test("an entry's topics and look: keywords, tags and category; a logo or banner 
     JSON.stringify({ name: "harbor", owner: { name: "Ada" }, plugins: [{ name: "campus", source: "./campus", category: "Education", tags: ["Moodle", "miyagi"] }, { name: "notes", source: "./notes", tags: ["notes"] }] }),
   );
   const look = { logo: "assets/logo.svg", banner: "../outside.png" };
-  for (const [name, manifest] of [["campus", { keywords: ["lms", "moodle"], metadata: { "agent-kit": { catalog: look } } }], ["notes", {}]] as const) {
+  const grading = { id: "lms-grading", texts: { en: { label: "Grading with rubrics", description: "Proposals first." }, es: { label: "Corregir con rúbricas", description: "Primero las propuestas." } } };
+  for (const [name, manifest] of [["campus", { keywords: ["lms", "moodle"], metadata: { "agent-kit": { catalog: look, capabilities: [grading] } } }], ["notes", {}]] as const) {
     fs.mkdirSync(path.join(root, name, ".claude-plugin"), { recursive: true });
     fs.writeFileSync(path.join(root, name, ".claude-plugin", "plugin.json"), JSON.stringify({ name, version: "1.0.0", description: name, ...manifest }));
   }
@@ -205,6 +206,15 @@ test("an entry's topics and look: keywords, tags and category; a logo or banner 
   // An agent offering only its topic's; words match topics too.
   assert.deepEqual((await extensionCatalog(dirs, { topics: ["Miyagi"] })).map((entry) => entry.plugin.name), ["campus"]);
   assert.deepEqual((await extensionCatalog(dirs, { words: ["education"] })).map((entry) => entry.plugin.name), ["campus"]);
+  // What it lets the agent do (#62), in the kit's language, and found by a search.
+  assert.deepEqual(campus.capabilities, [{ id: "lms-grading", label: "Grading with rubrics", description: "Proposals first." }]);
+  assert.deepEqual(all.find((entry) => entry.plugin.name === "notes")!.capabilities, []);
+  setLanguage("es");
+  try {
+    assert.deepEqual((await extensionCatalog(dirs, { words: ["rúbricas"] })).map((entry) => [entry.plugin.name, entry.capabilities[0]?.label]), [["campus", "Corregir con rúbricas"]]);
+  } finally {
+    setLanguage("en");
+  }
 });
 
 test("the chat's catalog offers only the agent's catalogTopics, and serves an entry's images", async () => {

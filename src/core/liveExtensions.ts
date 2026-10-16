@@ -1,6 +1,7 @@
 import { cp, lstat, mkdir, readdir, rm, symlink, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { ExtensionsStatus } from "./session.js";
+import { aboutExtension, describeCapability, type ExtensionCapability } from "./extensions.js";
 import { hashExtension, listInstalled, readLock } from "./externalExtensions.js";
 import { cachedPackagesIntact, packageCacheDir } from "./npxPackages.js";
 import type { SessionLive, StaticSessionFacts } from "./sessionFacts.js";
@@ -69,6 +70,7 @@ export interface LiveExtension {
   agents: string[];
   description: string;
   provides: string[];
+  capabilities: ExtensionCapability[];
   help: string[];
 }
 
@@ -159,9 +161,16 @@ function follow(extension: LiveExtension, enabled: boolean, targets: LiveTargets
     targets.allowedSubagentTypes.push(...extension.agents);
     Object.assign(targets.toolLabels, extension.toolLabels);
     status.active.push(extension.name);
-    status.about[extension.name] = { description: extension.description, provides: extension.provides };
+    status.about[extension.name] = aboutExtension({ name: extension.name, description: extension.description, provides: extension.provides, requires: [], capabilities: extension.capabilities }, extension.servers, facts.language);
     status.inactive = status.inactive.filter((entry) => entry.name !== extension.name);
-    facts.extensions.active.push({ name: extension.name, description: extension.description, provides: extension.provides, servers: extension.servers, help: extension.help });
+    facts.extensions.active.push({
+      name: extension.name,
+      description: extension.description,
+      provides: extension.provides,
+      capabilities: extension.capabilities.map((capability) => describeCapability(capability, "en")),
+      servers: extension.servers,
+      help: extension.help,
+    });
     facts.extensions.inactive = facts.extensions.inactive.filter((entry) => entry.name !== extension.name);
   } else {
     without(targets.readOnlyTools, extension.readOnlyTools);

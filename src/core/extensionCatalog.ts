@@ -4,6 +4,8 @@ import path from "node:path";
 import { addExtension, codeStoreDir, hashExtension, inKitRange, installTarget, isGitSource, listInstalled, readExternalManifest, readLock, storedCodeDir, type ExtensionDirs, type ExtensionScope, type InstalledExtension } from "./externalExtensions.js";
 import { cachePackage, cachedPackageDir } from "./npxPackages.js";
 import { trustWorkspace } from "./workspaceTrust.js";
+import { describeCapability, type DescribedCapability } from "./extensions.js";
+import { getLanguage } from "./messages/index.js";
 import { addMarketplace, findPlugin, installFromMarketplace, listMarketplaces, resolvePluginSource, updateMarketplace, type KnownMarketplace, type MarketplacePlugin } from "./marketplaces.js";
 
 /**
@@ -65,6 +67,8 @@ export interface CatalogEntry {
   /** Its logo and banner (#59), as files of the marketplace's copy, when it has them. */
   logo?: string;
   banner?: string;
+  /** What it lets the agent do (#62), in the kit's language: from its `plugin.json` when the marketplace has its folder. */
+  capabilities: DescribedCapability[];
 }
 
 /** The images a catalog shows: these types only. */
@@ -75,7 +79,7 @@ const IMAGE = /\.(svg|png|jpe?g|webp)$/i;
  * the version (its `plugin.json` wins over the entry, as Claude Code computes it), its keywords,
  * and its look, an image inside its folder only.
  */
-async function offered(marketplace: KnownMarketplace, plugin: MarketplacePlugin): Promise<{ version?: string; keywords: string[]; logo?: string; banner?: string }> {
+async function offered(marketplace: KnownMarketplace, plugin: MarketplacePlugin): Promise<{ version?: string; keywords: string[]; logo?: string; banner?: string; capabilities: DescribedCapability[] }> {
   try {
     const resolved = resolvePluginSource(marketplace, plugin);
     if ("source" in resolved && !isGitSource(resolved.source) && (await stat(resolved.source).catch(() => null))?.isDirectory()) {
@@ -88,12 +92,13 @@ async function offered(marketplace: KnownMarketplace, plugin: MarketplacePlugin)
       };
       const [logo, banner] = [await image(manifest?.catalog?.logo), await image(manifest?.catalog?.banner)];
       const version = manifest?.version ?? plugin.version;
-      return { ...(version ? { version } : {}), keywords: manifest?.keywords ?? [], ...(logo ? { logo } : {}), ...(banner ? { banner } : {}) };
+      const capabilities = (manifest?.capabilities ?? []).map((capability) => describeCapability(capability, getLanguage()));
+      return { ...(version ? { version } : {}), keywords: manifest?.keywords ?? [], ...(logo ? { logo } : {}), ...(banner ? { banner } : {}), capabilities };
     }
   } catch {
     // A source the kit doesn't install: the entry's own fields.
   }
-  return { ...(plugin.version ? { version: plugin.version } : {}), keywords: [] };
+  return { ...(plugin.version ? { version: plugin.version } : {}), keywords: [], capabilities: [] };
 }
 
 /** Whether `offered` is newer than `installed` (x.y.z); a version that can't be compared isn't. */
@@ -114,7 +119,8 @@ export async function extensionCatalog(dirs: ExtensionDirs, options: { official?
       const look = await offered(marketplace, plugin);
       const topics = [...new Set([...look.keywords, ...(plugin.tags ?? []), ...(plugin.keywords ?? []), ...(plugin.category ? [plugin.category] : [])].map((topic) => topic.toLowerCase()))];
       if (wanted && !topics.some((topic) => wanted.has(topic))) continue;
-      const text = [plugin.name, plugin.description, ...topics].join(" ").toLowerCase();
+      // Its capabilities count too: a search for "grading" finds what grades.
+      const text = [plugin.name, plugin.description, ...topics, ...look.capabilities.flatMap(({ id, label, description }) => [id, label, description])].join(" ").toLowerCase();
       if (!words.every((word) => text.includes(word))) continue;
       const version = look.version;
       const mine = installed.find((extension) => extension.name === plugin.name);
@@ -130,6 +136,7 @@ export async function extensionCatalog(dirs: ExtensionDirs, options: { official?
         topics,
         ...(look.logo ? { logo: look.logo } : {}),
         ...(look.banner ? { banner: look.banner } : {}),
+        capabilities: look.capabilities,
       });
     }
   }

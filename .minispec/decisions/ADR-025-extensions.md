@@ -22,6 +22,7 @@ An agent on the kit is the kit's core plus the extensions it enables, plus its c
   - An extension `provides` capabilities and `requires` capabilities, never another extension by name.
   - With nothing enabled providing a requirement, an extension stays inactive and the agent says why.
   - A skill may `requires:` a capability and is offered only when one is enabled.
+  - A capability may be described for the person (`capabilities`, decided 16 October 2026, #62): its skills and tools together, with a label and description per language, shown by `/extensions`, `about_me`, `extension info` and the catalog. Its id counts as provided, so gating is unchanged; `provides` stays for names with nothing to show (the kit's own). The skills it names are checked when it's installed (files); its tools only a running server lists, so `/extensions` says when one is missing. Ids should be neutral (`lms-grading`), so skills depend on what can be done, not on which extension does it.
   - The kit knows what a capability is, not what any one means: names and contracts are the agents'.
   - An extension names no agents, only a range of agent-kit versions: any agent on those versions that asks for its capability can use it.
 - **Each extension owns its data**, and the model connects extensions through their tools (#30).

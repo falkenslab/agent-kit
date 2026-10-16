@@ -15,6 +15,26 @@ export function describe(extension: InstalledExtension): string {
   return `${extension.name}${version}  [${extension.scope}]  ${state}${author}  from ${source}`;
 }
 
+/**
+ * What the active extensions let the agent do (#62), in the session's language: a heading per
+ * extension with capabilities, a line per capability, and the tools a capability names that its
+ * server doesn't offer, once the session has started and knows them.
+ */
+export function describeCapabilities(status: ExtensionsStatus): string[] {
+  const offered = new Set(status.sessionTools?.() ?? []);
+  return status.active.flatMap((name) => {
+    const capabilities = status.about[name]?.capabilities ?? [];
+    if (!capabilities.length) return [];
+    return [
+      t().extensionCan(name),
+      ...capabilities.map(({ label, description, tools }) => {
+        const missing = offered.size ? [...new Set(tools.filter((tool) => !offered.has(tool)).map((tool) => tool.replace(/^mcp__.+?__/, "")))] : [];
+        return `  - ${label}${description ? `: ${description}` : ""}${missing.length ? ` ${t().capabilityToolsMissing(missing.join(", "))}` : ""}`;
+      }),
+    ];
+  });
+}
+
 /** What the chat does for `/extensions install|update|remove|reload` (#56). */
 export type ExtensionAction =
   | { type: "install"; spec: string; confirmed: boolean }
@@ -90,6 +110,7 @@ export async function chatExtensionsCommand(
   }
   if (!action) {
     const lines = [status?.active.length ? t().extensionsRunning(status.active.join(", ")) : t().extensionsNone];
+    if (status) lines.push(...describeCapabilities(status));
     for (const { name: off, reason } of status?.inactive ?? []) lines.push(t().extensionOff(off, reason));
     if (status?.installed.length) lines.push(t().extensionsInstalled, ...status.installed.map((extension) => `  ${describe(extension)}`));
     return { lines };

@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { awareness, awarenessPluginRoot, identityPromptSection } from "../../../src/extensions/awareness/index.js";
+import { describeSession } from "../../../src/extensions/awareness/tools.js";
 import { knowledge } from "../../../src/extensions/knowledge/index.js";
 import { memory } from "../../../src/extensions/memory/index.js";
 import { buildSessionOptions } from "../../../src/core/session.js";
@@ -50,6 +51,25 @@ test("with awareness, the prompt says who the agent is and where to look; its to
 
 test("only the name is required", () => {
   assert.match(identityPromptSection({ name: "miyagi" }), /You are miyagi\. You are built on agent-kit/);
+});
+
+test("about_me says what each extension lets the agent do (#62), by label and id", () => {
+  const text = describeSession({
+    kitVersion: "0.23.0",
+    language: "es",
+    mode: "guided",
+    switchableModes: ["guided"],
+    extensions: {
+      active: [{ name: "moodle-teacher", description: "Moodle.", provides: ["lms-grading"], capabilities: [{ id: "lms-grading", label: "Grading with rubrics", description: "Proposals first." }], tools: ["mcp__moodle__grade_submission"], help: [] }],
+      inactive: [],
+    },
+    subagents: [],
+    tools: [],
+    skills: [],
+    commands: [],
+    runDir: "/run",
+  });
+  assert.match(text, /- \*\*moodle-teacher\*\*: Moodle\. Tools: grade_submission\.\n {2}- Can: Grading with rubrics \(lms-grading\): Proposals first\./);
 });
 
 test("without awareness there's no section, tool or skill, identity or not; without identity it's off, with why", async () => {

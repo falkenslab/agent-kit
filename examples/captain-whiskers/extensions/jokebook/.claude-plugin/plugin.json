@@ -1,25 +1,111 @@
 {
   "name": "jokebook",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "A jokebook: classic pirate jokes, and ranking the jokes kept in a knowledge base by their score.",
-  "author": { "name": "Falkenslab", "url": "https://github.com/falkenslab" },
+  "author": {
+    "name": "Falkenslab",
+    "url": "https://github.com/falkenslab"
+  },
   "homepage": "https://falkenslab.github.io/agent-kit/docs/extensions/writing",
   "repository": "https://github.com/falkenslab/agent-kit",
   "license": "MIT",
-  "keywords": ["jokes", "pirates", "example"],
+  "keywords": [
+    "jokes",
+    "pirates",
+    "example"
+  ],
   "metadata": {
     "agent-kit": {
       "kit": ">=0.21.0",
-      "catalog": { "logo": "assets/logo.svg" },
-      "provides": ["jokes"],
+      "catalog": {
+        "logo": "assets/logo.svg"
+      },
+      "capabilities": [
+        {
+          "id": "pirate-jokes",
+          "skills": [],
+          "tools": [
+            "classic_joke"
+          ],
+          "texts": {
+            "en": {
+              "label": "Pirate jokes",
+              "description": "Tells a classic pirate joke from the jokebook."
+            },
+            "es": {
+              "label": "Chistes de piratas",
+              "description": "Cuenta un chiste clásico de piratas del libro de chistes."
+            },
+            "fr": {
+              "label": "Blagues de pirates",
+              "description": "Raconte une blague de pirates classique du recueil."
+            },
+            "de": {
+              "label": "Piratenwitze",
+              "description": "Erzählt einen klassischen Piratenwitz aus dem Witzebuch."
+            }
+          }
+        },
+        {
+          "id": "joke-ranking",
+          "skills": [
+            "rank-jokes"
+          ],
+          "tools": [],
+          "texts": {
+            "en": {
+              "label": "Ranking jokes",
+              "description": "Ranks the jokes in the logbook by the parrot’s score."
+            },
+            "es": {
+              "label": "Clasificar chistes",
+              "description": "Ordena los chistes del cuaderno de bitácora por la nota del loro."
+            },
+            "fr": {
+              "label": "Classer les blagues",
+              "description": "Classe les blagues du journal de bord selon la note du perroquet."
+            },
+            "de": {
+              "label": "Witze ranken",
+              "description": "Ordnet die Witze im Logbuch nach der Note des Papageis."
+            }
+          }
+        }
+      ],
       "requires": [],
-      "readOnlyTools": ["classic_joke"],
+      "readOnlyTools": [
+        "classic_joke"
+      ],
       "labels": {
         "classic_joke": {
-          "en": { "label": "Opening the jokebook", "phrase": ["opened the jokebook", "opened the jokebook {n} times"] },
-          "es": { "label": "Abriendo el libro de chistes", "phrase": ["abrió el libro de chistes", "abrió el libro de chistes {n} veces"] },
-          "fr": { "label": "Ouverture du recueil de blagues", "phrase": ["a ouvert le recueil de blagues", "a ouvert le recueil de blagues {n} fois"] },
-          "de": { "label": "Witzebuch aufschlagen", "phrase": ["Witzebuch aufgeschlagen", "Witzebuch {n}-mal aufgeschlagen"] }
+          "en": {
+            "label": "Opening the jokebook",
+            "phrase": [
+              "opened the jokebook",
+              "opened the jokebook {n} times"
+            ]
+          },
+          "es": {
+            "label": "Abriendo el libro de chistes",
+            "phrase": [
+              "abrió el libro de chistes",
+              "abrió el libro de chistes {n} veces"
+            ]
+          },
+          "fr": {
+            "label": "Ouverture du recueil de blagues",
+            "phrase": [
+              "a ouvert le recueil de blagues",
+              "a ouvert le recueil de blagues {n} fois"
+            ]
+          },
+          "de": {
+            "label": "Witzebuch aufschlagen",
+            "phrase": [
+              "Witzebuch aufgeschlagen",
+              "Witzebuch {n}-mal aufgeschlagen"
+            ]
+          }
         }
       },
       "help": "The jokebook: `classic_joke` gives a classic pirate joke; the `jokebook:rank-jokes` skill ranks the knowledge base's jokes by their score."

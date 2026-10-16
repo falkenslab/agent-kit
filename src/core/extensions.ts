@@ -4,6 +4,7 @@ import path from "node:path";
 import type { HookCallbackMatcher, HookEvent, McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSpec, BaseSessionConfig, Mode } from "./agentSpec.js";
 import { frontmatter } from "./pluginAgents.js";
+import { SUPPORTED_LANGUAGES, type Language } from "./language.js";
 import type { ToolLabels } from "./toolLabels.js";
 import type { SessionFacts } from "./sessionFacts.js";
 
@@ -105,23 +106,119 @@ export interface Extension {
   contribute(context: ExtensionContext): Promise<ExtensionContribution>;
 }
 
+/** How a capability reads to the person, in one language. */
+export interface CapabilityText {
+  label: string;
+  description: string;
+}
+
+/**
+ * Something the agent does well with an extension (#62): the skills that say how and the tools
+ * that do it, described for the person. Its `id` is what `requires` names, neutral (`lms-grading`,
+ * not `moodle-grading`), so an agent's skills depend on what can be done, not on which extension
+ * does it.
+ */
+export interface ExtensionCapability {
+  id: string;
+  /** Its skills, by their folder in the extension's `skills/`. */
+  skills: string[];
+  /** Its tools, by short name (of any of its servers). */
+  tools: string[];
+  /** Its label and description, by language. */
+  texts: Partial<Record<Language, CapabilityText>>;
+}
+
+/** A capability as a person reads it: its id, and its texts in their language. */
+export interface DescribedCapability extends CapabilityText {
+  id: string;
+}
+
+/** A manifest's `capabilities`: what has an id, with its lists and texts as far as they're well formed. */
+export function parseCapabilities(raw: unknown): ExtensionCapability[] {
+  if (!Array.isArray(raw)) return [];
+  const names = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.length > 0) : []);
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const { id, skills, tools, texts } = item as Record<string, unknown>;
+    if (typeof id !== "string" || !id) return [];
+    const byLanguage = Object.fromEntries(
+      Object.entries(texts && typeof texts === "object" ? (texts as Record<string, unknown>) : {}).flatMap(([language, text]) => {
+        const { label, description } = (text ?? {}) as Record<string, unknown>;
+        return SUPPORTED_LANGUAGES.includes(language as Language) && typeof label === "string" && label ? [[language, { label, description: typeof description === "string" ? description : "" }]] : [];
+      }),
+    );
+    return [{ id, skills: names(skills), tools: names(tools), texts: byLanguage }];
+  });
+}
+
+/** A capability's texts in `language`: English when it has none there, then any it has, then its id. */
+export function describeCapability(capability: ExtensionCapability, language: Language): DescribedCapability {
+  const text = capability.texts[language] ?? capability.texts.en ?? Object.values(capability.texts)[0];
+  return { id: capability.id, label: text?.label ?? capability.id, description: text?.description ?? "" };
+}
+
+/**
+ * Why an extension's capabilities don't hold (an id twice, a skill it doesn't have), or nothing.
+ * Its tools can't be checked here: only a running server lists them, so `/extensions` says when
+ * one is missing.
+ */
+export async function capabilitiesProblem(pluginRoot: string, capabilities: readonly ExtensionCapability[]): Promise<string | undefined> {
+  const seen = new Set<string>();
+  for (const capability of capabilities) {
+    if (seen.has(capability.id)) return `declares the capability ${capability.id} twice`;
+    seen.add(capability.id);
+    for (const skill of capability.skills) {
+      const found = await readFile(path.join(pluginRoot, "skills", skill, "SKILL.md"), "utf8").then(() => true, () => false);
+      if (!found) return `names the skill ${skill} in its capability ${capability.id}, and has no skills/${skill}/SKILL.md`;
+    }
+  }
+  return undefined;
+}
+
 /** An extension's manifest, as the kit reads it. */
 export interface ExtensionManifest {
   name: string;
   description: string;
-  /** Capabilities it lets the agent use. */
+  /** Capabilities it lets the agent use: its `provides`, and its `capabilities`' ids. */
   provides: string[];
   /** Capabilities it needs another enabled extension to provide. */
   requires: string[];
+  /** What it lets the agent do, described for the person (#62). */
+  capabilities: ExtensionCapability[];
 }
 
 /** Reads an extension's manifest from its plugin. */
 export function readExtensionManifest(pluginRoot: string): ExtensionManifest {
   const file = path.join(pluginRoot, ".claude-plugin", "plugin.json");
-  const raw = JSON.parse(readFileSync(file, "utf8")) as { name?: string; description?: string; metadata?: { "agent-kit"?: { provides?: string[]; requires?: string[] } } };
+  const raw = JSON.parse(readFileSync(file, "utf8")) as { name?: string; description?: string; metadata?: { "agent-kit"?: { provides?: string[]; requires?: string[]; capabilities?: unknown } } };
   if (!raw.name) throw new Error(`${file} has no "name".`);
   const kit = raw.metadata?.["agent-kit"];
-  return { name: raw.name, description: raw.description ?? "", provides: kit?.provides ?? [], requires: kit?.requires ?? [] };
+  const capabilities = parseCapabilities(kit?.capabilities);
+  return { name: raw.name, description: raw.description ?? "", provides: providedBy(kit?.provides, capabilities), requires: kit?.requires ?? [], capabilities };
+}
+
+/** An active extension as a view lists it: its capabilities in the session's language, with their tools by full name. */
+export interface AboutExtension {
+  description: string;
+  provides: string[];
+  capabilities: (DescribedCapability & { tools: string[] })[];
+  /** Its MCP servers, by name. */
+  servers: string[];
+}
+
+/** What a view says of an active extension: its capabilities' tools under each of its servers' names. */
+export function aboutExtension(manifest: ExtensionManifest, servers: readonly string[], language: Language): AboutExtension {
+  return {
+    description: manifest.description,
+    provides: manifest.provides,
+    capabilities: manifest.capabilities.map((capability) => ({ ...describeCapability(capability, language), tools: servers.flatMap((server) => capability.tools.map((tool) => `mcp__${server}__${tool}`)) })),
+    servers: [...servers],
+  };
+}
+
+/** What a manifest provides: its `provides` and its capabilities' ids, once each. */
+export function providedBy(provides: readonly string[] | undefined, capabilities: readonly ExtensionCapability[]): string[] {
+  return [...new Set([...(provides ?? []), ...capabilities.map((capability) => capability.id)])];
 }
 
 /** The extensions a session runs with, and the ones it can't, with why. */
@@ -165,7 +262,14 @@ export function resolveExtensions(extensions: readonly Extension[], context: Ext
 
 /** The prompt's "Extensions" section: what's on, and what isn't and why (ADR-025). */
 export function extensionsPromptSection(resolved: ResolvedExtensions): string {
-  const lines = resolved.active.map(({ manifest }) => `- **${manifest.name}**: ${manifest.description}${manifest.provides.length ? ` Provides: ${manifest.provides.join(", ")}.` : ""}`);
+  // A capability by its id and, when it has one, its English label (the model reads English, ADR-019).
+  const provided = (manifest: ExtensionManifest) =>
+    manifest.provides.map((id) => {
+      const capability = manifest.capabilities.find((candidate) => candidate.id === id);
+      const label = capability ? describeCapability(capability, "en").label : id;
+      return label === id ? id : `${id} (${label})`;
+    });
+  const lines = resolved.active.map(({ manifest }) => `- **${manifest.name}**: ${manifest.description}${manifest.provides.length ? ` Provides: ${provided(manifest).join(", ")}.` : ""}`);
   const off = resolved.inactive.map(({ name, reason }) => `- **${name}** isn't available: it ${reason}. If the person asks for what it does, tell them why.`);
   return `## Extensions\nWhat you can do besides your own tools comes from these extensions; their sections below say how to use them.\n${[...lines, ...off].join("\n")}`;
 }

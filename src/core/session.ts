@@ -14,7 +14,7 @@ import { createManualLoginServer } from "./tools/manualLogin.js";
 import { createTimeServer } from "./tools/time.js";
 import { TODO_TOOL } from "./todos.js";
 import { createModeControl, type ModeControl } from "./modeControl.js";
-import { extensionsPromptSection, resolveExtensions, skillsMissingCapabilities, type ExtensionContribution } from "./extensions.js";
+import { aboutExtension, describeCapability, extensionsPromptSection, resolveExtensions, skillsMissingCapabilities, type AboutExtension, type ExtensionContribution } from "./extensions.js";
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { pluginAgents } from "./pluginAgents.js";
 import { outsideArchive, unpackedClaudeExecutable } from "./packaged.js";
@@ -394,7 +394,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     untrusted: external.untrusted.map((installed) => ({ name: installed.name, ...(installed.manifest?.version ? { version: installed.manifest.version } : {}), source: installed.lock.marketplace ?? installed.lock.source })),
     installed: await listInstalled(extensionDirs),
     active: resolved.active.map(({ extension }) => extension.name),
-    about: Object.fromEntries(resolved.active.map(({ extension, manifest }) => [extension.name, { description: manifest.description, provides: manifest.provides }])),
+    about: Object.fromEntries(resolved.active.map(({ extension, manifest }, index) => [extension.name, aboutExtension(manifest, Object.keys(added[index]?.mcpServers ?? {}), language)])),
+    sessionTools: () => late.view?.controls().tools ?? [],
     inactive: resolved.inactive,
   };
   // What the session is, for the extensions that ask (sessionFacts.ts, #43).
@@ -407,6 +408,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
         name: extension.name,
         description: manifest.description,
         provides: manifest.provides,
+        capabilities: manifest.capabilities.map((capability) => describeCapability(capability, "en")),
         servers: Object.keys(added[index]?.mcpServers ?? {}),
         help: added[index]?.helpLines ?? [],
       })),
@@ -437,6 +439,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
         agents: Object.keys(fromPlugins).filter((agent) => agent.startsWith(`${extension.name}:`)),
         description: manifest.description,
         provides: manifest.provides,
+        capabilities: manifest.capabilities,
         help: contribution?.helpLines ?? [],
       },
     ];
@@ -463,8 +466,10 @@ export interface ExtensionsStatus {
   /** The names of the extensions this session runs with, the kit's and the agent's too. */
   active: string[];
   /** What each active one is, from its manifest: for a view that lists them. */
-  about: Record<string, { description: string; provides: string[] }>;
+  about: Record<string, AboutExtension>;
   inactive: { name: string; reason: string }[];
+  /** The running session's tools, as the model names them (empty until it has started): what a capability's tools are checked against. */
+  sessionTools?: () => readonly string[];
 }
 
 /** The Claude Code configuration folder the SDK's CLI uses: `CLAUDE_CONFIG_DIR`, or `~/.claude`. */

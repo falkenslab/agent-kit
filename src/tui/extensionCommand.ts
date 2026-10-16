@@ -27,6 +27,8 @@ import {
 import { describe, describeOptions } from "../chat/extensions.js";
 import { extensionCatalog, knownMarketplaces as catalogMarketplaces, restoreExtensions, updateExtension } from "../core/extensionCatalog.js";
 import { trustWorkspace } from "../core/workspaceTrust.js";
+import { describeCapability } from "../core/extensions.js";
+import { getLanguage } from "../core/messages/index.js";
 
 export { chatExtensionsCommand, describe } from "../chat/extensions.js";
 
@@ -402,6 +404,11 @@ async function info(extension: InstalledExtension): Promise<string[]> {
     ...field("Repository", manifest.repository),
     ...field("Keywords", manifest.keywords?.join(", ")),
     ...field("Works with", manifest.kit && `agent-kit ${manifest.kit}`),
+    // What it lets the agent do (#62), in the kit's language: one per line.
+    ...manifest.capabilities.flatMap((capability, index) => {
+      const { id, label, description } = describeCapability(capability, getLanguage());
+      return field(index ? "" : "Can do", `${label} (${id})${description ? `: ${description}` : ""}`);
+    }),
     ...field("Provides", manifest.provides.join(", ") || undefined),
     ...field("Requires", manifest.requires.join(", ") || undefined),
     ...field("Needs", manifest.needs.join(", ") || undefined),

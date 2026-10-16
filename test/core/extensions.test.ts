@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { extensionsPromptSection, readExtensionManifest, requiredCapabilities, resolveExtensions, type Extension, type ExtensionContext } from "../../src/core/extensions.js";
+import { capabilitiesProblem, describeCapability, extensionsPromptSection, readExtensionManifest, requiredCapabilities, resolveExtensions, type Extension, type ExtensionContext } from "../../src/core/extensions.js";
 import { buildSessionOptions } from "../../src/core/session.js";
 import { knowledge } from "../../src/extensions/knowledge/index.js";
 import { sources } from "../../src/extensions/sources/index.js";
@@ -14,7 +14,7 @@ const noSession = () => Promise.reject(new Error("no session in this test"));
 const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), "extensions-test-"));
 
 /** A plugin named `name` whose manifest provides and requires capabilities, with `skills` (folder → SKILL.md). */
-function makePlugin(name: string, kit: { provides?: string[]; requires?: string[] } = {}, skills: Record<string, string> = {}): string {
+function makePlugin(name: string, kit: { provides?: string[]; requires?: string[]; capabilities?: unknown[] } = {}, skills: Record<string, string> = {}): string {
   const root = temp();
   fs.mkdirSync(path.join(root, ".claude-plugin"));
   fs.writeFileSync(path.join(root, ".claude-plugin", "plugin.json"), JSON.stringify({ name, description: `The ${name} extension.`, metadata: { "agent-kit": kit } }));
@@ -36,10 +36,45 @@ const context: ExtensionContext = { config: { mode: "guided", projectDir }, spec
 
 test("an extension's manifest gives its name, description and capabilities, under the kit's key", () => {
   const manifest = readExtensionManifest(makePlugin("jokebook", { provides: ["jokes"], requires: ["knowledge-base"] }));
-  assert.deepEqual(manifest, { name: "jokebook", description: "The jokebook extension.", provides: ["jokes"], requires: ["knowledge-base"] });
+  assert.deepEqual(manifest, { name: "jokebook", description: "The jokebook extension.", provides: ["jokes"], requires: ["knowledge-base"], capabilities: [] });
   // The kit's own declare theirs.
   const kit = resolveExtensions([sources({ dir: projectDir }), knowledge({ dir: projectDir })], context);
   assert.deepEqual([...kit.capabilities].sort(), ["knowledge-base", "sources"]);
+});
+
+/** moodle-teacher's grading, as #62 writes it: a neutral id, its skill and tools, texts in two languages. */
+const grading = {
+  id: "lms-grading",
+  skills: ["grading"],
+  tools: ["get_rubric", "grade_submission"],
+  texts: { en: { label: "Grading with rubrics", description: "Grades submissions with the course's rubrics." }, es: { label: "Corregir con rúbricas", description: "Corrige entregas con las rúbricas del curso." } },
+};
+
+test("an extension's capabilities are read, provided by their ids, and described in the person's language, English when it's missing", () => {
+  const manifest = readExtensionManifest(makePlugin("moodle-teacher", { provides: ["moodle"], capabilities: [grading, { id: "" }, { skills: ["x"] }, { id: "lms-forums", texts: { xx: { label: "?" } } }] }));
+  // What has no id is dropped; a language the kit doesn't speak too.
+  assert.deepEqual(manifest.capabilities.map(({ id }) => id), ["lms-grading", "lms-forums"]);
+  assert.deepEqual(manifest.provides, ["moodle", "lms-grading", "lms-forums"]);
+  assert.deepEqual(describeCapability(manifest.capabilities[0]!, "es"), { id: "lms-grading", label: "Corregir con rúbricas", description: "Corrige entregas con las rúbricas del curso." });
+  assert.deepEqual(describeCapability(manifest.capabilities[0]!, "de"), { id: "lms-grading", label: "Grading with rubrics", description: "Grades submissions with the course's rubrics." });
+  // Without a text, its id.
+  assert.deepEqual(describeCapability(manifest.capabilities[1]!, "es"), { id: "lms-forums", label: "lms-forums", description: "" });
+});
+
+test("a skill requiring a neutral capability is offered when an extension provides it as a capability, and the prompt names it with its label", async () => {
+  const teacher = extension("moodle-teacher", makePlugin("moodle-teacher", { capabilities: [grading] }, { grading: "---\nname: grading\n---\n" }));
+  const planner = extension("planner", makePlugin("planner", { requires: ["lms-grading"] }));
+  const resolved = resolveExtensions([teacher, planner], context);
+  assert.deepEqual(resolved.active.map(({ extension }) => extension.name), ["moodle-teacher", "planner"]);
+  assert.match(extensionsPromptSection(resolved), /Provides: lms-grading \(Grading with rubrics\)\./);
+  assert.deepEqual(resolveExtensions([planner], context).inactive, [{ name: "planner", reason: "requires lms-grading, which no enabled extension provides" }]);
+});
+
+test("capabilities that name a skill the extension doesn't have, or the same id twice, don't hold", async () => {
+  const root = makePlugin("moodle-teacher", {}, { grading: "---\nname: grading\n---\n" });
+  assert.equal(await capabilitiesProblem(root, [{ ...grading, texts: {} }]), undefined);
+  assert.equal(await capabilitiesProblem(root, [{ ...grading, skills: ["grading", "forums"], texts: {} }]), "names the skill forums in its capability lms-grading, and has no skills/forums/SKILL.md");
+  assert.equal(await capabilitiesProblem(root, [{ ...grading, texts: {} }, { ...grading, texts: {} }]), "declares the capability lms-grading twice");
 });
 
 test("enabled extensions run in order; one the session lacks something for, or whose requirements nothing provides, is left out with why", () => {

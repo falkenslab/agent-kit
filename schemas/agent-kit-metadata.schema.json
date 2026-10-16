@@ -11,7 +11,12 @@
       "type": "string",
       "pattern": "^\\s*(?:(?:>=|<=|>|<|=)?\\s*v?\\d+(?:\\.\\d+){0,2})(?:\\s+(?:>=|<=|>|<|=)?\\s*v?\\d+(?:\\.\\d+){0,2})*\\s*$"
     },
-    "provides": { "description": "Capabilities it lets the agent use.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "provides": { "description": "Capabilities it lets the agent use, by name only. Its capabilities' ids count as provided too.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "capabilities": {
+      "description": "What it lets the agent do, for the person: each one's skills and tools together, described per language. Its id is what requires names; neutral ids (lms-grading) let skills depend on what can be done, not on which extension does it.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability" }
+    },
     "requires": { "description": "Capabilities another enabled extension must provide.", "type": "array", "items": { "type": "string", "minLength": 1 } },
     "needs": { "description": "Programs it needs on the computer's PATH.", "type": "array", "items": { "type": "string", "minLength": 1 } },
     "readOnlyTools": {
@@ -54,6 +59,28 @@
     }
   },
   "$defs": {
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "texts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        "skills": { "description": "Its skills, by their folder in the extension's skills/.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "tools": { "description": "Its tools, by short name (of any of its servers).", "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "texts": {
+          "description": "Its label and description per language (en, es, fr, de); English is shown where its language is missing.",
+          "type": "object",
+          "propertyNames": { "enum": ["en", "es", "fr", "de"] },
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": { "label": { "type": "string", "minLength": 1 }, "description": { "type": "string" } }
+          }
+        }
+      }
+    },
     "image": {
       "type": "string",
       "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+\\.(?:svg|png|jpe?g|webp)$"

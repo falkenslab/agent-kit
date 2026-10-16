@@ -1,5 +1,6 @@
 import type { McpServerStatus, Options, SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentIdentity, Mode } from "./agentSpec.js";
+import type { DescribedCapability } from "./extensions.js";
 import type { Language } from "./language.js";
 import type { ModeControl } from "./modeControl.js";
 import type { ContextUsage } from "./runner.js";
@@ -21,7 +22,8 @@ export interface SessionFacts {
   switchableModes: Mode[];
   /** The extensions running (with their tools and what they say about themselves here), and the ones off, with why. */
   extensions: {
-    active: { name: string; description: string; provides: string[]; tools: string[]; help: string[] }[];
+    /** Each with its capabilities (#62), in English: what the model reads. */
+    active: { name: string; description: string; provides: string[]; capabilities: DescribedCapability[]; tools: string[]; help: string[] }[];
     inactive: { name: string; reason: string }[];
   };
   /** The subagents it can delegate to. */

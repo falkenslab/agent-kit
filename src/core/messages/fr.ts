@@ -34,6 +34,8 @@ export const fr: Partial<Messages> = {
   extensionsRunning: (names) => `En service : ${names}`,
   extensionsNone: "(aucune extension)",
   extensionOff: (name, reason) => `${name} est désactivée : ${reason}`,
+  extensionCan: (name) => `Ce que votre agent peut faire avec ${name} :`,
+  capabilityToolsMissing: (tools) => `(son serveur ne propose pas ${tools})`,
   extensionsInstalled: "Installées :",
   extensionSwitched: (name, enabled) => `(${name} ${enabled ? "activée" : "désactivée"}, dans cette même session)`,
   extensionToggled: (name, enabled) => `(${name} ${enabled ? "activée" : "désactivée"} : la session se rouvre, avec la même conversation)`,

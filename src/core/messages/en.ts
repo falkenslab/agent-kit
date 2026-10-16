@@ -44,6 +44,10 @@ export interface Messages {
   extensionsRunning(names: string): string;
   extensionsNone: string;
   extensionOff(name: string, reason: string): string;
+  /** Before an active extension's capabilities (#62), one per line after it. */
+  extensionCan(name: string): string;
+  /** A capability's tools its server doesn't offer in this session. */
+  capabilityToolsMissing(tools: string): string;
   extensionsInstalled: string;
   /** An installed extension turned off or on in the running session (#49). */
   extensionSwitched(name: string, enabled: boolean): string;
@@ -212,6 +216,8 @@ export const en: Messages = {
   extensionsRunning: (names) => `Running with: ${names}`,
   extensionsNone: "(no extensions)",
   extensionOff: (name, reason) => `${name} is off: it ${reason}`,
+  extensionCan: (name) => `What ${name} lets your agent do:`,
+  capabilityToolsMissing: (tools) => `(its server doesn't offer ${tools})`,
   extensionsInstalled: "Installed:",
   extensionSwitched: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}, in this same session)`,
   extensionToggled: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}: the session reopens, with the same conversation)`,

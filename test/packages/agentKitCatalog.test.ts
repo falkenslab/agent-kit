@@ -30,6 +30,7 @@ test("the generator's own checks agree with the metadata schema", () => {
     {},
     { kit: ">=0.22.0", provides: ["moodle"], requires: [], help: "Moodle.", catalog: { logo: "assets/logo.svg", banner: "assets/banner.png" } },
     { labels: { list_courses: { en: { label: "Listing courses", phrase: ["listed courses", "listed courses {n} times"] }, es: { label: "Listando" } } } },
+    { capabilities: [{ id: "lms-grading", skills: ["grading"], tools: ["grade_submission"], texts: { en: { label: "Grading", description: "With rubrics." }, es: { label: "Corregir" } } }] },
   ];
   const bad = [
     { readonlyTools: ["x"] },
@@ -42,6 +43,14 @@ test("the generator's own checks agree with the metadata schema", () => {
     { labels: { x: { it: { label: "Ciao" } } } },
     { labels: { x: { en: { phrase: ["a", "b"] } } } },
     { labels: { x: { en: { label: "X", phrase: ["only one"] } } } },
+    { capabilities: { id: "x" } },
+    { capabilities: [{ id: "Grading", texts: { en: { label: "G" } } }] },
+    { capabilities: [{ id: "grading" }] },
+    { capabilities: [{ id: "grading", texts: {} }] },
+    { capabilities: [{ id: "grading", texts: { it: { label: "Voti" } } }] },
+    { capabilities: [{ id: "grading", texts: { en: { description: "No label." } } }] },
+    { capabilities: [{ id: "grading", tools: "grade", texts: { en: { label: "G" } } }] },
+    { capabilities: [{ id: "grading", icon: "x", texts: { en: { label: "G" } } }] },
   ];
   for (const kit of good) {
     assert.ok(validMetadata(kit), `${JSON.stringify(kit)}: ${ajv.errorsText(validMetadata.errors)}`);
@@ -69,7 +78,9 @@ function makeMarketplace(): string {
       { name: "campus", source: "./campus", version: "0.2.0", description: "Your campus.", category: "Education", tags: ["Moodle", "miyagi"] },
     ],
   });
-  write("campus/.claude-plugin/plugin.json", { name: "campus", version: "0.2.0", keywords: ["lms", "moodle"], license: "MIT", metadata: { "agent-kit": { catalog: { logo: "assets/logo.svg", banner: "assets/banner.png" } } } });
+  const grading = { id: "lms-grading", skills: ["grading"], tools: ["grade_submission"], texts: { en: { label: "Grading", description: "With rubrics." }, es: { label: "Corregir", description: "Con rúbricas." } } };
+  write("campus/.claude-plugin/plugin.json", { name: "campus", version: "0.2.0", keywords: ["lms", "moodle"], license: "MIT", metadata: { "agent-kit": { catalog: { logo: "assets/logo.svg", banner: "assets/banner.png" }, capabilities: [grading] } } });
+  write("campus/skills/grading/SKILL.md", "---\nname: grading\n---\n");
   write("campus/assets/logo.svg", "<svg/>");
   write("campus/assets/banner.png", "png");
   write("notes/.claude-plugin/plugin.json", { name: "notes", version: "1.0.0", description: "Notes." });
@@ -88,6 +99,9 @@ test("a generated catalog fits agent-kit's catalog schema, the captain's shipyar
   );
   assert.equal(catalog.extensions[0]!.logo, "https://raw.githubusercontent.com/ada/harbor/main/campus/assets/logo.svg");
   assert.equal(catalog.extensions[0]!.install.agentKit, "extension add campus@harbor");
+  // Its capabilities as it declares them, every language, for the page to choose; none, no key.
+  assert.deepEqual(catalog.extensions[0]!.capabilities?.map(({ id, texts }) => [id, Object.keys(texts)]), [["lms-grading", ["en", "es"]]]);
+  assert.equal("capabilities" in catalog.extensions[1]!, false);
   const shipyard = await buildCatalog(path.resolve("examples/captain-whiskers/extensions"), { repo: "falkenslab/agent-kit", branch: "main" });
   assert.ok(validCatalog(shipyard), ajv.errorsText(validCatalog.errors));
   assert.equal(shipyard.extensions[0]!.name, "jokebook");
@@ -96,11 +110,13 @@ test("a generated catalog fits agent-kit's catalog schema, the captain's shipyar
 test("the generator refuses what doesn't fit, saying every problem at once", async () => {
   const root = makeMarketplace();
   const plugin = path.join(root, "campus", ".claude-plugin", "plugin.json");
-  fs.writeFileSync(plugin, JSON.stringify({ ...read(plugin), version: "0.3.0", metadata: { "agent-kit": { catalog: { logo: "assets/missing.svg" }, readonlyTools: [] } } }));
+  const capabilities = [{ id: "lms-forums", skills: ["forums"], texts: { en: { label: "Forums" } } }];
+  fs.writeFileSync(plugin, JSON.stringify({ ...read(plugin), version: "0.3.0", metadata: { "agent-kit": { catalog: { logo: "assets/missing.svg" }, readonlyTools: [], capabilities } } }));
   await assert.rejects(buildCatalog(root, { repo: "ada/harbor" }), (error: Error) => {
     assert.match(error.message, /campus: plugin\.json says 0\.3\.0, marketplace\.json 0\.2\.0/);
     assert.match(error.message, /campus: metadata\["agent-kit"\] has an unknown field, readonlyTools/);
     assert.match(error.message, /campus: its assets\/missing\.svg doesn't exist/);
+    assert.match(error.message, /campus: its capability lms-forums names the skill forums, and it has no skills\/forums\/SKILL\.md/);
     return true;
   });
 });
