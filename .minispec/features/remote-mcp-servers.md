@@ -30,7 +30,7 @@ Then, from what's confirmed (and an ADR, or ADR-025 updated, with the design):
 - Signing in: `/extensions` and the chat controller show "needs sign-in" for an extension's server, and a command (`/extensions sign-in <name>`, a controller method for a host) starts it and gives the person the link; signing out too.
 - The agent's opt-in to claude.ai connectors, if the research allows it: a config listing the ones it accepts (none by default), shown in `/extensions` apart from installed extensions.
 - A guard for student data: an agent can mark that remote servers mustn't receive it (or warn), as moodle-teacher's `clear` warns today; the exact shape comes from the research.
-- An example extension with a remote server in agent-kit-extensions, once one works end to end.
+- An example extension with a remote server in agent-kit-extensions, once one works end to end: Canva (`canva-extension.md`), after a server without auth has proven `http` in `.mcp.json`.
 - Tests where no network is needed (manifest validation, options into `url`/`headers`, the status shown); the docs' Extensions section (writing, configuring, reference) and `architecture.md`.
 
 ## Acceptance
