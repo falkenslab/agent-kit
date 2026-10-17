@@ -187,7 +187,8 @@ test("an entry's topics and look: keywords, tags and category; a logo or banner 
   const look = { logo: "assets/logo.svg", banner: "../outside.png" };
   const grading = { id: "lms-grading", texts: { en: { label: "Grading with rubrics", description: "Proposals first." }, es: { label: "Corregir con rúbricas", description: "Primero las propuestas." } } };
   const docker = { name: "Docker", program: "docker", install: { url: "https://docs.docker.com/get-docker/" }, for: ["lms-grading"] };
-  for (const [name, manifest] of [["campus", { keywords: ["lms", "moodle"], metadata: { "agent-kit": { catalog: look, capabilities: [grading], requirements: [docker] } } }], ["notes", {}]] as const) {
+  const description = { es: "Tu campus, en español." };
+  for (const [name, manifest] of [["campus", { keywords: ["lms", "moodle"], metadata: { "agent-kit": { catalog: look, capabilities: [grading], requirements: [docker], description } } }], ["notes", {}]] as const) {
     fs.mkdirSync(path.join(root, name, ".claude-plugin"), { recursive: true });
     fs.writeFileSync(path.join(root, name, ".claude-plugin", "plugin.json"), JSON.stringify({ name, version: "1.0.0", description: name, ...manifest }));
   }
@@ -213,9 +214,14 @@ test("an entry's topics and look: keywords, tags and category; a logo or banner 
   // What it needs on the computer (#63), for "Needs Docker" on its card.
   assert.deepEqual(campus.requirements, [{ name: "Docker", for: ["lms-grading"] }]);
   assert.deepEqual(all.find((entry) => entry.plugin.name === "notes")!.requirements, []);
+  // Its description in the kit's language (#67): English (the marketplace entry's, else its own) without one there.
+  assert.equal(campus.description, "campus");
   setLanguage("es");
   try {
     assert.deepEqual((await extensionCatalog(dirs, { words: ["rúbricas"] })).map((entry) => [entry.plugin.name, entry.capabilities[0]?.label]), [["campus", "Corregir con rúbricas"]]);
+    const spanish = await extensionCatalog(dirs);
+    assert.deepEqual(spanish.map((entry) => [entry.plugin.name, entry.description]), [["campus", "Tu campus, en español."], ["notes", "notes"]]);
+    assert.deepEqual((await extensionCatalog(dirs, { words: ["español"] })).map((entry) => entry.plugin.name), ["campus"]);
   } finally {
     setLanguage("en");
   }

@@ -35,7 +35,14 @@
       "properties": {
         "name": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
         "version": { "description": "Its plugin.json's, the same as its marketplace entry's.", "type": "string", "minLength": 1 },
-        "description": { "type": "string" },
+        "description": { "description": "In English: its marketplace entry's, else its plugin.json's.", "type": "string" },
+        "descriptions": {
+          "description": "Its description per language, English among them; only when it has one in another language.",
+          "type": "object",
+          "propertyNames": { "enum": ["en", "es", "fr", "de"] },
+          "required": ["en"],
+          "additionalProperties": { "type": "string" }
+        },
         "category": { "type": ["string", "null"] },
         "topics": {
           "description": "Its plugin.json's keywords and its entry's tags, keywords and category, lowercased, without repeats.",
@@ -47,6 +54,13 @@
         "license": { "type": ["string", "null"] },
         "homepage": { "$ref": "#/$defs/url" },
         "readme": { "$ref": "#/$defs/url" },
+        "readmes": {
+          "description": "Its README per language (README.md, README.es.md…), as URLs; only when it has one in another language.",
+          "type": "object",
+          "propertyNames": { "enum": ["en", "es", "fr", "de"] },
+          "required": ["en"],
+          "additionalProperties": { "$ref": "#/$defs/url" }
+        },
         "install": {
           "type": "object",
           "additionalProperties": false,

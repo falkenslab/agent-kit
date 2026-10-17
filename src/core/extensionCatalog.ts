@@ -4,7 +4,7 @@ import path from "node:path";
 import { addExtension, codeStoreDir, hashExtension, inKitRange, installTarget, isGitSource, listInstalled, readExternalManifest, readLock, storedCodeDir, type ExtensionDirs, type ExtensionScope, type InstalledExtension } from "./externalExtensions.js";
 import { cachePackage, cachedPackageDir } from "./npxPackages.js";
 import { trustWorkspace } from "./workspaceTrust.js";
-import { describeCapability, type DescribedCapability } from "./extensions.js";
+import { describeCapability, describeInLanguage, type DescribedCapability } from "./extensions.js";
 import { getLanguage } from "./messages/index.js";
 import { addMarketplace, findPlugin, installFromMarketplace, listMarketplaces, resolvePluginSource, updateMarketplace, type KnownMarketplace, type MarketplacePlugin } from "./marketplaces.js";
 
@@ -56,6 +56,8 @@ export interface CatalogEntry {
   /** From the agent's own marketplace: installed without a confirmation. */
   official: boolean;
   plugin: MarketplacePlugin;
+  /** What it is, in the kit's language (#67): its own there, else the marketplace entry's, else its `plugin.json`'s, in English. */
+  description: string;
   /** The version it offers: its `plugin.json`'s when the marketplace has its folder, else the marketplace's entry's. */
   version?: string;
   /** Installed (and used: not shadowed), from wherever it came. */
@@ -84,7 +86,7 @@ const IMAGE = /\.(svg|png|jpe?g|webp)$/i;
 async function offered(
   marketplace: KnownMarketplace,
   plugin: MarketplacePlugin,
-): Promise<{ version?: string; keywords: string[]; logo?: string; banner?: string; capabilities: DescribedCapability[]; requirements: CatalogEntry["requirements"] }> {
+): Promise<{ version?: string; keywords: string[]; logo?: string; banner?: string; capabilities: DescribedCapability[]; requirements: CatalogEntry["requirements"]; description: string }> {
   try {
     const resolved = resolvePluginSource(marketplace, plugin);
     if ("source" in resolved && !isGitSource(resolved.source) && (await stat(resolved.source).catch(() => null))?.isDirectory()) {
@@ -99,12 +101,13 @@ async function offered(
       const version = manifest?.version ?? plugin.version;
       const capabilities = (manifest?.capabilities ?? []).map((capability) => describeCapability(capability, getLanguage()));
       const requirements = (manifest?.requirements ?? []).map((requirement) => ({ name: requirement.name, for: requirement.for }));
-      return { ...(version ? { version } : {}), keywords: manifest?.keywords ?? [], ...(logo ? { logo } : {}), ...(banner ? { banner } : {}), capabilities, requirements };
+      const description = describeInLanguage(plugin.description ?? manifest?.description ?? "", manifest?.descriptions, getLanguage());
+      return { ...(version ? { version } : {}), keywords: manifest?.keywords ?? [], ...(logo ? { logo } : {}), ...(banner ? { banner } : {}), capabilities, requirements, description };
     }
   } catch {
     // A source the kit doesn't install: the entry's own fields.
   }
-  return { ...(plugin.version ? { version: plugin.version } : {}), keywords: [], capabilities: [], requirements: [] };
+  return { ...(plugin.version ? { version: plugin.version } : {}), keywords: [], capabilities: [], requirements: [], description: plugin.description ?? "" };
 }
 
 /** Whether `offered` is newer than `installed` (x.y.z); a version that can't be compared isn't. */
@@ -126,13 +129,14 @@ export async function extensionCatalog(dirs: ExtensionDirs, options: { official?
       const topics = [...new Set([...look.keywords, ...(plugin.tags ?? []), ...(plugin.keywords ?? []), ...(plugin.category ? [plugin.category] : [])].map((topic) => topic.toLowerCase()))];
       if (wanted && !topics.some((topic) => wanted.has(topic))) continue;
       // Its capabilities count too: a search for "grading" finds what grades.
-      const text = [plugin.name, plugin.description, ...topics, ...look.capabilities.flatMap(({ id, label, description }) => [id, label, description])].join(" ").toLowerCase();
+      const text = [plugin.name, plugin.description, look.description, ...topics, ...look.capabilities.flatMap(({ id, label, description }) => [id, label, description])].join(" ").toLowerCase();
       if (!words.every((word) => text.includes(word))) continue;
       const version = look.version;
       const mine = installed.find((extension) => extension.name === plugin.name);
       const fromHere = mine?.lock.marketplace === `${plugin.name}@${marketplace.name}`;
       entries.push({
         spec: `${plugin.name}@${marketplace.name}`,
+        description: look.description,
         marketplace: marketplace.name,
         official: marketplace.official,
         plugin,

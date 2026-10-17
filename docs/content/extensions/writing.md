@@ -164,6 +164,7 @@ What the kit's chat, gates and catalog use goes under `metadata["agent-kit"]` in
 "metadata": {
   "agent-kit": {
     "catalog": { "logo": "assets/logo.svg" },
+    "description": { "es": "El tiempo en tu ciudad, para un agente que planifica contigo: hoy y los próximos días." },
     "capabilities": [
       {
         "id": "weather-forecast",
@@ -187,6 +188,7 @@ What the kit's chat, gates and catalog use goes under `metadata["agent-kit"]` in
 ```
 
 - **`labels`**: how the chat shows each tool, per language: the line while it runs (`{city}` takes the call's input) and how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). Without them, the chat shows the tool's name.
+- **`description`**: its description in other languages (`es`, `fr`, `de`), shown in the person's: the catalog in the chats and Captain Whiskers' drawer, `extension info` and the marketplace's `catalog.json`. English stays `plugin.json`'s own `description`, which Claude Code reads; the prompt keeps it too, since the model reads English. A `README.es.md` next to `README.md` is the README in Spanish: `extension info` points to it in a Spanish session, and `catalog.json` lists it.
 - **`capabilities`**: what the agent can do with it, for the person: each one's `skills` (their folders in `skills/`) and `tools` (short names) together, with a `label` and a `description` per language (English where the person's is missing). `/extensions`, `about_me`, `extension info` and the catalog show them; their ids count as [provided](overview.md#capabilities). Installing checks that every skill named exists; the tools only a running server lists, so `/extensions` says when one isn't offered. Group the tools by what the person gets done, not one capability per tool: an extension with 140 tools reads as a handful of capabilities.
 - **`help`**: what it says about itself, for the agent to tell the person ([awareness](../capabilities/awareness.md)'s `about_me`).
 - **`catalog`**: its look in a catalog ([below](#6-its-look-in-a-catalog)).

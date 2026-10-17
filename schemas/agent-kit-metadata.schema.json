@@ -11,6 +11,12 @@
       "type": "string",
       "pattern": "^\\s*(?:(?:>=|<=|>|<|=)?\\s*v?\\d+(?:\\.\\d+){0,2})(?:\\s+(?:>=|<=|>|<|=)?\\s*v?\\d+(?:\\.\\d+){0,2})*\\s*$"
     },
+    "description": {
+      "description": "Its description in other languages than English, which stays plugin.json's own description (Claude Code reads that one).",
+      "type": "object",
+      "propertyNames": { "enum": ["es", "fr", "de"] },
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
     "provides": { "description": "Capabilities it lets the agent use, by name only. Its capabilities' ids count as provided too.", "type": "array", "items": { "type": "string", "minLength": 1 } },
     "capabilities": {
       "description": "What it lets the agent do, for the person: each one's skills and tools together, described per language. Its id is what requires names; neutral ids (lms-grading) let skills depend on what can be done, not on which extension does it.",

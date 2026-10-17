@@ -49,7 +49,7 @@ export type ExtensionAction =
 /** One line for a catalog entry: what installs it, its version, whether it's installed or has an update, what it is. */
 export function describeEntry(entry: CatalogEntry): string {
   const state = entry.installed ? (entry.update ? ` ${t().extensionUpdateAvailable(entry.installed.manifest?.version ?? "?")}` : ` ${t().extensionIsInstalled}`) : "";
-  return `${entry.spec}${entry.version ? ` ${entry.version}` : ""}${state}${entry.plugin.description ? `  ${entry.plugin.description}` : ""}`;
+  return `${entry.spec}${entry.version ? ` ${entry.version}` : ""}${state}${entry.description ? `  ${entry.description}` : ""}`;
 }
 
 /** An installed extension's options, one line each: its value, its default, or whether a sensitive one is set (never its value). */

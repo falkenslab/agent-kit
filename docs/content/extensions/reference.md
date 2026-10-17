@@ -47,6 +47,7 @@ All optional; checked by `schemas/agent-kit-metadata.schema.json`.
 | Field | What it does |
 | --- | --- |
 | `kit` | The agent-kit versions it works with: comparators separated by spaces, all of which must hold (`>=0.22.0`, `>=0.22.0 <0.24.0`, `0.22.1`). Outside them, it's off. Leave out an upper bound unless a version is known to break it. |
+| `description` | Its description in other languages: `{ "es": "…", "fr": "…", "de": "…" }`. English is `plugin.json`'s own `description`; where the person's language is missing, they read the English. |
 | `provides`, `requires` | Its [capabilities](overview.md#capabilities), by name. |
 | `capabilities` | What it lets the agent do, for the person: a list of `{ id, skills, tools, texts }`. `id` is kebab-case and counts as provided; `skills` are folders of its `skills/` (each must exist), `tools` short names of any of its servers; `texts` gives a `label` (required) and a `description` per language (`en`, `es`, `fr`, `de`), English where the person's is missing. |
 | `requirements` | [Programs it needs](writing.md#programs-it-needs) on the computer, which the person installs: a list of `{ name, program, version?, install, for? }`. `program` is a bare name on the `PATH`; `version` is `{ args, min }`, its arguments options or `version` only; `install` has a command per system (`windows`, `macos`, `linux`) and a `url`; `for` names the capabilities that need it (none: the whole extension). Missing, the whole extension or those capabilities are off, saying how to install it. |

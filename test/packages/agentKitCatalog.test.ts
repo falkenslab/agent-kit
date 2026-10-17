@@ -29,6 +29,7 @@ test("the generator's own checks agree with the metadata schema", () => {
   const good = [
     {},
     { kit: ">=0.22.0", provides: ["moodle"], requires: [], help: "Moodle.", catalog: { logo: "assets/logo.svg", banner: "assets/banner.png" } },
+    { description: { es: "Tu campus.", fr: "Ton campus.", de: "Dein Campus." } },
     { labels: { list_courses: { en: { label: "Listing courses", phrase: ["listed courses", "listed courses {n} times"] }, es: { label: "Listando" } } } },
     { capabilities: [{ id: "lms-grading", skills: ["grading"], tools: ["grade_submission"], texts: { en: { label: "Grading", description: "With rubrics." }, es: { label: "Corregir" } } }] },
     {
@@ -59,6 +60,10 @@ test("the generator's own checks agree with the metadata schema", () => {
     { capabilities: [{ id: "grading", tools: "grade", texts: { en: { label: "G" } } }] },
     { capabilities: [{ id: "grading", icon: "x", texts: { en: { label: "G" } } }] },
     { needs: ["docker"] },
+    { description: "Tu campus." },
+    { description: { en: "Your campus." } },
+    { description: { it: "Il tuo campus." } },
+    { description: { es: "" } },
     { requirements: { program: "docker" } },
     { requirements: [{ name: "Docker", program: "/usr/bin/docker", install: { url: "https://docker.com" } }] },
     { requirements: [{ name: "Docker", program: "docker", version: { args: ["run", "alpine"], min: "1" }, install: { url: "https://docker.com" } }] },
@@ -96,7 +101,9 @@ function makeMarketplace(): string {
   });
   const grading = { id: "lms-grading", skills: ["grading"], tools: ["grade_submission"], texts: { en: { label: "Grading", description: "With rubrics." }, es: { label: "Corregir", description: "Con rúbricas." } } };
   const docker = { name: "Docker", program: "docker", install: { url: "https://docs.docker.com/get-docker/" }, for: ["lms-grading"] };
-  write("campus/.claude-plugin/plugin.json", { name: "campus", version: "0.2.0", keywords: ["lms", "moodle"], license: "MIT", metadata: { "agent-kit": { catalog: { logo: "assets/logo.svg", banner: "assets/banner.png" }, capabilities: [grading], requirements: [docker] } } });
+  write("campus/.claude-plugin/plugin.json", { name: "campus", version: "0.2.0", keywords: ["lms", "moodle"], license: "MIT", metadata: { "agent-kit": { catalog: { logo: "assets/logo.svg", banner: "assets/banner.png" }, capabilities: [grading], requirements: [docker], description: { es: "Tu campus." } } } });
+  write("campus/README.md", "# campus");
+  write("campus/README.es.md", "# campus");
   write("campus/skills/grading/SKILL.md", "---\nname: grading\n---\n");
   write("campus/assets/logo.svg", "<svg/>");
   write("campus/assets/banner.png", "png");
@@ -117,6 +124,11 @@ test("a generated catalog fits agent-kit's catalog schema, the captain's shipyar
   assert.equal(catalog.extensions[0]!.logo, "https://raw.githubusercontent.com/ada/harbor/main/campus/assets/logo.svg");
   assert.equal(catalog.extensions[0]!.install.agentKit, "extension add campus@harbor");
   assert.deepEqual(catalog.extensions[0]!.requirements?.map(({ name, for: needed }) => [name, needed]), [["Docker", ["lms-grading"]]]);
+  // Its description and README per language (#67), English among them; English only, neither key.
+  assert.deepEqual(catalog.extensions[0]!.descriptions, { en: "Your campus.", es: "Tu campus." });
+  assert.deepEqual(catalog.extensions[0]!.readmes, { en: "https://github.com/ada/harbor/blob/main/campus/README.md", es: "https://github.com/ada/harbor/blob/main/campus/README.es.md" });
+  assert.equal("descriptions" in catalog.extensions[1]!, false);
+  assert.equal("readmes" in catalog.extensions[1]!, false);
   // Its capabilities as it declares them, every language, for the page to choose; none, no key.
   assert.deepEqual(catalog.extensions[0]!.capabilities?.map(({ id, texts }) => [id, Object.keys(texts)]), [["lms-grading", ["en", "es"]]]);
   assert.equal("capabilities" in catalog.extensions[1]!, false);

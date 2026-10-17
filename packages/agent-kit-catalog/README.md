@@ -42,6 +42,7 @@ The repository its links point to comes from `--repo owner/name`, else `GITHUB_R
 | Field | Where it comes from |
 | --- | --- |
 | 🏷️ `name`, `version`, `description` | The marketplace entry and its `plugin.json` (their versions must match) |
+| 🌐 `descriptions`, `readmes` | Its description per language (`metadata["agent-kit"].description`, English from `description`) and its READMEs per language (`README.md`, `README.es.md`…), only when it has other than English |
 | 🔎 `topics` | `plugin.json`'s `keywords`, the entry's `tags`, `keywords` and `category`, lowercased |
 | 🖼️ `logo`, `banner` | `metadata["agent-kit"].catalog` in `plugin.json`: images inside the extension's folder |
 | ✨ `capabilities` | `metadata["agent-kit"].capabilities`: what it lets the agent do, every language it gives (the skills each names must exist) |

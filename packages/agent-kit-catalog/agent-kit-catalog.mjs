@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // @falkenslab/agent-kit-catalog: a Claude Code marketplace's extensions as one file, catalog.json — each
-// one's name, version, description, topics, category, author, links, install commands, capabilities, requirements and images
+// one's name, version, description (and per language), topics, category, author, links (READMEs per language), install
+// commands, capabilities, requirements and images
 // (as raw.githubusercontent.com URLs) — from .claude-plugin/marketplace.json and each extension's
 // plugin.json. A page or a client shows the marketplace from it without cloning the repository.
 // No dependencies: it runs with npx in any CI.
@@ -33,7 +34,7 @@ export function metadataProblems(kit) {
   if (kit === undefined) return [];
   if (!kit || typeof kit !== "object" || Array.isArray(kit)) return ['metadata["agent-kit"] isn\'t an object'];
   const problems = [];
-  const known = new Set(["kit", "provides", "requires", "capabilities", "requirements", "readOnlyTools", "labels", "help", "catalog"]);
+  const known = new Set(["kit", "description", "provides", "requires", "capabilities", "requirements", "readOnlyTools", "labels", "help", "catalog"]);
   for (const key of Object.keys(kit)) if (!known.has(key)) problems.push(`metadata["agent-kit"] has an unknown field, ${key}`);
   if (kit.kit !== undefined && (typeof kit.kit !== "string" || !KIT_RANGE.test(kit.kit))) problems.push(`its kit range isn't comparators like ">=0.22.0": ${JSON.stringify(kit.kit)}`);
   for (const key of ["provides", "requires", "readOnlyTools"]) if (kit[key] !== undefined && !isStrings(kit[key])) problems.push(`its ${key} isn't a list of names`);
@@ -70,6 +71,14 @@ export function metadataProblems(kit) {
       }
   }
   if (kit.help !== undefined && typeof kit.help !== "string") problems.push("its help isn't text");
+  if (kit.description !== undefined) {
+    if (!kit.description || typeof kit.description !== "object" || Array.isArray(kit.description)) problems.push("its description per language isn't an object");
+    else
+      for (const [language, text] of Object.entries(kit.description)) {
+        if (!["es", "fr", "de"].includes(language)) problems.push(`its description has ${language === "en" ? "English, which is plugin.json's own description" : `a language agent-kit doesn't speak, ${language}`}`);
+        else if (typeof text !== "string" || !text) problems.push(`its ${language} description isn't text`);
+      }
+  }
   if (kit.capabilities !== undefined) {
     if (!Array.isArray(kit.capabilities)) problems.push("its capabilities aren't a list");
     else {
@@ -190,17 +199,27 @@ export async function buildCatalog(root, options = {}) {
     };
     const look = kit?.catalog ?? {};
     const [logo, banner] = [await image(look.logo), await image(look.banner)];
+    // Its description and README per language (#67), only when it has one in another language.
+    const english = entry.description ?? manifest.description ?? "";
+    const translated = kit?.description && typeof kit.description === "object" ? Object.entries(kit.description).filter(([language, text]) => ["es", "fr", "de"].includes(language) && typeof text === "string" && text) : [];
+    const descriptions = translated.length ? { en: english, ...Object.fromEntries(translated) } : undefined;
+    const readmeOf = (language) => `${language === "en" ? "README" : `README.${language}`}.md`;
+    const found = [];
+    for (const language of ["es", "fr", "de"]) if ((await stat(path.join(root, folder, readmeOf(language))).catch(() => null))?.isFile()) found.push(language);
+    const readmes = found.length ? Object.fromEntries(["en", ...found].map((language) => [language, `https://github.com/${repo}/blob/${branch}/${folder}/${readmeOf(language)}`])) : undefined;
     const topics = [...new Set([...(manifest.keywords ?? []), ...(entry.tags ?? []), ...(entry.keywords ?? []), ...(entry.category ? [entry.category] : [])].filter((topic) => typeof topic === "string").map((topic) => topic.toLowerCase()))];
     extensions.push({
       name: entry.name,
       version: manifest.version,
-      description: entry.description ?? manifest.description ?? "",
+      description: english,
+      ...(descriptions ? { descriptions } : {}),
       category: entry.category ?? null,
       topics,
       author: manifest.author?.name ?? marketplace.owner?.name ?? null,
       license: manifest.license ?? null,
       homepage: typeof manifest.homepage === "string" && manifest.homepage.startsWith("https://") ? manifest.homepage : `https://github.com/${repo}/tree/${branch}/${folder}`,
       readme: `https://github.com/${repo}/blob/${branch}/${folder}/README.md`,
+      ...(readmes ? { readmes } : {}),
       install: { claudeCode: `claude plugin install ${entry.name}@${marketplace.name}`, agentKit: `extension add ${entry.name}@${marketplace.name}` },
       ...(Array.isArray(kit?.capabilities) && kit.capabilities.length ? { capabilities: kit.capabilities } : {}),
       ...(Array.isArray(kit?.requirements) && kit.requirements.length ? { requirements: kit.requirements } : {}),

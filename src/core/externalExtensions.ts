@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
-import { capabilitiesProblem, parseCapabilities, providedBy, type Extension, type ExtensionCapability } from "./extensions.js";
+import { capabilitiesProblem, parseCapabilities, parseDescriptions, providedBy, type Extension, type ExtensionCapability } from "./extensions.js";
 import type { Language } from "./language.js";
 import { getLanguage, type ToolPhrase } from "./messages/index.js";
 import { truncate, type ToolLabels } from "./toolLabels.js";
@@ -68,7 +68,10 @@ export interface ExtensionAuthor {
  */
 export interface ExternalManifest {
   name: string;
+  /** Its description in English: `plugin.json`'s, which Claude Code reads. */
   description: string;
+  /** Its description in other languages (#67), from `metadata["agent-kit"].description`. */
+  descriptions: Partial<Record<Language, string>>;
   version?: string;
   author?: ExtensionAuthor;
   homepage?: string;
@@ -222,6 +225,7 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
   return {
     name,
     description: typeof raw.description === "string" ? raw.description : "",
+    descriptions: parseDescriptions((kit as { description?: unknown }).description),
     ...text("version"),
     ...(author && typeof author === "object" && typeof author.name === "string"
       ? { author: { name: author.name, ...(author.email ? { email: author.email } : {}), ...(author.url ? { url: author.url } : {}) } }

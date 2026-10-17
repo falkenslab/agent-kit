@@ -1,6 +1,6 @@
 {
   "name": "jokebook",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "A jokebook: classic pirate jokes, and ranking the jokes kept in a knowledge base by their score.",
   "author": {
     "name": "Falkenslab",
@@ -17,6 +17,11 @@
   "metadata": {
     "agent-kit": {
       "kit": ">=0.21.0",
+      "description": {
+        "es": "Un libro de chistes: chistes clásicos de piratas, y la clasificación de los chistes del cuaderno de bitácora por su nota.",
+        "fr": "Un recueil de blagues : des blagues de pirates classiques, et le classement des blagues du journal de bord selon leur note.",
+        "de": "Ein Witzebuch: klassische Piratenwitze und eine Rangliste der Witze im Logbuch nach ihrer Note."
+      },
       "catalog": {
         "logo": "assets/logo.svg"
       },

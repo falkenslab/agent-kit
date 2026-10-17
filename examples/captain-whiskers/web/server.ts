@@ -148,7 +148,7 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
             marketplace: entry.marketplace,
             official: entry.official,
             version: entry.version ?? null,
-            description: entry.plugin.description ?? "",
+            description: entry.description,
             installed: Boolean(entry.installed),
             update: entry.update,
             topics: entry.topics,

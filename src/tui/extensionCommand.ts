@@ -27,7 +27,7 @@ import {
 import { describe, describeOptions } from "../chat/extensions.js";
 import { extensionCatalog, knownMarketplaces as catalogMarketplaces, restoreExtensions, updateExtension } from "../core/extensionCatalog.js";
 import { trustWorkspace } from "../core/workspaceTrust.js";
-import { describeCapability } from "../core/extensions.js";
+import { describeCapability, describeInLanguage } from "../core/extensions.js";
 import { getLanguage } from "../core/messages/index.js";
 
 export { chatExtensionsCommand, describe } from "../chat/extensions.js";
@@ -401,10 +401,13 @@ async function info(extension: InstalledExtension): Promise<string[]> {
   const manifest = extension.manifest;
   if (!manifest) return [describe(extension), "Its manifest can't be read."];
   const author = manifest.author ? [manifest.author.name, manifest.author.email && `<${manifest.author.email}>`, manifest.author.url && `(${manifest.author.url})`].filter(Boolean).join(" ") : undefined;
-  const readme = path.join(extension.dir, "README.md");
+  // Its README in the kit's language when it has one (README.es.md), else the English (#67).
+  const language = getLanguage();
+  const translated = path.join(extension.dir, `README.${language}.md`);
+  const readme = language !== "en" && (await stat(translated).catch(() => null))?.isFile() ? translated : path.join(extension.dir, "README.md");
   const field = (label: string, value: string | undefined): string[] => (value ? [`${label.padEnd(13)}${value}`] : []);
   return [
-    `${manifest.name}${manifest.version ? ` ${manifest.version}` : ""}: ${manifest.description}`,
+    `${manifest.name}${manifest.version ? ` ${manifest.version}` : ""}: ${describeInLanguage(manifest.description, manifest.descriptions, language)}`,
     ...field("Author", author),
     ...field("License", manifest.license),
     ...field("Homepage", manifest.homepage),

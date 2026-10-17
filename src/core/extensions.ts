@@ -177,6 +177,20 @@ export async function capabilitiesProblem(pluginRoot: string, capabilities: read
   return undefined;
 }
 
+/**
+ * A manifest's `metadata["agent-kit"].description` (#67): its description in other languages than
+ * English, which stays the top-level `description` Claude Code reads. Only languages the kit speaks.
+ */
+export function parseDescriptions(raw: unknown): Partial<Record<Language, string>> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter(([language, text]) => SUPPORTED_LANGUAGES.includes(language as Language) && typeof text === "string" && text.length > 0));
+}
+
+/** An extension's description in `language`: its own there, else the English one. */
+export function describeInLanguage(english: string, descriptions: Partial<Record<Language, string>> | undefined, language: Language): string {
+  return descriptions?.[language] ?? english;
+}
+
 /** An extension's manifest, as the kit reads it. */
 export interface ExtensionManifest {
   name: string;
