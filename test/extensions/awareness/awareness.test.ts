@@ -53,14 +53,24 @@ test("only the name is required", () => {
   assert.match(identityPromptSection({ name: "miyagi" }), /You are miyagi\. You are built on agent-kit/);
 });
 
-test("about_me says what each extension lets the agent do (#62), by label and id", () => {
+test("about_me says what each extension lets the agent do (#62), by label and id, and what it can't here and why (#63)", () => {
   const text = describeSession({
     kitVersion: "0.23.0",
     language: "es",
     mode: "guided",
     switchableModes: ["guided"],
     extensions: {
-      active: [{ name: "moodle-teacher", description: "Moodle.", provides: ["lms-grading"], capabilities: [{ id: "lms-grading", label: "Grading with rubrics", description: "Proposals first." }], tools: ["mcp__moodle__grade_submission"], help: [] }],
+      active: [
+        {
+          name: "moodle-teacher",
+          description: "Moodle.",
+          provides: ["lms-grading"],
+          capabilities: [{ id: "lms-grading", label: "Grading with rubrics", description: "Proposals first." }],
+          unavailable: [{ id: "lms-labs", label: "Testing labs", description: "", reason: "needs Docker (docker), which isn't on this computer" }],
+          tools: ["mcp__moodle__grade_submission"],
+          help: [],
+        },
+      ],
       inactive: [],
     },
     subagents: [],
@@ -69,7 +79,7 @@ test("about_me says what each extension lets the agent do (#62), by label and id
     commands: [],
     runDir: "/run",
   });
-  assert.match(text, /- \*\*moodle-teacher\*\*: Moodle\. Tools: grade_submission\.\n {2}- Can: Grading with rubrics \(lms-grading\): Proposals first\./);
+  assert.match(text, /- \*\*moodle-teacher\*\*: Moodle\. Tools: grade_submission\.\n {2}- Can: Grading with rubrics \(lms-grading\): Proposals first\.\n {2}- Can't here: Testing labs \(lms-labs\): it needs Docker \(docker\), which isn't on this computer\./);
 });
 
 test("without awareness there's no section, tool or skill, identity or not; without identity it's off, with why", async () => {

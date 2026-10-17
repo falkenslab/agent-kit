@@ -1,7 +1,7 @@
 import { cp, lstat, mkdir, readdir, rm, symlink, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { ExtensionsStatus } from "./session.js";
-import { aboutExtension, describeCapability, type ExtensionCapability } from "./extensions.js";
+import { aboutExtension, describeCapability, type ExtensionCapability, type UnavailableCapability } from "./extensions.js";
 import { hashExtension, listInstalled, readLock } from "./externalExtensions.js";
 import { cachedPackagesIntact, packageCacheDir } from "./npxPackages.js";
 import type { SessionLive, StaticSessionFacts } from "./sessionFacts.js";
@@ -71,6 +71,8 @@ export interface LiveExtension {
   description: string;
   provides: string[];
   capabilities: ExtensionCapability[];
+  /** What it can't do on this computer (#63). */
+  unavailable: UnavailableCapability[];
   help: string[];
 }
 
@@ -161,13 +163,14 @@ function follow(extension: LiveExtension, enabled: boolean, targets: LiveTargets
     targets.allowedSubagentTypes.push(...extension.agents);
     Object.assign(targets.toolLabels, extension.toolLabels);
     status.active.push(extension.name);
-    status.about[extension.name] = aboutExtension({ name: extension.name, description: extension.description, provides: extension.provides, requires: [], capabilities: extension.capabilities }, extension.servers, facts.language);
+    status.about[extension.name] = aboutExtension({ name: extension.name, description: extension.description, provides: extension.provides, requires: [], capabilities: extension.capabilities }, extension.servers, facts.language, extension.unavailable);
     status.inactive = status.inactive.filter((entry) => entry.name !== extension.name);
     facts.extensions.active.push({
       name: extension.name,
       description: extension.description,
       provides: extension.provides,
       capabilities: extension.capabilities.map((capability) => describeCapability(capability, "en")),
+      unavailable: extension.unavailable.map(({ capability, reason }) => ({ ...describeCapability(capability, "en"), reason })),
       servers: extension.servers,
       help: extension.help,
     });

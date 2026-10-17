@@ -69,6 +69,8 @@ export interface CatalogEntry {
   banner?: string;
   /** What it lets the agent do (#62), in the kit's language: from its `plugin.json` when the marketplace has its folder. */
   capabilities: DescribedCapability[];
+  /** The programs it needs on the computer (#63), by name ("Docker"), with the capabilities that need them (none: all of it). */
+  requirements: { name: string; for: string[] }[];
 }
 
 /** The images a catalog shows: these types only. */
@@ -79,7 +81,10 @@ const IMAGE = /\.(svg|png|jpe?g|webp)$/i;
  * the version (its `plugin.json` wins over the entry, as Claude Code computes it), its keywords,
  * and its look, an image inside its folder only.
  */
-async function offered(marketplace: KnownMarketplace, plugin: MarketplacePlugin): Promise<{ version?: string; keywords: string[]; logo?: string; banner?: string; capabilities: DescribedCapability[] }> {
+async function offered(
+  marketplace: KnownMarketplace,
+  plugin: MarketplacePlugin,
+): Promise<{ version?: string; keywords: string[]; logo?: string; banner?: string; capabilities: DescribedCapability[]; requirements: CatalogEntry["requirements"] }> {
   try {
     const resolved = resolvePluginSource(marketplace, plugin);
     if ("source" in resolved && !isGitSource(resolved.source) && (await stat(resolved.source).catch(() => null))?.isDirectory()) {
@@ -93,12 +98,13 @@ async function offered(marketplace: KnownMarketplace, plugin: MarketplacePlugin)
       const [logo, banner] = [await image(manifest?.catalog?.logo), await image(manifest?.catalog?.banner)];
       const version = manifest?.version ?? plugin.version;
       const capabilities = (manifest?.capabilities ?? []).map((capability) => describeCapability(capability, getLanguage()));
-      return { ...(version ? { version } : {}), keywords: manifest?.keywords ?? [], ...(logo ? { logo } : {}), ...(banner ? { banner } : {}), capabilities };
+      const requirements = (manifest?.requirements ?? []).map((requirement) => ({ name: requirement.name, for: requirement.for }));
+      return { ...(version ? { version } : {}), keywords: manifest?.keywords ?? [], ...(logo ? { logo } : {}), ...(banner ? { banner } : {}), capabilities, requirements };
     }
   } catch {
     // A source the kit doesn't install: the entry's own fields.
   }
-  return { ...(plugin.version ? { version: plugin.version } : {}), keywords: [], capabilities: [] };
+  return { ...(plugin.version ? { version: plugin.version } : {}), keywords: [], capabilities: [], requirements: [] };
 }
 
 /** Whether `offered` is newer than `installed` (x.y.z); a version that can't be compared isn't. */
@@ -137,6 +143,7 @@ export async function extensionCatalog(dirs: ExtensionDirs, options: { official?
         ...(look.logo ? { logo: look.logo } : {}),
         ...(look.banner ? { banner: look.banner } : {}),
         capabilities: look.capabilities,
+        requirements: look.requirements,
       });
     }
   }
@@ -156,7 +163,11 @@ export async function needsConfirmation(dirs: ExtensionDirs, spec: string, offic
  * servers run into the agent's cache. Asking the person first, for one that isn't the agent's
  * own (`needsConfirmation()`), is the caller's.
  */
-export async function installExtension(dirs: ExtensionDirs, spec: string, options: { scope?: ExtensionScope; official?: string } = {}): Promise<{ name: string; scope: ExtensionScope; replaced: boolean; marketplace: string; commit?: string }> {
+export async function installExtension(
+  dirs: ExtensionDirs,
+  spec: string,
+  options: { scope?: ExtensionScope; official?: string } = {},
+): Promise<{ name: string; scope: ExtensionScope; replaced: boolean; marketplace: string; commit?: string; missing: string[] }> {
   const scope = options.scope ?? (dirs.agent ? "agent" : "project");
   const scopeDir = dirs[scope];
   if (!scopeDir) throw new Error(`This agent has no ${scope} scope for extensions.`);

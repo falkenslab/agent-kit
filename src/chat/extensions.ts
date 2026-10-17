@@ -24,13 +24,16 @@ export function describeCapabilities(status: ExtensionsStatus): string[] {
   const offered = new Set(status.sessionTools?.() ?? []);
   return status.active.flatMap((name) => {
     const capabilities = status.about[name]?.capabilities ?? [];
-    if (!capabilities.length) return [];
+    const unavailable = status.about[name]?.unavailable ?? [];
+    if (!capabilities.length && !unavailable.length) return [];
     return [
       t().extensionCan(name),
       ...capabilities.map(({ label, description, tools }) => {
         const missing = offered.size ? [...new Set(tools.filter((tool) => !offered.has(tool)).map((tool) => tool.replace(/^mcp__.+?__/, "")))] : [];
         return `  - ${label}${description ? `: ${description}` : ""}${missing.length ? ` ${t().capabilityToolsMissing(missing.join(", "))}` : ""}`;
       }),
+      // What it can't do on this computer, with what to install (#63).
+      ...unavailable.map(({ label, reason }) => `  - ${t().capabilityUnavailable(label, reason)}`),
     ];
   });
 }

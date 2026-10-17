@@ -45,7 +45,7 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 | --- | --- |
 | `extension list` | What's installed: name and version, scope, enabled or not, author, where from. |
 | `extension info <name>` | Everything its manifest says (description, author, license, homepage, repository, keywords, the agent-kit versions, capabilities, servers, read-only tools, options, packages, variables), how it was installed, its data folder and its size, and where its README is. |
-| `extension add <folder>` | Copies the folder into the agent's scope, checks its manifest, hashes it and locks it, enabled. |
+| `extension add <folder>` | Copies the folder into the agent's scope, checks its manifest, hashes it and locks it, enabled. It says what it [needs](writing.md#programs-it-needs) and this computer lacks, and how to install it; it never installs a program. |
 | `extension add <git URL>[#ref] [--path <subfolder>]` | Clones the repository at the ref (`https://…`, `git@…`, `file://…`, `github:owner/repo`) and records the commit. |
 | `extension add <name>[@<marketplace>]` | Installs an extension of a known [marketplace](#marketplaces), from wherever the marketplace says; `@<marketplace>` only when two offer that name. One from a marketplace that isn't the agent's own asks first. |
 | `extension add <folder> --link` | Registers the folder where it is, to [develop it](developing.md): not copied, its files not checked. `list` shows it as linked. |
@@ -82,7 +82,7 @@ The functions behind the command are exported too, for a host with its own inter
 
 What the agent's marketplaces offer is its catalog, in the command (`search`, `add`, `update`) and in the chats, so a person without a shell (a desktop app) installs and updates extensions too.
 
-- **What it lists**: each extension with the version it offers (its `plugin.json`'s, which wins over the marketplace's entry, as in Claude Code), whether it's installed, whether one installed from that marketplace has a newer version there, its **topics**, its **look** and what it lets the agent do (its [capabilities](overview.md#capabilities), in the kit's language, which the search matches too).
+- **What it lists**: each extension with the version it offers (its `plugin.json`'s, which wins over the marketplace's entry, as in Claude Code), whether it's installed, whether one installed from that marketplace has a newer version there, its **topics**, its **look**, what it lets the agent do (its [capabilities](overview.md#capabilities), in the kit's language, which the search matches too) and the programs it [needs](writing.md#programs-it-needs) on the computer ("Needs Docker").
 - **Topics**: what it's about and who it's for, from Claude Code's own fields: its `plugin.json`'s `keywords`, and its marketplace entry's `tags`, `keywords` and `category`, lowercased. An audience is a topic like any other (`"miyagi"`), and the search matches topics too.
 - **What an agent offers**: `catalogTopics` in its config keeps its chats' catalog, and `extension search`, to the extensions with one of them; without it, every one. What's already installed is listed whatever its topics, and updates the same.
 - **Its look**: a `logo` (square) and a `banner` (wide), which the extension declares ([Writing one](writing.md#6-its-look-in-a-catalog)). The catalog gives them as files of the marketplace's copy; a host serves them to its page (the chat controller's `extensionImage(spec, kind)`).
@@ -98,7 +98,7 @@ Captain Whiskers' web and desktop app show it as a drawer with two tabs: the ins
 
 | Command | What it does |
 | --- | --- |
-| `/extensions` | What the session runs with and what each lets the agent do (its [capabilities](overview.md#capabilities), in the person's language, with any tool its server doesn't offer), what's off and why, and what's installed. |
+| `/extensions` | What the session runs with and what each lets the agent do (its [capabilities](overview.md#capabilities), in the person's language, with any tool its server doesn't offer, and any that needs a program this computer lacks), what's off and why, and what's installed. |
 | `/extensions enable <name>`, `/extensions disable <name>` | Change the lock and apply it, in the same session when it can be. |
 | `/extensions config <name> [key=value…]` | Its [options](configuring.md), and setting them (never a secret: what's typed in a chat is kept in its history). |
 | `/extensions search [words]` | The [catalog](#the-catalog). |

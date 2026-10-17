@@ -100,6 +100,8 @@ export interface Extension {
   external?: boolean;
   /** An installed one's scope folder, where its lock is (its plugin is elsewhere when it's linked). */
   installedIn?: string;
+  /** What it can't do on this computer (#63): capabilities whose programs are missing, with why. They aren't provided, and their skills are left out. */
+  unavailable?: { capabilities: string[]; reason: string }[];
   /** Why it can't run in this session (e.g. "needs a folder (`dir`)"), or `undefined` when it can. */
   missing?(context: ExtensionContext): string | undefined;
   /** What it brings to the session, once it's active. */
@@ -202,16 +204,19 @@ export interface AboutExtension {
   description: string;
   provides: string[];
   capabilities: (DescribedCapability & { tools: string[] })[];
+  /** What it can't do on this computer, with why (#63). */
+  unavailable: (DescribedCapability & { reason: string })[];
   /** Its MCP servers, by name. */
   servers: string[];
 }
 
 /** What a view says of an active extension: its capabilities' tools under each of its servers' names. */
-export function aboutExtension(manifest: ExtensionManifest, servers: readonly string[], language: Language): AboutExtension {
+export function aboutExtension(manifest: ExtensionManifest, servers: readonly string[], language: Language, unavailable: readonly UnavailableCapability[] = []): AboutExtension {
   return {
     description: manifest.description,
     provides: manifest.provides,
     capabilities: manifest.capabilities.map((capability) => ({ ...describeCapability(capability, language), tools: servers.flatMap((server) => capability.tools.map((tool) => `mcp__${server}__${tool}`)) })),
+    unavailable: unavailable.map(({ capability, reason }) => ({ ...describeCapability(capability, language), reason })),
     servers: [...servers],
   };
 }
@@ -221,9 +226,16 @@ export function providedBy(provides: readonly string[] | undefined, capabilities
   return [...new Set([...(provides ?? []), ...capabilities.map((capability) => capability.id)])];
 }
 
+/** A capability an active extension has but can't use on this computer, with why (#63). */
+export interface UnavailableCapability {
+  capability: ExtensionCapability;
+  reason: string;
+}
+
 /** The extensions a session runs with, and the ones it can't, with why. */
 export interface ResolvedExtensions {
-  active: { extension: Extension; manifest: ExtensionManifest }[];
+  /** Each with its manifest as the session sees it (without what's unavailable here) and what's unavailable. */
+  active: { extension: Extension; manifest: ExtensionManifest; unavailable: UnavailableCapability[] }[];
   inactive: { name: string; reason: string }[];
   /** What the active ones provide. */
   capabilities: Set<string>;
@@ -238,11 +250,17 @@ export function resolveExtensions(extensions: readonly Extension[], context: Ext
   const inactive: { name: string; reason: string }[] = [];
   let active: ResolvedExtensions["active"] = [];
   for (const extension of extensions) {
-    const manifest = readExtensionManifest(extension.plugin);
-    if (manifest.name !== extension.name) throw new Error(`The extension "${extension.name}" has the plugin "${manifest.name}": they must have the same name.`);
+    const read = readExtensionManifest(extension.plugin);
+    if (read.name !== extension.name) throw new Error(`The extension "${extension.name}" has the plugin "${read.name}": they must have the same name.`);
+    // What it can't do here isn't provided: what requires it is left out, as for a missing extension.
+    const unavailable = (extension.unavailable ?? []).flatMap(({ capabilities, reason }) =>
+      capabilities.map((id) => ({ capability: read.capabilities.find((capability) => capability.id === id) ?? { id, skills: [], tools: [], texts: {} }, reason })),
+    );
+    const off = new Set(unavailable.map(({ capability }) => capability.id));
+    const manifest = off.size ? { ...read, provides: read.provides.filter((id) => !off.has(id)), capabilities: read.capabilities.filter((capability) => !off.has(capability.id)) } : read;
     const reason = extension.missing?.(context);
     if (reason) inactive.push({ name: extension.name, reason });
-    else active.push({ extension, manifest });
+    else active.push({ extension, manifest, unavailable });
   }
   // Requirements: drop what can't be met, again and again, since dropping one may starve another.
   for (let changed = true; changed; ) {
@@ -269,7 +287,10 @@ export function extensionsPromptSection(resolved: ResolvedExtensions): string {
       const label = capability ? describeCapability(capability, "en").label : id;
       return label === id ? id : `${id} (${label})`;
     });
-  const lines = resolved.active.map(({ manifest }) => `- **${manifest.name}**: ${manifest.description}${manifest.provides.length ? ` Provides: ${provided(manifest).join(", ")}.` : ""}`);
+  const lines = resolved.active.map(({ manifest, unavailable }) => {
+    const cant = unavailable.map(({ capability, reason }) => `\n  - ${describeCapability(capability, "en").label} (${capability.id}) isn't available on this computer: it ${reason}. If the person asks for it, tell them what to install.`);
+    return `- **${manifest.name}**: ${manifest.description}${manifest.provides.length ? ` Provides: ${provided(manifest).join(", ")}.` : ""}${cant.join("")}`;
+  });
   const off = resolved.inactive.map(({ name, reason }) => `- **${name}** isn't available: it ${reason}. If the person asks for what it does, tell them why.`);
   return `## Extensions\nWhat you can do besides your own tools comes from these extensions; their sections below say how to use them.\n${[...lines, ...off].join("\n")}`;
 }

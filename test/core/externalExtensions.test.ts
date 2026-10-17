@@ -82,7 +82,7 @@ test("the kit's version is checked against an extension's range", () => {
 test("add copies a folder into a scope, locks it by hash and enables it; remove, enable and disable change the lock", async () => {
   const scope = path.join(temp(), "extensions");
   const source = makeExtension();
-  assert.deepEqual(await addExtension(source, scope), { name: "dice", replaced: false });
+  assert.deepEqual(await addExtension(source, scope), { name: "dice", replaced: false, missing: [] });
   const lock = await readLock(scope);
   assert.equal(lock.dice?.enabled, true);
   assert.equal(lock.dice?.sha256, await hashExtension(path.join(scope, "dice")));
@@ -353,16 +353,53 @@ test("the command links a folder, shows it linked with its data, and asks before
   assert.ok(fs.existsSync(source));
 });
 
-test("an extension needing a program that isn't on the PATH is off, saying which; one that's there doesn't stop it", async () => {
+/** A program this computer lacks, with how to install it everywhere (so the reason reads the same on any system). */
+const lab = { name: "Lab tool", program: "no-such-program-for-agent-kit", install: { windows: "get-lab", macos: "get-lab", linux: "get-lab" } };
+
+test("an extension needing a program this computer lacks installs, saying so, and is off with how to install it; one that's there doesn't stop it", async () => {
   assert.equal(await onPath("node"), true);
   assert.equal(await onPath("no-such-program-for-agent-kit"), false);
   const dirs = { agent: path.join(temp(), "extensions") };
-  await addExtension(makeExtension("dice", { needs: ["node", "no-such-program-for-agent-kit"] }), dirs.agent);
+  const added = await addExtension(makeExtension("dice", { requirements: [{ name: "Node.js", program: "node", install: { url: "https://nodejs.org" } }, lab] }), dirs.agent);
+  assert.deepEqual(added.missing, ["needs Lab tool (no-such-program-for-agent-kit), which isn't on this computer: install it with `get-lab`"]);
   const loaded = await loadExternalExtensions(dirs);
   assert.deepEqual(loaded.extensions, []);
-  assert.deepEqual(loaded.off, [{ name: "dice", reason: "needs no-such-program-for-agent-kit, which isn't on this computer (on the PATH)" }]);
-  await addExtension(makeExtension("dice", { needs: ["node"] }), dirs.agent);
+  assert.deepEqual(loaded.off, [{ name: "dice", reason: "needs Lab tool (no-such-program-for-agent-kit), which isn't on this computer: install it with `get-lab`" }]);
+  await addExtension(makeExtension("dice", { requirements: [{ name: "Node.js", program: "node", version: { args: ["--version"], min: "18.0.0" }, install: { url: "https://nodejs.org" } }] }), dirs.agent);
   assert.deepEqual((await loadExternalExtensions(dirs)).extensions.map((extension) => extension.name), ["dice"]);
+  // A check that could do something isn't installed.
+  await assert.rejects(addExtension(makeExtension("dice", { requirements: [{ ...lab, program: "docker", version: { args: ["run", "alpine"], min: "1" } }] }), dirs.agent), /checks docker's version with "run"/);
+});
+
+test("a program only one capability needs keeps that capability off, and its skills, and the agent says what to install; the rest works", async () => {
+  const source = makeExtension("dice", {
+    capabilities: [
+      { ...rolling, skills: ["luck"] },
+      { id: "dice-lab", skills: ["odds"], tools: ["simulate"], texts: { en: { label: "Simulating odds" }, es: { label: "Simular probabilidades" } } },
+    ],
+    requirements: [{ ...lab, for: ["dice-lab"] }],
+  });
+  for (const skill of ["luck", "odds"]) {
+    fs.mkdirSync(path.join(source, "skills", skill), { recursive: true });
+    fs.writeFileSync(path.join(source, "skills", skill, "SKILL.md"), `---\nname: ${skill}\ndescription: ${skill}.\n---\n\n${skill}.`);
+  }
+  const projectDir = temp();
+  const dirs = { agent: path.join(projectDir, "extensions") };
+  assert.deepEqual((await addExtension(source, dirs.agent)).missing, ["needs Lab tool (no-such-program-for-agent-kit), which isn't on this computer: install it with `get-lab` for dice-lab"]);
+  setLanguage("es");
+  try {
+    const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, temp(), spec);
+    assert.deepEqual(built.extensions.active, ["dice"]);
+    const prompt = String(built.options.systemPrompt);
+    assert.match(prompt, /Provides: dice, dice-rolling \(Rolling dice\)\./);
+    assert.match(prompt, /Simulating odds \(dice-lab\) isn't available on this computer: it needs Lab tool \(no-such-program-for-agent-kit\), which isn't on this computer: install it with `get-lab`\. If the person asks for it, tell them what to install\./);
+    // Its skill is left out; the other capability's stays.
+    assert.ok(Array.isArray(built.options.skills) && built.options.skills.includes("dice:luck") && !built.options.skills.includes("dice:odds"), JSON.stringify(built.options.skills));
+    const lines = (await chatExtensionsCommand("/extensions", built.extensions, true))?.lines ?? [];
+    assert.ok(lines.includes("  - Simular probabilidades: no disponible en este ordenador: needs Lab tool (no-such-program-for-agent-kit), which isn't on this computer: install it with `get-lab`"), lines.join("\n"));
+  } finally {
+    setLanguage("en");
+  }
 });
 
 /** dice's capability, as #62 writes one: its tool, texts in two languages. */

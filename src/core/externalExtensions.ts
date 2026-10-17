@@ -14,6 +14,7 @@ import { agentKitVersion } from "./version.js";
 import { outsideArchive } from "./packaged.js";
 import { extensionSecretsPath, missingOptions, optionsNamed, parseOptionValue, parseUserConfig, readOptionValues, removeSecrets, storeOptionValues, type ExtensionOption, type OptionValue } from "./extensionOptions.js";
 import { isTrusted } from "./workspaceTrust.js";
+import { checkRequirements, describeMissing, findOnPath, parseRequirements, requirementsProblem, type ExtensionRequirement } from "./extensionRequirements.js";
 import { cachedPackageDir, cachedPackageProblem, cachePackage, npxServer, packageCacheDir, packageSpec, type CachedPackage } from "./npxPackages.js";
 
 /**
@@ -81,8 +82,11 @@ export interface ExternalManifest {
   capabilities: ExtensionCapability[];
   /** The agent-kit versions it works with, e.g. `">=0.19.0 <0.21.0"`. */
   kit?: string;
-  /** Programs it needs on this computer, found on the `PATH` (`"docker"`, `"python3"`): without one it's off, saying which. */
-  needs: string[];
+  /**
+   * Programs it needs on this computer (#63): checked when it loads, never installed. Without one
+   * the whole extension needs, it's off; without one only some capabilities need, those are.
+   */
+  requirements: ExtensionRequirement[];
   /** Its MCP servers, by name (`mcp__<name>__<tool>`), from the plugin's `.mcp.json` or `plugin.json`. */
   servers: Record<string, PluginServer>;
   /**
@@ -230,7 +234,7 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
     requires: kit.requires ?? [],
     capabilities,
     ...(kit.kit ? { kit: kit.kit } : {}),
-    needs: Array.isArray(kit.needs) ? kit.needs.filter((program): program is string => typeof program === "string") : [],
+    requirements: parseRequirements((kit as { requirements?: unknown }).requirements),
     servers: await pluginServers(dir, raw),
     ...(Array.isArray(kit.readOnlyTools) ? { readOnlyTools: kit.readOnlyTools.filter((tool): tool is string => typeof tool === "string") } : {}),
     labels: kit.labels ?? {},
@@ -469,12 +473,13 @@ function manifestToolLabels(manifest: ExternalManifest): ToolLabels {
 }
 
 /** The extension an installed one makes: its servers started through the launcher, its rules from its manifest. */
-function externalExtension(installed: InstalledExtension, manifest: ExternalManifest, cache: string | undefined): Extension {
+function externalExtension(installed: InstalledExtension, manifest: ExternalManifest, cache: string | undefined, unavailable: UnavailableCapabilities[] = []): Extension {
   return {
     name: manifest.name,
     plugin: installed.dir,
     external: true,
     installedIn: installed.scopeDir,
+    ...(unavailable.length ? { unavailable } : {}),
     async contribute() {
       const servers: Record<string, McpServerConfig> = {};
       if (Object.keys(manifest.servers).length) await mkdir(installed.dataDir, { recursive: true });
@@ -540,7 +545,7 @@ export async function loadExternalExtensions(dirs: ExtensionDirs): Promise<{ ext
     }
     const reason = await problem(installed, cache);
     if (typeof reason === "string") off.push({ name: installed.name, reason });
-    else extensions.push(externalExtension(installed, reason, cache));
+    else extensions.push(externalExtension(installed, reason.manifest, cache, reason.unavailable));
   }
   return { extensions, off, untrusted };
 }
@@ -548,18 +553,22 @@ export async function loadExternalExtensions(dirs: ExtensionDirs): Promise<{ ext
 /** Why an installed extension can't load, or its manifest when it can. */
 /** Whether a program is on the `PATH`, as a shell would find it (with `PATHEXT`'s extensions on Windows). */
 export async function onPath(program: string, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
-  const dirs = (env.PATH ?? env.Path ?? "").split(path.delimiter).filter(Boolean);
-  const extensions = process.platform === "win32" ? ["", ...(env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";").map((extension) => extension.toLowerCase())] : [""];
-  for (const dir of dirs) {
-    for (const extension of extensions) {
-      const found = await stat(path.join(dir, `${program}${extension}`)).then((entry) => entry.isFile(), () => false);
-      if (found) return true;
-    }
-  }
-  return false;
+  return (await findOnPath(program, env)) !== undefined;
 }
 
-async function problem(installed: InstalledExtension, cache: string | undefined): Promise<string | ExternalManifest> {
+/** A requirement this computer lacks, as the person reads it: what it is, what for, and how to install it. */
+export function missingRequirement(check: Awaited<ReturnType<typeof checkRequirements>>[number]): string {
+  const needed = check.requirement.for.length ? ` for ${check.requirement.for.join(", ")}` : "";
+  return `needs ${describeMissing(check)}${needed}`;
+}
+
+/** What an installed extension can't do on this computer, and why: its capabilities whose requirements are missing (#63). */
+export interface UnavailableCapabilities {
+  capabilities: string[];
+  reason: string;
+}
+
+async function problem(installed: InstalledExtension, cache: string | undefined): Promise<string | { manifest: ExternalManifest; unavailable: UnavailableCapabilities[] }> {
   let manifest: ExternalManifest;
   try {
     if (installed.lock.stored && !(await stat(installed.dir).catch(() => null))?.isDirectory()) return "isn't on this computer yet (its workspace says which version it uses): `extension restore` gets it";
@@ -570,14 +579,18 @@ async function problem(installed: InstalledExtension, cache: string | undefined)
   }
   if (manifest.name !== installed.name) return `is installed as "${installed.name}" but its manifest says "${manifest.name}"`;
   if (manifest.kit && !inKitRange(agentKitVersion(), manifest.kit)) return `works with agent-kit ${manifest.kit}, and this agent runs ${agentKitVersion()}`;
-  const missing = [];
-  for (const program of manifest.needs) if (!(await onPath(program))) missing.push(program);
-  if (missing.length) return `needs ${missing.join(", ")}, which ${missing.length === 1 ? "isn't" : "aren't"} on this computer (on the PATH)`;
+  const requirements = requirementsProblem(manifest.requirements, manifest.provides);
+  if (requirements) return requirements;
+  // A program the whole extension needs keeps it off; one only some capabilities need, those (#63).
+  const checks = (await checkRequirements(manifest.requirements)).filter((check) => !check.ok);
+  const whole = checks.filter((check) => !check.requirement.for.length);
+  if (whole.length) return whole.map((check) => missingRequirement(check)).join("; ");
+  const unavailable = checks.map((check) => ({ capabilities: check.requirement.for, reason: `needs ${describeMissing(check)}` }));
   const capabilities = await capabilitiesProblem(installed.dir, manifest.capabilities);
   if (capabilities) return capabilities;
   const options = optionsProblem(manifest, await readOptionValues(installed.privateDir, installed.name, manifest.userConfig, installed.lock.options));
   if (options) return options;
-  return (await serversProblem(manifest, installed.dir, { cache, locked: installed.lock.packages })) ?? manifest;
+  return (await serversProblem(manifest, installed.dir, { cache, locked: installed.lock.packages })) ?? { manifest, unavailable };
 }
 
 const exec = promisify(execFile);
@@ -601,7 +614,7 @@ export async function addExtension(
   source: string,
   scopeDir: string,
   options: { subdir?: string; sha?: string; marketplace?: string; origin?: string; link?: boolean; packages?: string; store?: string } = {},
-): Promise<{ name: string; replaced: boolean; commit?: string }> {
+): Promise<{ name: string; replaced: boolean; commit?: string; missing: string[] }> {
   if (options.link && isGitSource(source)) throw new Error("Only a folder can be linked: a git repository is installed as a copy.");
   let from = path.resolve(source);
   let commit: string | undefined;
@@ -619,8 +632,10 @@ export async function addExtension(
   try {
     if (options.subdir) from = path.join(from, options.subdir);
     const manifest = await readExternalManifest(from);
-    const servers = (await serversProblem(manifest, from)) ?? (await capabilitiesProblem(from, manifest.capabilities));
+    const servers = (await serversProblem(manifest, from)) ?? (await capabilitiesProblem(from, manifest.capabilities)) ?? requirementsProblem(manifest.requirements, manifest.provides);
     if (servers) throw new Error(`${manifest.name} can't be installed: it ${servers}.`);
+    // What it needs and this computer lacks: said, never installed, and it installs anyway (#63).
+    const missing = (await checkRequirements(manifest.requirements)).filter((check) => !check.ok).map((check) => missingRequirement(check));
     const target = path.join(scopeDir, manifest.name);
     // Replacing what's installed there would delete the source itself.
     if (path.resolve(from) === path.resolve(target)) throw new Error(`${from} is where ${manifest.name} is installed: install it from another folder.`);
@@ -645,12 +660,12 @@ export async function addExtension(
       }
       lock[manifest.name] = { source: origin, ...provenance, sha256, stored: true, ...locked, enabled: true, installed: new Date().toISOString() };
       await writeLock(scopeDir, lock);
-      return { name: manifest.name, replaced, ...(commit ? { commit } : {}) };
+      return { name: manifest.name, replaced, missing, ...(commit ? { commit } : {}) };
     }
     if (options.link) {
       lock[manifest.name] = { source: from, linked: true, sha256: "", ...locked, enabled: true, installed: new Date().toISOString() };
       await writeLock(scopeDir, lock);
-      return { name: manifest.name, replaced };
+      return { name: manifest.name, replaced, missing };
     }
     await cp(from, target, { recursive: true, filter: (file) => path.basename(file) !== ".git" });
     lock[manifest.name] = {
@@ -662,7 +677,7 @@ export async function addExtension(
       installed: new Date().toISOString(),
     };
     await writeLock(scopeDir, lock);
-    return { name: manifest.name, replaced, ...(commit ? { commit } : {}) };
+    return { name: manifest.name, replaced, missing, ...(commit ? { commit } : {}) };
   } finally {
     if (clone) await rm(clone, { recursive: true, force: true });
   }

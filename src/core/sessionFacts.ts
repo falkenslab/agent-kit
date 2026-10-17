@@ -23,7 +23,7 @@ export interface SessionFacts {
   /** The extensions running (with their tools and what they say about themselves here), and the ones off, with why. */
   extensions: {
     /** Each with its capabilities (#62), in English: what the model reads. */
-    active: { name: string; description: string; provides: string[]; capabilities: DescribedCapability[]; tools: string[]; help: string[] }[];
+    active: { name: string; description: string; provides: string[]; capabilities: DescribedCapability[]; unavailable: (DescribedCapability & { reason: string })[]; tools: string[]; help: string[] }[];
     inactive: { name: string; reason: string }[];
   };
   /** The subagents it can delegate to. */

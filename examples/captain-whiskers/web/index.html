@@ -207,6 +207,7 @@
   .ext-card:hover, .ext-card:focus-visible { border-color: var(--gold); outline: none; }
   .ext-card .name { font-weight: 650; } .ext-card .ver, .dialog .ver { font-size: 12px; color: var(--dim); font-weight: 400; margin-left: 6px; }
   .ext-card .desc { font-size: 13px; color: var(--text-2); margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .needs { font-size: 12.5px; color: var(--gold); margin-top: 8px; }
   .can h3 { font-size: 13px; margin: 10px 0 4px; color: var(--dim); font-weight: 600; } .can ul { margin: 0; padding-left: 18px; font-size: 13.5px; } .can li { margin: 2px 0; }
   .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; } .tag { font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; }
   .logo { border-radius: 10px; flex: none; object-fit: contain; } .logo.initial { display: grid; place-items: center; background: var(--line); color: var(--text-2); font-weight: 700; font-size: 18px; }
@@ -1331,6 +1332,7 @@ function openEntry(entry) {
     if (entry.description) dialog.insertAdjacentHTML("beforeend", `<div class="body">${escape(entry.description)}</div>`);
     if (entry.capabilities?.length)
       dialog.insertAdjacentHTML("beforeend", `<div class="can"><h3>${escape(T.canDo)}</h3><ul>${entry.capabilities.map(({ label, description }) => `<li><b>${escape(label)}</b>${description ? `: ${escape(description)}` : ""}</li>`).join("")}</ul></div>`);
+    if (entry.requirements?.length) dialog.insertAdjacentHTML("beforeend", `<div class="needs">${escape(T.needs(entry.requirements.map(({ name }) => name).join(", ")))}</div>`);
     if (entry.topics?.length) dialog.insertAdjacentHTML("beforeend", `<div class="tags">${entry.topics.map((topic) => `<span class="tag">${escape(topic)}</span>`).join("")}</div>`);
     const row = document.createElement("div");
     row.className = "actions";

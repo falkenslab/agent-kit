@@ -31,6 +31,13 @@ test("the generator's own checks agree with the metadata schema", () => {
     { kit: ">=0.22.0", provides: ["moodle"], requires: [], help: "Moodle.", catalog: { logo: "assets/logo.svg", banner: "assets/banner.png" } },
     { labels: { list_courses: { en: { label: "Listing courses", phrase: ["listed courses", "listed courses {n} times"] }, es: { label: "Listando" } } } },
     { capabilities: [{ id: "lms-grading", skills: ["grading"], tools: ["grade_submission"], texts: { en: { label: "Grading", description: "With rubrics." }, es: { label: "Corregir" } } }] },
+    {
+      provides: ["lab"],
+      requirements: [
+        { name: "Docker", program: "docker", version: { args: ["--version"], min: "24.0.0" }, install: { windows: "winget install Docker.DockerDesktop", url: "https://docs.docker.com/get-docker/" }, for: ["lab"] },
+        { name: "ffmpeg", program: "ffmpeg", install: { linux: "sudo apt install ffmpeg" } },
+      ],
+    },
   ];
   const bad = [
     { readonlyTools: ["x"] },
@@ -51,6 +58,15 @@ test("the generator's own checks agree with the metadata schema", () => {
     { capabilities: [{ id: "grading", texts: { en: { description: "No label." } } }] },
     { capabilities: [{ id: "grading", tools: "grade", texts: { en: { label: "G" } } }] },
     { capabilities: [{ id: "grading", icon: "x", texts: { en: { label: "G" } } }] },
+    { needs: ["docker"] },
+    { requirements: { program: "docker" } },
+    { requirements: [{ name: "Docker", program: "/usr/bin/docker", install: { url: "https://docker.com" } }] },
+    { requirements: [{ name: "Docker", program: "docker", version: { args: ["run", "alpine"], min: "1" }, install: { url: "https://docker.com" } }] },
+    { requirements: [{ name: "Docker", program: "docker", version: { args: ["--version"], min: "latest" }, install: { url: "https://docker.com" } }] },
+    { requirements: [{ name: "Docker", program: "docker", install: {} }] },
+    { requirements: [{ name: "Docker", program: "docker", install: { beos: "x" } }] },
+    { requirements: [{ name: "Docker", program: "docker", install: { url: "docker.com" } }] },
+    { requirements: [{ program: "docker", install: { url: "https://docker.com" } }] },
   ];
   for (const kit of good) {
     assert.ok(validMetadata(kit), `${JSON.stringify(kit)}: ${ajv.errorsText(validMetadata.errors)}`);
@@ -79,7 +95,8 @@ function makeMarketplace(): string {
     ],
   });
   const grading = { id: "lms-grading", skills: ["grading"], tools: ["grade_submission"], texts: { en: { label: "Grading", description: "With rubrics." }, es: { label: "Corregir", description: "Con rúbricas." } } };
-  write("campus/.claude-plugin/plugin.json", { name: "campus", version: "0.2.0", keywords: ["lms", "moodle"], license: "MIT", metadata: { "agent-kit": { catalog: { logo: "assets/logo.svg", banner: "assets/banner.png" }, capabilities: [grading] } } });
+  const docker = { name: "Docker", program: "docker", install: { url: "https://docs.docker.com/get-docker/" }, for: ["lms-grading"] };
+  write("campus/.claude-plugin/plugin.json", { name: "campus", version: "0.2.0", keywords: ["lms", "moodle"], license: "MIT", metadata: { "agent-kit": { catalog: { logo: "assets/logo.svg", banner: "assets/banner.png" }, capabilities: [grading], requirements: [docker] } } });
   write("campus/skills/grading/SKILL.md", "---\nname: grading\n---\n");
   write("campus/assets/logo.svg", "<svg/>");
   write("campus/assets/banner.png", "png");
@@ -99,6 +116,7 @@ test("a generated catalog fits agent-kit's catalog schema, the captain's shipyar
   );
   assert.equal(catalog.extensions[0]!.logo, "https://raw.githubusercontent.com/ada/harbor/main/campus/assets/logo.svg");
   assert.equal(catalog.extensions[0]!.install.agentKit, "extension add campus@harbor");
+  assert.deepEqual(catalog.extensions[0]!.requirements?.map(({ name, for: needed }) => [name, needed]), [["Docker", ["lms-grading"]]]);
   // Its capabilities as it declares them, every language, for the page to choose; none, no key.
   assert.deepEqual(catalog.extensions[0]!.capabilities?.map(({ id, texts }) => [id, Object.keys(texts)]), [["lms-grading", ["en", "es"]]]);
   assert.equal("capabilities" in catalog.extensions[1]!, false);

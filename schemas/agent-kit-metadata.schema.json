@@ -18,7 +18,11 @@
       "items": { "$ref": "#/$defs/capability" }
     },
     "requires": { "description": "Capabilities another enabled extension must provide.", "type": "array", "items": { "type": "string", "minLength": 1 } },
-    "needs": { "description": "Programs it needs on the computer's PATH.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "requirements": {
+      "description": "Programs it needs on the computer, which the person installs: agent-kit checks them, says what's missing and how to install it, and never installs them. Without one the whole extension needs, it's off; without one only some capabilities need (for), those are.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/requirement" }
+    },
     "readOnlyTools": {
       "description": "Its tools that only read (short names): plan mode lets them through. Without it, plan mode asks its servers (readOnlyHint).",
       "type": "array",
@@ -59,6 +63,33 @@
     }
   },
   "$defs": {
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "program", "install"],
+      "properties": {
+        "name": { "description": "What the person reads: Docker.", "type": "string", "minLength": 1 },
+        "program": { "description": "Its bare name, found on the PATH (on Windows with PATHEXT's extensions): never a path.", "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$" },
+        "version": {
+          "description": "How to check its version: run with these arguments only (options or version, no shell), the first x.y.z it prints compared with min.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["args", "min"],
+          "properties": {
+            "args": { "type": "array", "items": { "type": "string", "pattern": "^(--?[A-Za-z][A-Za-z0-9-]*|version)$" } },
+            "min": { "type": "string", "pattern": "^\\d+(\\.\\d+){0,2}$" }
+          }
+        },
+        "install": {
+          "description": "How to install it on each system: a command, or a link (url, the fallback).",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": { "windows": { "type": "string", "minLength": 1 }, "macos": { "type": "string", "minLength": 1 }, "linux": { "type": "string", "minLength": 1 }, "url": { "type": "string", "pattern": "^https?://" } }
+        },
+        "for": { "description": "The capabilities (ids it provides) that need it; without it, the whole extension does.", "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
     "capability": {
       "type": "object",
       "additionalProperties": false,

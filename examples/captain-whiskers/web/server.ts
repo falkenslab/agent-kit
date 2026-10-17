@@ -153,6 +153,7 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
             update: entry.update,
             topics: entry.topics,
             capabilities: entry.capabilities,
+            requirements: entry.requirements,
             logo: Boolean(entry.logo),
             banner: Boolean(entry.banner),
           })),

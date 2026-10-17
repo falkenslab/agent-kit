@@ -49,7 +49,7 @@ All optional; checked by `schemas/agent-kit-metadata.schema.json`.
 | `kit` | The agent-kit versions it works with: comparators separated by spaces, all of which must hold (`>=0.22.0`, `>=0.22.0 <0.24.0`, `0.22.1`). Outside them, it's off. Leave out an upper bound unless a version is known to break it. |
 | `provides`, `requires` | Its [capabilities](overview.md#capabilities), by name. |
 | `capabilities` | What it lets the agent do, for the person: a list of `{ id, skills, tools, texts }`. `id` is kebab-case and counts as provided; `skills` are folders of its `skills/` (each must exist), `tools` short names of any of its servers; `texts` gives a `label` (required) and a `description` per language (`en`, `es`, `fr`, `de`), English where the person's is missing. |
-| `needs` | Programs it needs on the computer's `PATH` (`["docker"]`; on Windows with `PATHEXT`'s extensions). Without one, it's off, saying which. |
+| `requirements` | [Programs it needs](writing.md#programs-it-needs) on the computer, which the person installs: a list of `{ name, program, version?, install, for? }`. `program` is a bare name on the `PATH`; `version` is `{ args, min }`, its arguments options or `version` only; `install` has a command per system (`windows`, `macos`, `linux`) and a `url`; `for` names the capabilities that need it (none: the whole extension). Missing, the whole extension or those capabilities are off, saying how to install it. |
 | `readOnlyTools` | Its tools that only read (short names, of any of its servers): plan mode lets them through. Without it, plan mode asks its servers (`readOnlyHint`); with it, the list is the whole answer, even empty. |
 | `labels` | How the chat shows each tool (short name), per language (`en`, `es`, `fr`, `de`; English when the kit's isn't there): `label`, with `{field}` taking the call's input, and `phrase`, `[once, "{n} times"]`, for a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
 | `help` | What it says about itself in a session, for the agent to tell the person. |
@@ -126,7 +126,8 @@ An enabled extension doesn't run, and the prompt and `/extensions` say why, when
 - its files changed since it was installed (its hash doesn't match): install it again to trust the change;
 - it comes with a workspace and isn't trusted there yet, or its code isn't on this computer yet ([Workspaces](workspaces.md));
 - its `kit` range excludes this agent's kit;
-- a program it `needs` isn't on the `PATH`;
+- a program it [requires](writing.md#programs-it-needs) for the whole extension isn't on the `PATH`, or is older than its `min` (one only some capabilities need keeps those off instead, and the extension runs);
+- a requirement can't be checked safely (a program given as a path, a version argument that isn't an option) or is for a capability it doesn't provide;
 - a server isn't Node or npx with an exact version, has no script where it says, or its npx package isn't in the cache;
 - a server names `${user_config.KEY}` its `userConfig` doesn't declare, or a required option has no value;
 - its `userConfig` has an option with an unknown field;

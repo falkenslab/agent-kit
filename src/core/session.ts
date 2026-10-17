@@ -159,7 +159,11 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // `requires` a capability no active extension provides is left out; since the SDK's
   // `skillOverrides` doesn't reach plugin skills (confirmed empirically), leaving one out takes
   // a list: the plugins' skills and the project's, without it.
-  const missingCapabilities = await skillsMissingCapabilities(pluginRoots, resolved.capabilities);
+  // And the skills of a capability that isn't available on this computer (#63).
+  const missingCapabilities = [
+    ...(await skillsMissingCapabilities(pluginRoots, resolved.capabilities)),
+    ...resolved.active.flatMap(({ manifest, unavailable }) => unavailable.flatMap(({ capability }) => capability.skills.map((skill) => `${manifest.name}:${skill}`))),
+  ];
   const requested = spec.skills === "plugins" ? await pluginSkills(pluginRoots) : spec.skills;
   const offeredSkills =
     missingCapabilities.length && (requested === undefined || requested === "all")
@@ -394,7 +398,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     untrusted: external.untrusted.map((installed) => ({ name: installed.name, ...(installed.manifest?.version ? { version: installed.manifest.version } : {}), source: installed.lock.marketplace ?? installed.lock.source })),
     installed: await listInstalled(extensionDirs),
     active: resolved.active.map(({ extension }) => extension.name),
-    about: Object.fromEntries(resolved.active.map(({ extension, manifest }, index) => [extension.name, aboutExtension(manifest, Object.keys(added[index]?.mcpServers ?? {}), language)])),
+    about: Object.fromEntries(resolved.active.map(({ extension, manifest, unavailable }, index) => [extension.name, aboutExtension(manifest, Object.keys(added[index]?.mcpServers ?? {}), language, unavailable)])),
     sessionTools: () => late.view?.controls().tools ?? [],
     inactive: resolved.inactive,
   };
@@ -404,11 +408,12 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     kitVersion: agentKitVersion(),
     language,
     extensions: {
-      active: resolved.active.map(({ extension, manifest }, index) => ({
+      active: resolved.active.map(({ extension, manifest, unavailable }, index) => ({
         name: extension.name,
         description: manifest.description,
         provides: manifest.provides,
         capabilities: manifest.capabilities.map((capability) => describeCapability(capability, "en")),
+        unavailable: unavailable.map(({ capability, reason }) => ({ ...describeCapability(capability, "en"), reason })),
         servers: Object.keys(added[index]?.mcpServers ?? {}),
         help: added[index]?.helpLines ?? [],
       })),
@@ -423,7 +428,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   registerSessionView(sdkOptions, late.view);
   // Turning an installed extension off and on while the session runs (#49), and restarting its
   // servers when its options change (#55).
-  const liveExtensions = resolved.active.flatMap(({ extension, manifest }, index) => {
+  const liveExtensions = resolved.active.flatMap(({ extension, manifest, unavailable }, index) => {
     const installed = installedDirs.get(extension.name);
     if (!installed) return [];
     const contribution = added[index];
@@ -440,6 +445,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
         description: manifest.description,
         provides: manifest.provides,
         capabilities: manifest.capabilities,
+        unavailable,
         help: contribution?.helpLines ?? [],
       },
     ];

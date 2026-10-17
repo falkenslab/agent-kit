@@ -28,11 +28,13 @@ export function describeSession(facts: SessionFacts): string {
     }`,
   );
 
-  const active = facts.extensions.active.map(({ name, description, capabilities, tools, help }) => {
+  const active = facts.extensions.active.map(({ name, description, capabilities, unavailable, tools, help }) => {
     const toolList = tools.length ? ` Tools: ${tools.map(short).join(", ")}.` : "";
     // What it lets you do, as the person reads it in /extensions (#62).
     const can = capabilities.map(({ id, label, description: what }) => `\n  - Can: ${label} (${id})${what ? `: ${what}` : ""}`).join("");
-    return `- **${name}**: ${description}${toolList}${can}${help.map((line) => `\n  ${line}`).join("")}`;
+    // What it can't do on this computer, and what to install (#63).
+    const cant = unavailable.map(({ id, label, reason }) => `\n  - Can't here: ${label} (${id}): it ${reason}.`).join("");
+    return `- **${name}**: ${description}${toolList}${can}${cant}${help.map((line) => `\n  ${line}`).join("")}`;
   });
   const inactive = facts.extensions.inactive.map(({ name, reason }) => `- **${name}** is off: it ${reason}.`);
   sections.push(`## Extensions\n\n${[...active, ...inactive].join("\n") || "None."}`);

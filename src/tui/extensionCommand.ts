@@ -154,6 +154,10 @@ export async function runExtensionCommand(
         const packages = installTarget(options.dirs, scope);
         // Installed into the workspace by the person: trusted there as it is.
         const trusted = async (name: string): Promise<void> => void (scope === "project" && (await trustWorkspace(options.dirs, [name])));
+        // What it needs and this computer lacks (#63): said, never installed.
+        const lacking = (missing: readonly string[]): void => {
+          for (const line of missing) write(`It ${line}.`);
+        };
         // A plugin of a marketplace, unless it's a folder here or a git URL.
         const isFolder = await stat(path.resolve(source)).then((found) => found.isDirectory(), () => false);
         if (flag("link")) {
@@ -162,6 +166,7 @@ export async function runExtensionCommand(
           await trusted(result.name);
           await configure(result.name, dir);
           write(`Linked ${result.name} in the ${scope} scope: it runs from ${path.resolve(source)}, whose files aren't checked. A rebuild takes effect when its server starts again (a new session, or \`/extensions disable\` and \`enable\` in the chat).`);
+          lacking(result.missing);
           return true;
         }
         if (!isFolder && !isGitSource(source) && /^[A-Za-z0-9][\w.-]*(@[A-Za-z0-9][\w.-]*)?$/.test(source)) {
@@ -176,6 +181,7 @@ export async function runExtensionCommand(
           await trusted(result.name);
           await configure(result.name, dir);
           write(`${result.replaced ? "Reinstalled" : "Installed"} ${result.name} from ${result.marketplace} in the ${scope} scope (${dir})${result.commit ? `, at ${result.commit.slice(0, 12)}` : ""}. It's enabled: it runs from the next session.`);
+          lacking(result.missing);
           return true;
         }
         const subdir = value("path");
@@ -183,6 +189,7 @@ export async function runExtensionCommand(
         await trusted(result.name);
         await configure(result.name, dir);
         write(`${result.replaced ? "Reinstalled" : "Installed"} ${result.name} in the ${scope} scope (${dir})${result.commit ? `, at ${result.commit.slice(0, 12)}` : ""}. It's enabled: it runs from the next session.`);
+        lacking(result.missing);
         return true;
       }
       case "remove":
@@ -411,7 +418,10 @@ async function info(extension: InstalledExtension): Promise<string[]> {
     }),
     ...field("Provides", manifest.provides.join(", ") || undefined),
     ...field("Requires", manifest.requires.join(", ") || undefined),
-    ...field("Needs", manifest.needs.join(", ") || undefined),
+    // The programs it needs on this computer (#63), one per line, with what for.
+    ...manifest.requirements.flatMap((requirement, index) =>
+      field(index ? "" : "Needs", `${requirement.name} (${requirement.program}${requirement.version ? ` ${requirement.version.min} or later` : ""})${requirement.for.length ? ` for ${requirement.for.join(", ")}` : ""}`),
+    ),
     ...field("Servers", Object.keys(manifest.servers).join(", ") || undefined),
     ...field(
       "Only read",

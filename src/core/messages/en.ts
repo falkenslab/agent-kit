@@ -48,6 +48,8 @@ export interface Messages {
   extensionCan(name: string): string;
   /** A capability's tools its server doesn't offer in this session. */
   capabilityToolsMissing(tools: string): string;
+  /** A capability that isn't available on this computer (#63), with why (in English, as every reason). */
+  capabilityUnavailable(label: string, reason: string): string;
   extensionsInstalled: string;
   /** An installed extension turned off or on in the running session (#49). */
   extensionSwitched(name: string, enabled: boolean): string;
@@ -71,6 +73,8 @@ export interface Messages {
   extensionIsInstalled: string;
   extensionUpdateAvailable(installed: string): string;
   extensionInstalled(name: string): string;
+  /** After installing: a program it needs that this computer lacks (#63); `what` is the reason, in English. */
+  extensionLacks(name: string, what: string): string;
   extensionUpdated(name: string, from: string, to: string): string;
   extensionsUpToDate: string;
   extensionRemoved(name: string, withData: boolean): string;
@@ -218,6 +222,7 @@ export const en: Messages = {
   extensionOff: (name, reason) => `${name} is off: it ${reason}`,
   extensionCan: (name) => `What ${name} lets your agent do:`,
   capabilityToolsMissing: (tools) => `(its server doesn't offer ${tools})`,
+  capabilityUnavailable: (label, reason) => `${label}: not on this computer, it ${reason}`,
   extensionsInstalled: "Installed:",
   extensionSwitched: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}, in this same session)`,
   extensionToggled: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}: the session reopens, with the same conversation)`,
@@ -238,6 +243,7 @@ export const en: Messages = {
   extensionIsInstalled: "(installed)",
   extensionUpdateAvailable: (installed) => `(installed: ${installed}, update available)`,
   extensionInstalled: (name) => `(${name} installed: it's there in a new conversation, or now with /extensions reload, keeping this one)`,
+  extensionLacks: (name, what) => `(${name} ${what})`,
   extensionUpdated: (name, from, to) => `(${name} updated, ${from} → ${to}: it's there in a new conversation, or now with /extensions reload)`,
   extensionsUpToDate: "(every extension from a marketplace is up to date)",
   extensionRemoved: (name, withData) => `(${name} removed${withData ? ", with its data" : "; its data is kept for a reinstall"})`,

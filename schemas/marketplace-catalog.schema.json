@@ -61,6 +61,11 @@
           "type": "array",
           "items": { "$ref": "https://falkenslab.github.io/agent-kit/schemas/agent-kit-metadata.schema.json#/$defs/capability" }
         },
+        "requirements": {
+          "description": "The programs it needs on the computer: its metadata[\"agent-kit\"].requirements as it declares them.",
+          "type": "array",
+          "items": { "$ref": "https://falkenslab.github.io/agent-kit/schemas/agent-kit-metadata.schema.json#/$defs/requirement" }
+        },
         "logo": { "description": "A URL anyone can load.", "$ref": "#/$defs/url" },
         "banner": { "description": "A URL anyone can load.", "$ref": "#/$defs/url" }
       }

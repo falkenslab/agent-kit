@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // @falkenslab/agent-kit-catalog: a Claude Code marketplace's extensions as one file, catalog.json — each
-// one's name, version, description, topics, category, author, links, install commands, capabilities and images
+// one's name, version, description, topics, category, author, links, install commands, capabilities, requirements and images
 // (as raw.githubusercontent.com URLs) — from .claude-plugin/marketplace.json and each extension's
 // plugin.json. A page or a client shows the marketplace from it without cloning the repository.
 // No dependencies: it runs with npx in any CI.
@@ -33,10 +33,42 @@ export function metadataProblems(kit) {
   if (kit === undefined) return [];
   if (!kit || typeof kit !== "object" || Array.isArray(kit)) return ['metadata["agent-kit"] isn\'t an object'];
   const problems = [];
-  const known = new Set(["kit", "provides", "requires", "capabilities", "needs", "readOnlyTools", "labels", "help", "catalog"]);
+  const known = new Set(["kit", "provides", "requires", "capabilities", "requirements", "readOnlyTools", "labels", "help", "catalog"]);
   for (const key of Object.keys(kit)) if (!known.has(key)) problems.push(`metadata["agent-kit"] has an unknown field, ${key}`);
   if (kit.kit !== undefined && (typeof kit.kit !== "string" || !KIT_RANGE.test(kit.kit))) problems.push(`its kit range isn't comparators like ">=0.22.0": ${JSON.stringify(kit.kit)}`);
-  for (const key of ["provides", "requires", "needs", "readOnlyTools"]) if (kit[key] !== undefined && !isStrings(kit[key])) problems.push(`its ${key} isn't a list of names`);
+  for (const key of ["provides", "requires", "readOnlyTools"]) if (kit[key] !== undefined && !isStrings(kit[key])) problems.push(`its ${key} isn't a list of names`);
+  if (kit.requirements !== undefined) {
+    if (!Array.isArray(kit.requirements)) problems.push("its requirements aren't a list");
+    else
+      for (const requirement of kit.requirements) {
+        const program = requirement?.program;
+        if (typeof program !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._+-]*$/.test(program)) {
+          problems.push(`a requirement's program isn't a bare name found on the PATH: ${JSON.stringify(program)}`);
+          continue;
+        }
+        if (Object.keys(requirement).some((key) => !["name", "program", "version", "install", "for"].includes(key))) problems.push(`its requirement ${program} has an unknown field`);
+        if (typeof requirement.name !== "string" || !requirement.name) problems.push(`its requirement ${program} has no name`);
+        const version = requirement.version;
+        if (version !== undefined) {
+          if (!version || typeof version !== "object" || Object.keys(version).some((key) => key !== "args" && key !== "min")) problems.push(`its requirement ${program}'s version isn't { args, min }`);
+          else {
+            if (!Array.isArray(version.args) || !version.args.every((arg) => typeof arg === "string" && /^(--?[A-Za-z][A-Za-z0-9-]*|version)$/.test(arg))) problems.push(`its requirement ${program} checks its version with something other than options (--version, -v) or version`);
+            if (typeof version.min !== "string" || !/^\d+(\.\d+){0,2}$/.test(version.min)) problems.push(`its requirement ${program}'s min isn't a version like 24.0.0`);
+          }
+        }
+        const install = requirement.install;
+        if (!install || typeof install !== "object" || Array.isArray(install) || !Object.keys(install).length) problems.push(`its requirement ${program} doesn't say how to install it`);
+        else
+          for (const [key, value] of Object.entries(install)) {
+            if (!["windows", "macos", "linux", "url"].includes(key)) problems.push(`its requirement ${program}'s install has an unknown system, ${key}`);
+            else if (typeof value !== "string" || !value || (key === "url" && !/^https?:\/\//.test(value))) problems.push(`its requirement ${program}'s ${key} install isn't ${key === "url" ? "a link" : "a command"}`);
+          }
+        if (requirement.for !== undefined && !isStrings(requirement.for)) problems.push(`its requirement ${program}'s for isn't a list of capabilities`);
+        else
+          for (const id of requirement.for ?? [])
+            if (![...(isStrings(kit.provides) ? kit.provides : []), ...(Array.isArray(kit.capabilities) ? kit.capabilities.map((capability) => capability?.id) : [])].includes(id)) problems.push(`its requirement ${program} is for ${id}, a capability it doesn't provide`);
+      }
+  }
   if (kit.help !== undefined && typeof kit.help !== "string") problems.push("its help isn't text");
   if (kit.capabilities !== undefined) {
     if (!Array.isArray(kit.capabilities)) problems.push("its capabilities aren't a list");
@@ -171,6 +203,7 @@ export async function buildCatalog(root, options = {}) {
       readme: `https://github.com/${repo}/blob/${branch}/${folder}/README.md`,
       install: { claudeCode: `claude plugin install ${entry.name}@${marketplace.name}`, agentKit: `extension add ${entry.name}@${marketplace.name}` },
       ...(Array.isArray(kit?.capabilities) && kit.capabilities.length ? { capabilities: kit.capabilities } : {}),
+      ...(Array.isArray(kit?.requirements) && kit.requirements.length ? { requirements: kit.requirements } : {}),
       ...(logo ? { logo } : {}),
       ...(banner ? { banner } : {}),
     });

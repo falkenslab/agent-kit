@@ -707,7 +707,7 @@ export async function createChatController(options: Options | SessionOpener, set
      * installed until `confirmed`: the result says which (`confirm`), for the view to ask the
      * person. The running session is untouched: it's there in a new conversation, or with `reopen()`.
      */
-    async installExtension(spec: string, options: { scope?: ExtensionScope; confirmed?: boolean } = {}): Promise<{ name?: string; confirm?: { marketplace: string; description?: string } }> {
+    async installExtension(spec: string, options: { scope?: ExtensionScope; confirmed?: boolean } = {}): Promise<{ name?: string; missing?: string[]; confirm?: { marketplace: string; description?: string } }> {
       if (!current.extensions) throw new Error("This chat's session has no extensions folder.");
       const official = current.extensions.official ? { official: current.extensions.official } : {};
       const foreign = await needsConfirmation(current.extensions.dirs, spec, current.extensions.official);
@@ -715,7 +715,9 @@ export async function createChatController(options: Options | SessionOpener, set
       const result = await installFromCatalog(current.extensions.dirs, spec, { ...official, ...(options.scope ? { scope: options.scope } : {}) });
       await refreshInstalled();
       notice(t().extensionInstalled(result.name));
-      return { name: result.name };
+      // What it needs and this computer lacks (#63): the person installs it, the kit never does.
+      for (const line of result.missing) notice(t().extensionLacks(result.name, line));
+      return { name: result.name, missing: result.missing };
     },
     /** Updates one installed extension from its marketplace, or every one with a newer version there; the names updated. */
     async updateExtension(name?: string): Promise<string[]> {

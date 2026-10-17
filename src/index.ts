@@ -39,7 +39,9 @@ export {
   type ExtensionContribution,
   type ExtensionManifest,
   type FolderOption,
+  type UnavailableCapability,
 } from "./core/extensions.js";
+export { checkRequirements, type ExtensionRequirement, type RequirementCheck } from "./core/extensionRequirements.js";
 export {
   addExtension,
   codeStoreDir,

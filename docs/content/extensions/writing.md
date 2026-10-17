@@ -264,6 +264,32 @@ A `README.md` at its root is for people: what it does, what it offers (its tools
 
 `extension info <name>` says which applies (`Only read  roll (its manifest)`, or `what its servers mark readOnlyHint`).
 
+### Programs it needs
+
+The kit installs an extension's files and never a program. A server that runs one the person installs (Docker for a lab, ffmpeg or `yt-dlp` for videos) declares it in `requirements`, and the kit checks it, says what's missing, what for and how to install it on this system, and keeps off only what needs it:
+
+```json title=".claude-plugin/plugin.json (its requirements)"
+"requirements": [
+  {
+    "name": "Docker",
+    "program": "docker",
+    "version": { "args": ["--version"], "min": "24.0.0" },
+    "install": {
+      "windows": "winget install Docker.DockerDesktop",
+      "macos": "brew install --cask docker",
+      "url": "https://docs.docker.com/engine/install/"
+    },
+    "for": ["practice-lab"]
+  }
+]
+```
+
+- **The check**: `program` is a bare name found on the `PATH` (on Windows with `PATHEXT`'s extensions), never a path. With `version`, the kit runs it with those arguments only (options like `--version`, or `version`; never `docker run …`), with no shell and a five-second limit, and compares the first `x.y.z` it prints with `min`. A program that prints no version, or a Windows script (`.cmd`, `.bat`, which can't run without a shell), counts as there. Installing refuses a requirement that can't be checked this way.
+- **What's kept off**: with `for`, only those capabilities (ids it provides): they aren't provided, their skills are left out, and the prompt, `/extensions` and `about_me` say what to install. Without `for`, the whole extension needs it, and it's off with the reason. Either way it installs, and `extension add`, `/extensions install` and the chat controller say what's missing.
+- **How to install it**: a command per system (`windows`, `macos`, `linux`) and a link (`url`) for the rest; the person reads the one for theirs.
+- **When it's checked**: each time a session opens (`/extensions reload` after installing it), never in the middle of one.
+- **In Claude Code**, which doesn't read `metadata`, the server says it itself: give it a read-only `check_requirements` tool, and make a tool whose program is missing fail with what's missing, what it's for and how to install it, rather than a raw `ENOENT`.
+
 ### Its data
 
 An installed extension has a data folder of its own, named in its servers' `args` and `env` as `${CLAUDE_PLUGIN_DATA}`, like Claude Code's for a plugin: `<scope>/.data/<name>/` (e.g. `~/.my-agent/extensions/.data/weather/`), or a workspace's private folder in the agent's ([Workspaces](workspaces.md)). Keep there what must last: a signed-in browser profile, a cache, a downloaded browser.
