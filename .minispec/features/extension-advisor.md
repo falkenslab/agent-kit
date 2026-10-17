@@ -12,7 +12,7 @@ The agent can look at its catalogs itself, so that when a request matches an ext
 - The person browses them with `/extensions search` and `extension search`, over `extensionCatalog()` (`src/core/extensionCatalog.ts`), filtered by the agent's `catalogTopics`.
 - Installing asks for confirmation from any marketplace but the agent's own; options are given at install or with `config` (#55, #56).
 - Capabilities (#62) and requirements (#63) are what make a suggestion useful: "moodle-teacher grades with your rubrics; it needs your Moodle site".
-- miyagi and padawan will rely on agent-kit-extensions (Moodle, labs, videos, curricula, documents); their people won't know these exist unless the agent says.
+- miyagi and padawan will rely on agent-kit-extensions (Moodle, labs, videos, curricula, documents); their people won't know these exist unless the agent says. Moodle is two extensions, one per role: `moodle-teacher` for miyagi and `moodle-student` for padawan, so each agent's `catalogTopics` must lead it to its own.
 
 ## Changes
 
@@ -32,7 +32,7 @@ The agent can look at its catalogs itself, so that when a request matches an ext
 
 - With weather in a known marketplace and not installed, asking the captain "what's the weather like?" gets a one-sentence suggestion of weather, and nothing is installed.
 - Declining it, then asking again in the same conversation, gets no second suggestion.
-- An agent with `catalogTopics: ["miyagi"]` never suggests an extension outside them.
+- An agent with `catalogTopics: ["miyagi"]` never suggests an extension outside them: asked to grade a Moodle assignment without it, miyagi suggests `moodle-teacher`, and padawan, asked what's due, `moodle-student`, never the other role's.
 - Asked "what extensions do I have, and is there anything new?", the agent answers what's installed and its state, apart from what the catalogs offer, and after a refresh names an extension published since the last copy.
 - The search tool works in plan mode; with no network it answers from the local copies and says how old they are.
 - `verify` passes.
