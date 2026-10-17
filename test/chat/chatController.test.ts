@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
@@ -78,8 +78,11 @@ test("a turn: the person's line, the tool calls with their results and the reply
   assert.match(JSON.stringify(controller.getState().transcript.at(-1)), /nope/);
   assert.equal(await controller.send("/exit"), "exit");
   controller.close();
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  const log = readFileSync(sessionLogPath, "utf8");
+  // The log is written as the chat goes; under the whole suite's load, give it time.
+  const logged = (): string => (existsSync(sessionLogPath) ? readFileSync(sessionLogPath, "utf8") : "");
+  const complete = (text: string): boolean => /> \/copy/.test(text) && /You said: hello/.test(text);
+  for (const start = Date.now(); !complete(logged()) && Date.now() - start < 5000; ) await new Promise((resolve) => setTimeout(resolve, 50));
+  const log = logged();
   assert.match(log, /> hello/);
   assert.match(log, /> \/copy/);
   assert.match(log, /\[action\] Reading notes\.md/);
