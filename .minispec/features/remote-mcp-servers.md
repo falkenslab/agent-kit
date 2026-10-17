@@ -15,9 +15,22 @@ An agent on the kit uses remote MCP servers (Canva, Notion and the like, over HT
 - Elicitation's `url` mode already shows a link for the person to open in both chats (`src/core/elicitation.ts`): the way a sign-in could reach them.
 - What the model sends to a remote server leaves the computer: moodle-teacher's pseudonymization protects what comes from Moodle, not what the model copies elsewhere.
 
+## Findings (17 October 2026, SDK 0.3.300, CLI 2.1.300, Windows; confirmed empirically)
+
+- **No auth**: `{ type: "http", url }` connects and lists tools; `mcpServerStatus()` gives the tools' annotations mapped (`readOnlyHint` → `annotations.readOnly`), scope `dynamic`. A server still starting shows `failed` briefly and the CLI retries by itself.
+- **Header token**: `headers` reach the server on every request. The kit must resolve `${user_config.*}` itself.
+- **OAuth**: status `needs-auth`, no error text. The CLI does nothing by itself: no elicitation, no SDK message, no browser, no authenticate tool offered to the model (with `tools: []` or every built-in).
+- **Sign-in control methods exist but are undocumented**: the `Query` object has `mcpAuthenticate(name, redirectUri?)` → `{ authUrl, requiresUserAction, callbackExpected, redirectScheme: "localhost", state, callbackPort }`, `mcpSubmitOAuthCallbackUrl(name, callbackUrl)` and `mcpClearAuth(name)`, in `sdk.mjs` and not in `sdk.d.ts`. Canva's `client_id` is Claude Code's (`https://claude.ai/oauth/claude-code-client-metadata`), redirect `http://localhost:<port>/callback`.
+- **The flow end to end** (a local fake OAuth server): the browser reaching the CLI's localhost callback turns the server `connected` within about a second; a pasted callback URL stores the token but needs `reconnectMcpServer(name)` before that session is `connected`; a new session is `connected` straight away; `mcpClearAuth` revokes and returns it to `needs-auth`.
+- **The token**: in `<CLAUDE_CONFIG_DIR>/.credentials.json`, `mcpOAuth["<server name>|<hash of its config>"]` (plaintext on Windows), plus `mcp-needs-auth-cache.json`. `settingSources: ["project"]` doesn't isolate it: a server named `notion` was `connected` with the runner's own Claude Code token, the same URL named `notion2` was `needs-auth`. Extension servers must have names of their own (prefixed with the extension's) to avoid picking up the runner's tokens.
+- **claude.ai connectors**: with `disableClaudeAiConnectors: false` they appear as `claude.ai <Name>` (type `claudeai-proxy`, scope `claudeai`). `settings.deniedMcpServers` by `serverName` removes one; `allowedMcpServers` by `serverName` doesn't let one in, by `serverUrl` does. Once any `serverUrl` entry exists, the allowlist also drops remote servers passed by the SDK that aren't listed (in-process `sdk` servers are exempt). Whether each connector has its own URL couldn't be checked (one on the account tested).
+- **Gates**: a remote server's tool goes through PreToolUse (`mcp__<server>__<tool>`) and `canUseTool` as a local one.
+
+What this means: `http`/`sse` in `.mcp.json`, the status and the gates can be built now. Signing in relies on undocumented methods: call them guarded (`typeof`), record it in an ADR, and ask Anthropic to make them public. A per-agent token store would take its own `CLAUDE_CONFIG_DIR`, where the model's login also lives: to be designed carefully. Connector opt-in works by URL, not by name.
+
 ## Changes
 
-Research first, each answer confirmed empirically and recorded in the code comments and `reference/sdk-behaviors.md`:
+Research first, each answer confirmed empirically and recorded in the code comments and `reference/sdk-behaviors.md` (done: see Findings; the code comments and `sdk-behaviors.md` come with the implementation):
 
 - A remote server with no auth and one with a header token (`${user_config.token}`): connects, its tools work, the kit's gates (plan mode, `readOnlyHint`, read-only lists, labels) apply as to a local one.
 - One behind OAuth, through the SDK: what `needs-auth` leads to, how the sign-in can be started and finished from a host, where the token is kept, whether it survives a new session and the kit's isolation, and how it's signed out.
