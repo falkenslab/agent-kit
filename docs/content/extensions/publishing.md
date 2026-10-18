@@ -6,7 +6,7 @@ description: Publish extensions as a Claude Code marketplace - its repository, m
 
 # Publishing a marketplace
 
-Extensions are published as a [Claude Code marketplace](https://code.claude.com/docs/en/plugins/marketplace-reference): a git repository (or a folder) with `.claude-plugin/marketplace.json` listing them. The same repository serves Claude Code and every agent on the kit. Falken's Lab's is [falkenslab/agent-kit-extensions](https://github.com/falkenslab/agent-kit-extensions).
+Extensions are published as a [Claude Code marketplace](https://code.claude.com/docs/en/plugins/marketplace-reference): a git repository (or a folder) with `.claude-plugin/marketplace.json` listing them. The same repository serves Claude Code and every agent on the kit. Falken's Lab's is [falkenslab/agent-extensions](https://github.com/falkenslab/agent-extensions).
 
 ## The repository
 
@@ -81,7 +81,7 @@ The format is agent-kit's contract: `schemas/marketplace-catalog.schema.json` (t
 
 ## A public page
 
-`catalog.json` is enough for a static page: a grid of cards (logo, name, version, description, topics), a search, topic chips, and each extension's details with its install commands. Falken's Lab's [extensions page](https://falkenslab.github.io/agent-kit-extensions/) is one file, `site/index.html`, that fetches `catalog.json`; `?topic=miyagi` opens it filtered, so an agent can link to what it offers. Its source is in [agent-kit-extensions](https://github.com/falkenslab/agent-kit-extensions/tree/main/site): copy it for your own.
+`catalog.json` is enough for a static page: a grid of cards (logo, name, version, description, topics), a search, topic chips, and each extension's details with its install commands. Falken's Lab's [extensions page](https://falkenslab.github.io/agent-extensions/) is one file, `site/index.html`, that fetches `catalog.json`; `?topic=miyagi` opens it filtered, so an agent can link to what it offers. Its source is in [agent-extensions](https://github.com/falkenslab/agent-extensions/tree/main/site): copy it for your own.
 
 ## Its CI
 
@@ -101,7 +101,7 @@ jobs:
       - run: for plugin in */.claude-plugin/plugin.json; do claude plugin validate --strict "$(dirname "$(dirname "$plugin")")"; done
 ```
 
-A second workflow publishes `site/index.html` and `catalog.json` on GitHub Pages (Pages' source set to GitHub Actions): see agent-kit-extensions' `pages.yml`.
+A second workflow publishes `site/index.html` and `catalog.json` on GitHub Pages (Pages' source set to GitHub Actions): see agent-extensions' `pages.yml`.
 
 ## Releasing an extension
 

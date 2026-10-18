@@ -19,7 +19,7 @@ const config: Config = {
     agent: path.join(os.homedir(), ".my-agent", "extensions"), // for all its projects
     project: path.join(projectDir, "extensions"), // for this one: it wins over the agent's
   },
-  officialMarketplace: "falkenslab/agent-kit-extensions", // optional: its own marketplace
+  officialMarketplace: "falkenslab/agent-extensions", // optional: its own marketplace
   catalogTopics: ["my-agent"], // optional: what its catalog offers
 };
 ```

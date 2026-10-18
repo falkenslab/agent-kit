@@ -6,7 +6,7 @@ description: "Publica extensiones como un marketplace de Claude Code: su reposit
 
 # Publicar un marketplace
 
-Las extensiones se publican como un [marketplace de Claude Code](https://code.claude.com/docs/en/plugins/marketplace-reference): un repositorio git (o una carpeta) con `.claude-plugin/marketplace.json`, que las lista. El mismo repositorio sirve a Claude Code y a todos los agentes basados en el kit. El de Falken's Lab es [falkenslab/agent-kit-extensions](https://github.com/falkenslab/agent-kit-extensions).
+Las extensiones se publican como un [marketplace de Claude Code](https://code.claude.com/docs/en/plugins/marketplace-reference): un repositorio git (o una carpeta) con `.claude-plugin/marketplace.json`, que las lista. El mismo repositorio sirve a Claude Code y a todos los agentes basados en el kit. El de Falken's Lab es [falkenslab/agent-extensions](https://github.com/falkenslab/agent-extensions).
 
 ## El repositorio {#the-repository}
 
@@ -81,7 +81,7 @@ El formato es el contrato de agent-kit: `schemas/marketplace-catalog.schema.json
 
 ## Una página pública {#a-public-page}
 
-`catalog.json` basta para una página estática: una cuadrícula de tarjetas (logo, nombre, versión, descripción, topics), un buscador, chips de topics y los detalles de cada extensión con sus comandos de instalación. La [página de extensiones](https://falkenslab.github.io/agent-kit-extensions/) de Falken's Lab es un solo fichero, `site/index.html`, que descarga `catalog.json`; `?topic=miyagi` la abre filtrada, para que un agente pueda enlazar a lo que ofrece. Su código fuente está en [agent-kit-extensions](https://github.com/falkenslab/agent-kit-extensions/tree/main/site): cópialo para la tuya.
+`catalog.json` basta para una página estática: una cuadrícula de tarjetas (logo, nombre, versión, descripción, topics), un buscador, chips de topics y los detalles de cada extensión con sus comandos de instalación. La [página de extensiones](https://falkenslab.github.io/agent-extensions/) de Falken's Lab es un solo fichero, `site/index.html`, que descarga `catalog.json`; `?topic=miyagi` la abre filtrada, para que un agente pueda enlazar a lo que ofrece. Su código fuente está en [agent-extensions](https://github.com/falkenslab/agent-extensions/tree/main/site): cópialo para la tuya.
 
 ## Su CI {#its-ci}
 
@@ -101,7 +101,7 @@ jobs:
       - run: for plugin in */.claude-plugin/plugin.json; do claude plugin validate --strict "$(dirname "$(dirname "$plugin")")"; done
 ```
 
-Un segundo workflow publica `site/index.html` y `catalog.json` en GitHub Pages (con la fuente de Pages configurada como GitHub Actions): consulta el `pages.yml` de agent-kit-extensions.
+Un segundo workflow publica `site/index.html` y `catalog.json` en GitHub Pages (con la fuente de Pages configurada como GitHub Actions): consulta el `pages.yml` de agent-extensions.
 
 ## Publicar una versión de una extensión {#releasing-an-extension}
 

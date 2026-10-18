@@ -4,16 +4,16 @@ Issue: [#66](https://github.com/falkenslab/agent-kit/issues/66)
 
 ## Goal
 
-A `canva` extension in agent-kit-extensions, built on Canva's official remote MCP server, that lets an agent create, edit and export Canva designs for the person, and is #61's end-to-end example of a remote server behind OAuth.
+A `canva` extension in agent-extensions, built on Canva's official remote MCP server, that lets an agent create, edit and export Canva designs for the person, and is #61's end-to-end example of a remote server behind OAuth.
 
 ## Context
 
 - Canva runs an official remote MCP server: `https://mcp.canva.com/mcp`, Streamable HTTP, OAuth sign-in ([docs](https://canva.dev/docs/mcp/)). Its tools create and edit designs, manage assets and brand kits, search the library, export and comment. The Canva Dev MCP Server (for building Canva apps) is a different product and isn't this.
-- #61 ends with "an example extension with a remote server in agent-kit-extensions, once one works end to end". Canva covers the hardest case (OAuth); a server without auth or with a header token is a subset.
+- #61 ends with "an example extension with a remote server in agent-extensions, once one works end to end". Canva covers the hardest case (OAuth); a server without auth or with a header token is a subset.
 - Canva for Education is free for teachers, so the example is useful as well as a demo.
 - Unknown: whether Canva's OAuth accepts the CLI driven by the SDK as a client (some remote servers allow only listed clients and no dynamic registration). If not, the fallback is the person's claude.ai Canva connector, the opt-in #61 researches.
 - Unknown: which tools depend on the person's Canva plan (brand kits, autofill…).
-- agent-kit-extensions' rule: an extension knows its platform, not the domain around it. Its skills say how things are done in Canva; how to design a worksheet, an infographic or slides for a class belongs to miyagi, whose skills use the extension through its capabilities.
+- agent-extensions' rule: an extension knows its platform, not the domain around it. Its skills say how things are done in Canva; how to design a worksheet, an infographic or slides for a class belongs to miyagi, whose skills use the extension through its capabilities.
 - Exporting gives a download link, probably short-lived; publishing a design in a course means that file reaching moodle-teacher's upload tools.
 - What the model sends to Canva leaves the computer: a certificate or a class list carries students' names (#61's guard for student data).
 - Nothing to install on the computer: no requirements (#63).
@@ -22,7 +22,7 @@ A `canva` extension in agent-kit-extensions, built on Canva's official remote MC
 
 Kit side, in #61's order: `http` servers in an extension's `.mcp.json` first with a server without auth, then OAuth with Canva. This note needs both.
 
-In agent-kit-extensions:
+In agent-extensions:
 
 - `extensions/canva/`: `.mcp.json` with the `http` server and no `command`; `plugin.json` with `metadata["agent-kit"]` (`labels` for every tool in `en` and `es`, `help`, `catalog` assets, `capabilities` as in #62); a `README.md`; a row in the root README's table; `catalog.json` regenerated.
 - Its name, description and assets don't pass for Canva's own: no Canva logo, and the description says it uses Canva's official MCP server.

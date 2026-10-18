@@ -8,7 +8,7 @@ description: Build an installable extension from scratch - a weather extension w
 
 **Any Claude Code plugin is an extension**, as it is: its skills, commands and subagents load as they do in Claude Code, and its MCP servers start from its own `.mcp.json`. What agent-kit adds (labels for the chat, a logo for the catalog, capabilities, help) goes under `metadata["agent-kit"]` in its manifest, which Claude Code doesn't read. So one folder serves agents on the kit and Claude Code alike.
 
-This page builds one from scratch: **weather**, the weather in the person's city, for an agent that plans with them. It has its own MCP server, a setting the person gives once (their city), a tool that only reads, a skill, a command and a logo. Then it lists the rules every installed extension follows. The finished extension is in Falken's Lab's marketplace, [agent-kit-extensions/extensions/weather](https://github.com/falkenslab/agent-kit-extensions/tree/main/extensions/weather), and installs with `my-agent extension add weather@falkenslab` once the marketplace is added.
+This page builds one from scratch: **weather**, the weather in the person's city, for an agent that plans with them. It has its own MCP server, a setting the person gives once (their city), a tool that only reads, a skill, a command and a logo. Then it lists the rules every installed extension follows. The finished extension is in Falken's Lab's marketplace, [agent-extensions/extensions/weather](https://github.com/falkenslab/agent-extensions/tree/main/extensions/weather), and installs with `my-agent extension add weather@falkenslab` once the marketplace is added.
 
 ## What you'll build
 
@@ -306,7 +306,7 @@ An installed extension has a data folder of its own, named in its servers' `args
 
 ### A server published to npm
 
-An MCP server published to npm on its own (usable with `npx` in Claude Code or Codex) needn't be copied into the extension: its `.mcp.json` runs it with `npx`, and the extension is its manifest, that file, and its skills and commands. Falken's Lab's [moodle-teacher extension](https://github.com/falkenslab/agent-kit-extensions/tree/main/extensions/moodle-teacher) is one (and [moodle-student](https://github.com/falkenslab/agent-kit-extensions/tree/main/extensions/moodle-student), the same server for a student):
+An MCP server published to npm on its own (usable with `npx` in Claude Code or Codex) needn't be copied into the extension: its `.mcp.json` runs it with `npx`, and the extension is its manifest, that file, and its skills and commands. Falken's Lab's [moodle-teacher extension](https://github.com/falkenslab/agent-extensions/tree/main/extensions/moodle-teacher) is one (and [moodle-student](https://github.com/falkenslab/agent-extensions/tree/main/extensions/moodle-student), the same server for a student):
 
 ```json
 {

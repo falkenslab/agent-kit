@@ -12,7 +12,7 @@ The agent can look at its catalogs itself, so that when a request matches an ext
 - The person browses them with `/extensions search` and `extension search`, over `extensionCatalog()` (`src/core/extensionCatalog.ts`), filtered by the agent's `catalogTopics`.
 - Installing asks for confirmation from any marketplace but the agent's own; options are given at install or with `config` (#55, #56).
 - Capabilities (#62) and requirements (#63) are what make a suggestion useful: "moodle-teacher grades with your rubrics; it needs your Moodle site".
-- miyagi and padawan will rely on agent-kit-extensions (Moodle, labs, videos, curricula, documents); their people won't know these exist unless the agent says. Moodle is two extensions, one per role: `moodle-teacher` for miyagi and `moodle-student` for padawan, so each agent's `catalogTopics` must lead it to its own.
+- miyagi and padawan will rely on agent-extensions (Moodle, labs, videos, curricula, documents); their people won't know these exist unless the agent says. Moodle is two extensions, one per role: `moodle-teacher` for miyagi and `moodle-student` for padawan, so each agent's `catalogTopics` must lead it to its own.
 
 ## Changes
 
