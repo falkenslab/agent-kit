@@ -217,15 +217,18 @@
                   "id": "api/@falkenslab/namespaces/ui/functions/working",
                   "label": "working"
                 }
-              ]
+              ],
+              "key": "api/Namespaces/ui/Functions"
             }
           ],
           "link": {
             "type": "doc",
             "id": "api/@falkenslab/namespaces/ui/index"
-          }
+          },
+          "key": "api/Namespaces/ui"
         }
-      ]
+      ],
+      "key": "api/Namespaces"
     },
     {
       "type": "category",
@@ -466,7 +469,8 @@
           "id": "api/interfaces/WizardOptions",
           "label": "WizardOptions"
         }
-      ]
+      ],
+      "key": "api/Interfaces"
     },
     {
       "type": "category",
@@ -537,7 +541,8 @@
           "id": "api/type-aliases/WizardStep",
           "label": "WizardStep"
         }
-      ]
+      ],
+      "key": "api/Type Aliases"
     },
     {
       "type": "category",
@@ -573,7 +578,8 @@
           "id": "api/variables/terminalInteractionPort",
           "label": "terminalInteractionPort"
         }
-      ]
+      ],
+      "key": "api/Variables"
     },
     {
       "type": "category",
@@ -874,7 +880,8 @@
           "id": "api/functions/truncatePath",
           "label": "truncatePath"
         }
-      ]
+      ],
+      "key": "api/Functions"
     }
   ]
 }

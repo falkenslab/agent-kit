@@ -61,6 +61,19 @@ Search too: `grep -rn "<the option or function>" docs/content` finds every page 
 - A new page goes in `docs/sidebars.ts`, linked from the pages that lead to it.
 - Never edit `docs/versioned_docs/`: those are released versions. The only exception is a factual error in what that version actually did.
 
+## 3b. The Spanish translation
+
+The guides are in Spanish too, under `/es/`: `docs/i18n/es/docusaurus-plugin-content-docs/current/<same path>.md` for `docs/content/<path>.md` (and `version-X.Y.Z/` for a released version). Every guide you change, add or remove changes its translation in the same commit; the API reference stays English (it's generated from the code).
+
+- Translate the change, not the page: edit the matching paragraphs of the Spanish page, keeping the rest as it is.
+- Spain's Spanish, `tú`, every accent and ñ; product names and everything in code (blocks and inline) unchanged.
+- Every heading keeps its English anchor as an explicit id, so links with `#anchor` work in both languages: `## Programas que necesita {#programs-it-needs}`. A new heading gets one; a renamed English heading changes its id in both files.
+- Links keep their targets exactly; only their text is translated.
+- Frontmatter: translate `title`, `sidebar_label` and `description`, keep the rest.
+- A new page in `docs/sidebars.ts` (or a renamed category) also needs its label in `docs/i18n/es/docusaurus-plugin-content-docs/current.json`: `npx docusaurus write-translations --locale es` in `docs/` adds the key, then translate its `message`.
+- Text on the homepage (`docs/src/pages/index.tsx`) goes through `translate()` or `<Translate>` with an id, and its Spanish in `docs/i18n/es/code.json`.
+- The terms used so far (extension, capability, gate → puerta, guided → guiado, file scope → ámbito de ficheros, knowledge base → base de conocimiento…): follow the existing Spanish pages, so one English term is always the same Spanish one.
+
 ## 4. Doc comments
 
 The API reference is generated from the doc comments of everything exported from `src/index.ts`. Every new or changed export needs one that says what it is for (not how it's built). An export without one shows as "-":

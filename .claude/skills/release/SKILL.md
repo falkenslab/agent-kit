@@ -48,6 +48,16 @@ npm run docs:build
 
 This copies `docs/content/` (the generated API reference included) to `docs/versioned_docs/version-X.Y.Z/` and adds the version to `docs/versions.json`; it becomes the default at `/docs`, and `main` moves to `/docs/next`. The build must pass.
 
+It doesn't copy the Spanish translation (`/es/`): before `docs:build`, snapshot it too, from `docs/`, and keep only the newest released version's (older ones fall back to English):
+
+```
+cp -r i18n/es/docusaurus-plugin-content-docs/current i18n/es/docusaurus-plugin-content-docs/version-X.Y.Z
+cp i18n/es/docusaurus-plugin-content-docs/current.json i18n/es/docusaurus-plugin-content-docs/version-X.Y.Z.json
+rm -rf i18n/es/docusaurus-plugin-content-docs/version-<previous>  i18n/es/docusaurus-plugin-content-docs/version-<previous>.json
+```
+
+In `version-X.Y.Z.json`, set `version.label`'s message to `X.Y.Z` (current's says "Next (sin publicar)"). Add `docs/i18n` to the release commit.
+
 ## 3b. Notes
 
 Draft the release notes in English from the commits since the last tag, grouped as: new features, fixes, breaking changes (with migration hints), internal. Only include what matters to a consumer of the kit.
@@ -55,7 +65,7 @@ Draft the release notes in English from the commits since the last tag, grouped 
 ## 4. Commit, tag, push
 
 ```
-git add package.json package-lock.json README.md docs/versioned_docs docs/versioned_sidebars docs/versions.json examples/captain-whiskers/package.json examples/captain-whiskers/package-lock.json examples/captain-whiskers/desktop/package.json
+git add package.json package-lock.json README.md docs/versioned_docs docs/versioned_sidebars docs/versions.json docs/i18n examples/captain-whiskers/package.json examples/captain-whiskers/package-lock.json examples/captain-whiskers/desktop/package.json
 git commit -m "chore(release): vX.Y.Z"   # plus the attribution trailer required by the session
 git tag vX.Y.Z
 git push origin main

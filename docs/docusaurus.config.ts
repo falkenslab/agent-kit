@@ -28,7 +28,13 @@ const config: Config = {
     hooks: { onBrokenMarkdownLinks: "throw" },
   },
 
-  i18n: { defaultLocale: "en", locales: ["en"] },
+  // The guides in Spanish too, under /es/ (their translations in i18n/es/); the API reference,
+  // generated from the code's doc comments, stays in English in both.
+  i18n: {
+    defaultLocale: "en",
+    locales: ["en", "es"],
+    localeConfigs: { en: { label: "English" }, es: { label: "Español" } },
+  },
 
   // `assets/` is shared with the repository's README (the Captain Whiskers screenshot).
   staticDirectories: ["static", "assets"],
@@ -41,7 +47,11 @@ const config: Config = {
           path: "content",
           routeBasePath: "docs",
           sidebarPath: "./sidebars.ts",
-          editUrl: "https://github.com/falkenslab/agent-kit/edit/main/docs/",
+          // A page's source in its language: the English under content/, a translation under i18n/<locale>/.
+          editUrl: ({ locale, versionDocsDirPath, docPath }) =>
+            locale === "en"
+              ? `https://github.com/falkenslab/agent-kit/edit/main/docs/${versionDocsDirPath}/${docPath}`
+              : `https://github.com/falkenslab/agent-kit/edit/main/docs/i18n/${locale}/docusaurus-plugin-content-docs/${versionDocsDirPath === "content" ? "current" : versionDocsDirPath.replace(/^versioned_docs\//, "")}/${docPath}`,
           // Before the first versioned release, main is the only version, served at /docs.
           ...(versions.length > 0
             ? {
@@ -86,7 +96,7 @@ const config: Config = {
     "@docusaurus/theme-mermaid",
     [
       "@easyops-cn/docusaurus-search-local",
-      { hashed: true, docsDir: "content", docsRouteBasePath: "docs", indexBlog: false, highlightSearchTermsOnTargetPage: true },
+      { hashed: true, language: ["en", "es"], docsDir: "content", docsRouteBasePath: "docs", indexBlog: false, highlightSearchTermsOnTargetPage: true },
     ],
   ],
 
@@ -100,6 +110,7 @@ const config: Config = {
         { type: "docSidebar", sidebarId: "guides", position: "left", label: "Guides" },
         { type: "docSidebar", sidebarId: "api", position: "left", label: "API reference" },
         { type: "docsVersionDropdown", position: "right" },
+        { type: "localeDropdown", position: "right" },
         { href: "https://www.npmjs.com/package/@falkenslab/agent-kit", label: "npm", position: "right" },
         { href: "https://github.com/falkenslab/agent-kit", label: "GitHub", position: "right" },
       ],
@@ -130,7 +141,8 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `MIT licensed. Copyright © ${new Date().getFullYear()} Francisco Vargas Ruiz.`,
+      // Falken's Lab's signature, the footer's only line, never translated.
+      copyright: "Made with 💖 by Falken's Lab Team",
     },
     prism: {
       theme: prismThemes.github,
