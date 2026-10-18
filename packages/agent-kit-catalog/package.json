@@ -1,6 +1,6 @@
 {
   "name": "@falkenslab/agent-kit-catalog",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A Claude Code marketplace's extensions as one catalog.json, for a page or a client to show them: name, version, topics, install commands and images. No dependencies.",
   "keywords": [
     "claude-code",
