@@ -11,6 +11,7 @@ The `awareness` [extension](../extensions/overview.md) lets the agent know itsel
 - **A "Who you are" section** in the system prompt: the agent's name, version and what it is, the agent-kit version it runs on, and where to look for the rest.
 - **`about_me`**, a read-only tool that says what the agent is right now, read from the session on every call: its mode and the ones the person can switch to, its extensions with their tools and what each lets it do (their [capabilities](../extensions/overview.md#capabilities)) and the ones off (with why), its subagents, its built-in tools, the commands the person can type, and how full its context is. With `part: "guide"`, the agent's own guide to its domain (the extension's `guide` option).
 - **The `help` skill** (`awareness:help`), how the kit's chat is used, the same for every agent: the modes and how to switch them, approvals and questions, keys, slash commands, resuming, `--continue` and `--language`.
+- **`extensions_catalog` and the `extensions` skill**, when the agent has a folder for extensions (`extensionDirs`): the agent [advises on extensions](../extensions/installing.md#the-agents-own-suggestions), what's installed and what its catalogs offer, and suggests one that fits a request. Read-only: it never installs anything.
 
 The model is told to answer from them, never from memory, and to say so when something isn't covered instead of inventing an option.
 

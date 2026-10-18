@@ -92,6 +92,16 @@ What the agent's marketplaces offer is its catalog, in the command (`search`, `a
 
 Captain Whiskers' web and desktop app show it as a drawer with two tabs: the installed ones (on, off, settings, update, uninstall) and the catalog as a grid of cards (logo, name, version, description, topics), with a search, topic chips to filter, and a card opening its details with its banner. In a host of your own, the chat controller's `extensionCatalog()`, `extensionImage()`, `installExtension()`, `updateExtension()`, `removeExtension()`, `extensionOptions()`, `setExtensionOptions()` and `reopen()` do it (see [Custom hosts](../advanced/custom-hosts.md)).
 
+## The agent's own suggestions
+
+People won't know which extensions exist unless their agent tells them. With [awareness](../capabilities/awareness.md) and a folder for extensions, the agent has `extensions_catalog`, a read-only tool that answers three things apart:
+
+- **Installed here**: each extension in its scope, running or off (and why), what it lets the agent do, and the options it still needs.
+- **Offered by the catalogs**: what the known marketplaces offer, from their copies on this computer (instant, no network), each with the age of its copy; only what has one of the agent's `catalogTopics`, and only what matches the words the agent looks for.
+- **What's new online**: with `refresh`, the catalogs are fetched again first, and it names extensions published since the last copy and newer versions of installed ones. At most once per marketplace and session; without network, it answers from the copies and says so. Refreshing renews the catalogs' copies, never what's installed.
+
+The prompt tells the agent when to use it: when a request is something its tools don't do well, it looks for an extension and, if one fits, suggests it in one sentence (what it adds, what it needs, `/extensions install <name>@<marketplace>`) and goes on with what it can do without it. It never installs, enables or configures one itself, and doesn't suggest one again in a conversation once the person declines it. Asked what extensions it has, how to set one up or why one is off, it answers from the tool and its `extensions` skill. A miyagi asked to grade a Moodle assignment without Moodle suggests `moodle-teacher`, and a padawan asked what's due `moodle-student`: each one's `catalogTopics` keep it to its own.
+
 ## In the chat
 
 `/extensions` works in both chats:

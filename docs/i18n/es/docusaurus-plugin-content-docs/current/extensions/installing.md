@@ -92,6 +92,16 @@ Lo que ofrecen los marketplaces del agente es su catálogo, en el comando (`sear
 
 La app web y de escritorio de Captain Whiskers lo muestran como un panel lateral con dos pestañas: las instaladas (activar, desactivar, ajustes, actualizar, desinstalar) y el catálogo como una cuadrícula de tarjetas (logo, nombre, versión, descripción, topics), con un buscador, chips de topics para filtrar y una tarjeta que abre sus detalles con su banner. En un host propio, lo hacen `extensionCatalog()`, `extensionImage()`, `installExtension()`, `updateExtension()`, `removeExtension()`, `extensionOptions()`, `setExtensionOptions()` y `reopen()` del controlador del chat (consulta [Hosts propios](../advanced/custom-hosts.md)).
 
+## Las sugerencias del propio agente {#the-agents-own-suggestions}
+
+La gente no sabrá qué extensiones existen si su agente no se lo dice. Con [awareness](../capabilities/awareness.md) y una carpeta de extensiones, el agente tiene `extensions_catalog`, una herramienta de solo lectura que responde tres cosas por separado:
+
+- **Lo instalado aquí**: cada extensión en su ámbito, en marcha o apagada (y por qué), lo que permite hacer al agente y las opciones que aún necesita.
+- **Lo que ofrecen los catálogos**: lo que ofrecen los marketplaces conocidos, según sus copias en este ordenador (al momento, sin red), cada uno con la antigüedad de su copia; solo lo que tiene alguno de los `catalogTopics` del agente, y solo lo que coincide con las palabras que busca el agente.
+- **Lo nuevo en Internet**: con `refresh`, primero se vuelven a descargar los catálogos, y nombra las extensiones publicadas desde la última copia y las versiones nuevas de las instaladas. Como mucho una vez por marketplace y sesión; sin red, contesta con las copias y lo dice. Refrescar renueva las copias de los catálogos, nunca lo instalado.
+
+El prompt le dice al agente cuándo usarla: cuando una petición es algo que sus herramientas no hacen bien, busca una extensión y, si alguna encaja, la sugiere en una frase (qué añade, qué necesita, `/extensions install <nombre>@<marketplace>`) y sigue con lo que puede hacer sin ella. Nunca instala, activa ni configura una por su cuenta, y no vuelve a sugerirla en una conversación cuando la persona la rechaza. Si le preguntan qué extensiones tiene, cómo configurar una o por qué está apagada, contesta con la herramienta y su skill `extensions`. Un miyagi al que piden corregir una tarea de Moodle sin Moodle sugiere `moodle-teacher`, y un padawan al que preguntan qué tiene pendiente, `moodle-student`: el `catalogTopics` de cada uno lo limita a lo suyo.
+
 ## En el chat {#in-the-chat}
 
 `/extensions` funciona en los dos chats:

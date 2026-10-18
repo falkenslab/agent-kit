@@ -52,6 +52,6 @@ test('skills: "plugins" offers the skills of every plugin the session loads, the
   const { options } = await buildSessionOptions(config, temp(), spec);
   assert.deepEqual(
     [...(options.skills as string[])].sort(),
-    ["awareness:help", "captain:pirate-joke", "captain:renamed", "captain:untitled", "knowledge:knowledge-ingest", "knowledge:knowledge-lint", "knowledge:knowledge-query"],
+    ["awareness:extensions", "awareness:help", "captain:pirate-joke", "captain:renamed", "captain:untitled", "knowledge:knowledge-ingest", "knowledge:knowledge-lint", "knowledge:knowledge-query"],
   );
 });

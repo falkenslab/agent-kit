@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
+import { tool, createSdkMcpServer, type SdkMcpToolDefinition } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import type { SessionFacts } from "../../core/sessionFacts.js";
 
@@ -58,8 +58,8 @@ export function describeSession(facts: SessionFacts): string {
   return sections.join("\n\n");
 }
 
-/** The awareness's MCP server: `about_me`, from the session's facts and the agent's guide. */
-export function createAwarenessServer(session: () => Promise<SessionFacts>, guide?: string) {
+/** The awareness's MCP server: `about_me`, from the session's facts and the agent's guide, and any more tools it's given (the catalog, #64). */
+export function createAwarenessServer(session: () => Promise<SessionFacts>, guide?: string, more: readonly unknown[] = []) {
   const aboutMe = tool(
     "about_me",
     "What you are right now: your mode and the ones the person can switch to, your extensions with their tools and the ones off (with why), your subagents, the commands the person can type, how full your context is. With `part: \"guide\"`, your own guide to your domain (your commands, configuration, folders). It changes during a session: call it whenever the person asks about you, rather than answering from memory.",
@@ -73,5 +73,6 @@ export function createAwarenessServer(session: () => Promise<SessionFacts>, guid
     },
     { annotations: { readOnlyHint: true } },
   );
-  return createSdkMcpServer({ name: "awareness", version: "1.0.0", tools: [aboutMe] });
+  // Tools with different input schemas: as the sources' server does.
+  return createSdkMcpServer({ name: "awareness", version: "1.0.0", tools: [aboutMe, ...more] as SdkMcpToolDefinition[] });
 }

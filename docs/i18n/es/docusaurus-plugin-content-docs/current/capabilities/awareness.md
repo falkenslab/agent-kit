@@ -11,6 +11,7 @@ La [extensión](../extensions/overview.md) `awareness` le da al agente conscienc
 - **Una sección "Who you are"** en el prompt del sistema: el nombre del agente, su versión y qué es, la versión de agent-kit sobre la que funciona, y dónde buscar el resto.
 - **`about_me`**, una herramienta de solo lectura que dice qué es el agente en este momento, leído de la sesión en cada llamada: su modo y los modos a los que puede cambiar la persona, sus extensiones con sus herramientas y lo que le permite hacer cada una (sus [capacidades](../extensions/overview.md#capabilities)) y las que están desactivadas (con el motivo), sus subagentes, sus herramientas integradas, los comandos que puede escribir la persona, y lo lleno que está su contexto. Con `part: "guide"`, la guía propia del agente sobre su dominio (la opción `guide` de la extensión).
 - **La skill `help`** (`awareness:help`), cómo se usa el chat del kit, igual para todos los agentes: los modos y cómo cambiarlos, las aprobaciones y las preguntas, las teclas, los slash commands, reanudar, `--continue` y `--language`.
+- **`extensions_catalog` y la skill `extensions`**, cuando el agente tiene carpeta de extensiones (`extensionDirs`): el agente [aconseja sobre extensiones](../extensions/installing.md#the-agents-own-suggestions), lo instalado y lo que ofrecen sus catálogos, y sugiere una que encaje con una petición. De solo lectura: nunca instala nada.
 
 Al modelo se le indica que responda a partir de ellas, nunca de memoria, y que lo diga cuando algo no esté cubierto en lugar de inventarse una opción.
 

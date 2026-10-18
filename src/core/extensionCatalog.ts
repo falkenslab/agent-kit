@@ -6,6 +6,7 @@ import { cachePackage, cachedPackageDir } from "./npxPackages.js";
 import { trustWorkspace } from "./workspaceTrust.js";
 import { describeCapability, describeInLanguage, type DescribedCapability } from "./extensions.js";
 import { getLanguage } from "./messages/index.js";
+import type { Language } from "./language.js";
 import { addMarketplace, findPlugin, installFromMarketplace, listMarketplaces, resolvePluginSource, updateMarketplace, type KnownMarketplace, type MarketplacePlugin } from "./marketplaces.js";
 
 /**
@@ -88,6 +89,7 @@ const IMAGE = /\.(svg|png|jpe?g|webp)$/i;
 async function offered(
   marketplace: KnownMarketplace,
   plugin: MarketplacePlugin,
+  language: Language,
 ): Promise<{ version?: string; keywords: string[]; logo?: string; banner?: string; capabilities: DescribedCapability[]; requirements: CatalogEntry["requirements"]; description: string; remote: string[] }> {
   try {
     const resolved = resolvePluginSource(marketplace, plugin);
@@ -101,9 +103,9 @@ async function offered(
       };
       const [logo, banner] = [await image(manifest?.catalog?.logo), await image(manifest?.catalog?.banner)];
       const version = manifest?.version ?? plugin.version;
-      const capabilities = (manifest?.capabilities ?? []).map((capability) => describeCapability(capability, getLanguage()));
+      const capabilities = (manifest?.capabilities ?? []).map((capability) => describeCapability(capability, language));
       const requirements = (manifest?.requirements ?? []).map((requirement) => ({ name: requirement.name, for: requirement.for }));
-      const description = describeInLanguage(plugin.description ?? manifest?.description ?? "", manifest?.descriptions, getLanguage());
+      const description = describeInLanguage(plugin.description ?? manifest?.description ?? "", manifest?.descriptions, language);
       const remote = manifest ? remoteHosts(manifest) : [];
       return { ...(version ? { version } : {}), keywords: manifest?.keywords ?? [], ...(logo ? { logo } : {}), ...(banner ? { banner } : {}), capabilities, requirements, description, remote };
     }
@@ -119,8 +121,8 @@ export function isNewer(offered: string | undefined, installed: string | undefin
   return inKitRange(offered, `>${installed.split("-")[0]}`);
 }
 
-/** Everything the known marketplaces offer, matching `words` (in its name, description, category, tags or keywords) when given. */
-export async function extensionCatalog(dirs: ExtensionDirs, options: { official?: string; words?: readonly string[]; topics?: readonly string[] } = {}): Promise<CatalogEntry[]> {
+/** Everything the known marketplaces offer, matching `words` (in its name, description, category, tags or keywords) when given; its texts in `language` (the kit's by default). */
+export async function extensionCatalog(dirs: ExtensionDirs, options: { official?: string; words?: readonly string[]; topics?: readonly string[]; language?: Language } = {}): Promise<CatalogEntry[]> {
   const installed = (await listInstalled(dirs)).filter((extension) => !extension.shadowed);
   const words = (options.words ?? []).map((word) => word.toLowerCase());
   // What the agent offers its users (#59): only what has one of its topics.
@@ -128,7 +130,7 @@ export async function extensionCatalog(dirs: ExtensionDirs, options: { official?
   const entries: CatalogEntry[] = [];
   for (const marketplace of await knownMarketplaces(dirs, options.official)) {
     for (const plugin of marketplace.manifest?.plugins ?? []) {
-      const look = await offered(marketplace, plugin);
+      const look = await offered(marketplace, plugin, options.language ?? getLanguage());
       const topics = [...new Set([...look.keywords, ...(plugin.tags ?? []), ...(plugin.keywords ?? []), ...(plugin.category ? [plugin.category] : [])].map((topic) => topic.toLowerCase()))];
       if (wanted && !topics.some((topic) => wanted.has(topic))) continue;
       // Its capabilities count too: a search for "grading" finds what grades.
