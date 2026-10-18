@@ -4,7 +4,7 @@ Issue: [#61](https://github.com/falkenslab/agent-kit/issues/61)
 
 ## Goal
 
-An agent on the kit uses remote MCP servers (Canva, Notion and the like, over HTTP, most behind OAuth), from an installed extension or from the person's claude.ai connectors, with the person signing in and the kit's gates intact.
+An agent on the kit uses remote MCP servers (Canva, Notion and the like, over HTTP, most behind OAuth) from an installed extension, with the person signing in and the kit's gates intact. The person's claude.ai connectors are #70.
 
 ## Context
 
@@ -38,13 +38,14 @@ Research first, each answer confirmed empirically and recorded in the code comme
 
 Then, from what's confirmed (and an ADR, or ADR-025 updated, with the design):
 
-- An installed extension's `.mcp.json` may declare `http` and `sse` servers: no launcher, no package, nothing to hash but the manifest; its options go into `url` and `headers` (`${user_config.KEY}`, secrets kept as today).
+Decided (18 October 2026): the claude.ai connectors and a guard for sensitive data go to their own feature (#70, `claude-ai-connectors.md`); a remote server's options apply when the session opens again (the SDK fixes `url` and `headers` at start; the chat offers `/extensions reload`); signing in shows the person the link, never opens a browser by itself.
+
+- An installed extension's `.mcp.json` may declare `http` and `sse` servers: no launcher, no package, nothing to hash but the manifest; its options go into `url` and `headers` (`${user_config.KEY}`, secrets kept as today), resolved by the kit when the session opens.
+- Each remote server gets a session name of its own, `<extension>-<server>`, so it never picks up the runner's own Claude Code tokens for a server of the same name.
 - Installing one says it talks to a remote service, and which host; the extension's info and the catalog show it.
-- Signing in: `/extensions` and the chat controller show "needs sign-in" for an extension's server, and a command (`/extensions sign-in <name>`, a controller method for a host) starts it and gives the person the link; signing out too.
-- The agent's opt-in to claude.ai connectors, if the research allows it: a config listing the ones it accepts (none by default), shown in `/extensions` apart from installed extensions.
-- A guard for student data: an agent can mark that remote servers mustn't receive it (or warn), as moodle-teacher's `clear` warns today; the exact shape comes from the research.
+- Signing in: `/extensions` and the chat controller show "needs sign-in" for an extension's server (`needs-auth` in `mcpServerStatus()`); `/extensions sign-in <name>` (a controller method for a host) calls `mcpAuthenticate()` and shows the link, the CLI's localhost callback finishes it and the kit waits for `connected`; a pasted callback URL (a browser on another computer) goes to `mcpSubmitOAuthCallbackUrl()` then `reconnectMcpServer()`; `/extensions sign-out <name>` calls `mcpClearAuth()`. The three are undocumented: called only when they exist, recorded in an ADR, and asked of Anthropic to make public.
 - An example extension with a remote server in agent-extensions, once one works end to end: Canva (`canva-extension.md`), after a server without auth has proven `http` in `.mcp.json`.
-- Tests where no network is needed (manifest validation, options into `url`/`headers`, the status shown); the docs' Extensions section (writing, configuring, reference) and `architecture.md`.
+- Tests: manifest validation and options into `url`/`headers` without network; with the SDK's CLI, a local HTTP server (connects, its tools, its read-only hints, plan mode) and a local fake OAuth server (`needs-auth`, signing in, a new session connected, signing out); the docs' Extensions section (writing, configuring, reference; English and Spanish), `sdk-behaviors.md` and `architecture.md`.
 
 ## Acceptance
 
@@ -52,5 +53,5 @@ Then, from what's confirmed (and an ADR, or ADR-025 updated, with the design):
 - An extension whose `.mcp.json` names an `http` server installs, validates with `claude plugin validate --strict`, and its tools work in a session.
 - A server behind OAuth is signed in to from a chat and from the controller, its tools then work, and a new session doesn't ask again.
 - Plan mode lets through a remote server's `readOnlyHint` tools and stops the rest.
-- Without the agent's opt-in, no claude.ai connector reaches a session.
+- Changing a remote extension's option says it applies when the session opens again, and `/extensions reload` applies it.
 - `verify` passes.
