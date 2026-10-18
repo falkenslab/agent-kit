@@ -72,6 +72,12 @@ export interface ExtensionContribution {
    * no `readOnlyTools`. A list in the manifest wins: its servers aren't here.
    */
   readOnlyHintServers?: string[];
+  /**
+   * Its MCP servers that are remote (#61), by session name: the SDK fixes their URL and headers
+   * when the session opens, so a changed option takes opening it again, and they may need the
+   * person to sign in.
+   */
+  remoteServers?: string[];
   /** Its MCP tools that ask the person themselves: interactive mode's step gate doesn't ask first. */
   selfAskingTools?: string[];
   /** How the chat shows its tools, by full name, in the kit's language: its line and how it counts in a folded group. */

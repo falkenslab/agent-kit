@@ -14,7 +14,7 @@ import { withToolLabels, withToolPhrases, type ToolLabels } from "../core/toolLa
 import type { ToolPhrase } from "../core/messages/index.js";
 import { createConsoleRenderer } from "../tui/consoleRenderer.js";
 import { chatExtensionsCommand, type ExtensionAction } from "./extensions.js";
-import type { ExtensionRestart, ExtensionSwitch } from "../core/liveExtensions.js";
+import type { ExtensionAuth, ExtensionRestart, ExtensionSwitch, SignIn } from "../core/liveExtensions.js";
 import { trustWorkspace } from "../core/workspaceTrust.js";
 import { askForDecision } from "../core/hooks/humanInput.js";
 import { extensionOptionStates, listInstalled, removeExtension as removeInstalled, setExtensionEnabled, setExtensionOptions as storeExtensionOptions, type ExtensionOptionState, type ExtensionScope } from "../core/externalExtensions.js";
@@ -176,7 +176,7 @@ export async function createChatController(options: Options | SessionOpener, set
   let historyEntries: HistoryEntry[] = settings.historyPath ? capHistory(await loadHistory(settings.historyPath), historyLimit) : [];
 
   // The session in use: with runs, the run's folder, opened again on /resume or /extensions.
-  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; apis?: Record<string, Record<string, unknown>>; switchExtension?: ExtensionSwitch; restartExtension?: ExtensionRestart; run: RunFolder | null } =
+  let current: { options: Options; modeControl?: ModeControl; toolLabels?: ToolLabels; extensions?: ExtensionsStatus; apis?: Record<string, Record<string, unknown>>; switchExtension?: ExtensionSwitch; restartExtension?: ExtensionRestart; extensionAuth?: ExtensionAuth; run: RunFolder | null } =
     opener && runsDir ? await openSession(opener, await firstRun(runsDir)) : { options: options as Options, run: null };
   const modeControl = (): ModeControl | undefined => current.modeControl ?? settings.modeControl;
   const formatAction = withToolLabels(() => current.toolLabels ?? settings.toolLabels, settings.formatAction);
@@ -454,6 +454,8 @@ export async function createChatController(options: Options | SessionOpener, set
       } else if (action.type === "update") await controller.updateExtension(action.name);
       else if (action.type === "remove") await controller.removeExtension(action.name, { deleteData: action.deleteData });
       else if (action.type === "trust") await controller.trustWorkspace();
+      else if (action.type === "sign-in") await controller.signInExtension(action.name, action.callbackUrl);
+      else if (action.type === "sign-out") await controller.signOutExtension(action.name);
       else await controller.reopen();
     } catch (error) {
       notice(`(${error instanceof Error ? error.message : String(error)})`, "warn");
@@ -707,7 +709,34 @@ export async function createChatController(options: Options | SessionOpener, set
      * installed until `confirmed`: the result says which (`confirm`), for the view to ask the
      * person. The running session is untouched: it's there in a new conversation, or with `reopen()`.
      */
-    async installExtension(spec: string, options: { scope?: ExtensionScope; confirmed?: boolean } = {}): Promise<{ name?: string; missing?: string[]; confirm?: { marketplace: string; description?: string } }> {
+    /**
+     * Signs in to an installed extension's remote servers (#61): gives the person the links (never
+     * opens a browser), then says when the sign-in finishes. With `callbackUrl`, the address the
+     * browser ended on (from another computer), finishes it instead.
+     */
+    async signInExtension(name: string, callbackUrl?: string): Promise<SignIn> {
+      const auth = current.extensionAuth;
+      const result: SignIn = auth ? await auth.signIn(name, callbackUrl) : { status: "unavailable", reason: "not-running" };
+      if (result.status === "unavailable") notice(t().extensionSignInUnavailable(name));
+      else if (result.status === "signed-in") notice(callbackUrl ? t().extensionSignedIn(name) : t().extensionAlreadySignedIn(name));
+      else {
+        for (const link of result.links) notice(t().extensionSignInOpen(name, link.url));
+        notice(t().extensionSignInPaste(name));
+        // Waits in the background: the person signs in in their browser, whenever they do.
+        void auth!.connected(name, 5 * 60_000).then((done) => {
+          notice(done ? t().extensionSignedIn(name) : t().extensionSignInWaiting(name));
+          if (done) extensionNotices.push(`<system-reminder>The user signed in to the ${name} extension: its remote tools are available now.</system-reminder>`);
+        });
+      }
+      return result;
+    },
+    /** Signs out of an installed extension's remote servers (#61). */
+    async signOutExtension(name: string): Promise<boolean> {
+      const done = (await current.extensionAuth?.signOut(name).catch(() => false)) ?? false;
+      notice(done ? t().extensionSignedOut(name) : t().extensionSignInUnavailable(name));
+      return done;
+    },
+    async installExtension(spec: string, options: { scope?: ExtensionScope; confirmed?: boolean } = {}): Promise<{ name?: string; missing?: string[]; remote?: string[]; confirm?: { marketplace: string; description?: string } }> {
       if (!current.extensions) throw new Error("This chat's session has no extensions folder.");
       const official = current.extensions.official ? { official: current.extensions.official } : {};
       const foreign = await needsConfirmation(current.extensions.dirs, spec, current.extensions.official);
@@ -717,7 +746,9 @@ export async function createChatController(options: Options | SessionOpener, set
       notice(t().extensionInstalled(result.name));
       // What it needs and this computer lacks (#63): the person installs it, the kit never does.
       for (const line of result.missing) notice(t().extensionLacks(result.name, line));
-      return { name: result.name, missing: result.missing };
+      // Where what the agent sends goes (#61).
+      if (result.remote.length) notice(t().extensionTalksTo(result.name, result.remote.join(", ")));
+      return { name: result.name, missing: result.missing, remote: result.remote };
     },
     /** Updates one installed extension from its marketplace, or every one with a newer version there; the names updated. */
     async updateExtension(name?: string): Promise<string[]> {

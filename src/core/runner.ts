@@ -1,5 +1,5 @@
 import { query, type Options, type SDKUserMessage, type SlashCommand } from "@anthropic-ai/claude-agent-sdk";
-import { sessionViewOf } from "./sessionFacts.js";
+import { sessionViewOf, type McpAuthentication, type SessionLive } from "./sessionFacts.js";
 
 /**
  * A transport-agnostic view of one turn's worth of output from `query()` — the same
@@ -115,6 +115,23 @@ export interface AgentRun {
 }
 
 /**
+ * The SDK's sign-in methods for a remote MCP server behind OAuth, when its `Query` has them: they
+ * aren't in its typings (confirmed empirically, SDK 0.3.300; ADR-028), so each is checked first.
+ */
+function signInControls(result: object): Pick<SessionLive, "mcpAuthenticate" | "mcpSubmitOAuthCallbackUrl" | "mcpClearAuth"> {
+  const methods = result as Record<string, unknown>;
+  const call = (name: string) => (typeof methods[name] === "function" ? (...args: unknown[]) => (methods[name] as (...a: unknown[]) => Promise<unknown>).apply(result, args) : undefined);
+  const authenticate = call("mcpAuthenticate");
+  const submit = call("mcpSubmitOAuthCallbackUrl");
+  const clear = call("mcpClearAuth");
+  return {
+    ...(authenticate ? { mcpAuthenticate: (server: string) => authenticate(server) as Promise<McpAuthentication> } : {}),
+    ...(submit ? { mcpSubmitOAuthCallbackUrl: (server: string, callbackUrl: string) => submit(server, callbackUrl) } : {}),
+    ...(clear ? { mcpClearAuth: (server: string) => clear(server) } : {}),
+  };
+}
+
+/**
  * Thin wrapper around the SDK's own `query()`: same two-argument shape (a plain string
  * for a one-shot run, or an `AsyncIterable<SDKUserMessage>` — see `createInputQueue()` —
  * for a multi-turn chat), translating its raw message stream into `AgentEvent`s as
@@ -133,6 +150,7 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
     reloadPlugins: () => result.reloadPlugins(),
     reconnectMcpServer: (server) => result.reconnectMcpServer(server),
     mcpServerStatus: () => result.mcpServerStatus(),
+    ...signInControls(result),
   });
 
   // The main agent's tool calls by id, to name the results that come back for them.

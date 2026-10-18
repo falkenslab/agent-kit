@@ -73,6 +73,8 @@ export interface LiveExtension {
   capabilities: ExtensionCapability[];
   /** What it can't do on this computer (#63). */
   unavailable: UnavailableCapability[];
+  /** Its remote servers, by session name (#61): their options apply when the session opens, and they may need signing in. */
+  remoteServers: string[];
   help: string[];
 }
 
@@ -139,6 +141,9 @@ export function createExtensionRestart(extensions: readonly LiveExtension[], tar
     const extension = extensions.find((candidate) => candidate.name === name);
     const reconnect = targets.controls().reconnectMcpServer;
     if (!extension || !reconnect || !extension.servers.length) return false;
+    // A remote server's URL and headers are fixed when the session opens: restarting it would keep
+    // the old values (#61), so its options take opening the session again.
+    if (extension.remoteServers.length) return false;
     try {
       for (const server of extension.servers) await reconnect(server);
       return true;
@@ -146,6 +151,87 @@ export function createExtensionRestart(extensions: readonly LiveExtension[], tar
       // Turned off in the session: it starts with them when it's turned on again.
       return false;
     }
+  };
+}
+
+/** Where signing in to an extension's remote servers stands (#61). */
+export type SignIn =
+  /** Its servers are connected: nothing to sign in to. */
+  | { status: "signed-in" }
+  /** The links the person opens to sign in, one per server that needs it. */
+  | { status: "open"; links: { server: string; url: string }[] }
+  /** It isn't running in this session, has no remote server, or the SDK can't sign in. */
+  | { status: "unavailable"; reason: "not-running" | "not-remote" | "unsupported" };
+
+/** Signing in to installed extensions' remote servers, and out (#61). */
+export interface ExtensionAuth {
+  /** The running extensions whose remote servers need the person to sign in. */
+  needed(): Promise<string[]>;
+  /**
+   * Starts signing in to `name`'s servers that need it, giving the links to open: the SDK's CLI
+   * waits for the browser at its localhost callback. With `callbackUrl` (the address the browser
+   * ended on, pasted from another computer), finishes it instead, and reconnects.
+   */
+  signIn(name: string, callbackUrl?: string): Promise<SignIn>;
+  /** Whether all of `name`'s remote servers are connected, waiting up to `timeoutMs` for it. */
+  connected(name: string, timeoutMs?: number): Promise<boolean>;
+  /** Signs out of `name`'s remote servers; false when it can't be done here. */
+  signOut(name: string): Promise<boolean>;
+}
+
+/** Signing in and out for a session's installed extensions. */
+export function createExtensionAuth(extensions: readonly LiveExtension[], targets: Pick<LiveTargets, "controls">): ExtensionAuth {
+  const remote = (name: string) => extensions.find((candidate) => candidate.name === name)?.remoteServers ?? [];
+  const statuses = async (): Promise<Map<string, string>> => {
+    const status = targets.controls().mcpServerStatus;
+    return new Map(status ? (await status().catch(() => [])).map((server) => [server.name, server.status]) : []);
+  };
+  return {
+    async needed() {
+      const now = await statuses();
+      return extensions.filter((extension) => extension.remoteServers.some((server) => now.get(server) === "needs-auth")).map((extension) => extension.name);
+    },
+    async signIn(name, callbackUrl) {
+      const extension = extensions.find((candidate) => candidate.name === name);
+      if (!extension) return { status: "unavailable", reason: "not-running" };
+      if (!extension.remoteServers.length) return { status: "unavailable", reason: "not-remote" };
+      const controls = targets.controls();
+      const now = await statuses();
+      const pending = extension.remoteServers.filter((server) => now.get(server) === "needs-auth");
+      if (!pending.length) return { status: "signed-in" };
+      if (callbackUrl) {
+        if (!controls.mcpSubmitOAuthCallbackUrl || !controls.reconnectMcpServer) return { status: "unavailable", reason: "unsupported" };
+        // A pasted callback stores the token, but the session stays needs-auth until the server
+        // reconnects (confirmed empirically, CLI 2.1.300).
+        for (const server of pending) {
+          await controls.mcpSubmitOAuthCallbackUrl(server, callbackUrl);
+          await controls.reconnectMcpServer(server);
+        }
+        return (await this.connected(name, 5000)) ? { status: "signed-in" } : { status: "open", links: [] };
+      }
+      if (!controls.mcpAuthenticate) return { status: "unavailable", reason: "unsupported" };
+      const links: { server: string; url: string }[] = [];
+      for (const server of pending) {
+        const started = await controls.mcpAuthenticate(server);
+        if (started.authUrl) links.push({ server, url: started.authUrl });
+      }
+      return { status: "open", links };
+    },
+    async connected(name, timeoutMs = 0) {
+      const servers = remote(name);
+      for (const start = Date.now(); ; await new Promise((resolve) => setTimeout(resolve, 500))) {
+        const now = await statuses();
+        if (servers.length && servers.every((server) => now.get(server) === "connected")) return true;
+        if (Date.now() - start >= timeoutMs) return false;
+      }
+    },
+    async signOut(name) {
+      const servers = remote(name);
+      const clear = targets.controls().mcpClearAuth;
+      if (!servers.length || !clear) return false;
+      for (const server of servers) await clear(server);
+      return true;
+    },
   };
 }
 

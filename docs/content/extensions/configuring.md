@@ -47,6 +47,7 @@ The kit's launcher reads the values when it starts a server, so a change reaches
 - **From the chat** (`/extensions config`, or a settings form), the extension's servers restart in the same session (`reconnectMcpServer()`: a new process with the values as they are now), and the model is told with the next message. A call running at that moment fails.
 - **From another terminal** (`extension config`), the change applies when its server starts again: a new session, or `/extensions disable` and `enable` in the chat.
 - A session the agent builds itself gets `restartExtension(name)` from `buildSessionOptions()`, which returns `false` when it can't be done in that session.
+- **A [remote server](writing.md#a-remote-server)'s options** go into its URL and headers when the session opens, and restarting it wouldn't change them: changing one opens the session again, keeping the conversation (`restartExtension()` returns `false` for it).
 
 ## What isn't configuration
 

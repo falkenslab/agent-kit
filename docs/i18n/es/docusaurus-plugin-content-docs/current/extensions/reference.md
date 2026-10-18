@@ -67,6 +67,8 @@ Tal como lo lee Claude Code (o en `mcpServers` dentro de `plugin.json`), con o s
 | `${user_config.KEY}` | El valor de una de sus opciones, leído cuando arranca el servidor. |
 | `${VAR}` | La variable de entorno propia del agente. |
 
+Un [servidor remoto](writing.md#a-remote-server) lleva en su lugar `type` (`http` o `sse`), `url` y `headers`, con los mismos marcadores en `url` y `headers`, que toman su valor al abrir la sesión; una cabecera que nombra una opción sin valor no se envía. Su dirección tiene que ser `https` (`http` solo en `localhost`), y la sesión lo llama `<extensión>-<servidor>`.
+
 ## Fuentes de un marketplace {#marketplace-sources}
 
 El `source` de una entrada en `.claude-plugin/marketplace.json`, tal como los tiene Claude Code; el kit instala:
@@ -130,6 +132,7 @@ Una extensión activada no se ejecuta, y el prompt y `/extensions` dicen por qu�
 - un programa que [requiere](writing.md#programs-it-needs) para toda la extensión no está en el `PATH`, o es más antiguo que su `min` (uno que solo necesitan algunas capacidades deja apagadas esas en su lugar, y la extensión se ejecuta);
 - un requisito no se puede comprobar de forma segura (un programa dado como ruta, un argumento de versión que no es una opción) o es para una capacidad que no proporciona;
 - un servidor no es de Node ni de npx con una versión exacta, no tiene script donde dice, o su paquete de npx no está en la caché;
+- la dirección de un servidor remoto no es `https` (`http` solo en `localhost`);
 - un servidor nombra un `${user_config.KEY}` que su `userConfig` no declara, o una opción obligatoria no tiene valor;
 - su `userConfig` tiene una opción con un campo desconocido;
 - una capacidad nombra una skill que no tiene, o dos tienen el mismo id;

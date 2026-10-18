@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { HookCallbackMatcher, HookEvent, Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { HookCallbackMatcher, HookEvent, McpServerStatus, Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { createTranscriptLogger, type TranscriptLogger } from "./hooks/transcriptLogger.js";
 import { createStepGate } from "./hooks/stepGate.js";
 import { createSubagentBashGate } from "./hooks/subagentBashGate.js";
@@ -25,7 +25,7 @@ import { replyLanguageInstruction, type Language } from "./language.js";
 import { chooseLanguage } from "./messages/index.js";
 import { createRunStore, type RunFolder } from "./runs.js";
 import { createSessionView, registerSessionView, type SessionView, type StaticSessionFacts } from "./sessionFacts.js";
-import { createExtensionRestart, createExtensionSwitch, mountPlugin, type ExtensionRestart, type ExtensionSwitch } from "./liveExtensions.js";
+import { createExtensionAuth, createExtensionRestart, createExtensionSwitch, mountPlugin, type ExtensionAuth, type ExtensionRestart, type ExtensionSwitch } from "./liveExtensions.js";
 import { secretsDir } from "./extensionOptions.js";
 import { createElicitationHandler } from "./elicitation.js";
 import { createReadOnlyHints } from "./readOnlyHints.js";
@@ -72,6 +72,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   switchExtension: ExtensionSwitch;
   /** Restarts an installed extension's servers in the running session, with its options as they are now (#55). */
   restartExtension: ExtensionRestart;
+  /** Signing in to installed extensions' remote servers, and out (#61). */
+  extensionAuth: ExtensionAuth;
 }> {
   const { mode } = config;
   // The kit's language (`--language`, then config.language, then the system's), chosen here
@@ -400,6 +402,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     active: resolved.active.map(({ extension }) => extension.name),
     about: Object.fromEntries(resolved.active.map(({ extension, manifest, unavailable }, index) => [extension.name, aboutExtension(manifest, Object.keys(added[index]?.mcpServers ?? {}), language, unavailable)])),
     sessionTools: () => late.view?.controls().tools ?? [],
+    serverStatus: async () => (await late.view?.controls().mcpServerStatus?.().catch(() => [])) ?? [],
     inactive: resolved.inactive,
   };
   // What the session is, for the extensions that ask (sessionFacts.ts, #43).
@@ -446,6 +449,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
         provides: manifest.provides,
         capabilities: manifest.capabilities,
         unavailable,
+        remoteServers: contribution?.remoteServers ?? [],
         help: contribution?.helpLines ?? [],
       },
     ];
@@ -453,8 +457,9 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const liveTargets = { readOnlyTools, allowedSubagentTypes, toolLabels, status: extensions, facts: viewBase, controls: () => late.view?.controls() ?? {} };
   const switchExtension = createExtensionSwitch(liveExtensions, liveTargets);
   const restartExtension = createExtensionRestart(liveExtensions, liveTargets);
+  const extensionAuth = createExtensionAuth(liveExtensions, liveTargets);
   const apis = Object.fromEntries(resolved.active.flatMap(({ extension }, index) => (added[index]?.api ? [[extension.name, added[index]!.api!]] : [])));
-  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, apis, switchExtension, restartExtension };
+  return { options: sdkOptions, transcriptLogger, transcriptPath, modeControl, language, toolLabels, extensions, apis, switchExtension, restartExtension, extensionAuth };
 }
 
 export { createModeControl, togglePlanMode, type ModeControl } from "./modeControl.js";
@@ -476,6 +481,8 @@ export interface ExtensionsStatus {
   inactive: { name: string; reason: string }[];
   /** The running session's tools, as the model names them (empty until it has started): what a capability's tools are checked against. */
   sessionTools?: () => readonly string[];
+  /** Its MCP servers as they are now (empty until it has started): which remote ones need signing in (#61). */
+  serverStatus?: () => Promise<McpServerStatus[]>;
 }
 
 /** The Claude Code configuration folder the SDK's CLI uses: `CLAUDE_CONFIG_DIR`, or `~/.claude`. */

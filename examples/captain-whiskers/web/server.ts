@@ -154,6 +154,7 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
             topics: entry.topics,
             capabilities: entry.capabilities,
             requirements: entry.requirements,
+            remote: entry.remote,
             logo: Boolean(entry.logo),
             banner: Boolean(entry.banner),
           })),

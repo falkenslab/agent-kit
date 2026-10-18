@@ -38,13 +38,23 @@ export function describeCapabilities(status: ExtensionsStatus): string[] {
   });
 }
 
+/** The running extensions whose remote servers need the person to sign in (#61). */
+async function needingSignIn(status: ExtensionsStatus): Promise<string[]> {
+  const waiting = new Set((await status.serverStatus?.().catch(() => []))?.filter((server) => server.status === "needs-auth").map((server) => server.name));
+  if (!waiting.size) return [];
+  return status.active.filter((name) => status.about[name]?.servers.some((server) => waiting.has(server)));
+}
+
 /** What the chat does for `/extensions install|update|remove|reload` (#56). */
 export type ExtensionAction =
   | { type: "install"; spec: string; confirmed: boolean }
   | { type: "update"; name?: string }
   | { type: "remove"; name: string; deleteData: boolean }
   | { type: "reload" }
-  | { type: "trust" };
+  | { type: "trust" }
+  /** Signing in to an extension's remote servers (#61), or finishing it with the callback URL pasted from another computer. */
+  | { type: "sign-in"; name: string; callbackUrl?: string }
+  | { type: "sign-out"; name: string };
 
 /** One line for a catalog entry: what installs it, its version, whether it's installed or has an update, what it is. */
 export function describeEntry(entry: CatalogEntry): string {
@@ -89,6 +99,9 @@ export async function chatExtensionsCommand(
   if (verb === "remove" && name) return canReopen ? { lines: [], action: { type: "remove", name, deleteData: extra.includes("--delete-data") } } : { lines: [t().extensionsCantReopen] };
   if (verb === "reload" && !name) return canReopen ? { lines: [], action: { type: "reload" } } : { lines: [t().extensionsCantReopen] };
   if (verb === "trust" && !name) return canReopen ? { lines: [], action: { type: "trust" } } : { lines: [t().extensionsCantReopen] };
+  // Signing in happens in the running session: no reopening (#61).
+  if (verb === "sign-in" && name) return { lines: [], action: { type: "sign-in", name, ...(extra[0] ? { callbackUrl: extra[0] } : {}) } };
+  if (verb === "sign-out" && name) return { lines: [], action: { type: "sign-out", name } };
   if (action?.toLowerCase() === "config" && name) {
     const installed = (status?.installed ?? []).find((extension) => extension.name === name && !extension.shadowed);
     if (!installed) return { lines: [t().extensionNotInstalled(name)] };
@@ -113,7 +126,7 @@ export async function chatExtensionsCommand(
   }
   if (!action) {
     const lines = [status?.active.length ? t().extensionsRunning(status.active.join(", ")) : t().extensionsNone];
-    if (status) lines.push(...describeCapabilities(status));
+    if (status) lines.push(...describeCapabilities(status), ...(await needingSignIn(status)).map((extension) => t().extensionNeedsSignIn(extension)));
     for (const { name: off, reason } of status?.inactive ?? []) lines.push(t().extensionOff(off, reason));
     if (status?.installed.length) lines.push(t().extensionsInstalled, ...status.installed.map((extension) => `  ${describe(extension)}`));
     return { lines };

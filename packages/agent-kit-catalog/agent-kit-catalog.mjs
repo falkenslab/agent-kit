@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @falkenslab/agent-kit-catalog: a Claude Code marketplace's extensions as one file, catalog.json — each
 // one's name, version, description (and per language), topics, category, author, links (READMEs per language), install
-// commands, capabilities, requirements and images
+// commands, capabilities, requirements, the remote hosts it talks to, and images
 // (as raw.githubusercontent.com URLs) — from .claude-plugin/marketplace.json and each extension's
 // plugin.json. A page or a client shows the marketplace from it without cloning the repository.
 // No dependencies: it runs with npx in any CI.
@@ -132,6 +132,28 @@ export function metadataProblems(kit) {
   return problems;
 }
 
+/**
+ * The hosts an extension's remote MCP servers talk to (type http or sse), where Claude Code looks for
+ * its servers: plugin.json's mcpServers (inline, or a path to a JSON file), else .mcp.json.
+ */
+async function remoteHostsOf(dir, manifest) {
+  let declared = manifest.mcpServers;
+  if (typeof declared === "string") declared = await readJson(path.join(dir, declared)).catch(() => undefined);
+  if (declared === undefined) declared = await readJson(path.join(dir, ".mcp.json")).catch(() => undefined);
+  if (declared && typeof declared === "object" && "mcpServers" in declared) declared = declared.mcpServers;
+  if (!declared || typeof declared !== "object") return [];
+  const hosts = new Set();
+  for (const server of Object.values(declared)) {
+    if (!server || (server.type !== "http" && server.type !== "sse") || typeof server.url !== "string") continue;
+    try {
+      hosts.add(new URL(server.url.replace(/\$\{[^}]*\}/g, "x")).host);
+    } catch {
+      hosts.add(server.url);
+    }
+  }
+  return [...hosts];
+}
+
 /** owner/name of the repository the catalog's links point to. */
 async function repositoryOf(root, marketplace, given) {
   if (given) return given;
@@ -223,6 +245,7 @@ export async function buildCatalog(root, options = {}) {
       install: { claudeCode: `claude plugin install ${entry.name}@${marketplace.name}`, agentKit: `extension add ${entry.name}@${marketplace.name}` },
       ...(Array.isArray(kit?.capabilities) && kit.capabilities.length ? { capabilities: kit.capabilities } : {}),
       ...(Array.isArray(kit?.requirements) && kit.requirements.length ? { requirements: kit.requirements } : {}),
+      ...((remote) => (remote.length ? { remote } : {}))(await remoteHostsOf(path.join(root, folder), manifest)),
       ...(logo ? { logo } : {}),
       ...(banner ? { banner } : {}),
     });

@@ -1,7 +1,7 @@
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { addExtension, codeStoreDir, hashExtension, inKitRange, installTarget, isGitSource, listInstalled, readExternalManifest, readLock, storedCodeDir, type ExtensionDirs, type ExtensionScope, type InstalledExtension } from "./externalExtensions.js";
+import { addExtension, remoteHosts, codeStoreDir, hashExtension, inKitRange, installTarget, isGitSource, listInstalled, readExternalManifest, readLock, storedCodeDir, type ExtensionDirs, type ExtensionScope, type InstalledExtension } from "./externalExtensions.js";
 import { cachePackage, cachedPackageDir } from "./npxPackages.js";
 import { trustWorkspace } from "./workspaceTrust.js";
 import { describeCapability, describeInLanguage, type DescribedCapability } from "./extensions.js";
@@ -73,6 +73,8 @@ export interface CatalogEntry {
   capabilities: DescribedCapability[];
   /** The programs it needs on the computer (#63), by name ("Docker"), with the capabilities that need them (none: all of it). */
   requirements: { name: string; for: string[] }[];
+  /** The hosts its remote servers talk to (#61): what the agent sends there leaves the computer. */
+  remote: string[];
 }
 
 /** The images a catalog shows: these types only. */
@@ -86,7 +88,7 @@ const IMAGE = /\.(svg|png|jpe?g|webp)$/i;
 async function offered(
   marketplace: KnownMarketplace,
   plugin: MarketplacePlugin,
-): Promise<{ version?: string; keywords: string[]; logo?: string; banner?: string; capabilities: DescribedCapability[]; requirements: CatalogEntry["requirements"]; description: string }> {
+): Promise<{ version?: string; keywords: string[]; logo?: string; banner?: string; capabilities: DescribedCapability[]; requirements: CatalogEntry["requirements"]; description: string; remote: string[] }> {
   try {
     const resolved = resolvePluginSource(marketplace, plugin);
     if ("source" in resolved && !isGitSource(resolved.source) && (await stat(resolved.source).catch(() => null))?.isDirectory()) {
@@ -102,12 +104,13 @@ async function offered(
       const capabilities = (manifest?.capabilities ?? []).map((capability) => describeCapability(capability, getLanguage()));
       const requirements = (manifest?.requirements ?? []).map((requirement) => ({ name: requirement.name, for: requirement.for }));
       const description = describeInLanguage(plugin.description ?? manifest?.description ?? "", manifest?.descriptions, getLanguage());
-      return { ...(version ? { version } : {}), keywords: manifest?.keywords ?? [], ...(logo ? { logo } : {}), ...(banner ? { banner } : {}), capabilities, requirements, description };
+      const remote = manifest ? remoteHosts(manifest) : [];
+      return { ...(version ? { version } : {}), keywords: manifest?.keywords ?? [], ...(logo ? { logo } : {}), ...(banner ? { banner } : {}), capabilities, requirements, description, remote };
     }
   } catch {
     // A source the kit doesn't install: the entry's own fields.
   }
-  return { ...(plugin.version ? { version: plugin.version } : {}), keywords: [], capabilities: [], requirements: [], description: plugin.description ?? "" };
+  return { ...(plugin.version ? { version: plugin.version } : {}), keywords: [], capabilities: [], requirements: [], description: plugin.description ?? "", remote: [] };
 }
 
 /** Whether `offered` is newer than `installed` (x.y.z); a version that can't be compared isn't. */
@@ -148,6 +151,7 @@ export async function extensionCatalog(dirs: ExtensionDirs, options: { official?
         ...(look.banner ? { banner: look.banner } : {}),
         capabilities: look.capabilities,
         requirements: look.requirements,
+        remote: look.remote,
       });
     }
   }
@@ -171,7 +175,7 @@ export async function installExtension(
   dirs: ExtensionDirs,
   spec: string,
   options: { scope?: ExtensionScope; official?: string } = {},
-): Promise<{ name: string; scope: ExtensionScope; replaced: boolean; marketplace: string; commit?: string; missing: string[] }> {
+): Promise<{ name: string; scope: ExtensionScope; replaced: boolean; marketplace: string; commit?: string; missing: string[]; remote: string[] }> {
   const scope = options.scope ?? (dirs.agent ? "agent" : "project");
   const scopeDir = dirs[scope];
   if (!scopeDir) throw new Error(`This agent has no ${scope} scope for extensions.`);

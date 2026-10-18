@@ -75,6 +75,20 @@ export interface Messages {
   extensionInstalled(name: string): string;
   /** After installing: a program it needs that this computer lacks (#63); `what` is the reason, in English. */
   extensionLacks(name: string, what: string): string;
+  /** After installing one with remote servers (#61): the hosts it talks to. */
+  extensionTalksTo(name: string, hosts: string): string;
+  /** In /extensions: a running extension whose remote server needs the person to sign in. */
+  extensionNeedsSignIn(name: string): string;
+  /** The link to sign in to an extension's remote server. */
+  extensionSignInOpen(name: string, url: string): string;
+  /** How to finish signing in from another computer. */
+  extensionSignInPaste(name: string): string;
+  extensionSignedIn(name: string): string;
+  /** Signing in hasn't finished after a while. */
+  extensionSignInWaiting(name: string): string;
+  extensionAlreadySignedIn(name: string): string;
+  extensionSignInUnavailable(name: string): string;
+  extensionSignedOut(name: string): string;
   extensionUpdated(name: string, from: string, to: string): string;
   extensionsUpToDate: string;
   extensionRemoved(name: string, withData: boolean): string;
@@ -227,7 +241,7 @@ export const en: Messages = {
   extensionSwitched: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}, in this same session)`,
   extensionToggled: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}: the session reopens, with the same conversation)`,
   extensionNotInstalled: (name) => `(${name} isn't installed: /extensions lists them)`,
-  extensionsUsage: "(usage: /extensions, enable|disable <name>, config <name> [key=value…], search [words], install <name>, update [name], remove <name> [--delete-data], reload, trust)",
+  extensionsUsage: "(usage: /extensions, enable|disable <name>, config <name> [key=value…], search [words], install <name>, update [name], remove <name> [--delete-data], reload, trust, sign-in <name> [callback URL], sign-out <name>)",
   extensionsCantReopen: "(this chat can't reopen its session: enable or disable it from the terminal, and start again)",
   extensionOptions: (name) => `${name}'s options:`,
   extensionNoOptions: (name) => `(${name} has no options)`,
@@ -244,6 +258,15 @@ export const en: Messages = {
   extensionUpdateAvailable: (installed) => `(installed: ${installed}, update available)`,
   extensionInstalled: (name) => `(${name} installed: it's there in a new conversation, or now with /extensions reload, keeping this one)`,
   extensionLacks: (name, what) => `(${name} ${what})`,
+  extensionTalksTo: (name, hosts) => `(${name} talks to ${hosts}: what your agent sends there leaves this computer)`,
+  extensionNeedsSignIn: (name) => `${name} needs you to sign in: /extensions sign-in ${name}`,
+  extensionSignInOpen: (name, url) => `(to sign in to ${name}, open ${url} : when you're done there, it's connected here)`,
+  extensionSignInPaste: (name) => `(on another computer? Paste the address the browser ends on: /extensions sign-in ${name} <that address>)`,
+  extensionSignedIn: (name) => `(signed in to ${name}: its tools are ready)`,
+  extensionSignInWaiting: (name) => `(still waiting for the sign-in to ${name}; /extensions sign-in ${name} gives the link again)`,
+  extensionAlreadySignedIn: (name) => `(${name} is already signed in)`,
+  extensionSignInUnavailable: (name) => `(${name} can't be signed in to here: it isn't running in this session, has no remote server, or this agent's SDK can't sign in)`,
+  extensionSignedOut: (name) => `(signed out of ${name}: it will ask you to sign in again)`,
   extensionUpdated: (name, from, to) => `(${name} updated, ${from} → ${to}: it's there in a new conversation, or now with /extensions reload)`,
   extensionsUpToDate: "(every extension from a marketplace is up to date)",
   extensionRemoved: (name, withData) => `(${name} removed${withData ? ", with its data" : "; its data is kept for a reinstall"})`,

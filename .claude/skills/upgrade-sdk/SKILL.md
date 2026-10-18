@@ -34,6 +34,7 @@ Check each against the new typings and, where possible, by running a small scrip
 - `PreToolUse` hook input carries `agent_id` only for subagent calls (`subagentBashGate.ts`).
 - `SessionStore` (`@alpha`, ADR-020): `append(key, entries)`, `load(key)` before resuming and `listSubkeys()` for subagent transcripts keep their shape; a session resumed with `resume` + `sessionStore` keeps its id and remembers the conversation with the CLI's own copy deleted (`src/core/runs.ts`).
 - `settingSources: ["project"]` keeps the runner's `~/.claude/settings.json` out, and the runner's auto-memory still needs `settings.autoMemoryEnabled: false` to stay out (ADR-018).
+- Remote MCP servers' sign-in (ADR-028): the `Query` still has `mcpAuthenticate(name)` (returning `authUrl`), `mcpSubmitOAuthCallbackUrl(name, url)` and `mcpClearAuth(name)`, still undocumented or now in `sdk.d.ts` (then use their types); an OAuth server reports `needs-auth`; an `Authorization` header still turns OAuth off. `test/core/remoteServers.test.ts` runs the whole flow against a local fake OAuth server.
 
 If a behavior changed, adapt the code and its comment (update the "confirmed empirically" note with the version it was re-confirmed on, or remove it if no longer true), and add a test when it can be tested without a live model.
 

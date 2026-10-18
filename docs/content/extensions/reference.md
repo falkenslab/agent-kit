@@ -67,6 +67,8 @@ As Claude Code reads it (or under `mcpServers` in `plugin.json`), with or withou
 | `${user_config.KEY}` | One of its options' value, read when the server starts. |
 | `${VAR}` | The agent's own environment variable. |
 
+A [remote server](writing.md#a-remote-server) is `type` (`http` or `sse`), `url` and `headers` instead, the same placeholders taken in `url` and `headers` when the session opens; a header naming an option without a value isn't sent. Its address must be `https` (`http` only on `localhost`), and the session names it `<extension>-<server>`.
+
 ## Marketplace sources
 
 An entry's `source` in `.claude-plugin/marketplace.json`, as Claude Code has them; the kit installs:
@@ -130,6 +132,7 @@ An enabled extension doesn't run, and the prompt and `/extensions` say why, when
 - a program it [requires](writing.md#programs-it-needs) for the whole extension isn't on the `PATH`, or is older than its `min` (one only some capabilities need keeps those off instead, and the extension runs);
 - a requirement can't be checked safely (a program given as a path, a version argument that isn't an option) or is for a capability it doesn't provide;
 - a server isn't Node or npx with an exact version, has no script where it says, or its npx package isn't in the cache;
+- a remote server's address isn't `https` (`http` only on `localhost`);
 - a server names `${user_config.KEY}` its `userConfig` doesn't declare, or a required option has no value;
 - its `userConfig` has an option with an unknown field;
 - a capability names a skill it doesn't have, or two have the same id;

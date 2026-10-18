@@ -45,7 +45,7 @@ A topic is any word an extension is about or for, lowercased: `weather`, `moodle
 
 ## The catalog file
 
-Outside an agent, a marketplace shows its extensions from one file, `catalog.json` at its root: each extension's name, version, description (and `descriptions` per language, when it has other than English), topics, category, author, links, install commands, its READMEs per language (`readmes`, when it has a `README.es.md` or another), its [capabilities](overview.md#capabilities) (every language it gives, for the page to choose), the programs it [needs](writing.md#programs-it-needs) on the computer, and its logo and banner as URLs anyone can load. A page draws a grid from it, and any client reads it without cloning the repository. Agents don't need it: their catalog reads the marketplace's copy.
+Outside an agent, a marketplace shows its extensions from one file, `catalog.json` at its root: each extension's name, version, description (and `descriptions` per language, when it has other than English), topics, category, author, links, install commands, its READMEs per language (`readmes`, when it has a `README.es.md` or another), its [capabilities](overview.md#capabilities) (every language it gives, for the page to choose), the programs it [needs](writing.md#programs-it-needs) on the computer, the hosts its [remote servers](writing.md#a-remote-server) talk to (`remote`), and its logo and banner as URLs anyone can load. A page draws a grid from it, and any client reads it without cloning the repository. Agents don't need it: their catalog reads the marketplace's copy.
 
 `@falkenslab/agent-kit-catalog` writes it, with no dependencies:
 

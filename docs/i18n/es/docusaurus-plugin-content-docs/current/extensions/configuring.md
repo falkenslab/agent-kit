@@ -47,6 +47,7 @@ El lanzador del kit lee los valores cuando arranca un servidor, así que un camb
 - **Desde el chat** (`/extensions config`, o un formulario de ajustes), los servidores de la extensión se reinician en la misma sesión (`reconnectMcpServer()`: un proceso nuevo con los valores tal como están ahora), y al modelo se le avisa con el siguiente mensaje. Una llamada en curso en ese momento falla.
 - **Desde otro terminal** (`extension config`), el cambio se aplica cuando su servidor vuelve a arrancar: una sesión nueva, o `/extensions disable` y `enable` en el chat.
 - Una sesión que el agente construye por su cuenta recibe `restartExtension(name)` de `buildSessionOptions()`, que devuelve `false` cuando no se puede hacer en esa sesión.
+- **Las opciones de un [servidor remoto](writing.md#a-remote-server)** van en su URL y sus cabeceras al abrir la sesión, y reiniciarlo no las cambiaría: cambiar una vuelve a abrir la sesión, conservando la conversación (`restartExtension()` devuelve `false` para él).
 
 ## Lo que no es configuración {#what-isnt-configuration}
 

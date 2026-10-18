@@ -82,7 +82,7 @@ Las funciones detrás del comando también se exportan, para un host con su prop
 
 Lo que ofrecen los marketplaces del agente es su catálogo, en el comando (`search`, `add`, `update`) y en los chats, así que una persona sin shell (una app de escritorio) también instala y actualiza extensiones.
 
-- **Lo que lista**: cada extensión con su descripción en el idioma del kit (la suya en ese idioma, si no la inglesa), la versión que ofrece (la de su `plugin.json`, que prevalece sobre la entrada del marketplace, como en Claude Code), si está instalada, si una instalada desde ese marketplace tiene allí una versión más nueva, sus **topics**, su **aspecto**, lo que permite hacer al agente (sus [capacidades](overview.md#capabilities), en el idioma del kit, que la búsqueda también tiene en cuenta) y los programas que [necesita](writing.md#programs-it-needs) en el ordenador ("Needs Docker").
+- **Lo que lista**: cada extensión con su descripción en el idioma del kit (la suya en ese idioma, si no la inglesa), la versión que ofrece (la de su `plugin.json`, que prevalece sobre la entrada del marketplace, como en Claude Code), si está instalada, si una instalada desde ese marketplace tiene allí una versión más nueva, sus **topics**, su **aspecto**, lo que permite hacer al agente (sus [capacidades](overview.md#capabilities), en el idioma del kit, que la búsqueda también tiene en cuenta) y los programas que [necesita](writing.md#programs-it-needs) en el ordenador ("Needs Docker") y los hosts con los que hablan sus [servidores remotos](writing.md#a-remote-server).
 - **Topics**: de qué trata y para quién es, a partir de los campos propios de Claude Code: los `keywords` de su `plugin.json`, y los `tags`, `keywords` y `category` de su entrada en el marketplace, en minúsculas. Un público es un topic como cualquier otro (`"miyagi"`), y la búsqueda también tiene en cuenta los topics.
 - **Lo que ofrece un agente**: `catalogTopics` en su configuración limita el catálogo de sus chats, y `extension search`, a las extensiones con alguno de ellos; sin él, todas. Lo que ya está instalado se lista sean cuales sean sus topics, y se actualiza igual.
 - **Su aspecto**: un `logo` (cuadrado) y un `banner` (ancho), que declara la extensión ([Escribir una](writing.md#6-its-look-in-a-catalog)). El catálogo los da como ficheros de la copia del marketplace; un host los sirve a su página (el `extensionImage(spec, kind)` del controlador del chat).
@@ -106,6 +106,8 @@ La app web y de escritorio de Captain Whiskers lo muestran como un panel lateral
 | `/extensions update [name]` | Actualiza una, o todas las que tienen una versión más nueva. |
 | `/extensions remove <name>` | Desinstala una (`--delete-data` para borrar sus datos). |
 | `/extensions reload` | Vuelve a abrir la sesión con lo que está instalado ahora, conservando la conversación. |
+| `/extensions sign-in <nombre> [dirección]` | Inicia sesión en sus [servidores remotos](writing.md#a-remote-server) detrás de OAuth: da el enlace que abrir y avisa cuando termina; con la dirección en la que acabó un navegador de otro ordenador, lo completa. `/extensions` lista quién lo necesita. |
+| `/extensions sign-out <nombre>` | Cierra la sesión en sus servidores remotos. |
 | `/extensions trust` | Confía en las extensiones del [workspace](workspaces.md); una sesión que se abre con alguna en la que no se confía pregunta antes. |
 
 El chat debe tener un abridor de sesión (`runChatInk()` con uno, o el controlador del chat con uno) para aplicar un cambio.

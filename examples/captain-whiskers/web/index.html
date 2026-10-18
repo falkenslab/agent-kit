@@ -1333,6 +1333,7 @@ function openEntry(entry) {
     if (entry.capabilities?.length)
       dialog.insertAdjacentHTML("beforeend", `<div class="can"><h3>${escape(T.canDo)}</h3><ul>${entry.capabilities.map(({ label, description }) => `<li><b>${escape(label)}</b>${description ? `: ${escape(description)}` : ""}</li>`).join("")}</ul></div>`);
     if (entry.requirements?.length) dialog.insertAdjacentHTML("beforeend", `<div class="needs">${escape(T.needs(entry.requirements.map(({ name }) => name).join(", ")))}</div>`);
+    if (entry.remote?.length) dialog.insertAdjacentHTML("beforeend", `<div class="needs">${escape(T.talksTo(entry.remote.join(", ")))}</div>`);
     if (entry.topics?.length) dialog.insertAdjacentHTML("beforeend", `<div class="tags">${entry.topics.map((topic) => `<span class="tag">${escape(topic)}</span>`).join("")}</div>`);
     const row = document.createElement("div");
     row.className = "actions";

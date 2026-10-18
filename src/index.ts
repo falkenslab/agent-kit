@@ -21,7 +21,7 @@ export {
 export type { Mode, BaseSessionConfig, AgentSpec, AgentIdentity, PlanModeSpec } from "./core/agentSpec.js";
 export { buildSessionOptions, createInputQueue, createDeferred, createModeControl, togglePlanMode, type ModeControl, type ExtensionsStatus } from "./core/session.js";
 export { runQuery, type AgentEvent, type AgentRun, type SessionUsage, type ContextUsage } from "./core/runner.js";
-export type { SessionFacts } from "./core/sessionFacts.js";
+export type { McpAuthentication, SessionFacts } from "./core/sessionFacts.js";
 export { knowledgePluginRoot, knowledgePromptSection } from "./extensions/knowledge/prompt.js";
 export { awareness, type AwarenessOptions } from "./extensions/awareness/index.js";
 export { sources, type SourcesOptions } from "./extensions/sources/index.js";
@@ -60,12 +60,17 @@ export {
   type ExternalManifest,
   type ExternalToolLabel,
   type PluginServer,
+  type LocalServer,
+  type RemoteServer,
+  isRemoteServer,
+  remoteHosts,
+  remoteServerName,
   type InstalledExtension,
   type LockEntry,
   type ExtensionOptionState,
 } from "./core/externalExtensions.js";
 export type { ExtensionOption, OptionValue } from "./core/extensionOptions.js";
-export type { ExtensionRestart, ExtensionSwitch } from "./core/liveExtensions.js";
+export type { ExtensionAuth, ExtensionRestart, ExtensionSwitch, SignIn } from "./core/liveExtensions.js";
 export { packageCacheDir, type CachedPackage } from "./core/npxPackages.js";
 export {
   addMarketplace,

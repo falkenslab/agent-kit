@@ -53,6 +53,21 @@ export interface SessionLive {
   reconnectMcpServer?: (server: string) => Promise<void>;
   /** Its MCP servers as they are now: their tools and what each says of itself (plan mode's read-only hints). */
   mcpServerStatus?: () => Promise<McpServerStatus[]>;
+  /**
+   * Signing in to a remote server behind OAuth (#61): the SDK's `Query` has these, undocumented
+   * (in `sdk.mjs`, not in `sdk.d.ts`; confirmed empirically, SDK 0.3.300). Attached only when they
+   * exist, so a session whose SDK lacks them just can't sign in.
+   */
+  mcpAuthenticate?: (server: string) => Promise<McpAuthentication>;
+  mcpSubmitOAuthCallbackUrl?: (server: string, callbackUrl: string) => Promise<unknown>;
+  mcpClearAuth?: (server: string) => Promise<unknown>;
+}
+
+/** What starting a remote server's sign-in gives (the SDK's `mcpAuthenticate()`): the link for the person, and whether the CLI waits for its localhost callback. */
+export interface McpAuthentication {
+  authUrl?: string;
+  requiresUserAction?: boolean;
+  callbackExpected?: boolean;
 }
 
 /** The facts known when the options are built: everything but the mode and what only the running session knows. */

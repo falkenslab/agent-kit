@@ -161,6 +161,17 @@ export async function removeSecrets(scopeDir: string, name: string): Promise<voi
   await rm(extensionSecretsPath(scopeDir, name), { force: true });
 }
 
+/**
+ * `${user_config.KEY}` in `text` replaced by its value: a list comma-separated, none as empty, as
+ * the launcher does for a local server. The kit's own, for a remote server's URL and headers (#61).
+ */
+export function fillOptions(text: string, values: Record<string, OptionValue>): string {
+  return text.replace(/\$\{user_config\.([A-Za-z_][A-Za-z0-9_]*)\}/g, (_, key: string) => {
+    const value = values[key];
+    return value === undefined ? "" : Array.isArray(value) ? value.join(",") : String(value);
+  });
+}
+
 /** The `${user_config.KEY}` a server's values name. */
 export function optionsNamed(values: readonly string[]): string[] {
   return [...new Set(values.flatMap((value) => [...value.matchAll(/\$\{user_config\.([A-Za-z_][A-Za-z0-9_]*)\}/g)].map((match) => match[1]!)))];

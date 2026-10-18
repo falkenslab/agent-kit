@@ -16,6 +16,8 @@ import {
   installTarget,
   folderSize,
   isGitSource,
+  isRemoteServer,
+  remoteHosts,
   listInstalled,
   removeExtension,
   setExtensionEnabled,
@@ -155,8 +157,10 @@ export async function runExtensionCommand(
         // Installed into the workspace by the person: trusted there as it is.
         const trusted = async (name: string): Promise<void> => void (scope === "project" && (await trustWorkspace(options.dirs, [name])));
         // What it needs and this computer lacks (#63): said, never installed.
-        const lacking = (missing: readonly string[]): void => {
+        const lacking = (missing: readonly string[], remote: readonly string[] = []): void => {
           for (const line of missing) write(`It ${line}.`);
+          // Where what the agent sends goes (#61).
+          if (remote.length) write(`It talks to ${remote.join(", ")}: what the agent sends there leaves this computer.`);
         };
         // A plugin of a marketplace, unless it's a folder here or a git URL.
         const isFolder = await stat(path.resolve(source)).then((found) => found.isDirectory(), () => false);
@@ -166,7 +170,7 @@ export async function runExtensionCommand(
           await trusted(result.name);
           await configure(result.name, dir);
           write(`Linked ${result.name} in the ${scope} scope: it runs from ${path.resolve(source)}, whose files aren't checked. A rebuild takes effect when its server starts again (a new session, or \`/extensions disable\` and \`enable\` in the chat).`);
-          lacking(result.missing);
+          lacking(result.missing, result.remote);
           return true;
         }
         if (!isFolder && !isGitSource(source) && /^[A-Za-z0-9][\w.-]*(@[A-Za-z0-9][\w.-]*)?$/.test(source)) {
@@ -181,7 +185,7 @@ export async function runExtensionCommand(
           await trusted(result.name);
           await configure(result.name, dir);
           write(`${result.replaced ? "Reinstalled" : "Installed"} ${result.name} from ${result.marketplace} in the ${scope} scope (${dir})${result.commit ? `, at ${result.commit.slice(0, 12)}` : ""}. It's enabled: it runs from the next session.`);
-          lacking(result.missing);
+          lacking(result.missing, result.remote);
           return true;
         }
         const subdir = value("path");
@@ -189,7 +193,7 @@ export async function runExtensionCommand(
         await trusted(result.name);
         await configure(result.name, dir);
         write(`${result.replaced ? "Reinstalled" : "Installed"} ${result.name} in the ${scope} scope (${dir})${result.commit ? `, at ${result.commit.slice(0, 12)}` : ""}. It's enabled: it runs from the next session.`);
-        lacking(result.missing);
+        lacking(result.missing, result.remote);
         return true;
       }
       case "remove":
@@ -441,7 +445,9 @@ async function info(extension: InstalledExtension): Promise<string[]> {
         .map(([key, option]) => `${key} (${[option.title, option.required && "required", option.sensitive && "secret"].filter(Boolean).join(", ")})`)
         .join(", ") || undefined,
     ),
-    ...field("Variables", Object.values(manifest.servers).flatMap((server) => Object.keys(server.env ?? {})).join(", ") || undefined),
+    ...field("Variables", Object.values(manifest.servers).flatMap((server) => (isRemoteServer(server) ? [] : Object.keys(server.env ?? {}))).join(", ") || undefined),
+    // Where what the agent sends goes (#61): a remote server's host.
+    ...field("Talks to", remoteHosts(manifest).join(", ") || undefined),
     ...field("Installed", `${extension.scope} scope, ${extension.lock.enabled ? "enabled" : "disabled"}, on ${extension.lock.installed}, from ${describe(extension).split("  from ")[1]}`),
     ...field("Data", (await stat(extension.dataDir).catch(() => null))?.isDirectory() ? `${extension.dataDir} (${formatSize(await folderSize(extension.dataDir))})` : undefined),
     ...field("README", (await stat(readme).catch(() => null))?.isFile() ? readme : undefined),

@@ -329,6 +329,29 @@ Claude Code ejecuta ese `npx` tal cual. El kit no ejecuta npx (necesitaría npm,
 - **Su `bin`** es el único del paquete, o el que se llama como el paquete (`moodle-mcp` para `@falkenslab/moodle-mcp`), igual que lo elige npx.
 - **Actualizar el servidor** es una versión nueva en `.mcp.json` y una versión nueva de la extensión; las skills escritas para esa versión van en el mismo cambio.
 
+### Un servidor remoto {#a-remote-server}
+
+Un servidor puede ejecutarse en otro sitio, como un servicio, y alcanzarse por HTTP: no se instala ni se arranca nada en el ordenador. En `.mcp.json`, `type` (`http`, o `sse` para un servidor más antiguo) y `url`, con `headers` cuando recibe un token:
+
+```json title=".mcp.json"
+{
+  "mcpServers": {
+    "api": {
+      "type": "http",
+      "url": "https://mcp.example.com/mcp?site=${user_config.site}",
+      "headers": { "Authorization": "Bearer ${user_config.token}" }
+    }
+  }
+}
+```
+
+- **Su dirección** tiene que ser `https` (`http` solo en `localhost`, para un servidor en desarrollo); la instalación rechaza cualquier otra.
+- **Sus opciones** van en `url` y `headers` (`${user_config.KEY}`, `${VAR}`) cuando se abre la sesión: el SDK las fija entonces, así que un valor cambiado se aplica cuando la sesión vuelve a abrirse (`/extensions reload`). Una cabecera que nombra una opción sin valor no se envía, así que un token puede ser opcional: con `Authorization` puesta, el CLI no inicia sesión con OAuth.
+- **Su nombre en la sesión** es el de la extensión y el suyo, `<extensión>-<servidor>` (`mcp__campus-api__get_time`): el CLI guarda los tokens de inicio de sesión por nombre de servidor, y un nombre propio nunca recoge los tokens del propio Claude Code de quien lo ejecuta. Las etiquetas y las herramientas de solo lectura del manifiesto usan los nombres cortos de sus herramientas, como siempre.
+- **Iniciar sesión**: un servidor detrás de OAuth empieza necesitándolo. `/extensions` lo dice, y `/extensions sign-in <nombre>` (`signInExtension()` del controlador del chat) da a la persona el enlace que abrir; su navegador vuelve al CLI en este ordenador y el servidor se conecta. Desde un navegador en otro ordenador, pega la dirección en la que acabó: `/extensions sign-in <nombre> <dirección>`. `/extensions sign-out <nombre>` cierra la sesión. El token se guarda en la carpeta de configuración de Claude Code que usa el CLI del agente, y una sesión nueva no vuelve a pedirlo. Usa los métodos de inicio de sesión del SDK, que aún no están en sus tipos ([ADR-028](https://github.com/falkenslab/agent-kit/blob/main/.minispec/decisions/ADR-028-remote-mcp-sign-in.md)): sin ellos, el agente dice que no puede iniciar sesión.
+- **Adónde van los datos**: lo que el agente le envía sale del ordenador. La instalación dice con qué host habla, y también `extension info` y el catálogo.
+- **Las herramientas de solo lectura y las etiquetas** funcionan como en un servidor local: el modo plan se fía del `readOnlyHint` de sus herramientas, o de la lista del manifiesto.
+
 ### Lo que no puede hacer {#what-it-cant-do}
 
 A diferencia de una extensión en el código de tu agente ([Las propias del kit](the-kits-own.md#writing-one-in-your-agents-code)): hooks (no se ejecuta ninguno de los de su plugin), los paneles del kit, un almacén pasado desde código, sus propias carpetas para las herramientas de ficheros. Sus subagentes no reciben `Bash`: uno que la lista la pierde, y uno sin `tools` no recibe ninguna. Sus herramientas pasan por las mismas puertas que cualquier otra: la aprobación en modo interactivo, el modo plan, la transcripción.

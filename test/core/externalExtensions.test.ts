@@ -82,7 +82,7 @@ test("the kit's version is checked against an extension's range", () => {
 test("add copies a folder into a scope, locks it by hash and enables it; remove, enable and disable change the lock", async () => {
   const scope = path.join(temp(), "extensions");
   const source = makeExtension();
-  assert.deepEqual(await addExtension(source, scope), { name: "dice", replaced: false, missing: [] });
+  assert.deepEqual(await addExtension(source, scope), { name: "dice", replaced: false, missing: [], remote: [] });
   const lock = await readLock(scope);
   assert.equal(lock.dice?.enabled, true);
   assert.equal(lock.dice?.sha256, await hashExtension(path.join(scope, "dice")));

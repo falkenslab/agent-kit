@@ -80,6 +80,12 @@
           "type": "array",
           "items": { "$ref": "https://falkenslab.github.io/agent-kit/schemas/agent-kit-metadata.schema.json#/$defs/requirement" }
         },
+        "remote": {
+          "description": "The hosts its remote MCP servers talk to (type http or sse in its .mcp.json): what an agent sends there leaves the computer. Only when it has some.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
         "logo": { "description": "A URL anyone can load.", "$ref": "#/$defs/url" },
         "banner": { "description": "A URL anyone can load.", "$ref": "#/$defs/url" }
       }

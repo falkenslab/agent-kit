@@ -12,7 +12,7 @@ import { getLanguage, type ToolPhrase } from "./messages/index.js";
 import { truncate, type ToolLabels } from "./toolLabels.js";
 import { agentKitVersion } from "./version.js";
 import { outsideArchive } from "./packaged.js";
-import { extensionSecretsPath, missingOptions, optionsNamed, parseOptionValue, parseUserConfig, readOptionValues, removeSecrets, storeOptionValues, type ExtensionOption, type OptionValue } from "./extensionOptions.js";
+import { extensionSecretsPath, fillOptions, missingOptions, optionsNamed, parseOptionValue, parseUserConfig, readOptionValues, removeSecrets, storeOptionValues, type ExtensionOption, type OptionValue } from "./extensionOptions.js";
 import { isTrusted } from "./workspaceTrust.js";
 import { checkRequirements, describeMissing, findOnPath, parseRequirements, requirementsProblem, type ExtensionRequirement } from "./extensionRequirements.js";
 import { cachedPackageDir, cachedPackageProblem, cachePackage, npxServer, packageCacheDir, packageSpec, type CachedPackage } from "./npxPackages.js";
@@ -42,11 +42,55 @@ export interface ExtensionDirs {
 export type ExtensionScope = keyof ExtensionDirs;
 
 /** One of a plugin's MCP servers, as its `.mcp.json` (or `plugin.json`'s `mcpServers`) declares it. */
-export interface PluginServer {
+/** A server the kit starts on this computer, through its launcher. */
+export interface LocalServer {
   command: string;
   args?: string[];
   /** Its variables: a value may take the agent's with `${VAR}`, and its folders with `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}`. */
   env?: Record<string, string>;
+}
+
+/**
+ * A remote server (#61), over HTTP or SSE: nothing runs here. `${user_config.KEY}` and `${VAR}` in
+ * its URL and headers take their values when the session opens.
+ */
+export interface RemoteServer {
+  type: "http" | "sse";
+  url: string;
+  headers?: Record<string, string>;
+}
+
+/** One of an extension's MCP servers, as its `.mcp.json` declares it. */
+export type PluginServer = LocalServer | RemoteServer;
+
+/** Whether a server is remote (#61). */
+export function isRemoteServer(server: PluginServer): server is RemoteServer {
+  return "url" in server;
+}
+
+/**
+ * The name a session gives an extension's remote server: its own, prefixed with the extension's.
+ * The SDK's CLI keeps OAuth tokens by server name (confirmed empirically, CLI 2.1.300): a server
+ * named like one in the runner's own Claude Code would sign in with the runner's token.
+ */
+export function remoteServerName(extension: string, server: string): string {
+  return `${extension}-${server}`;
+}
+
+/** The hosts an extension's remote servers talk to, for the person to read before installing it. */
+export function remoteHosts(manifest: Pick<ExternalManifest, "servers">): string[] {
+  return [
+    ...new Set(
+      Object.values(manifest.servers).flatMap((server) => {
+        if (!isRemoteServer(server)) return [];
+        try {
+          return [new URL(server.url.replace(/\$\{[^}]*\}/g, "x")).host];
+        } catch {
+          return [server.url];
+        }
+      }),
+    ),
+  ];
 }
 
 /** How the chat shows one of its tools in one language: `{field}` takes the call's input. */
@@ -276,9 +320,19 @@ async function pluginServers(dir: string, raw: Record<string, unknown>): Promise
   if (declared === undefined || declared === null) return {};
   if (typeof declared !== "object") throw new Error("its MCP servers aren't a JSON object.");
   const servers: Record<string, PluginServer> = {};
-  for (const [name, server] of Object.entries(declared as Record<string, Partial<PluginServer>>)) {
+  for (const [name, server] of Object.entries(declared as Record<string, Record<string, unknown>>)) {
+    if (server && (server.type === "http" || server.type === "sse")) {
+      if (typeof server.url !== "string") throw new Error(`its MCP server "${name}" has no url.`);
+      const headers = server.headers && typeof server.headers === "object" ? Object.fromEntries(Object.entries(server.headers as Record<string, unknown>).map(([key, value]) => [key, String(value)])) : undefined;
+      servers[name] = { type: server.type, url: server.url, ...(headers ? { headers } : {}) };
+      continue;
+    }
     if (!server || typeof server.command !== "string") throw new Error(`its MCP server "${name}" has no command.`);
-    servers[name] = { command: server.command, ...(Array.isArray(server.args) ? { args: server.args.map(String) } : {}), ...(server.env ? { env: server.env } : {}) };
+    servers[name] = {
+      command: server.command,
+      ...(Array.isArray(server.args) ? { args: server.args.map(String) } : {}),
+      ...(server.env ? { env: server.env as Record<string, string> } : {}),
+    };
   }
   return servers;
 }
@@ -309,7 +363,7 @@ interface ServerPackages {
  * inside the extension; or npx with a package at an exact version, from the cache), or how the
  * kit starts it.
  */
-function serverLaunch(name: string, server: PluginServer, folders: PluginFolders, packages: ServerPackages = {}): string | { entry: string; args: string[]; env: Record<string, string> } {
+function serverLaunch(name: string, server: LocalServer, folders: PluginFolders, packages: ServerPackages = {}): string | { entry: string; args: string[]; env: Record<string, string> } {
   const { root } = folders;
   // Its folders as variables too, as Claude Code gives them to a plugin's servers.
   const declared = Object.fromEntries(Object.entries(server.env ?? {}).map(([key, value]) => [key, expand(String(value), folders)]));
@@ -336,6 +390,11 @@ function serverLaunch(name: string, server: PluginServer, folders: PluginFolders
  */
 async function serversProblem(manifest: ExternalManifest, root: string, packages?: ServerPackages): Promise<string | undefined> {
   for (const [name, server] of Object.entries(manifest.servers)) {
+    if (isRemoteServer(server)) {
+      // Never in clear over the network: plain HTTP only to this computer (a server under development).
+      if (!/^https:\/\//i.test(server.url) && !/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(server.url)) return `talks to its server "${name}" at ${server.url}: a remote server must be https (http only on localhost)`;
+      continue;
+    }
     const npx = npxServer(server);
     if (typeof npx === "string") return `${npx} (its server "${name}")`;
     if (npx) {
@@ -354,6 +413,7 @@ async function serversProblem(manifest: ExternalManifest, root: string, packages
 async function fetchServerPackages(manifest: ExternalManifest, cache: string): Promise<Record<string, CachedPackage>> {
   const packages: Record<string, CachedPackage> = {};
   for (const server of Object.values(manifest.servers)) {
+    if (isRemoteServer(server)) continue;
     const npx = npxServer(server);
     if (!npx || typeof npx === "string") continue;
     packages[packageSpec(npx)] = await cachePackage(cache, npx.name, npx.version);
@@ -461,8 +521,8 @@ export function extensionLauncherPath(): string {
   return outsideArchive(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", "extension-launcher.mjs"));
 }
 
-/** Its tools' chat labels in the kit's language, from its manifest: `{field}` takes the input; for each of its servers. */
-function manifestToolLabels(manifest: ExternalManifest): ToolLabels {
+/** Its tools' chat labels in the kit's language, from its manifest: `{field}` takes the input; for each of its servers, by their session names. */
+function manifestToolLabels(manifest: ExternalManifest, sessionServers: readonly string[]): ToolLabels {
   const language = getLanguage();
   const fill = (template: string, input: Record<string, unknown>): string =>
     template.replace(/\{(\w+)\}/g, (_, field: string) => (input[field] === undefined ? "" : truncate(String(input[field]), 60)));
@@ -471,7 +531,7 @@ function manifestToolLabels(manifest: ExternalManifest): ToolLabels {
       const texts = byLanguage[language] ?? byLanguage.en;
       if (!texts) return [];
       const label = { label: (input: Record<string, unknown>) => fill(texts.label, input), ...(texts.phrase ? { phrase: texts.phrase } : {}) };
-      return Object.keys(manifest.servers).map((server) => [`mcp__${server}__${tool}`, label]);
+      return sessionServers.map((server) => [`mcp__${server}__${tool}`, label]);
     }),
   );
 }
@@ -486,9 +546,26 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
     ...(unavailable.length ? { unavailable } : {}),
     async contribute() {
       const servers: Record<string, McpServerConfig> = {};
+      const remote: string[] = [];
       if (Object.keys(manifest.servers).length) await mkdir(installed.dataDir, { recursive: true });
+      const folders = { root: installed.dir, data: installed.dataDir };
+      // A remote server's options go into its URL and headers here, when the session opens: the
+      // SDK fixes them then, so a changed value takes opening the session again (#61).
+      const values = Object.values(manifest.servers).some(isRemoteServer) ? await readOptionValues(installed.privateDir, installed.name, manifest.userConfig, installed.lock.options) : {};
       for (const [name, server] of Object.entries(manifest.servers)) {
-        const launch = serverLaunch(name, server, { root: installed.dir, data: installed.dataDir }, { cache, locked: installed.lock.packages });
+        if (isRemoteServer(server)) {
+          const fill = (text: string) => fillOptions(expand(text, folders), values);
+          // A header naming an option without a value isn't sent: `Authorization: Bearer ` would
+          // turn the server's OAuth off ("OAuth fallback is disabled when headers.Authorization is
+          // set", confirmed empirically, CLI 2.1.300), so a token stays optional beside signing in.
+          const unset = (text: string) => optionsNamed([text]).some((key) => values[key] === undefined || values[key] === "");
+          const headers = Object.entries(server.headers ?? {}).filter(([, value]) => !unset(value));
+          const sessionName = remoteServerName(manifest.name, name);
+          servers[sessionName] = { type: server.type, url: fill(server.url), ...(headers.length ? { headers: Object.fromEntries(headers.map(([key, value]) => [key, fill(value)])) } : {}) };
+          remote.push(sessionName);
+          continue;
+        }
+        const launch = serverLaunch(name, server, folders, { cache, locked: installed.lock.packages });
         if (typeof launch === "string") continue; // checked when it loaded
         // Its `env` reaches it (the SDK merges it with the agent's); the launcher removes the rest.
         // Inside Electron, process.execPath is the app itself: ELECTRON_RUN_AS_NODE makes it run
@@ -509,9 +586,10 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
         // Its manifest's list, or its servers' own word: the server is the code the kit trusts
         // least, so its hints only fill the list's absence (ADR-025).
         ...(manifest.readOnlyTools
-          ? { readOnlyTools: Object.keys(manifest.servers).flatMap((server) => manifest.readOnlyTools!.map((tool) => `mcp__${server}__${tool}`)) }
+          ? { readOnlyTools: Object.keys(servers).flatMap((server) => manifest.readOnlyTools!.map((tool) => `mcp__${server}__${tool}`)) }
           : { readOnlyTools: [], readOnlyHintServers: Object.keys(servers) }),
-        toolLabels: manifestToolLabels(manifest),
+        toolLabels: manifestToolLabels(manifest, Object.keys(servers)),
+        ...(remote.length ? { remoteServers: remote } : {}),
         ...(manifest.help ? { helpLines: [manifest.help] } : {}),
       };
     },
@@ -525,7 +603,11 @@ function optionDefaults(declared: Record<string, ExtensionOption>): Record<strin
 
 /** Why its options keep it from running (a server naming one it doesn't declare, a required one without a value), or nothing. */
 function optionsProblem(manifest: ExternalManifest, values: Record<string, OptionValue>): string | undefined {
-  const named = optionsNamed(Object.values(manifest.servers).flatMap((server) => [server.command, ...(server.args ?? []), ...Object.values(server.env ?? {}).map(String)]));
+  const named = optionsNamed(
+    Object.values(manifest.servers).flatMap((server) =>
+      isRemoteServer(server) ? [server.url, ...Object.values(server.headers ?? {})] : [server.command, ...(server.args ?? []), ...Object.values(server.env ?? {}).map(String)],
+    ),
+  );
   const undeclared = named.filter((key) => !manifest.userConfig[key]);
   if (undeclared.length) return `names ${undeclared.map((key) => "${user_config." + key + "}").join(", ")}, which its userConfig doesn't declare`;
   const missing = missingOptions(manifest.userConfig, values);
@@ -618,7 +700,7 @@ export async function addExtension(
   source: string,
   scopeDir: string,
   options: { subdir?: string; sha?: string; marketplace?: string; origin?: string; link?: boolean; packages?: string; store?: string } = {},
-): Promise<{ name: string; replaced: boolean; commit?: string; missing: string[] }> {
+): Promise<{ name: string; replaced: boolean; commit?: string; missing: string[]; remote: string[] }> {
   if (options.link && isGitSource(source)) throw new Error("Only a folder can be linked: a git repository is installed as a copy.");
   let from = path.resolve(source);
   let commit: string | undefined;
@@ -640,6 +722,8 @@ export async function addExtension(
     if (servers) throw new Error(`${manifest.name} can't be installed: it ${servers}.`);
     // What it needs and this computer lacks: said, never installed, and it installs anyway (#63).
     const missing = (await checkRequirements(manifest.requirements)).filter((check) => !check.ok).map((check) => missingRequirement(check));
+    // Where what the agent sends goes, for the person to know (#61).
+    const remote = remoteHosts(manifest);
     const target = path.join(scopeDir, manifest.name);
     // Replacing what's installed there would delete the source itself.
     if (path.resolve(from) === path.resolve(target)) throw new Error(`${from} is where ${manifest.name} is installed: install it from another folder.`);
@@ -664,12 +748,12 @@ export async function addExtension(
       }
       lock[manifest.name] = { source: origin, ...provenance, sha256, stored: true, ...locked, enabled: true, installed: new Date().toISOString() };
       await writeLock(scopeDir, lock);
-      return { name: manifest.name, replaced, missing, ...(commit ? { commit } : {}) };
+      return { name: manifest.name, replaced, missing, remote, ...(commit ? { commit } : {}) };
     }
     if (options.link) {
       lock[manifest.name] = { source: from, linked: true, sha256: "", ...locked, enabled: true, installed: new Date().toISOString() };
       await writeLock(scopeDir, lock);
-      return { name: manifest.name, replaced, missing };
+      return { name: manifest.name, replaced, missing, remote };
     }
     await cp(from, target, { recursive: true, filter: (file) => path.basename(file) !== ".git" });
     lock[manifest.name] = {
@@ -681,7 +765,7 @@ export async function addExtension(
       installed: new Date().toISOString(),
     };
     await writeLock(scopeDir, lock);
-    return { name: manifest.name, replaced, missing, ...(commit ? { commit } : {}) };
+    return { name: manifest.name, replaced, missing, remote, ...(commit ? { commit } : {}) };
   } finally {
     if (clone) await rm(clone, { recursive: true, force: true });
   }

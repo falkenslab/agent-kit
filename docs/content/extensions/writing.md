@@ -329,6 +329,29 @@ Claude Code runs that `npx` as it is. The kit doesn't run npx (it would need npm
 - **Its `bin`** is the package's only one, or the one named like the package (`moodle-mcp` for `@falkenslab/moodle-mcp`), as npx picks it.
 - **Updating the server** is a new version in `.mcp.json` and a new version of the extension; skills written for that version go in the same change.
 
+### A remote server
+
+A server can run elsewhere, as a service, and be reached over HTTP: nothing is installed or started on the computer. In `.mcp.json`, `type` (`http`, or `sse` for an older server) and `url`, with `headers` when it takes a token:
+
+```json title=".mcp.json"
+{
+  "mcpServers": {
+    "api": {
+      "type": "http",
+      "url": "https://mcp.example.com/mcp?site=${user_config.site}",
+      "headers": { "Authorization": "Bearer ${user_config.token}" }
+    }
+  }
+}
+```
+
+- **Its address** must be `https` (`http` only on `localhost`, for a server under development); installing refuses anything else.
+- **Its options** go into `url` and `headers` (`${user_config.KEY}`, `${VAR}`) when the session opens: the SDK fixes them then, so a changed value applies when the session opens again (`/extensions reload`). A header naming an option without a value isn't sent, so a token can stay optional: with `Authorization` set, the CLI won't sign in with OAuth.
+- **Its name in the session** is the extension's and its own, `<extension>-<server>` (`mcp__campus-api__get_time`): the CLI keeps sign-in tokens by server name, and a name of its own never picks up the runner's own Claude Code tokens. Labels and read-only tools in the manifest use its tools' short names as always.
+- **Signing in**: a server behind OAuth starts as needing it. `/extensions` says so, and `/extensions sign-in <name>` (the chat controller's `signInExtension()`) gives the person the link to open; their browser comes back to the CLI on this computer and the server connects. From a browser on another computer, they paste the address it ended on: `/extensions sign-in <name> <address>`. `/extensions sign-out <name>` signs out. The token is kept in the Claude Code configuration folder the agent's CLI uses, and a new session doesn't ask again. This uses the SDK's sign-in methods, which aren't in its typings yet ([ADR-028](https://github.com/falkenslab/agent-kit/blob/main/.minispec/decisions/ADR-028-remote-mcp-sign-in.md)): without them, the agent says it can't sign in.
+- **Where data goes**: what the agent sends to it leaves the computer. Installing says which host it talks to, and so do `extension info` and the catalog.
+- **Read-only tools and labels** work as for a local server: plan mode trusts its tools' `readOnlyHint`, or the manifest's list.
+
 ### What it can't do
 
 Unlike an extension in your agent's code ([The kit's own](the-kits-own.md#writing-one-in-your-agents-code)): hooks (none of its plugin's run), the kit's panels, a store passed from code, its own folders for the file tools. Its subagents get no `Bash`: one that lists it loses it, and one without `tools` gets none. Its tools go through the same gates as any other: the approval in interactive mode, plan mode, the transcript.

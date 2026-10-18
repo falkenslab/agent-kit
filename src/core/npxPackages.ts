@@ -1,6 +1,6 @@
 import { cp, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { ExtensionDirs, PluginServer } from "./externalExtensions.js";
+import type { ExtensionDirs, LocalServer } from "./externalExtensions.js";
 import { hashExtension } from "./externalExtensions.js";
 import { fetchNpmPlugin } from "./pluginDownloads.js";
 
@@ -41,7 +41,7 @@ export const packageSpec = (server: NpxServer): string => `${server.name}@${serv
  * does but not as the kit can, or its package. Its command is `npx` (`npx.cmd`), its options
  * only `-y`/`--yes`, then `<package>@<x.y.z>` and the server's own arguments.
  */
-export function npxServer(server: PluginServer): NpxServer | string | undefined {
+export function npxServer(server: LocalServer): NpxServer | string | undefined {
   if (!/^npx(\.cmd|\.exe)?$/i.test(path.basename(server.command))) return undefined;
   const args = server.args ?? [];
   let index = 0;
