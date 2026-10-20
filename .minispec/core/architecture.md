@@ -83,8 +83,8 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> chat contr
 ## Modes
 
 - `interactive` — step gate before every tool call.
-- `guided` — approval tool before hard-to-undo or visible actions.
-- `autonomous` — no human-in-the-loop tools.
+- `guided` — approval tool before hard-to-undo or visible actions, and the guided gate (`hooks/guidedGate.ts`, #74, #76) before an installed extension's tool that isn't read-only: answers kept in its lock, a batch after an approval, `confirmTools` always asking (ADR-025).
+- `autonomous` — no human-in-the-loop tools; installed extensions' tools that change things denied unless `extensionGate.autonomous` allows them.
 - `plan` — plan gate: only reads and plans until the human leaves it.
 
 ## File tools

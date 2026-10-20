@@ -17,7 +17,7 @@ El modo es cuánto participa una persona en el bucle. Es lo único que `buildSes
 
 ## autonomous {#autonomous}
 
-Para trabajos que nadie vigila: ejecuciones programadas, procesamiento por lotes, agentes cuyas herramientas no pueden hacer daño. El agente no tiene ningún canal para preguntar a una persona, y es así a propósito.
+Para trabajos que nadie vigila: ejecuciones programadas, procesamiento por lotes, agentes cuyas herramientas no pueden hacer daño. El agente no tiene ningún canal para preguntar a una persona, y es así a propósito. Por eso una herramienta de una extensión instalada que cambia cosas se deniega, salvo que el agente diga que se ejecuten ([`extensionGate.autonomous`](agent-spec.md#extensiongate)).
 
 ```ts
 const config: BaseSessionConfig = { mode: "autonomous", projectDir };
@@ -32,6 +32,8 @@ Escribe los textos de la herramienta para tu dominio con [`humanApprovalTexts`](
 :::warning Una salvaguarda a nivel de prompt
 El modo guiado depende de que el modelo llame a la herramienta en el momento adecuado. Es el equilibrio correcto para "no publiques sin preguntar", no un límite infranqueable. Para límites infranqueables, usa `disallowedTools`, el ámbito de ficheros o tus propios [hooks](../advanced/hooks.md).
 :::
+
+Las extensiones instaladas son la excepción: el propio kit pregunta antes de una de sus herramientas que no se sabe que solo lee, con respuestas que la persona puede hacer durar (esta sesión, siempre, nunca), y un `request_human_approval` aprobado cubre las llamadas que siguen hasta su siguiente mensaje. Mira [Las herramientas de las extensiones que cambian cosas](../human-in-the-loop/approvals.md#extensions-tools-that-change-things).
 
 ## interactive {#interactive}
 

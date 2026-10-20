@@ -34,6 +34,11 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
     },
+    "confirmTools": {
+      "description": "Its tools that always ask the person in guided mode (short names), even inside a batch they approved, and are never offered \"always\": what creates, edits or publishes in their account. Without it, its servers' destructiveHint says which.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
     "labels": {
       "description": "How the chat shows each tool (short name), per language (en, es, fr, de): {field} takes the call's input.",
       "type": "object",

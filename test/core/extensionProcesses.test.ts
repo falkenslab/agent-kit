@@ -290,15 +290,22 @@ test("a server the CLI saved as switched off in an earlier session is turned bac
     first.end();
     earlier.close();
   }
-  const saved = JSON.parse(fs.readFileSync(path.join(configDir, ".claude.json"), "utf8")).projects?.[path.resolve(projectDir).replace(/\\/g, "/")]?.disabledMcpServers;
-  assert.deepEqual(saved, ["dice"]);
+  const savedNow = (): string[] => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(configDir, ".claude.json"), "utf8")).projects?.[path.resolve(projectDir).replace(/\\/g, "/")]?.disabledMcpServers ?? [];
+    } catch {
+      return []; // not written yet, or being written
+    }
+  };
+  // The CLI writes it on its own time, not before close() returns.
+  await until(async () => savedNow().includes("dice"), "the switch to be saved");
+  assert.deepEqual(savedNow(), ["dice"]);
 
   // The next session the kit opens passes it again: it's on, and the saved entry is gone.
   const second = createInputQueue();
   const options = isolated((await build()).options, configDir);
   const run = runQuery(second.iterable, options);
   const view = sessionViewOf(options)!;
-  const savedNow = (): string[] => JSON.parse(fs.readFileSync(path.join(configDir, ".claude.json"), "utf8")).projects?.[path.resolve(projectDir).replace(/\\/g, "/")]?.disabledMcpServers ?? [];
   try {
     await until(async () => (await view.controls().mcpServerStatus?.())?.find((server) => server.name === "dice")?.status === "connected", "the server to be turned back on");
     // Turning it on removes the saved entry, as the CLI does itself.

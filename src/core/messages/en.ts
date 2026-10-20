@@ -91,6 +91,16 @@ export interface Messages {
   extensionSignedOut(name: string): string;
   /** Before a call to a remote MCP server, when the agent asks first (#70): where it goes. */
   remoteCallTitle(destination: string): string;
+  /** Guided mode's question before an installed extension's tool that changes things (#74): its title. */
+  guidedTitle(extension: string): string;
+  /** Its answers (#76): this call, this session, always, no, never. */
+  confirmAnswers: { yes: string; session: string; always: string; no: string; never: string };
+  /** In /extensions config: whether its tools ask in guided mode, before the answers kept. */
+  extensionConfirmOn(name: string): string;
+  extensionConfirmOff(name: string): string;
+  /** A kept answer about one of its tools. */
+  confirmKept(tool: string, answer: "always" | "never"): string;
+  confirmNoneKept: string;
   /** In /extensions: the claude.ai connectors let in (#70). */
   connectorsAllowed(names: string): string;
   /** In /extensions: connectors the agent asked for that the account hasn't. */
@@ -247,7 +257,7 @@ export const en: Messages = {
   extensionSwitched: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}, in this same session)`,
   extensionToggled: (name, enabled) => `(${name} ${enabled ? "enabled" : "disabled"}: the session reopens, with the same conversation)`,
   extensionNotInstalled: (name) => `(${name} isn't installed: /extensions lists them)`,
-  extensionsUsage: "(usage: /extensions, enable|disable <name>, config <name> [key=value…], search [words], install <name>, update [name], remove <name> [--delete-data], reload, trust, sign-in <name> [callback URL], sign-out <name>)",
+  extensionsUsage: "(usage: /extensions, enable|disable <name>, config <name> [key=value… | confirm=on|off|reset], search [words], install <name>, update [name], remove <name> [--delete-data], reload, trust, sign-in <name> [callback URL], sign-out <name>)",
   extensionsCantReopen: "(this chat can't reopen its session: enable or disable it from the terminal, and start again)",
   extensionOptions: (name) => `${name}'s options:`,
   extensionNoOptions: (name) => `(${name} has no options)`,
@@ -274,6 +284,12 @@ export const en: Messages = {
   extensionSignInUnavailable: (name) => `(${name} can't be signed in to here: it isn't running in this session, has no remote server, or this agent's SDK can't sign in)`,
   extensionSignedOut: (name) => `(signed out of ${name}: it will ask you to sign in again)`,
   remoteCallTitle: (destination) => `Send this to ${destination}? It leaves this computer`,
+  guidedTitle: (extension) => `Let ${extension} do this?`,
+  confirmAnswers: { yes: "Yes", session: "Yes, for this session", always: "Yes, always", no: "No", never: "No, never" },
+  extensionConfirmOn: (name) => `In guided mode, ${name}'s tools that change things ask first (confirm=off runs them without asking):`,
+  extensionConfirmOff: (name) => `In guided mode, ${name}'s tools run without asking (confirm=on asks again).`,
+  confirmKept: (tool, answer) => `  ${tool}: ${answer === "always" ? "always yes" : "never"}`,
+  confirmNoneKept: "  (no kept answers; confirm=reset forgets them)",
   connectorsAllowed: (names) => `claude.ai connectors: ${names}`,
   connectorsMissing: (names) => `Not in your claude.ai account: ${names} (connect it on claude.ai, then reopen the session)`,
   extensionUpdated: (name, from, to) => `(${name} updated, ${from} → ${to}: it's there in a new conversation, or now with /extensions reload)`,

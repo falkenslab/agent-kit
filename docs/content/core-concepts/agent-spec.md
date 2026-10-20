@@ -97,6 +97,7 @@ Returning something here also gives the session the `Agent` tool, and `Bash` whe
 | `disallowedTools?: string[]` | `[]` | Tools blocked whatever else allows them, e.g. an MCP tool you don't trust. Takes precedence over everything. A built-in tool also leaves the context; an MCP tool is blocked but its definition is still sent. |
 | `extensions?: Extension[]` | none | What the agent runs with besides the core, each with its own options: the kit's made by their factories (`awareness()`, `sources({ dir })`, `knowledge({ dir })`, `memory({ dir })`), its own as objects. See [Extensions](../extensions/overview.md). |
 | `humanApprovalTexts?` | generic texts | `{ description, approved, rejected }` of the approval tool (guided mode). |
+| `extensionGate?: ExtensionGateSpec` | on | Guided mode's question before an installed extension's tool that changes things: off, more tools that always ask, and what autonomous mode does. See [`extensionGate`](#extensiongate). |
 | `manualInterventionTexts?` | none | Its texts, and the opt-in, of the manual-intervention tool. |
 | `replyInLanguage?: boolean` | `true` | The line asking the agent (and each subagent) to reply in the kit's language. |
 | `settingSources?: SettingSource[]` | `["project"]` | Which Claude Code settings files the session loads. |
@@ -141,6 +142,24 @@ humanApprovalTexts: {
 ```
 
 See [Approvals](../human-in-the-loop/approvals.md).
+
+### `extensionGate`
+
+In guided mode the kit asks the person before an installed extension's tool that isn't known to only read ([Extensions' tools that change things](../human-in-the-loop/approvals.md#extensions-tools-that-change-things)). The agent has its word on it:
+
+```ts
+extensionGate: {
+  // These always ask, even inside a batch the person approved, and never offer "always":
+  // added to each extension's own confirmTools, by short tool name.
+  confirmTools: { canva: ["create-design", "publish-design"] },
+  // In autonomous mode: "deny" (the default) blocks those tools, "allow" runs them.
+  autonomous: "deny",
+},
+```
+
+- **`enabled: false`** turns the gate off: extensions' tools run as the model decides, with `request_human_approval` as the only check. For an agent whose extensions are all its own and harmless.
+- **`confirmTools`**: by extension, tools that always ask. For what the extension's author didn't list, or a stricter rule of the agent's (miyagi's publishing tools).
+- **`autonomous`**: no one can be asked there, so a tool that changes things is denied by default; `"allow"` runs them, for an agent whose autonomous jobs are meant to change things.
 
 ### `manualInterventionTexts`
 

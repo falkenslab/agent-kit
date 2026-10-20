@@ -34,10 +34,10 @@ export function metadataProblems(kit) {
   if (kit === undefined) return [];
   if (!kit || typeof kit !== "object" || Array.isArray(kit)) return ['metadata["agent-kit"] isn\'t an object'];
   const problems = [];
-  const known = new Set(["kit", "description", "provides", "requires", "capabilities", "requirements", "readOnlyTools", "labels", "help", "catalog"]);
+  const known = new Set(["kit", "description", "provides", "requires", "capabilities", "requirements", "readOnlyTools", "confirmTools", "labels", "help", "catalog"]);
   for (const key of Object.keys(kit)) if (!known.has(key)) problems.push(`metadata["agent-kit"] has an unknown field, ${key}`);
   if (kit.kit !== undefined && (typeof kit.kit !== "string" || !KIT_RANGE.test(kit.kit))) problems.push(`its kit range isn't comparators like ">=0.22.0": ${JSON.stringify(kit.kit)}`);
-  for (const key of ["provides", "requires", "readOnlyTools"]) if (kit[key] !== undefined && !isStrings(kit[key])) problems.push(`its ${key} isn't a list of names`);
+  for (const key of ["provides", "requires", "readOnlyTools", "confirmTools"]) if (kit[key] !== undefined && !isStrings(kit[key])) problems.push(`its ${key} isn't a list of names`);
   if (kit.requirements !== undefined) {
     if (!Array.isArray(kit.requirements)) problems.push("its requirements aren't a list");
     else

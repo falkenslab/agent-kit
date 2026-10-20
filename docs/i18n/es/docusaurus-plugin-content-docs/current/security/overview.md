@@ -20,6 +20,7 @@ Un agente actúa a través de herramientas, así que las salvaguardas del kit es
 | Fuentes de configuración, auto-memoria, contexto de git | que la configuración personal de Claude Code de quien lo ejecuta se filtre al agente | opciones del SDK | [Permisos y aislamiento](permissions-and-isolation.md) |
 | Puerta de pasos, aprobaciones | acciones que una persona debería ver antes | hook y herramienta | [La persona en el bucle](../human-in-the-loop/overview.md) |
 | Puerta del plan | cambios mientras el agente solo debe planificar | hook `PreToolUse` | [Modos](../core-concepts/modes.md#plan) |
+| Puerta del modo guiado | que una herramienta de una extensión instalada cambie cosas sin el sí de la persona, en modo guiado, haga lo que haga antes el modelo | hook `PreToolUse` (`extensionGate`, las `confirmTools` del manifiesto) | [Aprobaciones](../human-in-the-loop/approvals.md#extensions-tools-that-change-things) |
 | Secretos ocultos en la transcripción | secretos escritos en los logs | hook `PreToolUse`/`PostToolUse` | [Transcripción](transcript.md) |
 | Puerta de lo remoto | datos que salen del ordenador hacia un servidor MCP remoto, y un conector de claude.ai que el agente no eligió | hook `PreToolUse` (`remoteServers`, `claudeAiConnectors`) | [Configuración de la sesión](../core-concepts/session-config.md) |
 | Extensiones instaladas aparte | que el servidor de una extensión instalada vea las credenciales del agente, o que sus ficheros cambien tras instalarla | el lanzador, el hash del lock | [Extensiones](../extensions/overview.md#where-they-run) |

@@ -56,6 +56,7 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 | `extension disable <name>` | La desactiva, manteniéndola instalada. |
 | `extension config <name>` | Sus [opciones](configuring.md) y sus valores (de un secreto solo dice si está establecido). |
 | `extension config <name> <key>=<value>…` | Las establece. `<key>` solo pregunta su valor, sin eco para un secreto (así no queda en el historial del shell); `--unset <key>` borra una. |
+| `extension config <name> confirm=on\|off\|reset` | Si el modo guiado pregunta antes de sus herramientas que cambian cosas (`off`: funcionan sin preguntar), o `reset` para olvidar las respuestas guardadas ("siempre", "nunca"). Mira [Las respuestas del modo guiado](configuring.md#guided-modes-answers). |
 | `extension update [name]` | Actualiza una instalada desde un marketplace a la versión que ofrece ahora (antes, una copia nueva del marketplace), o, sin nombre, todas las que tienen una versión más nueva; sus datos y opciones se conservan. Una instalada desde una carpeta o un repositorio se actualiza volviendo a añadirla. |
 | `extension restore [--trust]` | Obtiene el código que lista el lock de un workspace y que le falta a este ordenador ([Workspaces](workspaces.md)); `--trust` además confía en él. |
 | `extension trust [name…]` | Deja que se ejecuten las extensiones del workspace (o las nombradas), tal como está ahora su código. |

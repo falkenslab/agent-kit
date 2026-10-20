@@ -97,6 +97,7 @@ Devolver algo aquí también le da a la sesión la herramienta `Agent`, y `Bash`
 | `disallowedTools?: string[]` | `[]` | Herramientas bloqueadas aunque cualquier otra cosa las permita, p. ej. una herramienta MCP de la que no te fías. Tiene prioridad sobre todo lo demás. Una herramienta integrada además sale del contexto; una herramienta MCP queda bloqueada, pero su definición se sigue enviando. |
 | `extensions?: Extension[]` | ninguna | Con qué se ejecuta el agente además del núcleo, cada una con sus propias opciones: las del kit, creadas por sus factorías (`awareness()`, `sources({ dir })`, `knowledge({ dir })`, `memory({ dir })`), y las suyas, como objetos. Consulta [Extensiones](../extensions/overview.md). |
 | `humanApprovalTexts?` | textos genéricos | `{ description, approved, rejected }` de la herramienta de aprobación (modo guiado). |
+| `extensionGate?: ExtensionGateSpec` | activada | La pregunta del modo guiado antes de una herramienta de una extensión instalada que cambia cosas: apagarla, más herramientas que siempre preguntan y qué hace el modo autónomo. Mira [`extensionGate`](#extensiongate). |
 | `manualInterventionTexts?` | ninguno | Sus textos, y la activación opcional, de la herramienta de intervención manual. |
 | `replyInLanguage?: boolean` | `true` | La línea que pide al agente (y a cada subagente) que responda en el idioma del kit. |
 | `settingSources?: SettingSource[]` | `["project"]` | Qué ficheros de ajustes de Claude Code carga la sesión. |
@@ -141,6 +142,24 @@ humanApprovalTexts: {
 ```
 
 Consulta [Aprobaciones](../human-in-the-loop/approvals.md).
+
+### `extensionGate` {#extensiongate}
+
+En modo guiado el kit pregunta a la persona antes de una herramienta de una extensión instalada que no se sabe que solo lee ([Las herramientas de las extensiones que cambian cosas](../human-in-the-loop/approvals.md#extensions-tools-that-change-things)). El agente tiene su palabra:
+
+```ts
+extensionGate: {
+  // Estas siempre preguntan, incluso dentro de un lote que la persona aprobó, y nunca ofrecen
+  // "siempre": se suman a las confirmTools de cada extensión, por nombre corto de herramienta.
+  confirmTools: { canva: ["create-design", "publish-design"] },
+  // En modo autónomo: "deny" (por defecto) bloquea esas herramientas, "allow" las ejecuta.
+  autonomous: "deny",
+},
+```
+
+- **`enabled: false`** apaga la puerta: las herramientas de las extensiones se ejecutan cuando el modelo decide, con `request_human_approval` como único control. Para un agente cuyas extensiones son todas suyas e inofensivas.
+- **`confirmTools`**: por extensión, herramientas que siempre preguntan. Para lo que el autor de la extensión no listó, o una regla más estricta del agente (las herramientas de publicar de miyagi).
+- **`autonomous`**: ahí no se puede preguntar a nadie, así que una herramienta que cambia cosas se deniega por defecto; `"allow"` las ejecuta, para un agente cuyos trabajos autónomos deben cambiar cosas.
 
 ### `manualInterventionTexts` {#manualinterventiontexts}
 

@@ -18,7 +18,7 @@ export {
   type ToolLabel,
   type ToolLabels,
 } from "./core/toolLabels.js";
-export type { Mode, BaseSessionConfig, AgentSpec, AgentIdentity, PlanModeSpec } from "./core/agentSpec.js";
+export type { Mode, BaseSessionConfig, AgentSpec, AgentIdentity, PlanModeSpec, ExtensionGateSpec } from "./core/agentSpec.js";
 export { buildSessionOptions, createInputQueue, createDeferred, createModeControl, togglePlanMode, type ModeControl, type ExtensionsStatus } from "./core/session.js";
 export { runQuery, type AgentEvent, type AgentRun, type SessionUsage, type ContextUsage } from "./core/runner.js";
 export type { McpAuthentication, SessionFacts } from "./core/sessionFacts.js";
@@ -52,6 +52,7 @@ export {
   setExtensionOptions,
   removeExtension,
   setExtensionEnabled,
+  setExtensionConfirm,
   listInstalled,
   readExternalManifest,
   type ExtensionAuthor,
@@ -68,6 +69,8 @@ export {
   type InstalledExtension,
   type LockEntry,
   type ExtensionOptionState,
+  type ExtensionConfirm,
+  type ToolConfirmation,
 } from "./core/externalExtensions.js";
 export type { ExtensionOption, OptionValue } from "./core/extensionOptions.js";
 export type { ExtensionAuth, ExtensionRestart, ExtensionSwitch, SignIn } from "./core/liveExtensions.js";
@@ -145,6 +148,7 @@ export { createSubagentTypeGate } from "./core/hooks/subagentTypeGate.js";
 export { createSubagentForegroundGate } from "./core/hooks/subagentForegroundGate.js";
 export { createFileScopeGate, checkFileScope, type FileScope } from "./core/hooks/fileScopeGate.js";
 export { createPlanGate, checkPlanScope, type PlanScope } from "./core/hooks/planGate.js";
+export { createGuidedGate, type GuardedExtension, type GuidedDecision, type GuidedGate } from "./core/hooks/guidedGate.js";
 export { askForDecision, askForManualIntervention, askForChoice, askForText, type ChoiceAnswer } from "./core/hooks/humanInput.js";
 export { setInteractionPort, getInteractionPort, type InteractionPort, type ApprovalPrompt, type ChoiceSettings } from "./core/interaction.js";
 export { formFields, type FormAnswer, type FormField, type FormRequest } from "./core/elicitation.js";

@@ -193,6 +193,7 @@ Lo que usan el chat, las puertas y el catálogo del kit va en `metadata["agent-k
 - **`help`**: lo que dice de sí misma, para que el agente se lo cuente a la persona (el `about_me` de [awareness](../capabilities/awareness.md)).
 - **`catalog`**: su aspecto en un catálogo ([más abajo](#6-its-look-in-a-catalog)).
 - **Herramientas de solo lectura**: aquí no hay nada que declarar, ya que `forecast` dice `readOnlyHint: true` por sí misma y el modo plan pregunta al servidor ([Herramientas de solo lectura](#read-only-tools)).
+- **Herramientas que siempre preguntan**: ninguna aquí, ya que el tiempo no cambia nada; una extensión que crea o publica en la cuenta de la persona las lista en `confirmTools` ([Herramientas que siempre preguntan](#tools-that-always-ask)).
 
 Nunca lo pongas en el nivel superior de `plugin.json`: Claude Code avisaría ("Unknown field") y la validación con `--strict` fallaría. Todos los campos están en la [referencia](reference.md#metadataagent-kit), y `agent-kit-metadata.schema.json` (en `schemas/` del kit) permite que un editor lo compruebe.
 
@@ -265,6 +266,18 @@ El [modo plan](../core-concepts/modes.md#plan) solo deja pasar las herramientas 
 - **La lista de su manifiesto**, `readOnlyTools` en `metadata["agent-kit"]`: la respuesta completa, digan lo que digan sus servidores. Una lista vacía (`[]`) significa que no pasa ninguna de sus herramientas. Un servidor es el código en el que menos confía el kit, así que sus pistas solo cubren la ausencia de la lista: escribe la lista cuando no te fíes de lo que dice un servidor, o no puedas cambiarlo.
 
 `extension info <name>` dice cuál se aplica (`Only read  roll (its manifest)`, o `what its servers mark readOnlyHint`).
+
+La misma lista evita que el modo guiado pregunte: el resto de herramientas de una extensión instalada esperan ahí el sí de la persona ([Las herramientas de las extensiones que cambian cosas](../human-in-the-loop/approvals.md#extensions-tools-that-change-things)). Una herramienta que falte en la lista pregunta cada vez, así que lista todas las que solo leen.
+
+### Herramientas que siempre preguntan {#tools-that-always-ask}
+
+En modo guiado la persona puede aprobar un lote de llamadas de una vez, o una herramienta para la sesión o para siempre. Algunas herramientas nunca deberían aprobarse sin verlas: lo que crea, edita, publica o borra en su cuenta. Lístalas en `confirmTools` dentro de `metadata["agent-kit"]` (nombres cortos):
+
+```json
+"metadata": { "agent-kit": { "confirmTools": ["create-design", "publish-design"] } }
+```
+
+Preguntan incluso dentro de un lote aprobado, y a la persona no se le ofrece "siempre". Sin la clave, cuentan en su lugar las herramientas que sus servidores marcan `destructiveHint: true`, igual que funcionan `readOnlyTools` y `readOnlyHint`. El agente puede añadir las suyas ([`extensionGate.confirmTools`](../core-concepts/agent-spec.md#extensiongate)).
 
 ### Programas que necesita {#programs-it-needs}
 

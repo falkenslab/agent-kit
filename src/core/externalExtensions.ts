@@ -142,6 +142,12 @@ export interface ExternalManifest {
    * list is the whole answer, even empty.
    */
   readOnlyTools?: string[];
+  /**
+   * Its tools that always ask the person in guided mode (short names), even inside a batch they
+   * approved, and never offer "always" (#76): what creates, edits or publishes in their account.
+   * Without the key, its servers' `destructiveHint` says which.
+   */
+  confirmTools?: string[];
   /** Its tools' chat labels, by short name (of any of its servers) and language (English when the kit's isn't there). */
   labels: Record<string, Partial<Record<Language, ExternalToolLabel>>>;
   /** What it says about itself in a session, for the agent to tell the person (`SessionFacts`). */
@@ -179,6 +185,8 @@ export interface LockEntry {
   options?: Record<string, OptionValue>;
   /** The npm packages its servers run with npx (#54), by `<package>@<version>`: in the agent's package cache, checked when it loads. */
   packages?: Record<string, CachedPackage>;
+  /** What the person said about its tools in guided mode (#74, #76): kept answers, or the gate off for it. */
+  confirm?: ExtensionConfirm;
   enabled: boolean;
   /** When it was installed, ISO 8601 in UTC. */
   installed: string;
@@ -285,6 +293,7 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
     requirements: parseRequirements((kit as { requirements?: unknown }).requirements),
     servers: await pluginServers(dir, raw),
     ...(Array.isArray(kit.readOnlyTools) ? { readOnlyTools: kit.readOnlyTools.filter((tool): tool is string => typeof tool === "string") } : {}),
+    ...(Array.isArray(kit.confirmTools) ? { confirmTools: kit.confirmTools.filter((tool): tool is string => typeof tool === "string") } : {}),
     labels: kit.labels ?? {},
     ...(kit.help ? { help: kit.help } : {}),
     userConfig: parseUserConfig(raw.userConfig),
@@ -588,6 +597,10 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
         ...(manifest.readOnlyTools
           ? { readOnlyTools: Object.keys(servers).flatMap((server) => manifest.readOnlyTools!.map((tool) => `mcp__${server}__${tool}`)) }
           : { readOnlyTools: [], readOnlyHintServers: Object.keys(servers) }),
+        // The same for what always asks in guided mode (#76): the list, or the servers' destructiveHint.
+        ...(manifest.confirmTools
+          ? { confirmTools: Object.keys(servers).flatMap((server) => manifest.confirmTools!.map((tool) => `mcp__${server}__${tool}`)) }
+          : { confirmHintServers: Object.keys(servers) }),
         toolLabels: manifestToolLabels(manifest, Object.keys(servers)),
         ...(remote.length ? { remoteServers: remote } : {}),
         ...(manifest.help ? { helpLines: [manifest.help] } : {}),
@@ -734,6 +747,8 @@ export async function addExtension(
     // Reinstalled, it keeps the values it had for the options it still declares, as it keeps its data.
     const kept = Object.fromEntries(Object.entries(lock[manifest.name]?.options ?? {}).filter(([key]) => manifest.userConfig[key] && !manifest.userConfig[key]!.sensitive));
     if (Object.keys(kept).length) locked.options = kept;
+    // And what the person said about its tools in guided mode (#76): theirs, not the version's.
+    if (lock[manifest.name]?.confirm) locked.confirm = lock[manifest.name]!.confirm;
     await rm(target, { recursive: true, force: true });
     await mkdir(scopeDir, { recursive: true });
     const origin = options.origin ?? (isGitSource(source) ? source : from);
@@ -797,6 +812,44 @@ export async function folderSize(dir: string): Promise<number> {
     else if (entry.isFile()) size += (await stat(full)).size;
   }
   return size;
+}
+
+/** A kept answer to guided mode's question about one of an extension's tools (#76). */
+export type ToolConfirmation = "always" | "never";
+
+/** What the person said about an extension's tools in guided mode (#74, #76), in its lock. */
+export interface ExtensionConfirm {
+  /** Its tools run without asking: the person trusts it. */
+  off?: boolean;
+  /** Their kept answers, by the tool's short name. */
+  tools?: Record<string, ToolConfirmation>;
+}
+
+/**
+ * Changes what's kept about an installed extension's tools in guided mode: `off` turns the gate
+ * off (or back on) for it; `tool` keeps an answer for one tool (`undefined` asks again);
+ * `reset` forgets every kept answer. False when it isn't installed there.
+ */
+export async function setExtensionConfirm(
+  scopeDir: string,
+  name: string,
+  change: { off?: boolean; tool?: { name: string; answer: ToolConfirmation | undefined }; reset?: boolean },
+): Promise<boolean> {
+  const lock = await readLock(scopeDir);
+  const entry = lock[name];
+  if (!entry) return false;
+  const confirm: ExtensionConfirm = { ...entry.confirm, tools: change.reset ? {} : { ...entry.confirm?.tools } };
+  if (change.off !== undefined) confirm.off = change.off;
+  if (change.tool) {
+    if (change.tool.answer) confirm.tools![change.tool.name] = change.tool.answer;
+    else delete confirm.tools![change.tool.name];
+  }
+  if (!confirm.off) delete confirm.off;
+  if (!Object.keys(confirm.tools!).length) delete confirm.tools;
+  lock[name] = { ...entry, ...(Object.keys(confirm).length ? { confirm } : {}) };
+  if (!Object.keys(confirm).length) delete lock[name]!.confirm;
+  await writeLock(scopeDir, lock);
+  return true;
 }
 
 /** Enables or disables an installed extension in a scope; false when it isn't there. */

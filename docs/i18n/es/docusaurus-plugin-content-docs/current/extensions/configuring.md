@@ -49,6 +49,19 @@ El lanzador del kit lee los valores cuando arranca un servidor, así que un camb
 - Una sesión que el agente construye por su cuenta recibe `restartExtension(name)` de `buildSessionOptions()`, que devuelve `false` cuando no se puede hacer en esa sesión.
 - **Las opciones de un [servidor remoto](writing.md#a-remote-server)** van en su URL y sus cabeceras al abrir la sesión, y reiniciarlo no las cambiaría: cambiar una vuelve a abrir la sesión, conservando la conversación (`restartExtension()` devuelve `false` para él).
 
+## Las respuestas del modo guiado {#guided-modes-answers}
+
+En modo guiado el kit pregunta a la persona antes de una herramienta de una extensión instalada que cambia cosas, y algunas respuestas duran: "Sí, siempre" y "No, nunca" ([Las herramientas de las extensiones que cambian cosas](../human-in-the-loop/approvals.md#extensions-tools-that-change-things)). Se guardan junto a sus opciones, en su entrada del lock de su ámbito (`confirm`), y sobreviven a las actualizaciones. Las cambia la persona, nunca el modelo:
+
+```
+/extensions config canva                 # sus opciones, y lo que el modo guiado guarda de ella
+/extensions config canva confirm=reset   # olvidar "siempre" y "nunca": sus herramientas vuelven a preguntar
+/extensions config canva confirm=off     # sus herramientas funcionan sin preguntar (una extensión de confianza)
+/extensions config canva confirm=on      # volver a preguntar
+```
+
+Lo mismo con `extension config` desde el terminal. La puerta las lee en cada llamada, así que un cambio se aplica al momento, sin reiniciar nada; una herramienta a la que se dijo "nunca" sigue fuera de la sesión en curso hasta la siguiente.
+
 ## Lo que no es configuración {#what-isnt-configuration}
 
 Lo que el servidor aprende o crea mientras trabaja (una sesión iniciada en un navegador, una caché, sitios añadidos pidiéndoselo) no es una opción: el servidor lo guarda en su [carpeta de datos](writing.md#its-data), que sobrevive a reinicios, reinstalaciones y actualizaciones. Y las variables propias del agente (`${VAR}` en el `env` de un servidor, del entorno del agente) solo llegan a un servidor cuando su `.mcp.json` las nombra.

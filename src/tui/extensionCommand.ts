@@ -26,7 +26,7 @@ import {
   type ExtensionScope,
   type InstalledExtension,
 } from "../core/externalExtensions.js";
-import { describe, describeOptions } from "../chat/extensions.js";
+import { applyConfirm, describe, describeConfirm, describeOptions } from "../chat/extensions.js";
 import { extensionCatalog, knownMarketplaces as catalogMarketplaces, restoreExtensions, updateExtension } from "../core/extensionCatalog.js";
 import { trustWorkspace } from "../core/workspaceTrust.js";
 import { describeCapability, describeInLanguage } from "../core/extensions.js";
@@ -46,7 +46,7 @@ export { chatExtensionsCommand, describe } from "../chat/extensions.js";
  * - `extension add <folder> --link [--project]`: registered where it is, to develop it (not copied, its files not checked)
  * - `extension remove <name> [--project | --agent] [--yes | --keep-data]`: asks before deleting its data folder
  * - `extension enable|disable <name> [--project | --agent]`
- * - `extension config <name> [key=value… | key… | --unset key…] [--project | --agent]`: its options; `key` alone asks for it (without echo when it's a secret)
+ * - `extension config <name> [key=value… | key… | --unset key… | confirm=on|off|reset] [--project | --agent]`: its options; `key` alone asks for it (without echo when it's a secret); `confirm=` what guided mode asks about its tools (#74, #76)
  * - `extension update [name] [--yes]`: one installed from a marketplace (or all that have a newer version there) to the version it offers now, its data and options kept
  * - `extension restore [--trust]`: gets the code a workspace's lock lists and this computer lacks (#57); `--trust` trusts it too
  * - `extension trust [name…]`: lets a workspace's extensions run, as their code is now
@@ -221,14 +221,18 @@ export async function runExtensionCommand(
       }
       case "config": {
         const name = positional[0];
-        if (!name) return fail(`Usage: ${command} extension config <name> [key=value… | key… | --unset key…] [--project | --agent]`);
+        if (!name) return fail(`Usage: ${command} extension config <name> [key=value… | key… | --unset key… | confirm=on|off|reset] [--project | --agent]`);
         const found = (await listInstalled(options.dirs)).filter((extension) => extension.name === name && !extension.shadowed && (!askedScope || extension.scope === askedScope));
         if (!found.length) return fail(`${name} isn't installed${askedScope ? ` in the ${askedScope} scope` : ""}. \`${command} extension list\` lists them.`);
         const installed = found[0]!;
         const declared = installed.manifest?.userConfig ?? {};
+        // Guided mode's answers about its tools (#74, #76): confirm=on|off|reset.
+        const confirm = await applyConfirm(installed, positional.slice(1));
+        if ("error" in confirm) return fail(`${confirm.error}.`);
+        if (confirm.changed) write(`${name}'s guided-mode answers saved in the ${installed.scope} scope.`);
         const typed: Record<string, string | undefined> = {};
         for (const key of values("unset")) typed[key] = undefined;
-        for (const pair of positional.slice(1)) {
+        for (const pair of confirm.rest) {
           const at = pair.indexOf("=");
           if (at > 0) typed[pair.slice(0, at)] = pair.slice(at + 1);
           else {
@@ -241,9 +245,10 @@ export async function runExtensionCommand(
           await setExtensionOptions(installed, name, typed);
           write(`${name}'s options saved in the ${installed.scope} scope. They apply when its server starts again: the next session, or in a chat \`/extensions disable ${name}\` and \`enable\`.`);
         }
-        const lines = await describeOptions((await listInstalled(options.dirs)).find((extension) => extension.name === name && extension.scopeDir === installed.scopeDir)!);
+        const now = (await listInstalled(options.dirs)).find((extension) => extension.name === name && extension.scopeDir === installed.scopeDir)!;
+        const lines = await describeOptions(now);
         if (!lines.length) write(`${name} has no options.`);
-        for (const line of lines) write(line);
+        for (const line of [...lines, ...describeConfirm(now)]) write(line);
         return true;
       }
       case "restore": {
@@ -303,6 +308,7 @@ export async function runExtensionCommand(
             "  remove <name> [--project | --agent] [--yes | --keep-data]",
             "  enable|disable <name> [--project | --agent]",
             "  config <name> [key=value… | key… | --unset key…]   its options (key alone asks for it)",
+            "  config <name> confirm=on|off|reset    whether guided mode asks before its tools, or forget the answers kept",
             "  update [name]                          to the version its marketplace offers now (all that have one, without a name)",
             "  restore [--trust]                      gets what this workspace's lock lists and this computer lacks",
             "  trust [name…]                          lets this workspace's extensions run, as they are now",

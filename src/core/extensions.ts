@@ -73,6 +73,13 @@ export interface ExtensionContribution {
    */
   readOnlyHintServers?: string[];
   /**
+   * Its MCP tools that always ask the person in guided mode, even inside an approved batch, by full
+   * name (#76): an installed extension's manifest's `confirmTools`.
+   */
+  confirmTools?: string[];
+  /** Its MCP servers whose tools that always ask guided mode learns from their `destructiveHint`: an installed extension whose manifest lists no `confirmTools`. */
+  confirmHintServers?: string[];
+  /**
    * Its MCP servers that are remote (#61), by session name: the SDK fixes their URL and headers
    * when the session opens, so a changed option takes opening it again, and they may need the
    * person to sign in.

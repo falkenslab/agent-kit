@@ -45,9 +45,28 @@ humanApprovalTexts: { ...DEFAULT_HUMAN_APPROVAL_TEXTS, description: myDescriptio
 
 The model decides when to call the tool. It works well for "ask before posting", with a clear description and a prompt that reinforces it, but it isn't a hard boundary: a model can skip it. For an action that must never happen without a person:
 
+- if it's an installed extension's tool, the kit already asks: see [below](#extensions-tools-that-change-things);
 - ask from the tool that does it, with [`askForDecision()`](overview.md#asking-from-your-own-code);
 - or deny it in a [`PreToolUse` hook](../advanced/hooks.md) unless approved;
 - or run in `interactive` mode, where every call is gated.
+
+## Extensions' tools that change things
+
+In guided mode, an installed extension's tool that isn't known to only read waits for the person's yes, whatever the model did before: the kit asks, not the model. Read-only tools are the same as [plan mode's](../extensions/writing.md#read-only-tools): the manifest's `readOnlyTools`, else the tools its server marks `readOnlyHint`. The question is a choice panel titled **Let `<extension>` do this?**, with the tool's label in the session's language and its parameters, for the main agent's calls and its subagents'. Its answers:
+
+- **Yes**: this call.
+- **Yes, for this session**: that tool doesn't ask again until the session ends.
+- **Yes, always**: kept in the extension's lock, so it doesn't ask in later sessions either. Not offered for a tool that always asks (below): it would approve what hasn't been seen.
+- **No**: the call is denied, and the model is told not to retry it without asking. An answer typed in the panel is a no too, passed on to the model as the person's words.
+- **No, never**: denied, and kept: in later sessions the tool isn't in the session at all (`disallowedTools`).
+
+**An approved batch.** Right after `request_human_approval` is approved, the calls that follow go on without asking until the person's next message or the next approval request, so one approval covers a batch of work: "publish these ten grades" is one question, not eleven.
+
+**Tools that always ask**, even inside an approved batch: the manifest's [`confirmTools`](../extensions/writing.md#tools-that-always-ask) and the agent's own list ([`extensionGate`](../core-concepts/agent-spec.md#extensiongate)), else the tools its server marks `destructiveHint`. What creates, edits or publishes in the person's account belongs there.
+
+**The person's word lasts.** `/extensions config <name>` (and `extension config <name>` in the terminal) lists what's kept for an extension; `confirm=reset` forgets the answers, `confirm=off` lets its tools run without asking (an extension the person trusts), `confirm=on` asks again. The model can't change any of it. Every answer goes to the [transcript](../security/transcript.md).
+
+The other modes keep their own gates: in `interactive` the step gate already asks before every call, and `plan` denies what isn't read-only. In `autonomous`, where no one can be asked, those tools are denied unless the agent says they run (`extensionGate.autonomous`). A remote server's call with [`remoteServers: "ask"`](../core-concepts/session-config.md) asks about where it goes, reads included; this gate is about what changes things, in any server.
 
 ## Building it yourself
 

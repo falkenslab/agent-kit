@@ -17,7 +17,7 @@ The mode is how much a person is in the loop. It's the only thing `buildSessionO
 
 ## autonomous
 
-For jobs nobody watches: scheduled runs, batch processing, agents whose tools can't do harm. The agent has no channel to ask a person at all, by design.
+For jobs nobody watches: scheduled runs, batch processing, agents whose tools can't do harm. The agent has no channel to ask a person at all, by design. So an installed extension's tool that changes things is denied, unless the agent says those run ([`extensionGate.autonomous`](agent-spec.md#extensiongate)).
 
 ```ts
 const config: BaseSessionConfig = { mode: "autonomous", projectDir };
@@ -32,6 +32,8 @@ Write the tool's texts for your domain with [`humanApprovalTexts`](agent-spec.md
 :::warning A prompt-level guardrail
 Guided mode relies on the model calling the tool at the right moment. It's the right trade-off for "don't post without asking", not a hard boundary. For hard boundaries, use `disallowedTools`, the file scope or your own [hooks](../advanced/hooks.md).
 :::
+
+Installed extensions are the exception: the kit itself asks before one of their tools that isn't known to only read, with answers the person can make last (this session, always, never), and an approved `request_human_approval` covers the calls that follow until their next message. See [Extensions' tools that change things](../human-in-the-loop/approvals.md#extensions-tools-that-change-things).
 
 ## interactive
 

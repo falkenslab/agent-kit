@@ -51,7 +51,8 @@ Todo opcional; lo comprueba `schemas/agent-kit-metadata.schema.json`.
 | `provides`, `requires` | Sus [capacidades](overview.md#capabilities), por nombre. |
 | `capabilities` | Lo que permite hacer al agente, para la persona: una lista de `{ id, skills, tools, texts }`. `id` va en kebab-case y cuenta como proporcionado; `skills` son carpetas de su `skills/` (cada una debe existir), `tools` nombres cortos de cualquiera de sus servidores; `texts` da una `label` (obligatoria) y una `description` por idioma (`en`, `es`, `fr`, `de`), con el inglés donde falte el de la persona. |
 | `requirements` | [Programas que necesita](writing.md#programs-it-needs) en el ordenador, que instala la persona: una lista de `{ name, program, version?, install, for? }`. `program` es un nombre sin más en el `PATH`; `version` es `{ args, min }`, con argumentos que solo pueden ser opciones o `version`; `install` tiene un comando por sistema (`windows`, `macos`, `linux`) y una `url`; `for` nombra las capacidades que lo necesitan (ninguna: toda la extensión). Si falta, toda la extensión o esas capacidades están apagadas, diciendo cómo instalarlo. |
-| `readOnlyTools` | Sus herramientas que solo leen (nombres cortos, de cualquiera de sus servidores): el modo plan las deja pasar. Sin él, el modo plan pregunta a sus servidores (`readOnlyHint`); con él, la lista es la respuesta completa, aunque esté vacía. |
+| `readOnlyTools` | Sus herramientas que solo leen (nombres cortos, de cualquiera de sus servidores): el modo plan las deja pasar y el modo guiado no pregunta. Sin él, el kit pregunta a sus servidores (`readOnlyHint`); con él, la lista es la respuesta completa, aunque esté vacía. |
+| `confirmTools` | Sus herramientas que siempre preguntan a la persona en modo guiado (nombres cortos), incluso dentro de un lote que aprobó, y a las que nunca se ofrece "siempre": lo que crea, edita o publica en su cuenta. Sin él, lo dice el `destructiveHint` de sus servidores. |
 | `labels` | Cómo muestra el chat cada herramienta (nombre corto), por idioma (`en`, `es`, `fr`, `de`; inglés cuando no está el del kit): `label`, con `{field}` tomando la entrada de la llamada, y `phrase`, `[once, "{n} times"]`, para un [resumen plegado](../terminal-ui/tool-labels.md#folded-summaries). |
 | `help` | Lo que dice de sí misma en una sesión, para que el agente se lo cuente a la persona. |
 | `catalog` | Su aspecto: `logo` (cuadrado) y `banner` (ancho), SVG, PNG, JPEG o WebP, rutas dentro de su carpeta. |
@@ -98,6 +99,7 @@ Las descargas de npm y zip se descargan y desempaquetan en el propio proceso del
 | `stored` | Su código está en el almacén del agente (si es de un workspace): `<agent>/.store/<name>/<hash>/`. |
 | `packages` | Los paquetes de npm que ejecutan sus servidores npx: la integridad, el hash y el `bin` de cada uno. |
 | `options` | Los valores de sus opciones que no son secretos. |
+| `confirm` | Lo que la persona dijo de sus herramientas en modo guiado: `tools` (`{ "<herramienta>": "always" \| "never" }`) y `off` (sus herramientas funcionan sin preguntar). Se mantiene al actualizar; `config <name> confirm=reset` olvida las respuestas. |
 | `enabled`, `installed` | Activada o desactivada; cuándo se instaló. |
 
 ## Dónde guarda las cosas el kit {#where-the-kit-keeps-things}

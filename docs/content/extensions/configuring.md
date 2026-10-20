@@ -49,6 +49,19 @@ The kit's launcher reads the values when it starts a server, so a change reaches
 - A session the agent builds itself gets `restartExtension(name)` from `buildSessionOptions()`, which returns `false` when it can't be done in that session.
 - **A [remote server](writing.md#a-remote-server)'s options** go into its URL and headers when the session opens, and restarting it wouldn't change them: changing one opens the session again, keeping the conversation (`restartExtension()` returns `false` for it).
 
+## Guided mode's answers
+
+In guided mode the kit asks the person before an installed extension's tool that changes things, and some answers last: "Yes, always" and "No, never" ([Extensions' tools that change things](../human-in-the-loop/approvals.md#extensions-tools-that-change-things)). They're kept next to its options, in its scope's lock entry (`confirm`), and survive updates. The person, never the model, changes them:
+
+```
+/extensions config canva                 # its options, then what guided mode keeps for it
+/extensions config canva confirm=reset   # forget "always" and "never": its tools ask again
+/extensions config canva confirm=off     # its tools run without asking (an extension you trust)
+/extensions config canva confirm=on      # ask again
+```
+
+The same with `extension config` from the terminal. The gate reads them on each call, so a change applies at once, without restarting anything; a tool said "never" stays out of the running session until the next one.
+
 ## What isn't configuration
 
 What the server learns or creates while it works (a signed-in browser session, a cache, sites added by asking it) isn't an option: the server keeps it in its [data folder](writing.md#its-data), which survives restarts, reinstalls and updates. And variables of the agent's own (`${VAR}` in a server's `env`, from the agent's environment) reach a server only when its `.mcp.json` names them.

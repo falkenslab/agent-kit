@@ -51,7 +51,8 @@ All optional; checked by `schemas/agent-kit-metadata.schema.json`.
 | `provides`, `requires` | Its [capabilities](overview.md#capabilities), by name. |
 | `capabilities` | What it lets the agent do, for the person: a list of `{ id, skills, tools, texts }`. `id` is kebab-case and counts as provided; `skills` are folders of its `skills/` (each must exist), `tools` short names of any of its servers; `texts` gives a `label` (required) and a `description` per language (`en`, `es`, `fr`, `de`), English where the person's is missing. |
 | `requirements` | [Programs it needs](writing.md#programs-it-needs) on the computer, which the person installs: a list of `{ name, program, version?, install, for? }`. `program` is a bare name on the `PATH`; `version` is `{ args, min }`, its arguments options or `version` only; `install` has a command per system (`windows`, `macos`, `linux`) and a `url`; `for` names the capabilities that need it (none: the whole extension). Missing, the whole extension or those capabilities are off, saying how to install it. |
-| `readOnlyTools` | Its tools that only read (short names, of any of its servers): plan mode lets them through. Without it, plan mode asks its servers (`readOnlyHint`); with it, the list is the whole answer, even empty. |
+| `readOnlyTools` | Its tools that only read (short names, of any of its servers): plan mode lets them through, and guided mode doesn't ask. Without it, the kit asks its servers (`readOnlyHint`); with it, the list is the whole answer, even empty. |
+| `confirmTools` | Its tools that always ask the person in guided mode (short names), even inside a batch they approved, and are never offered "always": what creates, edits or publishes in their account. Without it, its servers' `destructiveHint` says which. |
 | `labels` | How the chat shows each tool (short name), per language (`en`, `es`, `fr`, `de`; English when the kit's isn't there): `label`, with `{field}` taking the call's input, and `phrase`, `[once, "{n} times"]`, for a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). |
 | `help` | What it says about itself in a session, for the agent to tell the person. |
 | `catalog` | Its look: `logo` (square) and `banner` (wide), SVG, PNG, JPEG or WebP, paths inside its folder. |
@@ -98,6 +99,7 @@ npm and zip downloads are fetched and unpacked in the agent's own process (no np
 | `stored` | Its code is in the agent's store (a workspace's): `<agent>/.store/<name>/<hash>/`. |
 | `packages` | The npm packages its npx servers run: each one's integrity, hash and `bin`. |
 | `options` | Its options' values that aren't secrets. |
+| `confirm` | What the person said about its tools in guided mode: `tools` (`{ "<tool>": "always" \| "never" }`) and `off` (its tools run without asking). Kept across updates; `config <name> confirm=reset` forgets the answers. |
 | `enabled`, `installed` | On or off; when it was installed. |
 
 ## Where the kit keeps things

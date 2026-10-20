@@ -9,6 +9,8 @@ import type {
 export interface TranscriptLogger {
   preToolUse: HookCallback;
   postToolUse: HookCallback;
+  /** Another event the kit keeps in it (a gate's answer, #74): one line, with its time. */
+  note(event: string, entry: Record<string, unknown>): Promise<void>;
 }
 
 function redact(text: string, secrets: readonly string[]): string {
@@ -55,7 +57,7 @@ export function createTranscriptLogger(transcriptPath: string, secrets: readonly
     return {};
   };
 
-  return { preToolUse, postToolUse };
+  return { preToolUse, postToolUse, note: async (event, entry) => await write({ ts: new Date().toISOString(), event, ...entry }) };
 }
 
 /** Avoids bloating the transcript with large payloads (browser-tool screenshots/base64). */

@@ -10,6 +10,7 @@ import { createSubagentForegroundGate } from "./hooks/subagentForegroundGate.js"
 import { createFileScopeGate } from "./hooks/fileScopeGate.js";
 import { createPlanGate } from "./hooks/planGate.js";
 import { createRemoteGate } from "./hooks/remoteGate.js";
+import { createGuidedGate, type GuardedExtension } from "./hooks/guidedGate.js";
 import { chooseConnectors, discoverConnectors, serverToolPrefix } from "./claudeAiConnectors.js";
 import { createHumanApprovalServer } from "./tools/humanApproval.js";
 import { createManualLoginServer } from "./tools/manualLogin.js";
@@ -20,7 +21,7 @@ import { aboutExtension, describeCapability, extensionsPromptSection, resolveExt
 import { allowAnyMcpTool } from "./mcpPermissions.js";
 import { pluginAgents } from "./pluginAgents.js";
 import { outsideArchive, unpackedClaudeExecutable } from "./packaged.js";
-import { listInstalled, loadExternalExtensions, scopePrivateDir, type ExtensionDirs, type InstalledExtension } from "./externalExtensions.js";
+import { listInstalled, loadExternalExtensions, readLock, scopePrivateDir, type ExtensionDirs, type LockEntry, type InstalledExtension } from "./externalExtensions.js";
 import type { ToolLabels } from "./toolLabels.js";
 import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 import { replyLanguageInstruction, type Language } from "./language.js";
@@ -30,7 +31,7 @@ import { createSessionView, registerSessionView, type SessionView, type StaticSe
 import { createExtensionAuth, createExtensionRestart, createExtensionSwitch, mountPlugin, type ExtensionAuth, type ExtensionRestart, type ExtensionSwitch } from "./liveExtensions.js";
 import { secretsDir } from "./extensionOptions.js";
 import { createElicitationHandler } from "./elicitation.js";
-import { createReadOnlyHints } from "./readOnlyHints.js";
+import { createReadOnlyHints, createToolHints } from "./readOnlyHints.js";
 import { agentKitVersion } from "./version.js";
 
 /**
@@ -216,6 +217,32 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   const readOnlyTools = fromExtensions((contribution) => contribution.readOnlyTools);
   // Those whose manifest lists none: their servers say, asked while the session runs (#53).
   const readOnlyHintServers = fromExtensions((contribution) => contribution.readOnlyHintServers);
+  const readOnlyHinted = readOnlyHintServers.length ? createReadOnlyHints(readOnlyHintServers, () => late.view?.controls().mcpServerStatus) : undefined;
+
+  // Guided mode's gate for the installed extensions' tools that change things (#74, #76): whose
+  // they are, which always ask (the manifest's list and the agent's, else the servers' hints),
+  // and those the person said never to, kept in the lock: out of the session altogether.
+  const gateSpec = spec.extensionGate ?? {};
+  const guardedExtensions: GuardedExtension[] =
+    gateSpec.enabled === false
+      ? []
+      : resolved.active.flatMap(({ extension }, index) => {
+          const installed = installedDirs.get(extension.name);
+          if (!installed) return [];
+          const servers = Object.keys(added[index]?.mcpServers ?? {});
+          const own = (gateSpec.confirmTools?.[extension.name] ?? []).flatMap((tool) => servers.map((server) => `mcp__${server}__${tool}`));
+          return [{ name: extension.name, scopeDir: installed.scopeDir, servers, confirmTools: [...(added[index]?.confirmTools ?? []), ...own] }];
+        });
+  const neverTools = (
+    await Promise.all(
+      guardedExtensions.map(async (extension) => {
+        const confirm = (await readLock(extension.scopeDir).catch((): Record<string, LockEntry> => ({})))[extension.name]?.confirm;
+        if (confirm?.off) return [];
+        const never = Object.entries(confirm?.tools ?? {}).filter(([, answer]) => answer === "never");
+        return never.flatMap(([tool]) => extension.servers.map((server) => `mcp__${server}__${tool}`));
+      }),
+    )
+  ).flat();
 
   // What no file tool may touch: the agent's denied paths and the SDK's own credentials.
   // And the installed extensions' sensitive option values (#55), in each scope's .secrets/.
@@ -230,6 +257,19 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
 
   const transcriptPath = path.join(runDir, "transcript.jsonl");
   const transcriptLogger = createTranscriptLogger(transcriptPath, config.secrets ?? []);
+  const guidedGate = guardedExtensions.length
+    ? createGuidedGate({
+        runDir,
+        mode: () => modeControl.mode,
+        extensions: guardedExtensions,
+        isReadOnly: async (tool) => readOnlyTools.includes(tool) || ((await readOnlyHinted?.(tool)) ?? false),
+        isDestructive: createToolHints(fromExtensions((contribution) => contribution.confirmHintServers), () => late.view?.controls().mcpServerStatus, "destructive"),
+        ...(gateSpec.autonomous ? { autonomous: gateSpec.autonomous } : {}),
+        // The session's labels, built below: read when a call is asked about.
+        labels: () => toolLabels,
+        record: (decision) => transcriptLogger.note("guided_decision", { ...decision }),
+      })
+    : undefined;
 
   const promptSections = [
     spec.buildSystemPrompt(config),
@@ -294,7 +334,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     // mcpPermissions.ts for why a fixed allowedTools wildcard can't cover a server whose
     // name isn't known ahead of time.
     canUseTool: allowAnyMcpTool,
-    disallowedTools: spec.disallowedTools ?? [],
+    // And the extensions' tools the person said never to (#76).
+    disallowedTools: [...(spec.disallowedTools ?? []), ...neverTools],
     // TodoWrite (todos.ts) only exists with CLAUDE_CODE_ENABLE_TASKS=0: by default the CLI
     // offers its TaskCreate/TaskUpdate/TaskList/TaskGet tools instead, and drops TodoWrite from
     // the session even when `tools` names it (confirmed empirically). `env` replaces the
@@ -327,7 +368,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     ...(subagentDefinitions ? { agents: subagentDefinitions } : {}),
     mcpServers: {
       ...spec.buildMcpServers(config, runDir),
-      ...(includeApprovalTool ? { approvals: createHumanApprovalServer(runDir, spec.humanApprovalTexts, { modeControl }) } : {}),
+      ...(includeApprovalTool ? { approvals: createHumanApprovalServer(runDir, spec.humanApprovalTexts, { modeControl, ...(guidedGate ? { onApproval: guidedGate.approvalAnswered } : {}) }) } : {}),
       ...(manualInterventionTexts ? { manualLogin: createManualLoginServer(runDir, manualInterventionTexts) } : {}),
       // The extensions' tools (the knowledge base's, the sources').
       ...Object.assign({}, ...added.map((contribution) => contribution.mcpServers ?? {})),
@@ -352,6 +393,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
             }),
           ],
         },
+        // Guided mode asks before an installed extension's tool that changes things (#74, #76).
+        ...(guidedGate ? [{ hooks: [guidedGate.preToolUse] }] : []),
         ...(fileTools.length || toolOnlyDirs.length
           ? [{ hooks: [createFileScopeGate({
                     projectDir: config.projectDir,
@@ -384,7 +427,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
                     {
                       projectDir: config.projectDir,
                       readOnlyTools,
-                      ...(readOnlyHintServers.length ? { isReadOnlyHinted: createReadOnlyHints(readOnlyHintServers, () => late.view?.controls().mcpServerStatus) } : {}),
+                      ...(readOnlyHinted ? { isReadOnlyHinted: readOnlyHinted } : {}),
                       ...(spec.planMode?.isPlanFile ? { isPlanFile: (filePath: string) => spec.planMode!.isPlanFile!(filePath, config) } : {}),
                       ...(spec.planMode?.isReadOnlyTool ? { isReadOnlyTool: spec.planMode.isReadOnlyTool } : {}),
                     },
@@ -403,6 +446,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           : []),
       ],
       PostToolUse: [{ hooks: [transcriptLogger.postToolUse] }],
+      // The person's message ends a batch they approved (guided mode, #74).
+      ...(guidedGate ? { UserPromptSubmit: [{ hooks: [guidedGate.userPromptSubmit] }] } : {}),
     },
   };
 

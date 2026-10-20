@@ -20,6 +20,7 @@ An agent acts through tools, so the kit's guardrails sit on the tools: which exi
 | Setting sources, auto-memory, git context | the runner's personal Claude Code configuration leaking into the agent | SDK options | [Permissions and isolation](permissions-and-isolation.md) |
 | Step gate, approvals | actions a person should see first | hook and tool | [Human in the loop](../human-in-the-loop/overview.md) |
 | Plan gate | changes while the agent is only meant to plan | `PreToolUse` hook | [Modes](../core-concepts/modes.md#plan) |
+| Guided gate | an installed extension's tool changing things without the person's yes, in guided mode, whatever the model did first | `PreToolUse` hook (`extensionGate`, the manifest's `confirmTools`) | [Approvals](../human-in-the-loop/approvals.md#extensions-tools-that-change-things) |
 | Transcript redaction | secrets written to logs | `PreToolUse`/`PostToolUse` hook | [Transcript](transcript.md) |
 | Remote gate | data leaving the computer for a remote MCP server, and a claude.ai connector the agent didn't choose | `PreToolUse` hook (`remoteServers`, `claudeAiConnectors`) | [Session config](../core-concepts/session-config.md) |
 | Installed extensions apart | an installed extension's server seeing the agent's credentials, or its files changing after install | the launcher, the lock's hash | [Extensions](../extensions/overview.md#where-they-run) |

@@ -193,6 +193,7 @@ What the kit's chat, gates and catalog use goes under `metadata["agent-kit"]` in
 - **`help`**: what it says about itself, for the agent to tell the person ([awareness](../capabilities/awareness.md)'s `about_me`).
 - **`catalog`**: its look in a catalog ([below](#6-its-look-in-a-catalog)).
 - **Read-only tools**: nothing to declare here, since `forecast` says `readOnlyHint: true` itself and plan mode asks the server ([Read-only tools](#read-only-tools)).
+- **Tools that always ask**: none here, since the weather changes nothing; an extension that creates or publishes in the person's account lists them in `confirmTools` ([Tools that always ask](#tools-that-always-ask)).
 
 Never put it at the top level of `plugin.json`: Claude Code would warn ("Unknown field"), and `--strict` validation would fail. Every field is in the [reference](reference.md#metadataagent-kit), and `agent-kit-metadata.schema.json` (in the kit's `schemas/`) lets an editor check it.
 
@@ -265,6 +266,18 @@ A `README.md` at its root is for people: what it does, what it offers (its tools
 - **Its manifest's list**, `readOnlyTools` in `metadata["agent-kit"]`: the whole answer, whatever its servers say. An empty list (`[]`) means none of its tools goes through. A server is the code the kit trusts least, so its hints only fill the list's absence: write the list when you don't trust, or can't change, what a server says.
 
 `extension info <name>` says which applies (`Only read  roll (its manifest)`, or `what its servers mark readOnlyHint`).
+
+The same list keeps guided mode from asking: the rest of an installed extension's tools wait for the person's yes there ([Extensions' tools that change things](../human-in-the-loop/approvals.md#extensions-tools-that-change-things)). A tool missing from the list asks every time, so list every one that only reads.
+
+### Tools that always ask
+
+In guided mode the person can approve a batch of calls at once, or a tool for the session or for good. Some tools should never be approved unseen: what creates, edits, publishes or deletes in their account. List them in `confirmTools` in `metadata["agent-kit"]` (short names):
+
+```json
+"metadata": { "agent-kit": { "confirmTools": ["create-design", "publish-design"] } }
+```
+
+They ask even inside an approved batch, and the person isn't offered "always". Without the key, the tools its servers mark `destructiveHint: true` count instead, the same way `readOnlyTools` and `readOnlyHint` work. The agent can add its own ([`extensionGate.confirmTools`](../core-concepts/agent-spec.md#extensiongate)).
 
 ### Programs it needs
 

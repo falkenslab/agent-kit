@@ -118,7 +118,14 @@ test("the command asks for the options when installing (--set gives them), and c
   assert.equal(JSON.parse(fs.readFileSync(extensionSecretsPath(scope, "moodle"), "utf8")).token, "t0ken");
   lines.length = 0;
   await run(["config", "moodle"]);
-  assert.deepEqual(lines, ["  url = https://campus.example.org  (Moodle URL, required)", "  token = (set, hidden)  (Token)", "  headless = false (default)  (Headless)"]);
+  // Then what guided mode keeps about its tools (#74, #76): nothing yet.
+  assert.deepEqual(lines, [
+    "  url = https://campus.example.org  (Moodle URL, required)",
+    "  token = (set, hidden)  (Token)",
+    "  headless = false (default)  (Headless)",
+    "In guided mode, moodle's tools that change things ask first (confirm=off runs them without asking):",
+    "  (no kept answers; confirm=reset forgets them)",
+  ]);
   lines.length = 0;
   await run(["config", "moodle", "headless=true", "--unset", "token"]);
   assert.match(lines[0]!, /options saved in the agent scope/);

@@ -194,6 +194,12 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
   humanApprovalTexts?: { description: string; approved: string; rejected: string };
 
   /**
+   * Guided mode's gate for installed extensions' tools that change things (#74, #76, see
+   * hooks/guidedGate.ts): one that isn't known to only read waits for the person's yes. On by default.
+   */
+  extensionGate?: ExtensionGateSpec;
+
+  /**
    * Text for the generic manual-intervention checkpoint (see tools/manualLogin.ts), AND
    * this domain's opt-in signal for offering that checkpoint at all: `buildSessionOptions()`
    * only registers `request_manual_login` when this is set (and `mode !== "autonomous"`).
@@ -216,6 +222,19 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    * writes nothing and presents its plan in its reply.
    */
   planMode?: PlanModeSpec<TConfig>;
+}
+
+/** The agent's word on guided mode's gate for extensions' tools (`AgentSpec.extensionGate`). */
+export interface ExtensionGateSpec {
+  /** `false` turns the gate off: extensions' tools run without asking, as the model decides. */
+  enabled?: boolean;
+  /**
+   * Tools that always ask, even inside a batch the person approved, and never offer "always", by
+   * extension and short tool name (`{ canva: ["create-design"] }`): added to its manifest's `confirmTools`.
+   */
+  confirmTools?: Record<string, string[]>;
+  /** In autonomous mode, where no one can be asked: `"deny"` (the default) blocks those tools, `"allow"` runs them. */
+  autonomous?: "deny" | "allow";
 }
 
 /** Who an agent is, as told to its model (`AgentSpec.identity`). */

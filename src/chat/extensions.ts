@@ -1,5 +1,5 @@
 import path from "node:path";
-import { extensionOptionStates, setExtensionEnabled, setExtensionOptions, type InstalledExtension } from "../core/externalExtensions.js";
+import { extensionOptionStates, readLock, setExtensionConfirm, setExtensionEnabled, setExtensionOptions, type InstalledExtension } from "../core/externalExtensions.js";
 import type { ExtensionsStatus } from "../core/session.js";
 import { t } from "../core/messages/index.js";
 import { extensionCatalog, type CatalogEntry } from "../core/extensionCatalog.js";
@@ -70,6 +70,29 @@ export async function describeOptions(extension: InstalledExtension): Promise<st
   });
 }
 
+/** What guided mode keeps about an extension's tools (#74, #76): whether they ask, and the answers kept. None for one without tools. */
+export function describeConfirm(extension: InstalledExtension): string[] {
+  if (!Object.keys(extension.manifest?.servers ?? {}).length) return [];
+  const confirm = extension.lock.confirm;
+  if (confirm?.off) return [t().extensionConfirmOff(extension.name)];
+  const kept = Object.entries(confirm?.tools ?? {});
+  return [t().extensionConfirmOn(extension.name), ...(kept.length ? kept.map(([tool, answer]) => t().confirmKept(tool, answer)) : [t().confirmNoneKept])];
+}
+
+/**
+ * `confirm=on|off|reset` among `config`'s pairs (#74, #76): `off` lets its tools run without asking
+ * in guided mode, `on` asks again, `reset` forgets the answers kept. Returns the other pairs and
+ * the extension as it is now, or why it can't.
+ */
+export async function applyConfirm(extension: InstalledExtension, pairs: readonly string[]): Promise<{ rest: string[]; extension: InstalledExtension; changed: boolean } | { error: string }> {
+  const rest = pairs.filter((pair) => !pair.startsWith("confirm="));
+  const values = pairs.filter((pair) => pair.startsWith("confirm=")).map((pair) => pair.slice("confirm=".length).toLowerCase());
+  if (values.some((value) => !["on", "off", "reset"].includes(value))) return { error: "confirm takes on, off or reset" };
+  for (const value of values) await setExtensionConfirm(extension.scopeDir, extension.name, value === "reset" ? { reset: true } : { off: value === "off" });
+  const lock = values.length ? (await readLock(extension.scopeDir))[extension.name] : undefined;
+  return { rest, extension: lock ? { ...extension, lock } : extension, changed: values.length > 0 };
+}
+
 /**
  * `/extensions` in a chat (#37): with nothing after it, what the session runs with, what's off
  * and why, and what's installed; with `enable <name>` or `disable <name>`, changes its lock and
@@ -107,10 +130,14 @@ export async function chatExtensionsCommand(
     if (!installed) return { lines: [t().extensionNotInstalled(name)] };
     if (!extra.length) {
       const options = await describeOptions(installed);
-      return { lines: options.length ? [t().extensionOptions(name), ...options] : [t().extensionNoOptions(name)] };
+      return { lines: [...(options.length ? [t().extensionOptions(name), ...options] : [t().extensionNoOptions(name)]), ...describeConfirm(installed)] };
     }
+    // Guided mode's answers: the gate reads them on each call, so nothing restarts (#74, #76).
+    const confirm = await applyConfirm(installed, extra);
+    if ("error" in confirm) return { lines: [`(${confirm.error})`] };
+    if (!confirm.rest.length) return { lines: describeConfirm(confirm.extension) };
     const typed: Record<string, string | undefined> = {};
-    for (const pair of extra) {
+    for (const pair of confirm.rest) {
       const at = pair.indexOf("=");
       const key = at > 0 ? pair.slice(0, at) : pair;
       if (installed.manifest?.userConfig[key]?.sensitive) return { lines: [t().optionSensitiveInChat(key, name)] };

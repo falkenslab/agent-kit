@@ -28,11 +28,16 @@ const ok = (text: string) => ({ content: [{ type: "text" as const, text }] });
 /**
  * The tools that ask the person, in every mode but autonomous: `request_human_approval`
  * (right before an action that publishes something visible to others and that's hard to
- * undo), `ask_human` (a choice between options, in a panel, within the turn) and, when the
+ * undo; approved, guided mode lets the calls that follow through until the person's next
+ * message, see hooks/guidedGate.ts), `ask_human` (a choice between options, in a panel, within the turn) and, when the
  * session can be in plan mode (`modeControl`), `present_plan`, the kit's own way out of plan
  * mode (ADR-023): the person runs the plan, keeps planning or cancels.
  */
-export function createHumanApprovalServer(runDir: string, texts: HumanApprovalTexts = DEFAULT_HUMAN_APPROVAL_TEXTS, options: { modeControl?: ModeControl } = {}) {
+export function createHumanApprovalServer(
+  runDir: string,
+  texts: HumanApprovalTexts = DEFAULT_HUMAN_APPROVAL_TEXTS,
+  options: { modeControl?: ModeControl; /** Each approval's answer: guided mode's batch (#74). */ onApproval?: (approved: boolean) => void } = {},
+) {
   const requestHumanApproval = tool(
     "request_human_approval",
     texts.description,
@@ -45,6 +50,7 @@ export function createHumanApprovalServer(runDir: string, texts: HumanApprovalTe
         lines: [t().summaryLine(args.summary)],
       });
       const approved = APPROVED_ANSWERS.has(answer);
+      options.onApproval?.(approved);
 
       return {
         content: [{ type: "text" as const, text: approved ? texts.approved : texts.rejected }],
