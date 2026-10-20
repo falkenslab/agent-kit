@@ -86,7 +86,12 @@ async function packageBin(dir: string, name: string): Promise<{ bin: string } | 
   const bundled = json.bundleDependencies ?? json.bundledDependencies;
   const declared = Object.keys({ ...json.dependencies, ...json.optionalDependencies });
   const missing = bundled === true ? [] : declared.filter((dependency) => !(Array.isArray(bundled) && bundled.includes(dependency)));
-  if (missing.length) return { problem: `has dependencies it doesn't bring (${missing.join(", ")}): the kit installs none, so a package must bundle them, or list them in bundleDependencies` };
+  // Only package.json is read (#71): one bundled into the program but still in `dependencies`
+  // looks missing too, so the message says both ways out.
+  if (missing.length)
+    return {
+      problem: `declares dependencies it doesn't bring (${missing.join(", ")}): the kit installs none. If they're bundled into its program, move them to devDependencies; otherwise list them in bundleDependencies`,
+    };
   const scripts = ["preinstall", "install", "postinstall"].filter((script) => json.scripts?.[script]);
   if (scripts.length) return { problem: `has install scripts (${scripts.join(", ")}), which the kit never runs` };
   if ((await stat(path.join(dir, "binding.gyp")).catch(() => null))?.isFile()) return { problem: "builds native code when installed (binding.gyp), which the kit never does" };

@@ -127,7 +127,7 @@ test("an npx server without an exact version can't be installed, nor a package t
     await assert.rejects(addExtension(npxExtension(["-y", "@games/dice-mcp@^1.2.3"]), scope), /without an exact version/);
     fake.restore();
     fake = registry({ dependencies: { "left-pad": "^1.0.0", bundled: "^1.0.0" }, bundleDependencies: ["bundled"] });
-    await assert.rejects(addExtension(npxExtension(["-y", "@games/dice-mcp@1.2.3"]), temp()), /dependencies it doesn't bring \(left-pad\)/);
+    await assert.rejects(addExtension(npxExtension(["-y", "@games/dice-mcp@1.2.3"]), temp()), /declares dependencies it doesn't bring \(left-pad\): the kit installs none\. If they're bundled into its program, move them to devDependencies; otherwise list them in bundleDependencies/);
     fake.restore();
     fake = registry({ dependencies: { "playwright-core": "^1.0.0" }, bundleDependencies: ["playwright-core"] });
     await addExtension(npxExtension(["-y", "@games/dice-mcp@1.2.3"]), temp());
