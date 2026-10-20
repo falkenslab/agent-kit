@@ -50,7 +50,7 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 | `extension add <name>[@<marketplace>]` | Installs an extension of a known [marketplace](#marketplaces), from wherever the marketplace says; `@<marketplace>` only when two offer that name. One from a marketplace that isn't the agent's own asks first. |
 | `extension add <folder> --link` | Registers the folder where it is, to [develop it](developing.md): not copied, its files not checked. `list` shows it as linked. |
 | `extension add … --project` | Into the project's scope instead (its code goes to the agent's store: see [Workspaces](workspaces.md)). |
-| `extension add … --set <key>=<value>` | Gives one of its [options](configuring.md) (as many `--set` as needed); those not given are asked, on a terminal. |
+| `extension add … --set <key>=<value>` | Gives one of its [options](configuring.md) (as many `--set` as needed), saved before anything else is asked. Those not given are asked on a terminal; with `--yes`, or without a terminal, none is asked: a default stays, an optional one stays unset, and a required one leaves the extension off until it's set (`extension config`). |
 | `extension remove <name>` | Removes it and its lock entry (a linked one's folder stays where it is). When it has [data](writing.md#its-data), asks whether to delete it too: `--yes` deletes it, `--keep-data` keeps it. |
 | `extension enable <name>` | Turns it on. |
 | `extension disable <name>` | Turns it off, keeping it installed. |
