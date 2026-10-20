@@ -21,4 +21,10 @@ Rejected: waiting for Anthropic to document them (it blocks Canva, Google Classr
 - An SDK upgrade must check the three methods still exist and behave so (the `upgrade-sdk` skill); they're the first thing to look at when signing in breaks. If Anthropic documents them, their types replace the kit's guarded calls.
 - The token lives in the CLI's configuration folder, shared with the runner's Claude Code unless the agent points `CLAUDE_CONFIG_DIR` elsewhere: a store per agent would take its own folder, where the model's login also lives, and is left for later.
 - An `Authorization` header turns a server's OAuth off ("OAuth fallback is disabled when headers.Authorization is set"): an extension offering both a token and signing in leaves the token optional.
-- The claude.ai connectors of the person's account, and keeping sensitive data from remote servers, are #70.
+- The claude.ai connectors of the person's account, and keeping sensitive data from remote servers, are #70 (below).
+
+## Connectors and remote data (#70, 20 October 2026)
+
+- **Connectors by the agent's choice, denied by name.** `claudeAiConnectors` names the ones an agent lets in (none by default). The SDK takes connectors all or none; `allowedMcpServers` lets one in only by its URL and then drops every server it doesn't list exactly (a plugin's command with `${CLAUDE_PLUGIN_ROOT}` would vanish silently), while `deniedMcpServers` by name touches nothing else. So, when the session opens, the kit asks the account which connectors it has (a session with no message, about two seconds) and denies by name the ones not chosen; nothing is looked for when none is chosen. A connector the account gains after the session opened isn't on that list: a gate blocks its tools.
+- **Never `toggleMcpServer()` for them.** It's saved in the person's own Claude Code config for the folder (`~/.claude.json`, `disabledMcpServers`), not only in the session (confirmed empirically, CLI 2.1.300).
+- **`remoteServers: "allow" | "ask" | "deny"`.** One gate (`hooks/remoteGate.ts`) for every remote call (an extension's remote server, the agent's own `http`/`sse` servers, a chosen connector): it goes on, the person approves it told where it goes (blocked when no one can be asked), or it's blocked. A gate, not a prompt rule: what leaves the computer is the agent's guarantee, not the model's good will.

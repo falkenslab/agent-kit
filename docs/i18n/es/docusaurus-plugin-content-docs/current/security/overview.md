@@ -21,6 +21,7 @@ Un agente actúa a través de herramientas, así que las salvaguardas del kit es
 | Puerta de pasos, aprobaciones | acciones que una persona debería ver antes | hook y herramienta | [La persona en el bucle](../human-in-the-loop/overview.md) |
 | Puerta del plan | cambios mientras el agente solo debe planificar | hook `PreToolUse` | [Modos](../core-concepts/modes.md#plan) |
 | Secretos ocultos en la transcripción | secretos escritos en los logs | hook `PreToolUse`/`PostToolUse` | [Transcripción](transcript.md) |
+| Puerta de lo remoto | datos que salen del ordenador hacia un servidor MCP remoto, y un conector de claude.ai que el agente no eligió | hook `PreToolUse` (`remoteServers`, `claudeAiConnectors`) | [Configuración de la sesión](../core-concepts/session-config.md) |
 | Extensiones instaladas aparte | que el servidor de una extensión instalada vea las credenciales del agente, o que sus ficheros cambien tras instalarla | el lanzador, el hash del lock | [Extensiones](../extensions/overview.md#where-they-run) |
 | Confianza en el workspace | que un workspace clonado o compartido ejecute el código de sus extensiones sin que la persona lo acepte | el `.trust.json` del agente, fuera del proyecto | [Las extensiones de un workspace](../extensions/workspaces.md) |
 

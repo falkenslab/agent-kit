@@ -89,6 +89,12 @@ export interface Messages {
   extensionAlreadySignedIn(name: string): string;
   extensionSignInUnavailable(name: string): string;
   extensionSignedOut(name: string): string;
+  /** Before a call to a remote MCP server, when the agent asks first (#70): where it goes. */
+  remoteCallTitle(destination: string): string;
+  /** In /extensions: the claude.ai connectors let in (#70). */
+  connectorsAllowed(names: string): string;
+  /** In /extensions: connectors the agent asked for that the account hasn't. */
+  connectorsMissing(names: string): string;
   extensionUpdated(name: string, from: string, to: string): string;
   extensionsUpToDate: string;
   extensionRemoved(name: string, withData: boolean): string;
@@ -267,6 +273,9 @@ export const en: Messages = {
   extensionAlreadySignedIn: (name) => `(${name} is already signed in)`,
   extensionSignInUnavailable: (name) => `(${name} can't be signed in to here: it isn't running in this session, has no remote server, or this agent's SDK can't sign in)`,
   extensionSignedOut: (name) => `(signed out of ${name}: it will ask you to sign in again)`,
+  remoteCallTitle: (destination) => `Send this to ${destination}? It leaves this computer`,
+  connectorsAllowed: (names) => `claude.ai connectors: ${names}`,
+  connectorsMissing: (names) => `Not in your claude.ai account: ${names} (connect it on claude.ai, then reopen the session)`,
   extensionUpdated: (name, from, to) => `(${name} updated, ${from} → ${to}: it's there in a new conversation, or now with /extensions reload)`,
   extensionsUpToDate: "(every extension from a marketplace is up to date)",
   extensionRemoved: (name, withData) => `(${name} removed${withData ? ", with its data" : "; its data is kept for a reinstall"})`,

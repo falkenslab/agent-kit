@@ -47,6 +47,22 @@ export interface BaseSessionConfig {
    */
   catalogTopics?: string[];
   /**
+   * The claude.ai connectors of the person's account this agent lets in (#70), by the name
+   * claude.ai shows them (`["Canva", "Notion"]`, any case): those already signed in on claude.ai,
+   * nothing to install. None by default: the kit keeps them out, since they're the account's
+   * integrations, not the agent's. When the session opens, the kit asks the account which it has
+   * (a few seconds) and lets in only these; one asked for that isn't there is said in `/extensions`.
+   */
+  claudeAiConnectors?: string[];
+  /**
+   * What a call to a remote MCP server does (#70): an installed extension's `http`/`sse` server, one
+   * of the agent's own, or a claude.ai connector. What the model sends one leaves the computer, so
+   * an agent handling sensitive data (students') may keep it from them. `"allow"` (the default)
+   * lets it go on; `"ask"` asks the person before each call, saying where it goes (blocked when no
+   * one can be asked, as in autonomous mode); `"deny"` blocks it.
+   */
+  remoteServers?: "allow" | "ask" | "deny";
+  /**
    * Directories where the agent reads, searches and writes with the file tools (Write/Edit,
    * scoped — see hooks/fileScopeGate.ts), e.g. a folder of its own notes. Setting one gives the
    * session all five file tools; an extension's folders (the sources, the knowledge base) come

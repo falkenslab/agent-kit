@@ -25,6 +25,8 @@ export interface SessionFacts {
     /** Each with its capabilities (#62), in English: what the model reads. */
     active: { name: string; description: string; provides: string[]; capabilities: DescribedCapability[]; unavailable: (DescribedCapability & { reason: string })[]; tools: string[]; help: string[] }[];
     inactive: { name: string; reason: string }[];
+    /** The claude.ai connectors let in (#70), and the ones asked for that the account hasn't. */
+    connectors?: { allowed: string[]; missing: string[] };
   };
   /** The subagents it can delegate to. */
   subagents: { name: string; description: string }[];
@@ -72,7 +74,11 @@ export interface McpAuthentication {
 
 /** The facts known when the options are built: everything but the mode and what only the running session knows. */
 export type StaticSessionFacts = Omit<SessionFacts, "mode" | "switchableModes" | "tools" | "commands" | "context" | "extensions"> & {
-  extensions: { active: (Omit<SessionFacts["extensions"]["active"][number], "tools"> & { servers: string[] })[]; inactive: SessionFacts["extensions"]["inactive"] };
+  extensions: {
+    active: (Omit<SessionFacts["extensions"]["active"][number], "tools"> & { servers: string[] })[];
+    inactive: SessionFacts["extensions"]["inactive"];
+    connectors?: SessionFacts["extensions"]["connectors"];
+  };
 };
 
 export interface SessionView {
@@ -112,6 +118,7 @@ export function createSessionView(base: StaticSessionFacts, modeControl: ModeCon
             tools: tools.length ? tools.filter((tool) => servers.some((server) => tool.startsWith(`mcp__${server}__`))) : servers.map((server) => `mcp__${server}__*`),
           })),
           inactive: base.extensions.inactive,
+          ...(base.extensions.connectors ? { connectors: base.extensions.connectors } : {}),
         },
         tools,
         skills: live.skills ?? base.skills,

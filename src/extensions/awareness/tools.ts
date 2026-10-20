@@ -38,6 +38,12 @@ export function describeSession(facts: SessionFacts): string {
   });
   const inactive = facts.extensions.inactive.map(({ name, reason }) => `- **${name}** is off: it ${reason}.`);
   sections.push(`## Extensions\n\n${[...active, ...inactive].join("\n") || "None."}`);
+  // The claude.ai connectors let in (#70): the account's integrations, not installed extensions.
+  const connectors = facts.extensions.connectors;
+  if (connectors && (connectors.allowed.length || connectors.missing.length)) {
+    const missing = connectors.missing.length ? ` Asked for but not in the person's claude.ai account: ${connectors.missing.join(", ")} (they connect it on claude.ai, then the session opens again).` : "";
+    sections.push(`## claude.ai connectors\n\n${connectors.allowed.length ? `${connectors.allowed.join(", ")}: their tools are the person's claude.ai integrations; what you send them leaves the computer.` : "None of the ones asked for."}${missing}`);
+  }
 
   if (facts.subagents.length) sections.push(`## Subagents you can delegate to\n\n${facts.subagents.map(({ name, description }) => `- **${name}**: ${description}`).join("\n")}`);
 

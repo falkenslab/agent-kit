@@ -9,6 +9,8 @@ import { createSubagentTypeGate } from "./hooks/subagentTypeGate.js";
 import { createSubagentForegroundGate } from "./hooks/subagentForegroundGate.js";
 import { createFileScopeGate } from "./hooks/fileScopeGate.js";
 import { createPlanGate } from "./hooks/planGate.js";
+import { createRemoteGate } from "./hooks/remoteGate.js";
+import { chooseConnectors, discoverConnectors, serverToolPrefix } from "./claudeAiConnectors.js";
 import { createHumanApprovalServer } from "./tools/humanApproval.js";
 import { createManualLoginServer } from "./tools/manualLogin.js";
 import { createTimeServer } from "./tools/time.js";
@@ -239,6 +241,12 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
 
   // Packaged, the SDK would look for its CLI binary inside the archive, and hang (#42).
   const claudeExecutable = unpackedClaudeExecutable();
+  // The claude.ai connectors the agent lets in (#70): the account asked which it has, the rest
+  // denied by name (a session setting, never the person's config). None asked, none looked for.
+  const connectors = config.claudeAiConnectors?.length
+    ? chooseConnectors(await discoverConnectors(config.projectDir, claudeExecutable ? { pathToClaudeCodeExecutable: claudeExecutable } : {}), config.claudeAiConnectors)
+    : undefined;
+  const allowedConnectors = connectors?.allowed ?? [];
   const sdkOptions: Options = {
     ...(claudeExecutable ? { pathToClaudeCodeExecutable: claudeExecutable } : {}),
     systemPrompt: withReplyLine(promptSections.join("\n\n")),
@@ -259,7 +267,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       autoCompactEnabled: options.autoCompactEnabled ?? true,
       autoMemoryEnabled: false,
       includeGitInstructions: false,
-      disableClaudeAiConnectors: true,
+      disableClaudeAiConnectors: !allowedConnectors.length,
+      ...(allowedConnectors.length && connectors!.denied.length ? { deniedMcpServers: connectors!.denied.map((serverName) => ({ serverName })) } : {}),
       // An installed extension's plugin may carry hooks: none run (ADR-025). The kit's own,
       // passed in `hooks`, still do (confirmed empirically).
       ...(externalPlugins.size ? { disableAllHooks: true } : {}),
@@ -331,6 +340,18 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     hooks: {
       PreToolUse: [
         { hooks: [transcriptLogger.preToolUse] },
+        // Remote servers (#70): connectors not chosen are blocked; the rest as `remoteServers` says.
+        {
+          hooks: [
+            createRemoteGate({
+              runDir,
+              policy: config.remoteServers ?? "allow",
+              destination: (tool) => remoteDestinations.find(([prefix]) => tool.startsWith(prefix))?.[1],
+              allowedConnectors: allowedConnectors.map(serverToolPrefix),
+              canAsk: () => modeControl.mode !== "autonomous",
+            }),
+          ],
+        },
         ...(fileTools.length || toolOnlyDirs.length
           ? [{ hooks: [createFileScopeGate({
                     projectDir: config.projectDir,
@@ -385,6 +406,23 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     },
   };
 
+  // Where each remote server's calls go (#70), for the remote gate: an http/sse server's host
+  // (an installed extension's, the agent's own), or the claude.ai connector itself.
+  const remoteDestinations: [string, string][] = [
+    ...Object.entries(sdkOptions.mcpServers ?? {}).flatMap(([name, server]): [string, string][] => {
+      const remote = server as { type?: string; url?: string };
+      if ((remote.type !== "http" && remote.type !== "sse") || !remote.url) return [];
+      let host = remote.url;
+      try {
+        host = new URL(remote.url).host;
+      } catch {
+        // Not a URL the kit can read: the address as given.
+      }
+      return [[serverToolPrefix(name), host]];
+    }),
+    ...allowedConnectors.map((name): [string, string] => [serverToolPrefix(name), name]),
+  ];
+
   // The extensions' own hooks (the memory hears the person's messages), after the kit's.
   for (const contribution of added) {
     for (const [event, matchers] of Object.entries(contribution.hooks ?? {}) as [HookEvent, HookCallbackMatcher[]][]) {
@@ -404,6 +442,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     sessionTools: () => late.view?.controls().tools ?? [],
     serverStatus: async () => (await late.view?.controls().mcpServerStatus?.().catch(() => [])) ?? [],
     inactive: resolved.inactive,
+    ...(connectors ? { connectors: { allowed: connectors.allowed, missing: connectors.missing } } : {}),
   };
   // What the session is, for the extensions that ask (sessionFacts.ts, #43).
   const viewBase: StaticSessionFacts = {
@@ -422,6 +461,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       })),
       // Its own list: /extensions' status has another, and the live switch changes both.
       inactive: [...resolved.inactive],
+      ...(connectors ? { connectors: { allowed: connectors.allowed, missing: connectors.missing } } : {}),
     },
     subagents: Object.entries(allAgents).map(([name, agent]) => ({ name, description: agent.description })),
     skills: sdkOptions.skills === "all" ? await pluginSkills(pluginRoots) : [...((sdkOptions.skills as string[] | undefined) ?? [])],
@@ -483,6 +523,8 @@ export interface ExtensionsStatus {
   sessionTools?: () => readonly string[];
   /** Its MCP servers as they are now (empty until it has started): which remote ones need signing in (#61). */
   serverStatus?: () => Promise<McpServerStatus[]>;
+  /** The claude.ai connectors let in (#70), and the ones asked for that the account hasn't; none when the agent asks for none. */
+  connectors?: { allowed: string[]; missing: string[] };
 }
 
 /** The Claude Code configuration folder the SDK's CLI uses: `CLAUDE_CONFIG_DIR`, or `~/.claude`. */

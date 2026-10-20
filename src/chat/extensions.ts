@@ -127,6 +127,9 @@ export async function chatExtensionsCommand(
   if (!action) {
     const lines = [status?.active.length ? t().extensionsRunning(status.active.join(", ")) : t().extensionsNone];
     if (status) lines.push(...describeCapabilities(status), ...(await needingSignIn(status)).map((extension) => t().extensionNeedsSignIn(extension)));
+    // The claude.ai connectors the agent lets in, apart from installed extensions (#70).
+    if (status?.connectors?.allowed.length) lines.push(t().connectorsAllowed(status.connectors.allowed.map((name) => name.replace(/^claude\.ai /, "")).join(", ")));
+    if (status?.connectors?.missing.length) lines.push(t().connectorsMissing(status.connectors.missing.join(", ")));
     for (const { name: off, reason } of status?.inactive ?? []) lines.push(t().extensionOff(off, reason));
     if (status?.installed.length) lines.push(t().extensionsInstalled, ...status.installed.map((extension) => `  ${describe(extension)}`));
     return { lines };
