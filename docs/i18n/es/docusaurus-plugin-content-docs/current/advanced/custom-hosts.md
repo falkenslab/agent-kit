@@ -70,6 +70,8 @@ Una vista que dibuja según ocurren las cosas (un terminal) sigue en su lugar `o
 
 **Puntos de control**: con `panels: "state"` el controlador instala su propio [puerto de interacción](../human-in-the-loop/interaction-port.md), y un punto de control espera en el `panel` del estado hasta `answer()`; el [fichero de respuesta](../human-in-the-loop/response-file.md) sigue funcionando a la vez. Con `panels: "view"` (el valor por defecto) el host instala su propio puerto, como hacen los chats de terminal.
 
+**Iniciar sesión en una extensión** (`signInExtension()`): el controlador abre el enlace en el navegador de este ordenador, y lo añade como un aviso propio (la dirección sola), para que la vista lo muestre como enlace. Un host cuyo navegador no es el de este ordenador, o que tiene su propia forma, pasa `openBrowser`: `false`, o una función (`(url) => shell.openExternal(url).then(() => true)` en Electron).
+
 ## Un proceso principal de Electron {#an-electron-main-process}
 
 ```ts title="main/agent.ts"

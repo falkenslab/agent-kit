@@ -21,6 +21,7 @@ import { extensionOptionStates, listInstalled, removeExtension as removeInstalle
 import { extensionCatalog as readCatalog, installExtension as installFromCatalog, needsConfirmation, updateExtension as updateFromCatalog, type CatalogEntry } from "../core/extensionCatalog.js";
 import { capHistory, loadHistory, saveHistory, slashCommandToken, type HistoryEntry } from "./history.js";
 import { firstRun, openSession, runFolderOf, runLabel, type SessionOpener } from "./runs.js";
+import { openBrowser } from "../core/openBrowser.js";
 
 /**
  * The chat's logic without an interface (ADR-026, #39): opening, reopening and resuming the
@@ -69,6 +70,13 @@ export interface ChatSettings {
    * state's `panel`, answered with `answer()`.
    */
   panels?: "view" | "state";
+  /**
+   * Signing in to an extension (#72): `true` (the default) opens the link in this computer's
+   * browser (`openBrowser()`: not over SSH or without a display), `false` never does, and a
+   * function opens it the host's way (Electron's `shell.openExternal`), saying whether it did.
+   * The link is shown either way, on a line of its own, for another computer.
+   */
+  openBrowser?: boolean | ((url: string) => Promise<boolean>);
 }
 
 /** One tool call in the transcript. */
@@ -710,9 +718,10 @@ export async function createChatController(options: Options | SessionOpener, set
      * person. The running session is untouched: it's there in a new conversation, or with `reopen()`.
      */
     /**
-     * Signs in to an installed extension's remote servers (#61): gives the person the links (never
-     * opens a browser), then says when the sign-in finishes. With `callbackUrl`, the address the
-     * browser ended on (from another computer), finishes it instead.
+     * Signs in to an installed extension's remote servers (#61): opens each link in this computer's
+     * browser as `openBrowser` says (#72) and shows it on a line of its own, for another computer,
+     * then says when the sign-in finishes. With `callbackUrl`, the address the browser ended on
+     * (from another computer), finishes it instead.
      */
     async signInExtension(name: string, callbackUrl?: string): Promise<SignIn> {
       const auth = current.extensionAuth;
@@ -720,7 +729,13 @@ export async function createChatController(options: Options | SessionOpener, set
       if (result.status === "unavailable") notice(t().extensionSignInUnavailable(name));
       else if (result.status === "signed-in") notice(callbackUrl ? t().extensionSignedIn(name) : t().extensionAlreadySignedIn(name));
       else {
-        for (const link of result.links) notice(t().extensionSignInOpen(name, link.url));
+        const open = settings.openBrowser === false ? undefined : typeof settings.openBrowser === "function" ? settings.openBrowser : openBrowser;
+        for (const link of result.links) {
+          const opened = open ? await open(link.url).catch(() => false) : false;
+          notice(opened ? t().extensionSignInOpened(name) : t().extensionSignInOpen(name));
+          // Alone on its line: a view shows it whole (a terminal link, #72), and it's copied whole.
+          notice(link.url);
+        }
         notice(t().extensionSignInPaste(name));
         // Waits in the background: the person signs in in their browser, whenever they do.
         void auth!.connected(name, 5 * 60_000).then((done) => {

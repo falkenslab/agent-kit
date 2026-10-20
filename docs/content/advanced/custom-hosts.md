@@ -70,6 +70,8 @@ A view that draws as things happen (a terminal) follows `onEvent()` instead: the
 
 **Checkpoints**: with `panels: "state"` the controller installs its own [interaction port](../human-in-the-loop/interaction-port.md), and a checkpoint waits in the state's `panel` until `answer()`; the [response file](../human-in-the-loop/response-file.md) still works alongside. With `panels: "view"` (the default) the host installs its own port, as the terminal chats do.
 
+**Signing in to an extension** (`signInExtension()`): the controller opens the link in this computer's browser, and adds it as a notice of its own (the address alone), for the view to show as a link. A host whose browser isn't this computer's, or that has its own way, passes `openBrowser`: `false`, or a function (`(url) => shell.openExternal(url).then(() => true)` in Electron).
+
 ## An Electron main process
 
 ```ts title="main/agent.ts"

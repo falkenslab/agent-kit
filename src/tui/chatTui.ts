@@ -11,7 +11,8 @@ import { applyTheme, type Theme } from "./theme.js";
 import { createConsoleRenderer } from "./consoleRenderer.js";
 import type { ToolLabels } from "../core/toolLabels.js";
 import { runDate, type SessionOpener } from "../chat/runs.js";
-import { createChatController, type NoticeTone } from "../chat/chatController.js";
+import { createChatController, type ChatSettings, type NoticeTone } from "../chat/chatController.js";
+import { linkedNotice } from "./hyperlink.js";
 
 export { capHistory, loadHistory, saveHistory, slashCommandToken } from "../chat/history.js";
 
@@ -24,6 +25,8 @@ export interface ChatTuiOptions {
    * own domain-specific tools (Playwright's `browser_*`, etc.).
    */
   formatAction?: (toolName: string, input: unknown) => string;
+  /** Signing in to an extension: whether its link opens in this computer's browser (the default), or how (see `ChatSettings.openBrowser`, #72). */
+  openBrowser?: ChatSettings["openBrowser"];
   /** Printed once before the first prompt, if given. */
   welcomeMessage?: string;
   /** Shown before the cursor at each prompt. */
@@ -173,6 +176,7 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
     modeControl: tuiOptions.modeControl,
     toolLabels: tuiOptions.toolLabels,
     formatAction: tuiOptions.formatAction,
+    ...(tuiOptions.openBrowser !== undefined ? { openBrowser: tuiOptions.openBrowser } : {}),
     // Nothing here shows them.
     promptSuggestions: false,
     // /resume: a numbered list, and a number typed.
@@ -231,7 +235,8 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
         if (event.event.type !== "prompt-suggestion") renderer.render(event.event);
         return;
       case "notice":
-        writeLine(toned(event.text, event.tone));
+        // An address alone (a sign-in link) as a terminal link (#72).
+        writeLine(toned(linkedNotice(event.text), event.tone));
         return;
       case "turn-start":
         renderer.startTurn();

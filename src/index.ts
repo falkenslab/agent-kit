@@ -176,6 +176,7 @@ export {
   type TranscriptCall,
   type NoticeTone,
 } from "./chat/chatController.js";
+export { openBrowser, canOpenBrowser } from "./core/openBrowser.js";
 export { createConsoleRenderer, type ConsoleRenderer, type ConsoleRendererOptions } from "./tui/consoleRenderer.js";
 export { runChatInk, type InkChatOptions, type HeaderInfo } from "./tui/ink/runChatInk.js";
 export type { ToolPhrase, ToolDetail, ResultFormatter } from "./tui/ink/toolGroup.js";

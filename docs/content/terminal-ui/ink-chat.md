@@ -59,6 +59,7 @@ await runChatInk(options, { modeControl, sessionLogPath: path.join(runDir, "sess
 | `theme` | `Partial<Theme>` | | Colors. See [Themes](themes.md). |
 | `language` | `string` | | The kit's language. See [Languages](../sessions/languages.md). |
 | `formatAction` | `(toolName, input) => string` | `createFriendlyToolLabel()` | Tool call labels. See [Tool labels](tool-labels.md). |
+| `openBrowser` | `boolean \| (url) => Promise<boolean>` | `true` | Signing in to an extension (`/extensions sign-in`): opens its link in this computer's browser (never over SSH or without a display); `false` only shows it; a function opens it your way and says whether it did. The link is shown either way, as a terminal link where the terminal supports them (Windows Terminal, VS Code, iTerm2, WezTerm, Konsole, GNOME's; `FORCE_HYPERLINK=1` or `0` decides). |
 | `toolPhrase` | `(toolName) => ToolPhrase \| undefined` | | How your tools count in a folded summary. See [Tool labels](tool-labels.md#folded-summaries). |
 | `toolLabels` | `ToolLabels` | | The extensions' labels (`buildSessionOptions()`'s `toolLabels`), before `formatAction` and `toolPhrase`, for plain `Options`: with a session opener, the ones it returns. See [Tool labels](tool-labels.md#an-extensions-labels). |
 | `toolDetail` | `"full" \| "calls" \| "summary"` | `"full"` | How much of the tool calls shows until Ctrl+O. See [Tool labels](tool-labels.md#how-much-shows). |

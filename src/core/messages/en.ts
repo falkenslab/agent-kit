@@ -80,7 +80,9 @@ export interface Messages {
   /** In /extensions: a running extension whose remote server needs the person to sign in. */
   extensionNeedsSignIn(name: string): string;
   /** The link to sign in to an extension's remote server. */
-  extensionSignInOpen(name: string, url: string): string;
+  /** Before the sign-in link, on its own line next (#72): when the browser couldn't be opened, and when it was. */
+  extensionSignInOpen(name: string): string;
+  extensionSignInOpened(name: string): string;
   /** How to finish signing in from another computer. */
   extensionSignInPaste(name: string): string;
   extensionSignedIn(name: string): string;
@@ -276,7 +278,8 @@ export const en: Messages = {
   extensionLacks: (name, what) => `(${name} ${what})`,
   extensionTalksTo: (name, hosts) => `(${name} talks to ${hosts}: what your agent sends there leaves this computer)`,
   extensionNeedsSignIn: (name) => `${name} needs you to sign in: /extensions sign-in ${name}`,
-  extensionSignInOpen: (name, url) => `(to sign in to ${name}, open ${url} : when you're done there, it's connected here)`,
+  extensionSignInOpen: (name) => `(to sign in to ${name}, open this link; when you're done there, it's connected here:)`,
+  extensionSignInOpened: (name) => `(signing in to ${name} in your browser; when you're done there, it's connected here. The link, for another browser:)`,
   extensionSignInPaste: (name) => `(on another computer? Paste the address the browser ends on: /extensions sign-in ${name} <that address>)`,
   extensionSignedIn: (name) => `(signed in to ${name}: its tools are ready)`,
   extensionSignInWaiting: (name) => `(still waiting for the sign-in to ${name}; /extensions sign-in ${name} gives the link again)`,

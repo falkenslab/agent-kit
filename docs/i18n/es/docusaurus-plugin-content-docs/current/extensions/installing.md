@@ -117,7 +117,7 @@ El prompt le dice al agente cuándo usarla: cuando una petición es algo que sus
 | `/extensions update [name]` | Actualiza una, o todas las que tienen una versión más nueva. |
 | `/extensions remove <name>` | Desinstala una (`--delete-data` para borrar sus datos). |
 | `/extensions reload` | Vuelve a abrir la sesión con lo que está instalado ahora, conservando la conversación. |
-| `/extensions sign-in <nombre> [dirección]` | Inicia sesión en sus [servidores remotos](writing.md#a-remote-server) detrás de OAuth: da el enlace que abrir y avisa cuando termina; con la dirección en la que acabó un navegador de otro ordenador, lo completa. `/extensions` lista quién lo necesita. |
+| `/extensions sign-in <nombre> [dirección]` | Inicia sesión en sus [servidores remotos](writing.md#a-remote-server) detrás de OAuth: abre la página de inicio de sesión en el navegador de este ordenador, muestra también el enlace y avisa cuando termina; con la dirección en la que acabó un navegador de otro ordenador, lo completa. `/extensions` lista quién lo necesita. |
 | `/extensions sign-out <nombre>` | Cierra la sesión en sus servidores remotos. |
 | `/extensions trust` | Confía en las extensiones del [workspace](workspaces.md); una sesión que se abre con alguna en la que no se confía pregunta antes. |
 

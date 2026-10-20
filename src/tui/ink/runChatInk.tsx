@@ -8,6 +8,7 @@ import { getInteractionPort, setInteractionPort } from "../../core/interaction.j
 import type { ModeControl } from "../../core/session.js";
 import { runChatTui, type ChatTuiOptions } from "../chatTui.js";
 import { createChatController, type ChatController, type NoticeTone } from "../../chat/chatController.js";
+import { linkedNotice } from "../hyperlink.js";
 import * as ui from "../ui.js";
 import { t } from "../../core/messages/index.js";
 import { applyLanguage } from "../language.js";
@@ -359,6 +360,7 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
     toolLabels: tuiOptions.toolLabels,
     formatAction: tuiOptions.formatAction,
     toolPhrase: tuiOptions.toolPhrase,
+    ...(tuiOptions.openBrowser !== undefined ? { openBrowser: tuiOptions.openBrowser } : {}),
     promptSuggestions: tuiOptions.promptSuggestions ?? true,
     // The /resume list in place of the prompt.
     pick: (title, choices) => input.pick(title, choices),
@@ -401,7 +403,8 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
         model.note(userLine(event.text), "user");
         return;
       case "notice":
-        model.writeLine(toned(event.text, event.tone));
+        // An address alone (a sign-in link) as a terminal link, whole however it wraps (#72).
+        model.writeLine(toned(linkedNotice(event.text), event.tone));
         return;
       case "turn-start":
         input.setSuggestion(null);

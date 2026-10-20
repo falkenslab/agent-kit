@@ -117,7 +117,7 @@ The prompt tells the agent when to use it: when a request is something its tools
 | `/extensions update [name]` | Updates one, or all that have a newer version. |
 | `/extensions remove <name>` | Uninstalls one (`--delete-data` to delete its data). |
 | `/extensions reload` | Opens the session again with what's installed now, keeping the conversation. |
-| `/extensions sign-in <name> [address]` | Signs in to its [remote servers](writing.md#a-remote-server) behind OAuth: gives the link to open, and says when it's done; with the address a browser on another computer ended on, finishes it. `/extensions` lists who needs it. |
+| `/extensions sign-in <name> [address]` | Signs in to its [remote servers](writing.md#a-remote-server) behind OAuth: opens the sign-in page in this computer's browser and shows the link too, and says when it's done; with the address a browser on another computer ended on, finishes it. `/extensions` lists who needs it. |
 | `/extensions sign-out <name>` | Signs out of its remote servers. |
 | `/extensions trust` | Trusts the [workspace's](workspaces.md) extensions; a session that opens with some untrusted asks first. |
 
