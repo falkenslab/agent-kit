@@ -98,8 +98,10 @@ export async function runExtensionCommand(
   const ask = options.ask ?? askOnTerminal;
   const askSecret = options.askSecret ?? (options.ask ? options.ask : askSecretOnTerminal);
   /**
-   * After installing `name` into `dir`: its options from `--set`, then asked for each still
-   * without a value (on a terminal; none without one), saying which required ones are left.
+   * After installing `name` into `dir`: its options from `--set`, saved first so a prompt cut
+   * short loses none (#73), then asked for each still without a value, saying which required ones
+   * are left. Never asked with `--yes`, nor without a terminal unless the host asks itself (`ask`):
+   * a default stays, an optional one stays unset.
    */
   const configure = async (name: string, dir: string): Promise<void> => {
     const installed = (await listInstalled(options.dirs)).find((extension) => extension.name === name && extension.scopeDir === dir);
@@ -111,14 +113,19 @@ export async function runExtensionCommand(
       if (at <= 0) throw new Error(`--set takes key=value: "${pair}"`);
       typed[pair.slice(0, at)] = pair.slice(at + 1);
     }
+    if (Object.keys(typed).length) await setExtensionOptions(installed, name, typed);
     const states = await describeOptionStates(installed);
+    const canAsk = !flag("yes") && (options.ask !== undefined || process.stdin.isTTY === true);
+    const asked: Record<string, string> = {};
     for (const [key, option] of Object.entries(declared)) {
+      if (!canAsk) break;
       if (key in typed || states.get(key)) continue;
       const question = `${option.title}${option.required ? "" : " (optional)"}${option.default !== undefined ? ` [${String(option.default)}]` : ""}: ${option.description}\n  ${key} = `;
       const answer = (await (option.sensitive ? askSecret : ask)(question)).trim();
-      if (answer) typed[key] = answer;
+      if (answer) asked[key] = answer;
     }
-    if (Object.keys(typed).length) await setExtensionOptions(installed, name, typed);
+    if (Object.keys(asked).length) await setExtensionOptions(installed, name, asked);
+    Object.assign(typed, asked);
     const missing = Object.entries(declared).filter(([key, option]) => option.required && !(key in typed) && !states.get(key) && option.default === undefined).map(([key]) => key);
     if (missing.length) write(`It stays off until ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} set: \`${command} extension config ${name} ${missing[0]}\`.`);
   };

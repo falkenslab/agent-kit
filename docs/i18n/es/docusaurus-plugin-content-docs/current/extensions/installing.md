@@ -50,7 +50,7 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 | `extension add <name>[@<marketplace>]` | Instala una extensión de un [marketplace](#marketplaces) conocido, desde donde diga el marketplace; `@<marketplace>` solo cuando dos ofrecen ese nombre. Una de un marketplace que no es el propio del agente pregunta antes. |
 | `extension add <folder> --link` | Registra la carpeta donde está, para [desarrollarla](developing.md): no se copia ni se comprueban sus ficheros. `list` la muestra como enlazada. |
 | `extension add … --project` | En el ámbito del proyecto en su lugar (su código va al almacén del agente: consulta [Workspaces](workspaces.md)). |
-| `extension add … --set <key>=<value>` | Da una de sus [opciones](configuring.md) (tantos `--set` como haga falta); las que no se dan se preguntan, en un terminal. |
+| `extension add … --set <key>=<value>` | Da una de sus [opciones](configuring.md) (tantos `--set` como haga falta), que se guardan antes de preguntar nada más. Las que no se dan se preguntan en un terminal; con `--yes`, o sin terminal, no se pregunta ninguna: un valor por defecto se queda, una opcional queda sin valor y una obligatoria deja la extensión apagada hasta que se le dé (`extension config`). |
 | `extension remove <name>` | La elimina junto con su entrada del lock (la carpeta de una enlazada se queda donde está). Cuando tiene [datos](writing.md#its-data), pregunta si borrarlos también: `--yes` los borra, `--keep-data` los conserva. |
 | `extension enable <name>` | La activa. |
 | `extension disable <name>` | La desactiva, manteniéndola instalada. |

@@ -182,3 +182,36 @@ test("a session's file tools never reach the scopes' secrets, even with the scop
   assert.equal(await denied("Read", { file_path: extensionSecretsPath(scope, "moodle") }), true);
   assert.equal(await denied("Grep", { pattern: "s3cret", path: path.dirname(extensionSecretsPath(scope, "moodle")) }), true);
 });
+
+test("extension add --yes asks for no option: --set's are saved, a default stays, a required one left unset is said (#73)", async () => {
+  const scope = temp();
+  const lines: string[] = [];
+  const asked: string[] = [];
+  const run = (argv: string[], dir = scope) =>
+    runExtensionCommand(["extension", ...argv], { dirs: { agent: dir }, command: "moodler", write: (line) => lines.push(line), ask: async (question) => (asked.push(question), "") });
+  await run(["add", makeConfigurable(), "--set", "url=https://campus.example.org", "--yes"]);
+  assert.deepEqual(asked, []);
+  assert.deepEqual((await readLock(scope)).moodle?.options, { url: "https://campus.example.org" });
+  assert.equal((await loadExternalExtensions({ agent: scope })).extensions.length, 1);
+  // Without --set, the required one is left unset, and the command says it stays off.
+  const other = temp();
+  await run(["add", makeConfigurable(), "--yes"], other);
+  assert.deepEqual(asked, []);
+  assert.ok(lines.some((line) => line.startsWith("It stays off until url is set")), lines.join("\n"));
+});
+
+test("a prompt cut short after --set keeps what --set gave (#73)", async () => {
+  const scope = temp();
+  const before = process.exitCode;
+  await runExtensionCommand(["extension", "add", makeConfigurable(), "--set", "url=https://campus.example.org"], {
+    dirs: { agent: scope },
+    command: "moodler",
+    write: () => {},
+    ask: async () => {
+      throw new Error("stdin closed");
+    },
+  });
+  assert.deepEqual((await readLock(scope)).moodle?.options, { url: "https://campus.example.org" });
+  // The command failed (the prompt threw), as it says with its exit code: not this test's.
+  process.exitCode = before;
+});
