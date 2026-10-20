@@ -96,6 +96,30 @@ Habla el idioma del kit, el del sistema o el indicado con `--language`: su nombr
 
 ![El mismo capitán en español, como Capitán Bigotes](/captain/languages.png)
 
+### En un navegador y en el escritorio {#in-a-browser-and-on-the-desktop}
+
+El mismo capitán funciona en un navegador (`npm start -- --web`) y como aplicación de Windows, que es esa misma página en una ventana propia: la misma casa, el mismo cuaderno, las mismas extensiones. Las dos son vistas del [controlador del chat](../advanced/custom-hosts.md#the-chat-controller) del kit, así que todo lo anterior funciona también ahí; solo el dibujo es suyo (ver [En un navegador y en el escritorio](#7-in-a-browser-and-on-the-desktop) más abajo). Te recibe con unas cuantas misiones para elegir, y arriba están el modo, las acciones rápidas, el idioma, una conversación nueva, las anteriores y las extensiones.
+
+![La página de bienvenida del capitán en el navegador, con cuatro misiones para elegir](/captain/web-es-welcome.png)
+
+Sus preguntas llegan como diálogos, en los que siempre cabe una respuesta tuya. Aquí `ask_human`, como en el terminal:
+
+![Un diálogo pregunta qué clase de chiste: un clásico pirata, uno fresco o uno del cuaderno de bitácora](/captain/web-es-conversation.png)
+
+Sus llamadas a herramientas se pliegan en una tarjeta con lo que devolvió cada una, y luego viene la respuesta:
+
+![Las llamadas del capitán desplegadas (la pregunta, la skill, el libro de chistes) y su chiste](/captain/web-es-answer.png)
+
+El modo está a un clic, cada uno con lo que significa:
+
+![El menú de modos: guiado, interactivo y plan](/captain/web-es-modes.png)
+
+El cajón de extensiones lista con qué funciona, con las extensiones propias del kit marcadas como integradas, y el catálogo de su astillero en una cuadrícula; los detalles de una extensión dicen lo que le permite hacer, en su idioma:
+
+![El cajón de extensiones, con las extensiones integradas del kit y el libro de chistes](/captain/web-es-extensions.png)
+
+![Los detalles del libro de chistes sobre el catálogo: sus dos capacidades, sus temas y un botón Actualizar](/captain/web-es-details.png)
+
 ## Ejecutarlo {#running-it}
 
 Desde un clon del kit:

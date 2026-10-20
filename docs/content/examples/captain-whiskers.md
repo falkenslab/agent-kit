@@ -96,6 +96,30 @@ He speaks the kit's language, the system's or the one given with `--language`: h
 
 ![The same captain in Spanish, as Capitán Bigotes](/captain/languages.png)
 
+### In a browser and on the desktop
+
+The same captain runs in a browser (`npm start -- --web`) and as a Windows app, which is that same page in a window of its own: same home, same logbook, same extensions. Both are views of the kit's [chat controller](../advanced/custom-hosts.md#the-chat-controller), so everything above works there too; only the drawing is his own (see [In a browser and on the desktop](#7-in-a-browser-and-on-the-desktop) below). He greets you with a few missions to pick from, and the mode, the quick actions, the language, a new conversation, earlier ones and the extensions are at the top.
+
+![The captain's welcome page in the browser, with four missions to pick from](/captain/web-welcome.png)
+
+His questions arrive as dialogs, with an answer of your own always possible. Here `ask_human`, as in the terminal:
+
+![A dialog asks which kind of joke: a classic, a fresh one from the web or one from the logbook](/captain/web-conversation.png)
+
+His tool calls fold into a card with what each one returned, and the reply follows:
+
+![The captain's tool calls unfolded (the question, the skill, the jokebook) and his joke](/captain/web-answer.png)
+
+The mode is one click away, each with what it means:
+
+![The mode menu: guided, interactive and plan](/captain/web-modes.png)
+
+The extensions drawer lists what he runs with, the kit's own extensions marked as built-in, and his shipyard's catalog as a grid; an extension's details say what it lets him do, in his language:
+
+![The extensions drawer, with the kit's built-in extensions and the jokebook](/captain/web-extensions.png)
+
+![The jokebook's details over the catalog: its two capabilities, its topics and an Update button](/captain/web-details.png)
+
 ## Running it
 
 From a clone of the kit:
