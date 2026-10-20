@@ -8,12 +8,19 @@ import { addExtension, setExtensionOptions } from "../../src/core/externalExtens
 import { mountPlugin, unmountPlugin } from "../../src/core/liveExtensions.js";
 import { buildSessionOptions, createInputQueue } from "../../src/core/session.js";
 import { runQuery } from "../../src/core/runner.js";
+import { sessionViewOf } from "../../src/core/sessionFacts.js";
 
 // The SDK's CLI, which starts and stops an installed extension's server: a native binary per
 // platform. Skipped where there's none. No model is called: the session only starts its servers.
 const binary = path.resolve("node_modules", "@anthropic-ai", `claude-agent-sdk-${process.platform}-${process.arch}`, process.platform === "win32" ? "claude.exe" : "claude");
 
 const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), "extension-processes-test-"));
+
+/**
+ * The options with a Claude Code config folder of the test's own: the CLI saves a server switched
+ * off in it (#75), never in the runner's `~/.claude.json`. A spread keeps the session's view.
+ */
+const isolated = <T extends { env?: Record<string, string | undefined> }>(options: T, configDir = temp()): T => ({ ...options, env: { ...process.env, ...options.env, CLAUDE_CONFIG_DIR: configDir } });
 
 /** An installed extension whose server starts a child that starts a grandchild, as a browser does, each writing its pid. */
 function makeSpawner(pids: string): string {
@@ -83,7 +90,7 @@ test("turning an installed extension off, or closing the session, ends its serve
   const started = (): number[] => (fs.existsSync(pids) ? fs.readFileSync(pids, "utf8").trim().split("\n").filter(Boolean).map(Number) : []);
   // A conversation that never sends a message: the session only starts its servers.
   const input = createInputQueue();
-  const session = query({ prompt: input.iterable, options: built.options });
+  const session = query({ prompt: input.iterable, options: isolated(built.options) });
   try {
     await until(() => started().length === 2, "the server's child and grandchild");
     // Connected, not only started: under load a server still connecting outlives turning it off.
@@ -124,7 +131,7 @@ test("the CLI loads an installed extension's plugin through its mount, and reloa
   });
   const mount = path.join(runDir, "extensions", "dice");
   const input = createInputQueue();
-  const session = query({ prompt: input.iterable, options: built.options });
+  const session = query({ prompt: input.iterable, options: isolated(built.options) });
   const loaded = async () => (await session.reloadPlugins()).commands.some((command) => command.name === "dice:roll-many");
   try {
     assert.equal(await loaded(), true);
@@ -187,7 +194,7 @@ test("plan mode lets through what an installed server marks readOnlyHint when it
   // A conversation that never sends a message: the session only starts its servers. runQuery()
   // attaches the session the plan gate asks.
   const input = createInputQueue();
-  const run = runQuery(input.iterable, built.options);
+  const run = runQuery(input.iterable, isolated(built.options));
   try {
     // Denied while the server is still connecting; let through once it's there.
     for (const start = Date.now(); !(await allowed("mcp__hinted__peek")); ) {
@@ -241,7 +248,7 @@ test("changing an installed extension's option in a session restarts its server,
   });
   const starts = (): { pid: number; site: string }[] => (fs.existsSync(log) ? fs.readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []);
   const input = createInputQueue();
-  const run = runQuery(input.iterable, built.options);
+  const run = runQuery(input.iterable, isolated(built.options));
   try {
     await until(() => starts().length === 1, "the server's start");
     // The CLI passes the placeholder through untouched: the launcher puts the value in.
@@ -256,6 +263,48 @@ test("changing an installed extension's option in a session restarts its server,
     assert.equal(await built.restartExtension("missing"), false);
   } finally {
     input.end();
+    run.close();
+  }
+});
+
+test("a server the CLI saved as switched off in an earlier session is turned back on when the kit passes it again (#75)", { skip: !fs.existsSync(binary) && "no Claude CLI binary for this platform", timeout: 90_000 }, async () => {
+  const scope = path.join(temp(), "extensions");
+  await addExtension(makeHinted("dice"), scope);
+  const projectDir = temp();
+  const configDir = temp();
+  const build = () =>
+    buildSessionOptions({ mode: "guided", projectDir, extensionDirs: { agent: scope } }, temp(), { buildSystemPrompt: () => "P", buildMcpServers: () => ({}), pluginRoots: () => [], buildSubagents: () => undefined });
+  const status = async (session: { mcpServerStatus(): Promise<{ name: string; status: string }[]> }) => (await session.mcpServerStatus()).find((server) => server.name === "dice")?.status;
+  const until = async (condition: () => Promise<boolean>, what: string) => {
+    for (const start = Date.now(); !(await condition()); await new Promise((resolve) => setTimeout(resolve, 300))) if (Date.now() - start > 30_000) assert.fail(`timed out waiting for ${what}`);
+  };
+
+  // An earlier session switches it off, as /extensions disable does: the CLI saves that for the folder.
+  const first = createInputQueue();
+  const earlier = query({ prompt: first.iterable, options: isolated((await build()).options, configDir) });
+  try {
+    await until(async () => (await status(earlier)) === "connected", "the server to connect");
+    await earlier.toggleMcpServer("dice", false);
+    assert.equal(await status(earlier), "disabled");
+  } finally {
+    first.end();
+    earlier.close();
+  }
+  const saved = JSON.parse(fs.readFileSync(path.join(configDir, ".claude.json"), "utf8")).projects?.[path.resolve(projectDir).replace(/\\/g, "/")]?.disabledMcpServers;
+  assert.deepEqual(saved, ["dice"]);
+
+  // The next session the kit opens passes it again: it's on, and the saved entry is gone.
+  const second = createInputQueue();
+  const options = isolated((await build()).options, configDir);
+  const run = runQuery(second.iterable, options);
+  const view = sessionViewOf(options)!;
+  const savedNow = (): string[] => JSON.parse(fs.readFileSync(path.join(configDir, ".claude.json"), "utf8")).projects?.[path.resolve(projectDir).replace(/\\/g, "/")]?.disabledMcpServers ?? [];
+  try {
+    await until(async () => (await view.controls().mcpServerStatus?.())?.find((server) => server.name === "dice")?.status === "connected", "the server to be turned back on");
+    // Turning it on removes the saved entry, as the CLI does itself.
+    await until(async () => !savedNow().includes("dice"), "the saved switch to be removed");
+  } finally {
+    second.end();
     run.close();
   }
 });

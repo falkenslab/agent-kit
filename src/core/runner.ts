@@ -1,4 +1,4 @@
-import { query, type Options, type SDKUserMessage, type SlashCommand } from "@anthropic-ai/claude-agent-sdk";
+import { query, type McpServerStatus, type Options, type SDKUserMessage, type SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import { sessionViewOf, type McpAuthentication, type SessionLive } from "./sessionFacts.js";
 
 /**
@@ -132,6 +132,26 @@ function signInControls(result: object): Pick<SessionLive, "mcpAuthenticate" | "
 }
 
 /**
+ * Turns back on the servers the CLI saved as switched off in an earlier session (#75):
+ * `toggleMcpServer(name, false)` is saved in the Claude Code config of the session's folder
+ * (`~/.claude.json`, `disabledMcpServers`), not only in the session (confirmed empirically, CLI
+ * 2.1.300), so a server the kit passes again would start disabled. The kit passes only what it
+ * wants running, so one of them that starts disabled is turned on, which also removes the saved
+ * entry. Only while the session's servers start: switching one off later in the session is the
+ * live switch's (liveExtensions.ts).
+ */
+async function restoreSavedSwitches(result: { mcpServerStatus(): Promise<McpServerStatus[]>; toggleMcpServer(server: string, enabled: boolean): Promise<void> }, options: Options): Promise<void> {
+  const passed = new Set(Object.keys(options.mcpServers ?? {}));
+  if (!passed.size) return;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const status = (await result.mcpServerStatus().catch(() => [])).filter((server) => passed.has(server.name));
+    for (const server of status) if (server.status === "disabled") await result.toggleMcpServer(server.name, true).catch(() => undefined);
+    if (status.length && !status.some((server) => server.status === "pending" || server.status === "disabled")) return;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+}
+
+/**
  * Thin wrapper around the SDK's own `query()`: same two-argument shape (a plain string
  * for a one-shot run, or an `AsyncIterable<SDKUserMessage>` — see `createInputQueue()` —
  * for a multi-turn chat), translating its raw message stream into `AgentEvent`s as
@@ -152,6 +172,7 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
     mcpServerStatus: () => result.mcpServerStatus(),
     ...signInControls(result),
   });
+  void restoreSavedSwitches(result, options);
 
   // The main agent's tool calls by id, to name the results that come back for them.
   const toolNames = new Map<string, string>();
