@@ -4,7 +4,9 @@ import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 
 // Released versions, newest first (`npm run docs:version -- <version>` at each release). The
-// newest is what /docs shows; the work in progress on main is "Next", under /docs/next.
+// newest is what /docs shows; the work in progress on main is "Next", under /docs/next. Only
+// those two are kept and built: in 0.x nobody stays on an old version, and each release's
+// documentation is still in its git tag. The release removes the previous one.
 const versions: string[] = existsSync("./versions.json") ? JSON.parse(readFileSync("./versions.json", "utf8")) : [];
 
 const config: Config = {
@@ -56,6 +58,7 @@ const config: Config = {
           ...(versions.length > 0
             ? {
                 lastVersion: versions[0],
+                onlyIncludeVersions: ["current", versions[0]!],
                 versions: { current: { label: "Next (unreleased)", path: "next", banner: "unreleased" } },
               }
             : { versions: { current: { label: "Next (unreleased)" } } }),

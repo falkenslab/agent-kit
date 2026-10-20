@@ -39,16 +39,22 @@ npm version <patch|minor|major> --no-git-tag-version
 
 This updates `package.json` and `package-lock.json`. If the captain's version goes up, the same in his folder: `(cd examples/captain-whiskers && npm version <patch|minor> --no-git-tag-version)`. The README installs with a plain `npm install @falkenslab/agent-kit` and names no version; still, `grep -n "<old version>" README.md` in case one slipped in.
 
-Then snapshot the documentation for this version (the site shows the latest version by default, and keeps each release's documentation):
+Then snapshot the documentation for this version. The site keeps only two: the latest release (the default, at `/docs`) and `main` (`/docs/next`); older releases' documentation lives in their git tags.
 
 ```
 npm run docs:version -- X.Y.Z
 npm run docs:build
 ```
 
-This copies `docs/content/` (the generated API reference included) to `docs/versioned_docs/version-X.Y.Z/` and adds the version to `docs/versions.json`; it becomes the default at `/docs`, and `main` moves to `/docs/next`. The build must pass.
+This copies `docs/content/` (the generated API reference included) to `docs/versioned_docs/version-X.Y.Z/` and adds the version to `docs/versions.json`; it becomes the default at `/docs`, and `main` moves to `/docs/next`. Before building, remove the previous release's snapshot, from `docs/`:
 
-It doesn't copy the Spanish translation (`/es/`): before `docs:build`, snapshot it too, from `docs/`, and keep only the newest released version's (older ones fall back to English):
+```
+git rm -rq versioned_docs/version-<previous> versioned_sidebars/version-<previous>-sidebars.json
+```
+
+and leave `versions.json` with `X.Y.Z` alone. The build must pass.
+
+It doesn't copy the Spanish translation (`/es/`): before `docs:build`, snapshot it too, from `docs/`, removing the previous release's:
 
 ```
 cp -r i18n/es/docusaurus-plugin-content-docs/current i18n/es/docusaurus-plugin-content-docs/version-X.Y.Z
