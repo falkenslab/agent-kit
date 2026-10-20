@@ -13,7 +13,10 @@ Every note in `.minispec/features/` (a feature `<slug>.md` or a fix `fix-<slug>.
 ls .minispec/features/
 gh issue list --state all --label feature --limit 100 --json number,title,state,body
 gh issue list --state all --label fix --limit 100 --json number,title,state,body
+gh issue list --state open --limit 100 --json number,title,labels
 ```
+
+The last list catches open issues with neither label: opened straight on GitHub (by the user, another session, someone else), so no note was written for them.
 
 A note is linked when it has an `Issue: [#N](<issue URL>)` line right under its title. An issue is linked when its body's last line points to `.minispec/features/<file>.md`.
 
@@ -21,6 +24,7 @@ A note is linked when it has an `Issue: [#N](<issue URL>)` line right under its 
 
 - **Note without an issue:** open one (`gh issue create --label feature` or `--label fix`; `gh label create` if the label is missing). Title: what it achieves, for someone who uses the kit. Body: the problem and the proposal in a few sentences (not the note's wording), and a last line `Feature: \`.minispec/features/<slug>.md\`` (`Fix:` for a fix). Then add the `Issue:` line under the note's title, with a blank line before and after.
 - **Note with an issue that isn't linked from it:** add the `Issue:` line.
+- **Open issue with neither `feature` nor `fix`:** it may be work for this repo that skipped MiniSpec. Read it and tell the user what it asks and whether it's a fix or a feature; with their yes, write its note (the feature or bugfix template, from the issue's problem and proposal and the code as it is now), relabel the issue (`gh issue edit N --add-label fix|feature --remove-label <old>`), and add the note's line at the end of its body. Never write notes for these without asking: a question, a duplicate or something for another repo needs none.
 - **Issue not in English:** translate its title and body with `gh issue edit`; don't open a duplicate.
 - **Open issue whose note no longer exists:** the work is done or dropped. Find the commits (`git log --oneline -- .minispec/features/<file>.md` and the ones after), then close it with a comment describing the solution and how it was implemented: what changed for the user, the design choices, how it was verified, the commits (`gh issue close N --comment "…"`). If it was dropped, say why instead. Ask the user when you can't tell which.
 - **Closed issue whose note still exists:** ask the user whether to reopen the issue or delete the note.
