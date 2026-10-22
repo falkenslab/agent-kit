@@ -79,6 +79,8 @@ export interface ExtensionContribution {
   confirmTools?: string[];
   /** Its MCP servers whose tools that always ask guided mode learns from their `destructiveHint`: an installed extension whose manifest lists no `confirmTools`. */
   confirmHintServers?: string[];
+  /** Its MCP tools whose server asks the person itself (MCP elicitation), by full name: guided mode doesn't ask too (#77). */
+  serverConfirmTools?: string[];
   /**
    * Its MCP servers that are remote (#61), by session name: the SDK fixes their URL and headers
    * when the session opens, so a changed option takes opening it again, and they may need the

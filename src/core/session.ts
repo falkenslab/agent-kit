@@ -231,7 +231,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           if (!installed) return [];
           const servers = Object.keys(added[index]?.mcpServers ?? {});
           const own = (gateSpec.confirmTools?.[extension.name] ?? []).flatMap((tool) => servers.map((server) => `mcp__${server}__${tool}`));
-          return [{ name: extension.name, scopeDir: installed.scopeDir, servers, confirmTools: [...(added[index]?.confirmTools ?? []), ...own] }];
+          return [{ name: extension.name, scopeDir: installed.scopeDir, servers, confirmTools: [...(added[index]?.confirmTools ?? []), ...own], serverConfirmTools: added[index]?.serverConfirmTools ?? [] }];
         });
   const neverTools = (
     await Promise.all(

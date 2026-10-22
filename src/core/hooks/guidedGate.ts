@@ -14,13 +14,15 @@ export interface GuardedExtension {
   servers: readonly string[];
   /** Its tools that always ask (full names): its manifest's `confirmTools` and the agent's own list. */
   confirmTools: readonly string[];
+  /** Its tools whose server asks the person itself (full names, the manifest's `serverConfirmTools`, #77). */
+  serverConfirmTools?: readonly string[];
 }
 
 /** One answer the gate gave, for the transcript: what was asked, and what the person (or the mode) said. */
 export interface GuidedDecision {
   extension: string;
   tool: string;
-  answer: "yes" | "session" | "always" | "no" | "never" | "kept-never" | "autonomous-deny";
+  answer: "yes" | "session" | "always" | "no" | "never" | "kept-never" | "autonomous-deny" | "server-asks";
 }
 
 /** The guided gate: its `PreToolUse` hook, and what ends or starts an approved batch. */
@@ -47,8 +49,10 @@ const APPROVAL_TOOL = "mcp__approvals__request_human_approval";
  * this session, always (kept in the extension's lock), no, never (kept too). Right after
  * `request_human_approval` is approved, calls go on until the person's next message (a batch),
  * except those that always ask: the agent's or the manifest's `confirmTools`, else the server's
- * `destructiveHint`, which aren't offered "always" either. An extension whose lock says `off`
- * runs without asking. Approving gives no decision of its own, so the other gates still judge.
+ * `destructiveHint`, asked on every call, so they're offered only yes, no and never (#78). An extension whose lock says `off`
+ * runs without asking. A tool whose server asks the person itself (`serverConfirmTools`, #77)
+ * isn't asked about too in guided mode, where that question reaches the person: one question,
+ * the server's. Approving gives no decision of its own, so the other gates still judge.
  */
 export function createGuidedGate(options: {
   runDir: string;
@@ -89,9 +93,14 @@ export function createGuidedGate(options: {
       await record("kept-never");
       return deny(pre, `The person never lets ${extension.name} run ${tool} (they said so before). Don't call it again: do the task another way, or tell them it needs it.`);
     }
+    // Its server asks the person itself, and in guided mode its question reaches them (#77).
+    if (mode === "guided" && extension.serverConfirmTools?.includes(full)) {
+      await record("server-asks");
+      return {};
+    }
     const alwaysAsks = extension.confirmTools.includes(full) || (await options.isDestructive(full));
-    if (kept === "always" && !alwaysAsks) return {};
-    if (thisSession.has(full)) return {};
+    // A tool that always asks is asked on every call (#78): no kept "always", no "this session".
+    if (!alwaysAsks && (kept === "always" || thisSession.has(full))) return {};
     if (mode === "autonomous") {
       if (options.autonomous === "allow") return {};
       await record("autonomous-deny");
@@ -100,7 +109,8 @@ export function createGuidedGate(options: {
     if (batch && !alwaysAsks) return {};
 
     const answers = t().confirmAnswers;
-    const choices = [answers.yes, answers.session, ...(alwaysAsks ? [] : [answers.always]), answers.no, answers.never];
+    // For one that always asks, only what covers this call, or makes it stricter (#78).
+    const choices = alwaysAsks ? [answers.yes, answers.no, answers.never] : [answers.yes, answers.session, answers.always, answers.no, answers.never];
     const label = options.labels?.()[full]?.label((pre.tool_input ?? {}) as Record<string, unknown>);
     const answer = await askForChoice(options.runDir, {
       title: t().guidedTitle(extension.name),

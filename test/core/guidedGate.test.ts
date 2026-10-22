@@ -39,12 +39,12 @@ const port = () => {
   return { asked, state };
 };
 
-const gateFor = (scopeDir: string, overrides: { mode?: Mode; destructive?: string[]; confirmTools?: string[]; autonomous?: "deny" | "allow"; decisions?: GuidedDecision[] } = {}) => {
+const gateFor = (scopeDir: string, overrides: { mode?: Mode; destructive?: string[]; confirmTools?: string[]; serverConfirmTools?: string[]; autonomous?: "deny" | "allow"; decisions?: GuidedDecision[] } = {}) => {
   const mode = { now: overrides.mode ?? "guided" };
   const gate = createGuidedGate({
     runDir: temp(),
     mode: () => mode.now,
-    extensions: [{ name: "canva", scopeDir, servers: ["canva"], confirmTools: overrides.confirmTools ?? [] }],
+    extensions: [{ name: "canva", scopeDir, servers: ["canva"], confirmTools: overrides.confirmTools ?? [], serverConfirmTools: overrides.serverConfirmTools ?? [] }],
     isReadOnly: async (tool) => tool === "mcp__canva__search",
     isDestructive: async (tool) => (overrides.destructive ?? []).includes(tool),
     ...(overrides.autonomous ? { autonomous: overrides.autonomous } : {}),
@@ -107,7 +107,8 @@ test("an approved batch lets calls through until the person's next message or th
   await decide(gate, "mcp__canva__publish");
   await decide(gate, "mcp__canva__delete");
   assert.equal(asked.length, 2);
-  assert.deepEqual(asked[0]!.options, ["Yes", "Yes, for this session", "No", "No, never"]);
+  // Only what covers this call (#78): no "this session", no "always".
+  assert.deepEqual(asked[0]!.options, ["Yes", "No", "No, never"]);
   // The person's next message ends the batch.
   await gate.userPromptSubmit({ hook_event_name: "UserPromptSubmit", prompt: "more", session_id: "s", transcript_path: "", cwd: "" } as never, undefined, { signal: new AbortController().signal });
   await decide(gate, "mcp__canva__create");
@@ -178,7 +179,7 @@ test("in autonomous mode, where no one can be asked, those tools are denied unle
 const installCampus = async () => {
   const dir = path.join(temp(), "campus");
   fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
-  fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "campus", description: "A campus.", metadata: { "agent-kit": { readOnlyTools: ["list"], confirmTools: ["publish"] } } }));
+  fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "campus", description: "A campus.", metadata: { "agent-kit": { readOnlyTools: ["list"], confirmTools: ["publish"], serverConfirmTools: ["erase-all"] } } }));
   fs.writeFileSync(path.join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { api: { type: "http", url: "https://mcp.example.com/mcp" } } }));
   const projectDir = temp();
   const dirs = { agent: path.join(projectDir, "extensions") };
@@ -232,4 +233,45 @@ test("/extensions config lists what's kept about an extension's tools, and confi
   assert.equal((await lines("/extensions config campus confirm=on"))[0], "In guided mode, campus's tools that change things ask first (confirm=off runs them without asking):");
   assert.equal((await readLock(dirs.agent)).campus?.confirm, undefined);
   assert.deepEqual(await lines("/extensions config campus confirm=maybe"), ["(confirm takes on, off or reset)"]);
+});
+
+test("a tool that always asks asks on every call, whatever was answered before (#78)", async () => {
+  setLanguage("en");
+  const { asked } = port();
+  const { gate } = gateFor(scope(), { confirmTools: ["mcp__canva__publish"] });
+  for (let i = 0; i < 3; i++) assert.equal(await decide(gate, "mcp__canva__publish"), undefined);
+  assert.equal(asked.length, 3);
+  for (const call of asked) assert.deepEqual(call.options, ["Yes", "No", "No, never"]);
+});
+
+test("a tool whose server asks the person itself isn't asked about too in guided mode, only once (#77)", async () => {
+  setLanguage("en");
+  const { asked } = port();
+  const scopeDir = scope();
+  const decisions: GuidedDecision[] = [];
+  const { gate, mode } = gateFor(scopeDir, { serverConfirmTools: ["mcp__canva__delete"], destructive: ["mcp__canva__delete", "mcp__canva__purge"], decisions });
+  assert.equal(await decide(gate, "mcp__canva__delete"), undefined);
+  assert.equal(asked.length, 0);
+  assert.deepEqual(decisions.map((decision) => decision.answer), ["server-asks"]);
+  // Another destructive tool, without a question of its server's, still gets the kit's.
+  await decide(gate, "mcp__canva__purge");
+  assert.equal(asked.length, 1);
+  // In autonomous mode no one answers the server: denied by default, as any other.
+  mode.now = "autonomous";
+  assert.equal((await decide(gate, "mcp__canva__delete"))?.permissionDecision, "deny");
+  // A kept "never" still holds.
+  mode.now = "guided";
+  await setExtensionConfirm(scopeDir, "canva", { tool: { name: "delete", answer: "never" } });
+  assert.equal((await decide(gate, "mcp__canva__delete"))?.permissionDecision, "deny");
+});
+
+test("an extension's serverConfirmTools reach the session's gate (#77)", async () => {
+  setLanguage("en");
+  const { asked } = port();
+  const { projectDir, dirs } = await installCampus();
+  const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, temp(), spec());
+  for (const hook of built.options.hooks!.PreToolUse!.flatMap((matcher) => matcher.hooks)) {
+    await hook({ hook_event_name: "PreToolUse", tool_name: "mcp__campus-api__erase-all", tool_input: {}, tool_use_id: "t", session_id: "s", transcript_path: "", cwd: "" } as never, "t", { signal: new AbortController().signal });
+  }
+  assert.equal(asked.length, 0);
 });

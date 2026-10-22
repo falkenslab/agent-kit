@@ -34,10 +34,10 @@ export function metadataProblems(kit) {
   if (kit === undefined) return [];
   if (!kit || typeof kit !== "object" || Array.isArray(kit)) return ['metadata["agent-kit"] isn\'t an object'];
   const problems = [];
-  const known = new Set(["kit", "description", "provides", "requires", "capabilities", "requirements", "readOnlyTools", "confirmTools", "labels", "help", "catalog"]);
+  const known = new Set(["kit", "description", "provides", "requires", "capabilities", "requirements", "readOnlyTools", "confirmTools", "serverConfirmTools", "labels", "help", "catalog"]);
   for (const key of Object.keys(kit)) if (!known.has(key)) problems.push(`metadata["agent-kit"] has an unknown field, ${key}`);
   if (kit.kit !== undefined && (typeof kit.kit !== "string" || !KIT_RANGE.test(kit.kit))) problems.push(`its kit range isn't comparators like ">=0.22.0": ${JSON.stringify(kit.kit)}`);
-  for (const key of ["provides", "requires", "readOnlyTools", "confirmTools"]) if (kit[key] !== undefined && !isStrings(kit[key])) problems.push(`its ${key} isn't a list of names`);
+  for (const key of ["provides", "requires", "readOnlyTools", "confirmTools", "serverConfirmTools"]) if (kit[key] !== undefined && !isStrings(kit[key])) problems.push(`its ${key} isn't a list of names`);
   if (kit.requirements !== undefined) {
     if (!Array.isArray(kit.requirements)) problems.push("its requirements aren't a list");
     else
@@ -116,7 +116,8 @@ export function metadataProblems(kit) {
         for (const [language, label] of Object.entries(byLanguage)) {
           if (!LANGUAGES.has(language)) problems.push(`its labels for ${tool} have a language agent-kit doesn't speak, ${language}`);
           if (!label || typeof label.label !== "string" || !label.label) problems.push(`its ${language} label for ${tool} has no label`);
-          if (label && Object.keys(label).some((key) => key !== "label" && key !== "phrase")) problems.push(`its ${language} label for ${tool} has an unknown field`);
+          if (label && Object.keys(label).some((key) => !["label", "phrase", "result"].includes(key))) problems.push(`its ${language} label for ${tool} has an unknown field`);
+          if (label?.result !== undefined && (typeof label.result !== "string" || !label.result)) problems.push(`its ${language} result for ${tool} isn't a text`);
           if (label?.phrase !== undefined && !(Array.isArray(label.phrase) && label.phrase.length === 2 && label.phrase.every((part) => typeof part === "string"))) problems.push(`its ${language} phrase for ${tool} isn't two texts (once, {n} times)`);
         }
       }

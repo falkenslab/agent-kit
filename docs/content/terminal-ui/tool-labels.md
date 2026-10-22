@@ -177,6 +177,17 @@ await runChatInk(opener, { runsDir, formatResult });
 
 The string is plain text, drawn in the theme's `toolResult` role, or `error` for a failed call. `formatResult` applies wherever results show: in `"full"`, and in any level unfolded with Ctrl+O.
 
+A tool's result is written for the model, in English, while its label is in the person's language. So a label can say the result line too: `result(result)` in a `ToolLabel`, with the same answers as `formatResult` (a string, `null` to hide it, `undefined` to keep it), asked after yours. The kit's own extensions (`sources`, `knowledge`, `memory`, `awareness`) hide the line when the call succeeded, since their label already says what happened, and keep it when it failed; `quietResults(labels)` does the same for your own. An installed extension gives a `result` per language in its manifest's `labels`, shown when the call succeeded. The model's result is never changed.
+
+```ts
+import { quietResults, type ToolLabels } from "@falkenslab/agent-kit";
+
+const labels: ToolLabels = {
+  ...quietResults({ mcp__shop__list_orders: { label: () => "Listing the orders" } }),
+  mcp__shop__cancel_order: { label: (input) => `Cancelling ${String(input.id)}`, result: (result) => (result.isError ? undefined : "Cancelled") },
+};
+```
+
 ## Coloring labels
 
 Labels are drawn in the theme's `toolLabel` role (dimmed by default). An agent can still color inside its own labels (with `ui.*` or picocolors); see [Themes](themes.md).

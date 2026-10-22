@@ -149,7 +149,7 @@ In guided mode the kit asks the person before an installed extension's tool that
 
 ```ts
 extensionGate: {
-  // These always ask, even inside a batch the person approved, and never offer "always":
+  // These always ask, on every call and even inside a batch the person approved:
   // added to each extension's own confirmTools, by short tool name.
   confirmTools: { canva: ["create-design", "publish-design"] },
   // In autonomous mode: "deny" (the default) blocks those tools, "allow" runs them.

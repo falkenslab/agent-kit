@@ -56,13 +56,17 @@ En modo guiado, una herramienta de una extensión instalada que no se sabe que s
 
 - **Sí**: esta llamada.
 - **Sí, en esta sesión**: esa herramienta no vuelve a preguntar hasta que acabe la sesión.
-- **Sí, siempre**: se guarda en el lock de la extensión, así que tampoco pregunta en sesiones posteriores. No se ofrece para una herramienta que siempre pregunta (abajo): aprobaría lo que aún no se ha visto.
+- **Sí, siempre**: se guarda en el lock de la extensión, así que tampoco pregunta en sesiones posteriores.
+
+A una herramienta que siempre pregunta (abajo) solo se le ofrecen **Sí**, **No** y **No, nunca**: "en esta sesión" y "siempre" aprobarían llamadas que nadie ha visto.
 - **No**: se deniega la llamada, y se le dice al modelo que no la reintente sin preguntar. Una respuesta escrita en el panel también es un no, que le llega al modelo como palabras de la persona.
 - **No, nunca**: se deniega y se guarda: en sesiones posteriores la herramienta ni siquiera está en la sesión (`disallowedTools`).
 
 **Un lote aprobado.** Justo después de que se apruebe `request_human_approval`, las llamadas que siguen continúan sin preguntar hasta el siguiente mensaje de la persona o la siguiente petición de aprobación, así que una aprobación cubre un lote de trabajo: "publica estas diez notas" es una pregunta, no once.
 
-**Herramientas que siempre preguntan**, incluso dentro de un lote aprobado: las [`confirmTools`](../extensions/writing.md#tools-that-always-ask) del manifiesto y la lista propia del agente ([`extensionGate`](../core-concepts/agent-spec.md#extensiongate)) o, si el manifiesto no las tiene, las que su servidor marca `destructiveHint`. Ahí va lo que crea, edita o publica en la cuenta de la persona.
+**Herramientas que siempre preguntan**, en cada llamada e incluso dentro de un lote aprobado: las [`confirmTools`](../extensions/writing.md#tools-that-always-ask) del manifiesto y la lista propia del agente ([`extensionGate`](../core-concepts/agent-spec.md#extensiongate)) o, si el manifiesto no las tiene, las que su servidor marca `destructiveHint`. Ahí va lo que crea, edita o publica en la cuenta de la persona.
+
+**Una pregunta, no dos.** Una herramienta cuyo servidor pregunta él mismo a la persona (elicitación de MCP), listada en las [`serverConfirmTools`](../extensions/writing.md#tools-whose-server-asks-itself) del manifiesto, no recibe además la pregunta del kit: la que contesta la persona es la del servidor.
 
 **La palabra de la persona se mantiene.** `/extensions config <name>` (y `extension config <name>` en el terminal) lista lo que se guarda de una extensión; `confirm=reset` olvida las respuestas, `confirm=off` deja que sus herramientas funcionen sin preguntar (una extensión de confianza) y `confirm=on` vuelve a preguntar. El modelo no puede cambiar nada de esto. Cada respuesta va a la [transcripción](../security/transcript.md).
 

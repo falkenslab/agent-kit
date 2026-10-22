@@ -56,13 +56,17 @@ In guided mode, an installed extension's tool that isn't known to only read wait
 
 - **Yes**: this call.
 - **Yes, for this session**: that tool doesn't ask again until the session ends.
-- **Yes, always**: kept in the extension's lock, so it doesn't ask in later sessions either. Not offered for a tool that always asks (below): it would approve what hasn't been seen.
+- **Yes, always**: kept in the extension's lock, so it doesn't ask in later sessions either.
+
+A tool that always asks (below) is offered only **Yes**, **No** and **No, never**: "this session" and "always" would approve calls nobody has seen.
 - **No**: the call is denied, and the model is told not to retry it without asking. An answer typed in the panel is a no too, passed on to the model as the person's words.
 - **No, never**: denied, and kept: in later sessions the tool isn't in the session at all (`disallowedTools`).
 
 **An approved batch.** Right after `request_human_approval` is approved, the calls that follow go on without asking until the person's next message or the next approval request, so one approval covers a batch of work: "publish these ten grades" is one question, not eleven.
 
-**Tools that always ask**, even inside an approved batch: the manifest's [`confirmTools`](../extensions/writing.md#tools-that-always-ask) and the agent's own list ([`extensionGate`](../core-concepts/agent-spec.md#extensiongate)), else the tools its server marks `destructiveHint`. What creates, edits or publishes in the person's account belongs there.
+**Tools that always ask**, on every call and even inside an approved batch: the manifest's [`confirmTools`](../extensions/writing.md#tools-that-always-ask) and the agent's own list ([`extensionGate`](../core-concepts/agent-spec.md#extensiongate)), else the tools its server marks `destructiveHint`. What creates, edits or publishes in the person's account belongs there.
+
+**One question, not two.** A tool whose server asks the person itself (MCP elicitation), listed in the manifest's [`serverConfirmTools`](../extensions/writing.md#tools-whose-server-asks-itself), isn't asked about by the kit too: the server's question is the one the person answers.
 
 **The person's word lasts.** `/extensions config <name>` (and `extension config <name>` in the terminal) lists what's kept for an extension; `confirm=reset` forgets the answers, `confirm=off` lets its tools run without asking (an extension the person trusts), `confirm=on` asks again. The model can't change any of it. Every answer goes to the [transcript](../security/transcript.md).
 

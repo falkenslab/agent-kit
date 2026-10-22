@@ -1,4 +1,5 @@
 import type { BaseSessionConfig } from "../../core/agentSpec.js";
+import { quietResults } from "../../core/toolLabels.js";
 import { folderOf, type Extension, type FolderOption } from "../../core/extensions.js";
 import { createFileKnowledgeStore } from "./fileKnowledgeStore.js";
 import type { KnowledgeStore, PageType } from "./knowledgeStore.js";
@@ -44,7 +45,8 @@ export function knowledge<TConfig extends BaseSessionConfig = BaseSessionConfig>
         toolOnlyDirs: [{ dir: knowledgeDir, instead: "the knowledge_* tools" }],
         readOnlyTools: ["mcp__knowledge__knowledge_index", "mcp__knowledge__knowledge_search", "mcp__knowledge__knowledge_read", "mcp__knowledge__knowledge_check"],
         selfAskingTools: ["mcp__knowledge__knowledge_retire"],
-        toolLabels: knowledgeToolLabels(),
+        // Their labels already say what happened: no English result line under them (#79).
+        toolLabels: quietResults(knowledgeToolLabels()),
         helpLines: [
           "You keep a knowledge base (your memory across sessions). Its commands: `/knowledge:ingest` (learn the new or changed files of the sources folder), `/knowledge:query <question>` (answer from it), `/knowledge:lint` (check it and fix what's mechanical).",
         ],

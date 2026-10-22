@@ -187,7 +187,7 @@ What the kit's chat, gates and catalog use goes under `metadata["agent-kit"]` in
 }
 ```
 
-- **`labels`**: how the chat shows each tool, per language: the line while it runs (`{city}` takes the call's input) and how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries). Without them, the chat shows the tool's name.
+- **`labels`**: how the chat shows each tool, per language: the line while it runs (`{city}` takes the call's input) and how it counts in a [folded summary](../terminal-ui/tool-labels.md#folded-summaries), and optionally `result`, the line shown under it when it succeeded instead of the result's first line, which is written for the model. Without them, the chat shows the tool's name.
 - **`description`**: its description in other languages (`es`, `fr`, `de`), shown in the person's: the catalog in the chats and Captain Whiskers' drawer, `extension info` and the marketplace's `catalog.json`. English stays `plugin.json`'s own `description`, which Claude Code reads; the prompt keeps it too, since the model reads English. A `README.es.md` next to `README.md` is the README in Spanish: `extension info` points to it in a Spanish session, and `catalog.json` lists it.
 - **`capabilities`**: what the agent can do with it, for the person: each one's `skills` (their folders in `skills/`) and `tools` (short names) together, with a `label` and a `description` per language (English where the person's is missing). `/extensions`, `about_me`, `extension info` and the catalog show them; their ids count as [provided](overview.md#capabilities). Installing checks that every skill named exists; the tools only a running server lists, so `/extensions` says when one isn't offered. Group the tools by what the person gets done, not one capability per tool: an extension with 140 tools reads as a handful of capabilities.
 - **`help`**: what it says about itself, for the agent to tell the person ([awareness](../capabilities/awareness.md)'s `about_me`).
@@ -277,7 +277,17 @@ In guided mode the person can approve a batch of calls at once, or a tool for th
 "metadata": { "agent-kit": { "confirmTools": ["create-design", "publish-design"] } }
 ```
 
-They ask even inside an approved batch, and the person isn't offered "always". Without the key, the tools its servers mark `destructiveHint: true` count instead, the same way `readOnlyTools` and `readOnlyHint` work. The agent can add its own ([`extensionGate.confirmTools`](../core-concepts/agent-spec.md#extensiongate)).
+They ask on every call, even inside an approved batch, and the person is offered only yes, no and "no, never": never "this session" or "always". Without the key, the tools its servers mark `destructiveHint: true` count instead, the same way `readOnlyTools` and `readOnlyHint` work. The agent can add its own ([`extensionGate.confirmTools`](../core-concepts/agent-spec.md#extensiongate)).
+
+### Tools whose server asks itself
+
+A server can ask the person before acting, in the middle of the tool, through [MCP elicitation](../human-in-the-loop/elicitation.md): moodle-mcp does before deleting, unenrolling or resetting a course. That question is the stronger one (its answer never reaches the model, and it holds in any client), so the kit's own would only ask twice. List those tools in `serverConfirmTools` (short names):
+
+```json
+"metadata": { "agent-kit": { "serverConfirmTools": ["delete_activity", "unenrol_user", "reset_course"] } }
+```
+
+In guided mode the kit lets them through without its own question, and the server asks; a "no, never" the person kept still holds. Plan mode still stops them (they aren't read-only), and autonomous mode still denies them unless the agent allows it, since no one would answer the server there. List only tools whose server really asks: one listed that doesn't would run unasked.
 
 ### Programs it needs
 

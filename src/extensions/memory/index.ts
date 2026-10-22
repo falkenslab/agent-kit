@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { HookCallback } from "@anthropic-ai/claude-agent-sdk";
 import type { BaseSessionConfig } from "../../core/agentSpec.js";
+import { quietResults } from "../../core/toolLabels.js";
 import { folderOf, type Extension, type FolderOption } from "../../core/extensions.js";
 import { readConversation } from "../../core/runs.js";
 import { memoryToolLabels } from "./labels.js";
@@ -62,7 +63,8 @@ export function memory<TConfig extends BaseSessionConfig = BaseSessionConfig>(op
         toolOnlyDirs: [{ dir: memoryDir, instead: "its tools: recall, remember, forget" }],
         readOnlyTools: ["mcp__memory__recall"],
         hooks: { UserPromptSubmit: [{ hooks: [hear] }] },
-        toolLabels: memoryToolLabels(),
+        // Their labels already say what happened: no English result line under them (#79).
+        toolLabels: quietResults(memoryToolLabels()),
         helpLines: [
           "You keep a memory of the person across all their projects (how they like things done, who they are): `/memory:list` shows it, `/memory:forget <entry>` forgets an entry. Only what they tell you goes in it.",
         ],

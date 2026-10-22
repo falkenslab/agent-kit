@@ -360,6 +360,7 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
     toolLabels: tuiOptions.toolLabels,
     formatAction: tuiOptions.formatAction,
     toolPhrase: tuiOptions.toolPhrase,
+    formatResult: tuiOptions.formatResult,
     ...(tuiOptions.openBrowser !== undefined ? { openBrowser: tuiOptions.openBrowser } : {}),
     promptSuggestions: tuiOptions.promptSuggestions ?? true,
     // The /resume list in place of the prompt.
@@ -383,7 +384,8 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
     formatAction: controller.formatAction,
     toolPhrase: controller.toolPhrase,
     toolDetail: tuiOptions.toolDetail,
-    formatResult: tuiOptions.formatResult,
+    // The agent's, then the labels' (#79).
+    formatResult: controller.formatResult,
     agentLabel: tuiOptions.agentLabel,
     width: () => liveWidth(stdout.columns),
   });

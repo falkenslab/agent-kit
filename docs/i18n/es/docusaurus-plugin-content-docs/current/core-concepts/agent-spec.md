@@ -149,8 +149,8 @@ En modo guiado el kit pregunta a la persona antes de una herramienta de una exte
 
 ```ts
 extensionGate: {
-  // Estas siempre preguntan, incluso dentro de un lote que la persona aprobó, y nunca ofrecen
-  // "siempre": se suman a las confirmTools de cada extensión, por nombre corto de herramienta.
+  // Estas siempre preguntan, en cada llamada e incluso dentro de un lote que la persona aprobó;
+  // se suman a las confirmTools de cada extensión, por nombre corto de herramienta.
   confirmTools: { canva: ["create-design", "publish-design"] },
   // En modo autónomo: "deny" (por defecto) bloquea esas herramientas, "allow" las ejecuta.
   autonomous: "deny",

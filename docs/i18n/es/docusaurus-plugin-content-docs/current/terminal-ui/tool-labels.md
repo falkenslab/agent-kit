@@ -177,6 +177,17 @@ await runChatInk(opener, { runsDir, formatResult });
 
 La cadena es texto plano, dibujado con el rol `toolResult` del tema, o `error` para una llamada fallida. `formatResult` se aplica allí donde se muestran resultados: en `"full"`, y en cualquier nivel desplegado con Ctrl+O.
 
+El resultado de una herramienta está escrito para el modelo, en inglés, mientras que su etiqueta está en el idioma de la persona. Por eso una etiqueta puede decir también la línea de resultado: `result(result)` en una `ToolLabel`, con las mismas respuestas que `formatResult` (una cadena, `null` para ocultarla, `undefined` para mantenerla), que se pregunta después del tuyo. Las extensiones propias del kit (`sources`, `knowledge`, `memory`, `awareness`) ocultan la línea cuando la llamada sale bien, porque su etiqueta ya dice lo que pasó, y la mantienen cuando falla; `quietResults(labels)` hace lo mismo con las tuyas. Una extensión instalada da un `result` por idioma en las `labels` de su manifiesto, que se muestra cuando la llamada sale bien. El resultado del modelo nunca cambia.
+
+```ts
+import { quietResults, type ToolLabels } from "@falkenslab/agent-kit";
+
+const labels: ToolLabels = {
+  ...quietResults({ mcp__shop__list_orders: { label: () => "Listando los pedidos" } }),
+  mcp__shop__cancel_order: { label: (input) => `Cancelando ${String(input.id)}`, result: (result) => (result.isError ? undefined : "Cancelado") },
+};
+```
+
 ## Colorear las etiquetas {#coloring-labels}
 
 Las etiquetas se dibujan con el rol `toolLabel` del tema (atenuado por defecto). Aun así, un agente puede colorear dentro de sus propias etiquetas (con `ui.*` o picocolors); consulta [Temas](themes.md).

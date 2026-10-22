@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentIdentity } from "../../core/agentSpec.js";
+import { quietResults } from "../../core/toolLabels.js";
 import type { Extension } from "../../core/extensions.js";
 import { agentKitVersion } from "../../core/version.js";
 import { awarenessToolLabels } from "./labels.js";
@@ -59,7 +60,8 @@ export function awareness(options: AwarenessOptions = {}): Extension {
         mcpServers: { awareness: createAwarenessServer(session, options.guide, catalog ? [createCatalogTool(config, session)] : []) },
         promptSection: identityPromptSection(spec.identity!, { catalog }),
         readOnlyTools: ["mcp__awareness__about_me", ...(catalog ? ["mcp__awareness__extensions_catalog"] : [])],
-        toolLabels: awarenessToolLabels(),
+        // Their labels already say what happened: no English result line under them (#79).
+        toolLabels: quietResults(awarenessToolLabels()),
       };
     },
   };

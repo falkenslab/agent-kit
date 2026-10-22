@@ -187,7 +187,7 @@ Lo que usan el chat, las puertas y el catálogo del kit va en `metadata["agent-k
 }
 ```
 
-- **`labels`**: cómo muestra el chat cada herramienta, por idioma: la línea mientras se ejecuta (`{city}` toma la entrada de la llamada) y cómo cuenta en un [resumen plegado](../terminal-ui/tool-labels.md#folded-summaries). Sin ellas, el chat muestra el nombre de la herramienta.
+- **`labels`**: cómo muestra el chat cada herramienta, por idioma: la línea mientras se ejecuta (`{city}` toma la entrada de la llamada) y cómo cuenta en un [resumen plegado](../terminal-ui/tool-labels.md#folded-summaries), y opcionalmente `result`, la línea que se muestra debajo cuando sale bien, en lugar de la primera línea del resultado, que está escrita para el modelo. Sin ellas, el chat muestra el nombre de la herramienta.
 - **`description`**: su descripción en otros idiomas (`es`, `fr`, `de`), mostrada en el de la persona: el catálogo en los chats y el panel lateral de Captain Whiskers, `extension info` y el `catalog.json` del marketplace. El inglés sigue siendo la propia `description` de `plugin.json`, que lee Claude Code; el prompt también la conserva, ya que el modelo lee inglés. Un `README.es.md` junto a `README.md` es el README en español: `extension info` lo señala en una sesión en español, y `catalog.json` lo lista.
 - **`capabilities`**: lo que el agente puede hacer con ella, para la persona: las `skills` (sus carpetas en `skills/`) y las `tools` (nombres cortos) de cada una juntas, con una `label` y una `description` por idioma (inglés donde falte el de la persona). `/extensions`, `about_me`, `extension info` y el catálogo las muestran; sus ids cuentan como [proporcionados](overview.md#capabilities). Al instalar se comprueba que existe cada skill nombrada; las herramientas solo las lista un servidor en marcha, así que `/extensions` dice cuándo una no se ofrece. Agrupa las herramientas según lo que la persona consigue hacer, no una capacidad por herramienta: una extensión con 140 herramientas se lee como un puñado de capacidades.
 - **`help`**: lo que dice de sí misma, para que el agente se lo cuente a la persona (el `about_me` de [awareness](../capabilities/awareness.md)).
@@ -277,7 +277,17 @@ En modo guiado la persona puede aprobar un lote de llamadas de una vez, o una he
 "metadata": { "agent-kit": { "confirmTools": ["create-design", "publish-design"] } }
 ```
 
-Preguntan incluso dentro de un lote aprobado, y a la persona no se le ofrece "siempre". Sin la clave, cuentan en su lugar las herramientas que sus servidores marcan `destructiveHint: true`, igual que funcionan `readOnlyTools` y `readOnlyHint`. El agente puede añadir las suyas ([`extensionGate.confirmTools`](../core-concepts/agent-spec.md#extensiongate)).
+Preguntan en cada llamada, incluso dentro de un lote aprobado, y a la persona solo se le ofrece sí, no y "no, nunca": nunca "en esta sesión" ni "siempre". Sin la clave, cuentan en su lugar las herramientas que sus servidores marcan `destructiveHint: true`, igual que funcionan `readOnlyTools` y `readOnlyHint`. El agente puede añadir las suyas ([`extensionGate.confirmTools`](../core-concepts/agent-spec.md#extensiongate)).
+
+### Herramientas cuyo servidor pregunta él mismo {#tools-whose-server-asks-itself}
+
+Un servidor puede preguntar a la persona antes de actuar, en mitad de la herramienta, mediante [la elicitación de MCP](../human-in-the-loop/elicitation.md): moodle-mcp lo hace antes de borrar, dar de baja o reiniciar un curso. Esa pregunta es la más fuerte (su respuesta nunca llega al modelo, y vale en cualquier cliente), así que la del kit solo haría preguntar dos veces. Lista esas herramientas en `serverConfirmTools` (nombres cortos):
+
+```json
+"metadata": { "agent-kit": { "serverConfirmTools": ["delete_activity", "unenrol_user", "reset_course"] } }
+```
+
+En modo guiado el kit las deja pasar sin su propia pregunta, y pregunta el servidor; un "no, nunca" que la persona guardó sigue valiendo. El modo plan las sigue parando (no son de solo lectura), y el modo autónomo las sigue denegando salvo que el agente lo permita, ya que ahí nadie contestaría al servidor. Lista solo herramientas cuyo servidor pregunte de verdad: una listada que no lo haga se ejecutaría sin preguntar.
 
 ### Programas que necesita {#programs-it-needs}
 

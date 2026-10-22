@@ -10,7 +10,7 @@ import { runQuery, type AgentEvent, type AgentRun, type SessionUsage } from "../
 import { createRunFolder, listRuns, readConversation, readRunSession, type RunFolder } from "../core/runs.js";
 import { createInputQueue, togglePlanMode, type ExtensionsStatus, type ModeControl } from "../core/session.js";
 import { hasOpenTodos, parseTodos, TODO_TOOL, type Todo } from "../core/todos.js";
-import { withToolLabels, withToolPhrases, type ToolLabels } from "../core/toolLabels.js";
+import { withToolLabels, withToolPhrases, withToolResults, type ToolLabels, type ToolResult } from "../core/toolLabels.js";
 import type { ToolPhrase } from "../core/messages/index.js";
 import { createConsoleRenderer } from "../tui/consoleRenderer.js";
 import { chatExtensionsCommand, type ExtensionAction } from "./extensions.js";
@@ -53,6 +53,8 @@ export interface ChatSettings {
   /** Tool call labels and folded-group phrases on top of the kit's and the extensions'. */
   formatAction?: (toolName: string, input: unknown) => string;
   toolPhrase?: (toolName: string) => ToolPhrase | undefined;
+  /** The line under a tool call for its result, before the labels' own (`ToolLabel.result`, #79): a string replaces it, `null` hides it, `undefined` leaves it to them. */
+  formatResult?: (toolName: string, result: ToolResult) => string | null | undefined;
   /** Runs the agent: the SDK's (`runQuery()`) by default; another for tests, or a host of its own. */
   runQuery?: (prompt: AsyncIterable<SDKUserMessage>, options: Options) => AgentRun;
   /** The SDK's prompt suggestions (on by default). */
@@ -189,6 +191,7 @@ export async function createChatController(options: Options | SessionOpener, set
   const modeControl = (): ModeControl | undefined => current.modeControl ?? settings.modeControl;
   const formatAction = withToolLabels(() => current.toolLabels ?? settings.toolLabels, settings.formatAction);
   const toolPhrase = withToolPhrases(() => current.toolLabels ?? settings.toolLabels, settings.toolPhrase);
+  const formatResult = withToolResults(() => current.toolLabels ?? settings.toolLabels, settings.formatResult);
 
   // State and listeners.
   const stateListeners = new Set<(state: ChatState) => void>();
@@ -566,9 +569,10 @@ export async function createChatController(options: Options | SessionOpener, set
       eventListeners.add(listener);
       return () => eventListeners.delete(listener);
     },
-    /** Tool call labels and phrases with the extensions' (for a view that renders events itself). */
+    /** Tool call labels, phrases and result lines with the extensions' (for a view that renders events itself). */
     formatAction,
     toolPhrase,
+    formatResult,
     /** The folder the session works in. */
     cwd: (): string => current.options.cwd ?? process.cwd(),
     /** Draws the run's earlier conversation, then sends the initial prompt (for a new run). */

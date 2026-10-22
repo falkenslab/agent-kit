@@ -229,8 +229,8 @@ export interface ExtensionGateSpec {
   /** `false` turns the gate off: extensions' tools run without asking, as the model decides. */
   enabled?: boolean;
   /**
-   * Tools that always ask, even inside a batch the person approved, and never offer "always", by
-   * extension and short tool name (`{ canva: ["create-design"] }`): added to its manifest's `confirmTools`.
+   * Tools that always ask, on every call and even inside a batch the person approved (never
+   * offered "this session" or "always"), by extension and short tool name (`{ canva: ["create-design"] }`): added to its manifest's `confirmTools`.
    */
   confirmTools?: Record<string, string[]>;
   /** In autonomous mode, where no one can be asked: `"deny"` (the default) blocks those tools, `"allow"` runs them. */

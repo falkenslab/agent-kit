@@ -97,6 +97,8 @@ export function remoteHosts(manifest: Pick<ExternalManifest, "servers">): string
 export interface ExternalToolLabel {
   label: string;
   phrase?: ToolPhrase;
+  /** The line under the call when it succeeded, instead of its result's first line, written for the model (#79). */
+  result?: string;
 }
 
 /** Who made an extension, as Claude Code's `plugin.json` has it. */
@@ -143,11 +145,16 @@ export interface ExternalManifest {
    */
   readOnlyTools?: string[];
   /**
-   * Its tools that always ask the person in guided mode (short names), even inside a batch they
-   * approved, and never offer "always" (#76): what creates, edits or publishes in their account.
-   * Without the key, its servers' `destructiveHint` says which.
+   * Its tools that always ask the person in guided mode (short names), on every call and even
+   * inside a batch they approved, never offering "this session" or "always" (#76, #78): what
+   * creates, edits or publishes in their account. Without the key, its servers' `destructiveHint` says which.
    */
   confirmTools?: string[];
+  /**
+   * Its tools whose server asks the person itself before acting, through MCP elicitation (short
+   * names, #77): guided mode doesn't ask too while the person can be asked, so it's one question.
+   */
+  serverConfirmTools?: string[];
   /** Its tools' chat labels, by short name (of any of its servers) and language (English when the kit's isn't there). */
   labels: Record<string, Partial<Record<Language, ExternalToolLabel>>>;
   /** What it says about itself in a session, for the agent to tell the person (`SessionFacts`). */
@@ -294,6 +301,7 @@ export async function readExternalManifest(dir: string): Promise<ExternalManifes
     servers: await pluginServers(dir, raw),
     ...(Array.isArray(kit.readOnlyTools) ? { readOnlyTools: kit.readOnlyTools.filter((tool): tool is string => typeof tool === "string") } : {}),
     ...(Array.isArray(kit.confirmTools) ? { confirmTools: kit.confirmTools.filter((tool): tool is string => typeof tool === "string") } : {}),
+    ...(Array.isArray(kit.serverConfirmTools) ? { serverConfirmTools: kit.serverConfirmTools.filter((tool): tool is string => typeof tool === "string") } : {}),
     labels: kit.labels ?? {},
     ...(kit.help ? { help: kit.help } : {}),
     userConfig: parseUserConfig(raw.userConfig),
@@ -539,7 +547,12 @@ function manifestToolLabels(manifest: ExternalManifest, sessionServers: readonly
     Object.entries(manifest.labels).flatMap(([tool, byLanguage]) => {
       const texts = byLanguage[language] ?? byLanguage.en;
       if (!texts) return [];
-      const label = { label: (input: Record<string, unknown>) => fill(texts.label, input), ...(texts.phrase ? { phrase: texts.phrase } : {}) };
+      const label = {
+        label: (input: Record<string, unknown>) => fill(texts.label, input),
+        ...(texts.phrase ? { phrase: texts.phrase } : {}),
+        // In the person's language when it succeeded; a failure keeps its own line (#79).
+        ...(texts.result ? { result: (result: { isError: boolean }) => (result.isError ? undefined : texts.result) } : {}),
+      };
       return sessionServers.map((server) => [`mcp__${server}__${tool}`, label]);
     }),
   );
@@ -601,6 +614,8 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
         ...(manifest.confirmTools
           ? { confirmTools: Object.keys(servers).flatMap((server) => manifest.confirmTools!.map((tool) => `mcp__${server}__${tool}`)) }
           : { confirmHintServers: Object.keys(servers) }),
+        // And those whose server asks the person itself (#77).
+        ...(manifest.serverConfirmTools ? { serverConfirmTools: Object.keys(servers).flatMap((server) => manifest.serverConfirmTools!.map((tool) => `mcp__${server}__${tool}`)) } : {}),
         toolLabels: manifestToolLabels(manifest, Object.keys(servers)),
         ...(remote.length ? { remoteServers: remote } : {}),
         ...(manifest.help ? { helpLines: [manifest.help] } : {}),

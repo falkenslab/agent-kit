@@ -82,6 +82,26 @@ export interface ToolLabel {
   label(input: Record<string, unknown>): string;
   /** How it counts in a folded group's summary, `[one, many]` with `{n}`: `["read {n} page", "read {n} pages"]`. */
   phrase?: ToolPhrase;
+  /**
+   * The line under it for its result, in the kit's language (#79): a string replaces the result's
+   * first line (written for the model, in English), `null` hides it, `undefined` keeps it. The
+   * model's result is never changed.
+   */
+  result?(result: ToolResult): string | null | undefined;
+}
+
+/** A tool call's result, as the chat shows it. */
+export interface ToolResult {
+  isError: boolean;
+  text: string;
+}
+
+/**
+ * Labels whose result line is hidden when the call succeeded (#79): for tools whose label already
+ * says what happened, so the person doesn't read the model's English under it. A failure still shows.
+ */
+export function quietResults(labels: ToolLabels): ToolLabels {
+  return Object.fromEntries(Object.entries(labels).map(([tool, label]) => [tool, { ...label, result: (result: ToolResult) => (result.isError ? undefined : null) }]));
 }
 
 /** Tools' labels by full name (`mcp__<server>__<tool>`): what the extensions of a session bring. */
@@ -109,6 +129,20 @@ export function withToolPhrases(
   toolPhrase?: (toolName: string) => ToolPhrase | undefined,
 ): (toolName: string) => ToolPhrase | undefined {
   return (toolName) => labels()?.[toolName]?.phrase ?? toolPhrase?.(toolName);
+}
+
+/**
+ * A result formatter (the Ink chat's `formatResult`) that asks `formatResult` first, then the
+ * tools' labels (`ToolLabel.result`, #79): `undefined` from both keeps the result's first line.
+ */
+export function withToolResults(
+  labels: () => ToolLabels | undefined,
+  formatResult?: (toolName: string, result: ToolResult) => string | null | undefined,
+): (toolName: string, result: ToolResult) => string | null | undefined {
+  return (toolName, result) => {
+    const own = formatResult?.(toolName, result);
+    return own !== undefined ? own : labels()?.[toolName]?.result?.(result);
+  };
 }
 
 /** An agent's labels for its own tools: the tool's short name and input, to a label, or `undefined` for the kit's default. */

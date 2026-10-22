@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { BaseSessionConfig } from "../../core/agentSpec.js";
+import { quietResults } from "../../core/toolLabels.js";
 import { folderOf, type Extension, type FolderOption } from "../../core/extensions.js";
 import { sourcesToolLabels } from "./labels.js";
 import { addSource } from "./sources.js";
@@ -45,7 +46,8 @@ export function sources<TConfig extends BaseSessionConfig = BaseSessionConfig>(o
         readOnlyDirs: [sourcesDir],
         readOnlyTools: ["mcp__sourceFiles__list_sources", "mcp__sourceFiles__extract_text"],
         selfAskingTools: ["mcp__sourceFiles__request_file", "mcp__sourceFiles__retire_source"],
-        toolLabels: sourcesToolLabels(),
+        // Their labels already say what happened: no English result line under them (#79).
+        toolLabels: quietResults(sourcesToolLabels()),
         // For the host (a page's "add to the chest"): a file the person gave, with the same rules
         // as the tools (never overwriting, a duplicate recognized) and the person as its origin.
         api: {
