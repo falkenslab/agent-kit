@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // @falkenslab/agent-kit-catalog: a Claude Code marketplace's extensions as one file, catalog.json — each
 // one's name, version, description (and per language), topics, category, author, links (READMEs per language), install
-// commands, capabilities, requirements, the remote hosts it talks to, and images
-// (as raw.githubusercontent.com URLs) — from .claude-plugin/marketplace.json and each extension's
-// plugin.json. A page or a client shows the marketplace from it without cloning the repository.
+// commands, capabilities, requirements, the remote hosts it talks to, images (as
+// raw.githubusercontent.com URLs) and a technical sheet (its servers, skills, commands, subagents and
+// tools) — from .claude-plugin/marketplace.json and each extension's folder. A page or a client shows the marketplace from it without cloning the repository.
 // No dependencies: it runs with npx in any CI.
 //
 //   npx @falkenslab/agent-kit-catalog [folder]           writes <folder>/catalog.json (folder: the current one)
@@ -17,7 +17,7 @@
 // @falkenslab/agent-kit): what it writes fits the first, and an extension's metadata["agent-kit"] must
 // fit the second, or it stops saying what doesn't.
 import { execFileSync } from "node:child_process";
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -133,16 +133,18 @@ export function metadataProblems(kit) {
   return problems;
 }
 
-/**
- * The hosts an extension's remote MCP servers talk to (type http or sse), where Claude Code looks for
- * its servers: plugin.json's mcpServers (inline, or a path to a JSON file), else .mcp.json.
- */
-async function remoteHostsOf(dir, manifest) {
+/** An extension's MCP servers, where Claude Code looks for them: plugin.json's mcpServers (inline, or a path to a JSON file), else .mcp.json. */
+async function serversOf(dir, manifest) {
   let declared = manifest.mcpServers;
   if (typeof declared === "string") declared = await readJson(path.join(dir, declared)).catch(() => undefined);
   if (declared === undefined) declared = await readJson(path.join(dir, ".mcp.json")).catch(() => undefined);
   if (declared && typeof declared === "object" && "mcpServers" in declared) declared = declared.mcpServers;
-  if (!declared || typeof declared !== "object") return [];
+  return declared && typeof declared === "object" ? declared : {};
+}
+
+/** The hosts an extension's remote MCP servers talk to (type http or sse). */
+async function remoteHostsOf(dir, manifest) {
+  const declared = await serversOf(dir, manifest);
   const hosts = new Set();
   for (const server of Object.values(declared)) {
     if (!server || (server.type !== "http" && server.type !== "sse") || typeof server.url !== "string") continue;
@@ -153,6 +155,121 @@ async function remoteHostsOf(dir, manifest) {
     }
   }
   return [...hosts];
+}
+
+/**
+ * One MCP server as the technical sheet shows it (#80): an npm package run with npx, bunx or uvx (its
+ * package, version and npm page), a program the extension brings, a remote server, or another
+ * command (its name only). Never its other arguments nor an env value: they may carry secrets.
+ */
+export function describeServer(name, server) {
+  if (server && (server.type === "http" || server.type === "sse") && typeof server.url === "string") {
+    let host = server.url;
+    try {
+      host = new URL(server.url.replace(/\$\{[^}]*\}/g, "x")).host;
+    } catch {
+      // Not a URL that parses: the address as given.
+    }
+    return { name, kind: "remote", transport: server.type, host };
+  }
+  const command = typeof server?.command === "string" ? server.command : "";
+  const args = Array.isArray(server?.args) ? server.args.filter((arg) => typeof arg === "string") : [];
+  const runner = path.basename(command).toLowerCase().replace(/\.(cmd|exe)$/, "");
+  if (["npx", "bunx", "uvx", "pnpx"].includes(runner)) {
+    const spec = args.find((arg) => !arg.startsWith("-"));
+    if (spec) {
+      const at = spec.indexOf("@", spec.startsWith("@") ? 1 : 0);
+      const pkg = at > 0 ? spec.slice(0, at) : spec;
+      const version = at > 0 ? spec.slice(at + 1) : undefined;
+      return { name, kind: "package", package: pkg, ...(version ? { version } : {}), ...(runner === "uvx" ? {} : { url: `https://www.npmjs.com/package/${pkg}` }) };
+    }
+  }
+  if ([command, ...args].some((part) => part.includes("${CLAUDE_PLUGIN_ROOT}"))) return { name, kind: "bundled", command: [command, ...args.filter((arg) => arg.includes("${CLAUDE_PLUGIN_ROOT}"))].join(" ") };
+  return { name, kind: "command", command: path.basename(command) };
+}
+
+/** A markdown file's frontmatter `description` (and `name`), single-line or folded (`>`, `|`); none without one. */
+export function frontmatter(text) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!match) return {};
+  const lines = match[1].split(/\r?\n/);
+  const out = {};
+  for (let i = 0; i < lines.length; i++) {
+    const field = /^(name|description):\s*(.*)$/.exec(lines[i]);
+    if (!field) continue;
+    let value = field[2].trim();
+    if (value === "" || value === ">" || value === "|" || value === ">-" || value === "|-") {
+      const more = [];
+      while (i + 1 < lines.length && /^\s+\S/.test(lines[i + 1])) more.push(lines[++i].trim());
+      value = more.join(" ");
+    }
+    out[field[1]] = value.replace(/^(["'])(.*)\1$/, "$2");
+  }
+  return out;
+}
+
+/** Each skill, command or subagent of a folder: its name (folder or file) and its frontmatter's description, sorted by name. */
+async function entriesOf(dir, kind) {
+  const names = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  const found = [];
+  for (const entry of names) {
+    const file = kind === "skills" ? (entry.isDirectory() ? path.join(dir, entry.name, "SKILL.md") : undefined) : entry.isFile() && entry.name.endsWith(".md") ? path.join(dir, entry.name) : undefined;
+    if (!file) continue;
+    const text = await readFile(file, "utf8").catch(() => undefined);
+    if (text === undefined) continue;
+    const { description } = frontmatter(text);
+    found.push({ name: kind === "skills" ? entry.name : entry.name.replace(/\.md$/, ""), ...(description ? { description } : {}) });
+  }
+  return found.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Its folders of skills, commands or subagents: plugin.json's own paths when it names them, else the default one. */
+const foldersOf = (dir, manifest, kind) => {
+  const given = manifest[kind];
+  const paths = typeof given === "string" ? [given] : isStrings(given) ? given : [kind];
+  return paths.map((relative) => path.join(dir, relative));
+};
+
+/**
+ * The tools its manifest knows (#80), by short name, from metadata["agent-kit"]: its labels' texts per
+ * language ({field} as written), and whether it only reads or always asks (the kit's, or its server's).
+ * A static read: a running server may list more.
+ */
+export function toolsOf(kit) {
+  if (!kit || typeof kit !== "object") return [];
+  const names = new Set([
+    ...Object.keys(kit.labels && typeof kit.labels === "object" ? kit.labels : {}),
+    ...(Array.isArray(kit.capabilities) ? kit.capabilities.flatMap((capability) => (isStrings(capability?.tools) ? capability.tools : [])) : []),
+    ...(isStrings(kit.readOnlyTools) ? kit.readOnlyTools : []),
+    ...(isStrings(kit.confirmTools) ? kit.confirmTools : []),
+    ...(isStrings(kit.serverConfirmTools) ? kit.serverConfirmTools : []),
+  ]);
+  return [...names].sort().map((name) => {
+    const byLanguage = kit.labels?.[name];
+    const labels = byLanguage && typeof byLanguage === "object" ? Object.fromEntries(Object.entries(byLanguage).flatMap(([language, label]) => (typeof label?.label === "string" ? [[language, label.label]] : []))) : {};
+    const confirm = isStrings(kit.serverConfirmTools) && kit.serverConfirmTools.includes(name) ? "server" : isStrings(kit.confirmTools) && kit.confirmTools.includes(name) ? "always" : undefined;
+    return {
+      name,
+      ...(Object.keys(labels).length ? { labels } : {}),
+      ...(isStrings(kit.readOnlyTools) && kit.readOnlyTools.includes(name) ? { readOnly: true } : {}),
+      ...(confirm ? { confirm } : {}),
+    };
+  });
+}
+
+/** An extension's technical sheet (#80): what it holds, read from its folder, for a page to show. */
+async function technicalSheet(dir, manifest, kit) {
+  const servers = Object.entries(await serversOf(dir, manifest)).map(([name, server]) => describeServer(name, server));
+  const sheet = {};
+  if (servers.length) sheet.servers = servers;
+  for (const kind of ["skills", "commands", "agents"]) {
+    const found = (await Promise.all(foldersOf(dir, manifest, kind).map((folder) => entriesOf(folder, kind)))).flat().sort((a, b) => a.name.localeCompare(b.name));
+    if (found.length) sheet[kind] = found;
+  }
+  const tools = toolsOf(kit);
+  if (tools.length) sheet.tools = tools;
+  if (typeof kit?.kit === "string") sheet.kit = kit.kit;
+  return sheet;
 }
 
 /** owner/name of the repository the catalog's links point to. */
@@ -249,6 +366,8 @@ export async function buildCatalog(root, options = {}) {
       ...((remote) => (remote.length ? { remote } : {}))(await remoteHostsOf(path.join(root, folder), manifest)),
       ...(logo ? { logo } : {}),
       ...(banner ? { banner } : {}),
+      // What it holds, for a technical sheet (#80).
+      ...(await technicalSheet(path.join(root, folder), manifest, kit)),
     });
   }
   if (problems.length) throw new Error(`The catalog can't be written:\n${problems.map((problem) => `- ${problem}`).join("\n")}`);

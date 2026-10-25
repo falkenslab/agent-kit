@@ -167,3 +167,57 @@ test("npx agent-kit-catalog writes catalog.json, and --check fails when it's sta
   fs.writeFileSync(manifest, JSON.stringify({ ...read(manifest), keywords: ["writing"] }));
   assert.equal(run("--check").status, 1);
 });
+
+test("a catalog says what each extension holds: its servers of every kind, skills, commands, subagents and tools (#80)", async () => {
+  const root = makeMarketplace();
+  const write = (file: string, content: unknown) => {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    fs.writeFileSync(path.join(root, file), typeof content === "string" ? content : JSON.stringify(content));
+  };
+  write("campus/.mcp.json", {
+    mcpServers: {
+      moodle: { command: "npx", args: ["-y", "@falkenslab/moodle-mcp@0.5.0"], env: { MOODLE_TOKEN: "secret" } },
+      local: { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server/index.mjs", "--token", "secret"] },
+      canva: { type: "http", url: "https://mcp.canva.com/mcp" },
+      other: { command: "/usr/bin/python3", args: ["serve.py", "--key", "secret"] },
+    },
+  });
+  write("campus/commands/today.md", "---\ndescription: Today's classes, in two lines\n---\nBody");
+  write("campus/agents/helper.md", "---\nname: helper\ndescription: >\n  Helps with\n  the campus.\n---\n");
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, "campus/.claude-plugin/plugin.json"), "utf8"));
+  manifest.metadata["agent-kit"] = {
+    ...manifest.metadata["agent-kit"],
+    kit: ">=0.29.0",
+    readOnlyTools: ["list_courses"],
+    confirmTools: ["publish_page"],
+    serverConfirmTools: ["delete_activity"],
+    labels: { list_courses: { en: { label: "Listing courses" }, es: { label: "Listando cursos" } } },
+  };
+  write("campus/.claude-plugin/plugin.json", manifest);
+
+  const catalog = await buildCatalog(root, { repo: "ada/harbor" });
+  assert.ok(validCatalog(catalog), ajv.errorsText(validCatalog.errors));
+  const campus = catalog.extensions.find((extension) => extension.name === "campus")!;
+  assert.deepEqual(campus.servers, [
+    { name: "moodle", kind: "package", package: "@falkenslab/moodle-mcp", version: "0.5.0", url: "https://www.npmjs.com/package/@falkenslab/moodle-mcp" },
+    { name: "local", kind: "bundled", command: "node ${CLAUDE_PLUGIN_ROOT}/server/index.mjs" },
+    { name: "canva", kind: "remote", transport: "http", host: "mcp.canva.com" },
+    { name: "other", kind: "command", command: "python3" },
+  ]);
+  // No secret from an argument or env reaches the catalog.
+  assert.ok(!JSON.stringify(campus).includes("secret"));
+  // A skill without a description in its frontmatter: its name alone.
+  assert.deepEqual(campus.skills, [{ name: "grading" }]);
+  assert.deepEqual(campus.commands, [{ name: "today", description: "Today's classes, in two lines" }]);
+  assert.deepEqual(campus.agents, [{ name: "helper", description: "Helps with the campus." }]);
+  assert.deepEqual(campus.tools, [
+    { name: "delete_activity", confirm: "server" },
+    { name: "grade_submission" },
+    { name: "list_courses", labels: { en: "Listing courses", es: "Listando cursos" }, readOnly: true },
+    { name: "publish_page", confirm: "always" },
+  ]);
+  assert.equal(campus.kit, ">=0.29.0");
+  // One with nothing to show has none of the keys.
+  const notes = catalog.extensions.find((extension) => extension.name === "notes")!;
+  for (const key of ["servers", "skills", "commands", "agents", "tools", "kit"]) assert.equal(key in notes, false, key);
+});

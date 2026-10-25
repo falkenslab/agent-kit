@@ -28,6 +28,7 @@
   },
   "$defs": {
     "url": { "type": "string", "pattern": "^https://" },
+    "named": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["name"], "properties": { "name": { "type": "string", "minLength": 1 }, "description": { "type": "string" } } } },
     "extension": {
       "type": "object",
       "additionalProperties": false,
@@ -86,6 +87,44 @@
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
         },
+        "servers": {
+          "description": "Its MCP servers (plugin.json's mcpServers, else .mcp.json): a package run with npx, bunx or uvx (its package, version and npm page), a program it brings (bundled: its command as written), a remote server (its transport and host), or another command (its name only). Never an argument's secret nor an env value.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "kind"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "kind": { "enum": ["package", "bundled", "remote", "command"] },
+              "package": { "type": "string" },
+              "version": { "type": "string" },
+              "url": { "$ref": "#/$defs/url" },
+              "command": { "type": "string" },
+              "transport": { "enum": ["http", "sse"] },
+              "host": { "type": "string" }
+            }
+          }
+        },
+        "skills": { "description": "Its skills: each one's folder name and its SKILL.md's description, sorted by name.", "$ref": "#/$defs/named" },
+        "commands": { "description": "Its commands: each one's file name and its description, sorted by name.", "$ref": "#/$defs/named" },
+        "agents": { "description": "Its subagents: each one's file name and its description, sorted by name.", "$ref": "#/$defs/named" },
+        "tools": {
+          "description": "The tools its metadata[\"agent-kit\"] knows (labels, capabilities, readOnlyTools, confirmTools, serverConfirmTools), by short name: a static read, a running server may list more.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "labels": { "description": "Its label per language, {field} as written.", "type": "object", "propertyNames": { "enum": ["en", "es", "fr", "de"] }, "additionalProperties": { "type": "string" } },
+              "readOnly": { "description": "It only reads.", "const": true },
+              "confirm": { "description": "always: the person says yes before every call; server: its server asks the person itself.", "enum": ["always", "server"] }
+            }
+          }
+        },
+        "kit": { "description": "The agent-kit versions it works with, as its metadata[\"agent-kit\"].kit says.", "type": "string" },
         "logo": { "description": "A URL anyone can load.", "$ref": "#/$defs/url" },
         "banner": { "description": "A URL anyone can load.", "$ref": "#/$defs/url" }
       }
