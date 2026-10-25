@@ -136,6 +136,8 @@ If a server fails to connect, the session still starts and the chat shows a noti
 
 A workspace's own `.mcp.json` (in `projectDir`) can declare more servers, loaded with the project's settings (see [Permissions and isolation](../security/permissions-and-isolation.md)). The kit approves their tools without knowing their names in advance.
 
+A project server that duplicates an installed extension's (the same remote URL, or the same npm package, whatever its version) is left out of the session, by name (`settings.deniedMcpServers`), so the extension's is the only one: two Canva servers, one signed in and one not, or an unpinned moodle-mcp beside the extension's pinned one with its own courses, mislead the model and get around the extension's settings. Every other project server stays, and the agent uses it as Claude Code would. `/extensions` and `about_me` name what was left out: "programacion-1/.mcp.json also declares canva (https://mcp.canva.com/mcp): the extensions' are used".
+
 A server can also ask the person for something while a tool runs (a form, or a page to open): see [Servers asking the person](../human-in-the-loop/elicitation.md).
 
 ## How MCP tools are approved

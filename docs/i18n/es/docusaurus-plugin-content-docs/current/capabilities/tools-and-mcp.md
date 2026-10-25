@@ -136,6 +136,8 @@ Si un servidor no logra conectarse, la sesión arranca igualmente y el chat mues
 
 El propio `.mcp.json` de un workspace (en `projectDir`) puede declarar más servidores, que se cargan con la configuración del proyecto (consulta [Permisos y aislamiento](../security/permissions-and-isolation.md)). El kit aprueba sus herramientas sin conocer sus nombres de antemano.
 
+Un servidor del proyecto que duplica el de una extensión instalada (la misma URL remota, o el mismo paquete npm, sea cual sea su versión) se deja fuera de la sesión, por nombre (`settings.deniedMcpServers`), para que el de la extensión sea el único: dos servidores de Canva, uno con la sesión iniciada y otro no, o un moodle-mcp sin versión fija junto al de la extensión con sus propios cursos, confunden al modelo y se saltan la configuración de la extensión. Todos los demás servidores del proyecto se quedan, y el agente los usa como lo haría Claude Code. `/extensions` y `about_me` nombran lo que se dejó fuera: "programacion-1/.mcp.json también declara canva (https://mcp.canva.com/mcp): se usan los de las extensiones".
+
 Un servidor también puede pedirle algo a la persona mientras se ejecuta una herramienta (un formulario, o una página que abrir): consulta [Servidores que preguntan a la persona](../human-in-the-loop/elicitation.md).
 
 ## Cómo se aprueban las herramientas MCP {#how-mcp-tools-are-approved}

@@ -75,6 +75,7 @@ export const es: Partial<Messages> = {
   confirmKept: (tool, answer) => `  ${tool}: ${answer === "always" ? "siempre sí" : "nunca"}`,
   confirmNoneKept: "  (ninguna respuesta guardada; confirm=reset las olvida)",
   connectorsAllowed: (names) => `Conectores de claude.ai: ${names}`,
+  projectServersDuplicated: (file, servers) => `${file} también declara ${servers}: se usan los de las extensiones`,
   connectorsMissing: (names) => `No están en tu cuenta de claude.ai: ${names} (conéctalo en claude.ai y vuelve a abrir la sesión)`,
   extensionInstalled: (name) => `(${name} instalada: está en una conversación nueva, o ya con /extensions reload, sin perder esta)`,
   extensionUpdated: (name, from, to) => `(${name} actualizada, ${from} → ${to}: está en una conversación nueva, o ya con /extensions reload)`,

@@ -196,7 +196,8 @@ test("a session asks before an installed extension's tools, leaves out those the
   await setExtensionConfirm(dirs.agent, "campus", { tool: { name: "erase", answer: "never" } });
   const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, temp(), spec());
   assert.ok(built.options.disallowedTools?.includes("mcp__campus-api__erase"));
-  assert.equal(built.options.hooks?.UserPromptSubmit?.length, 1);
+  // The guided gate's hook, and the sign-in reminder for its remote server (#82).
+  assert.equal(built.options.hooks?.UserPromptSubmit?.length, 2);
   const call = async (hooks: typeof built.options.hooks, tool_name: string) => {
     for (const hook of hooks!.PreToolUse!.flatMap((matcher) => matcher.hooks)) {
       await hook({ hook_event_name: "PreToolUse", tool_name, tool_input: {}, tool_use_id: "t", session_id: "s", transcript_path: "", cwd: "" } as never, "t", { signal: new AbortController().signal });
@@ -215,7 +216,8 @@ test("a session asks before an installed extension's tools, leaves out those the
   const off = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, temp(), spec({ extensionGate: { enabled: false } }));
   await call(off.options.hooks, "mcp__campus-api__publish");
   assert.equal(asked.length, 2);
-  assert.equal(off.options.hooks?.UserPromptSubmit, undefined);
+  // Only the sign-in reminder (#82): no guided gate.
+  assert.equal(off.options.hooks?.UserPromptSubmit?.length, 1);
 });
 
 test("/extensions config lists what's kept about an extension's tools, and confirm=reset, off and on change it", async () => {

@@ -27,6 +27,10 @@ export interface SessionFacts {
     inactive: { name: string; reason: string }[];
     /** The claude.ai connectors let in (#70), and the ones asked for that the account hasn't. */
     connectors?: { allowed: string[]; missing: string[] };
+    /** The project's `.mcp.json` servers left out because an extension's duplicates them (#83). */
+    projectServers?: ProjectServersLeftOut;
+    /** The running extensions waiting for the person to sign in to a remote server (#82): `/extensions sign-in <name>`. */
+    needSignIn?: string[];
   };
   /** The subagents it can delegate to. */
   subagents: { name: string; description: string }[];
@@ -78,8 +82,17 @@ export type StaticSessionFacts = Omit<SessionFacts, "mode" | "switchableModes" |
     active: (Omit<SessionFacts["extensions"]["active"][number], "tools"> & { servers: string[] })[];
     inactive: SessionFacts["extensions"]["inactive"];
     connectors?: SessionFacts["extensions"]["connectors"];
+    projectServers?: ProjectServersLeftOut;
   };
 };
+
+/** The project's `.mcp.json` servers a session leaves out because an extension's duplicates them (#83). */
+export interface ProjectServersLeftOut {
+  /** The project's `.mcp.json`. */
+  file: string;
+  /** Those an installed extension's server duplicates: its name there, what it is (a URL, an npm package), and the extension used instead. */
+  duplicates: { server: string; target: string; extension: string }[];
+}
 
 export interface SessionView {
   facts(): Promise<SessionFacts>;
@@ -103,10 +116,14 @@ export function createSessionView(base: StaticSessionFacts, modeControl: ModeCon
     controls: () => live,
     async facts() {
       const tools = live.tools ?? [];
-      const [commands, context] = await Promise.all([
+      const [commands, context, statuses] = await Promise.all([
         live.supportedCommands ? within(live.supportedCommands(), [] as SlashCommand[]) : Promise.resolve([] as SlashCommand[]),
         live.contextUsage ? within(live.contextUsage(), null) : Promise.resolve(null),
+        live.mcpServerStatus ? within(live.mcpServerStatus(), [] as McpServerStatus[]) : Promise.resolve([] as McpServerStatus[]),
       ]);
+      // Those whose remote server waits for the person to sign in (#82).
+      const waiting = new Set(statuses.filter((server) => server.status === "needs-auth").map((server) => server.name));
+      const needSignIn = base.extensions.active.filter(({ servers }) => servers.some((server) => waiting.has(server))).map(({ name }) => name);
       return {
         ...base,
         mode: modeControl.mode,
@@ -119,6 +136,8 @@ export function createSessionView(base: StaticSessionFacts, modeControl: ModeCon
           })),
           inactive: base.extensions.inactive,
           ...(base.extensions.connectors ? { connectors: base.extensions.connectors } : {}),
+          ...(base.extensions.projectServers ? { projectServers: base.extensions.projectServers } : {}),
+          ...(needSignIn.length ? { needSignIn } : {}),
         },
         tools,
         skills: live.skills ?? base.skills,

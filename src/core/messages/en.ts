@@ -105,6 +105,8 @@ export interface Messages {
   confirmNoneKept: string;
   /** In /extensions: the claude.ai connectors let in (#70). */
   connectorsAllowed(names: string): string;
+  /** In /extensions: the project's .mcp.json servers left out because an extension's duplicates them (#83). */
+  projectServersDuplicated(file: string, servers: string): string;
   /** In /extensions: connectors the agent asked for that the account hasn't. */
   connectorsMissing(names: string): string;
   extensionUpdated(name: string, from: string, to: string): string;
@@ -294,6 +296,7 @@ export const en: Messages = {
   confirmKept: (tool, answer) => `  ${tool}: ${answer === "always" ? "always yes" : "never"}`,
   confirmNoneKept: "  (no kept answers; confirm=reset forgets them)",
   connectorsAllowed: (names) => `claude.ai connectors: ${names}`,
+  projectServersDuplicated: (file, servers) => `${file} also declares ${servers}: the extensions' are used`,
   connectorsMissing: (names) => `Not in your claude.ai account: ${names} (connect it on claude.ai, then reopen the session)`,
   extensionUpdated: (name, from, to) => `(${name} updated, ${from} → ${to}: it's there in a new conversation, or now with /extensions reload)`,
   extensionsUpToDate: "(every extension from a marketplace is up to date)",

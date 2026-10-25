@@ -27,11 +27,13 @@ import type { AgentSpec, BaseSessionConfig } from "./agentSpec.js";
 import { replyLanguageInstruction, type Language } from "./language.js";
 import { chooseLanguage } from "./messages/index.js";
 import { createRunStore, type RunFolder } from "./runs.js";
-import { createSessionView, registerSessionView, type SessionView, type StaticSessionFacts } from "./sessionFacts.js";
+import { createSessionView, registerSessionView, type ProjectServersLeftOut, type SessionView, type StaticSessionFacts } from "./sessionFacts.js";
 import { createExtensionAuth, createExtensionRestart, createExtensionSwitch, mountPlugin, type ExtensionAuth, type ExtensionRestart, type ExtensionSwitch } from "./liveExtensions.js";
 import { secretsDir } from "./extensionOptions.js";
 import { createElicitationHandler } from "./elicitation.js";
 import { createReadOnlyHints, createToolHints } from "./readOnlyHints.js";
+import { projectServerDuplicates } from "./projectServers.js";
+import { createSignInReminder, SIGN_IN_RULE } from "./hooks/signInReminder.js";
 import { agentKitVersion } from "./version.js";
 
 /**
@@ -271,10 +273,14 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       })
     : undefined;
 
+  // The installed extensions with remote servers, which may need the person to sign in (#82).
+  const signInExtensions = resolved.active.flatMap(({ extension }, index) => (added[index]?.remoteServers?.length ? [{ name: extension.name, remoteServers: added[index]!.remoteServers! }] : []));
   const promptSections = [
     spec.buildSystemPrompt(config),
     // What's on and what isn't, then the extensions' own sections.
     ...(resolved.active.length || resolved.inactive.length ? [extensionsPromptSection(resolved)] : []),
+    // How a sign-in is done here, never Claude Code's way (#82).
+    ...(signInExtensions.length ? [SIGN_IN_RULE] : []),
     // The extensions' own sections, in their order (the sources' before the knowledge base's).
     ...fromExtensions((contribution) => (contribution.promptSection ? [contribution.promptSection] : [])),
   ];
@@ -446,10 +452,34 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           : []),
       ],
       PostToolUse: [{ hooks: [transcriptLogger.postToolUse] }],
-      // The person's message ends a batch they approved (guided mode, #74).
-      ...(guidedGate ? { UserPromptSubmit: [{ hooks: [guidedGate.userPromptSubmit] }] } : {}),
+      // The person's message: it ends a batch they approved (#74), and carries the sign-in reminders (#82).
+      ...(guidedGate || signInExtensions.length
+        ? {
+            UserPromptSubmit: [
+              ...(guidedGate ? [{ hooks: [guidedGate.userPromptSubmit] }] : []),
+              // With the person's message, which extensions now wait for a sign-in (#82).
+              ...(signInExtensions.length ? [{ hooks: [createSignInReminder({ extensions: () => signInExtensions, status: () => late.view?.controls().mcpServerStatus })] }] : []),
+            ],
+          }
+        : {}),
     },
   };
+
+  // A project's own .mcp.json beside the extensions (#83): only a server an extension's duplicates
+  // is left out, by name, as the connectors not chosen are (#70), never switched off (the CLI saves
+  // that, #75). Every other project server stays. Names the kit passes stay too.
+  const installedNow = await listInstalled(extensionDirs);
+  const projectServersLeftOut = (spec.settingSources ?? ["project"]).includes("project")
+    ? await projectServerDuplicates(
+        config.projectDir,
+        installedNow.filter((installed) => !installed.shadowed && installedDirs.has(installed.name) && installed.manifest).map((installed) => ({ name: installed.name, servers: installed.manifest!.servers })),
+        new Set(Object.keys(sdkOptions.mcpServers ?? {})),
+      )
+    : undefined;
+  if (projectServersLeftOut) {
+    const settings = sdkOptions.settings as { deniedMcpServers?: { serverName: string }[] };
+    settings.deniedMcpServers = [...(settings.deniedMcpServers ?? []), ...projectServersLeftOut.duplicates.map(({ server }) => ({ serverName: server }))];
+  }
 
   // Where each remote server's calls go (#70), for the remote gate: an http/sse server's host
   // (an installed extension's, the agent's own), or the claude.ai connector itself.
@@ -481,13 +511,14 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
     ...(config.officialMarketplace ? { official: config.officialMarketplace } : {}),
     ...(config.catalogTopics?.length ? { catalogTopics: config.catalogTopics } : {}),
     untrusted: external.untrusted.map((installed) => ({ name: installed.name, ...(installed.manifest?.version ? { version: installed.manifest.version } : {}), source: installed.lock.marketplace ?? installed.lock.source })),
-    installed: await listInstalled(extensionDirs),
+    installed: installedNow,
     active: resolved.active.map(({ extension }) => extension.name),
     about: Object.fromEntries(resolved.active.map(({ extension, manifest, unavailable }, index) => [extension.name, aboutExtension(manifest, Object.keys(added[index]?.mcpServers ?? {}), language, unavailable)])),
     sessionTools: () => late.view?.controls().tools ?? [],
     serverStatus: async () => (await late.view?.controls().mcpServerStatus?.().catch(() => [])) ?? [],
     inactive: resolved.inactive,
     ...(connectors ? { connectors: { allowed: connectors.allowed, missing: connectors.missing } } : {}),
+    ...(projectServersLeftOut ? { projectServers: projectServersLeftOut } : {}),
   };
   // What the session is, for the extensions that ask (sessionFacts.ts, #43).
   const viewBase: StaticSessionFacts = {
@@ -507,6 +538,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
       // Its own list: /extensions' status has another, and the live switch changes both.
       inactive: [...resolved.inactive],
       ...(connectors ? { connectors: { allowed: connectors.allowed, missing: connectors.missing } } : {}),
+      ...(projectServersLeftOut ? { projectServers: projectServersLeftOut } : {}),
     },
     subagents: Object.entries(allAgents).map(([name, agent]) => ({ name, description: agent.description })),
     skills: sdkOptions.skills === "all" ? await pluginSkills(pluginRoots) : [...((sdkOptions.skills as string[] | undefined) ?? [])],
@@ -570,6 +602,8 @@ export interface ExtensionsStatus {
   serverStatus?: () => Promise<McpServerStatus[]>;
   /** The claude.ai connectors let in (#70), and the ones asked for that the account hasn't; none when the agent asks for none. */
   connectors?: { allowed: string[]; missing: string[] };
+  /** The project's `.mcp.json` servers left out (#83). */
+  projectServers?: ProjectServersLeftOut;
 }
 
 /** The Claude Code configuration folder the SDK's CLI uses: `CLAUDE_CONFIG_DIR`, or `~/.claude`. */

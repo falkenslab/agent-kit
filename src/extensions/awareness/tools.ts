@@ -44,6 +44,17 @@ export function describeSession(facts: SessionFacts): string {
     const missing = connectors.missing.length ? ` Asked for but not in the person's claude.ai account: ${connectors.missing.join(", ")} (they connect it on claude.ai, then the session opens again).` : "";
     sections.push(`## claude.ai connectors\n\n${connectors.allowed.length ? `${connectors.allowed.join(", ")}: their tools are the person's claude.ai integrations; what you send them leaves the computer.` : "None of the ones asked for."}${missing}`);
   }
+  // Extensions waiting for the person to sign in (#82): their tools aren't there until they do.
+  const waiting = facts.extensions.needSignIn ?? [];
+  if (waiting.length) {
+    sections.push(`## Waiting for a sign-in\n\n${waiting.map((name) => `- **${name}**: its tools aren't available until the person signs in: ask them to run \`/extensions sign-in ${name}\` (it opens their browser).`).join("\n")}\nNever suggest \`/mcp\`, \`claude mcp\` or claude.ai's connectors: they don't apply here.`);
+  }
+  // The project's own .mcp.json servers left out (#83): not this session's, whatever a notice about them says.
+  const project = facts.extensions.projectServers;
+  if (project) {
+    const duplicates = project.duplicates.map(({ server, target, extension }) => `- **${server}** (${target}): left out, the ${extension} extension's server is used instead.`);
+    sections.push(`## Servers of the project's .mcp.json left out\n\n${duplicates.join("\n")}\nA notice about one of them (such as one needing authentication) isn't about your extensions.`);
+  }
 
   if (facts.subagents.length) sections.push(`## Subagents you can delegate to\n\n${facts.subagents.map(({ name, description }) => `- **${name}**: ${description}`).join("\n")}`);
 
