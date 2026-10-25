@@ -14,7 +14,7 @@ The developer documentation is a Docusaurus site in `docs/`, its own npm project
 ## Consequences
 
 - Documentation is part of every change: a change visible to agents updates `docs/content/` in the same change, and a release checks the guides are up to date before snapshotting them (`release`, `verify`, `add-export` and `minispec-implement` skills say so).
-- `verify` builds the site, which fails on a broken link or anchor.
+- `verify` builds the site, which fails on a broken link or anchor. It builds with Docusaurus Faster (Rspack and SWC, `future.faster`; decided 25 October 2026): about 3 minutes for both languages instead of 9. SWC's HTML minifier stays off: its loader copies its native binary to a cache it refuses on a Windows profile whose `C:\Users` isn't owned as it expects (SWC 1.16), so the default minifier does that part.
 - `docs/` is outside the npm package (`files` lists `dist/` and `assets/`) and outside the root lint; its dependencies are its own.
 - Guides are CommonMark (`.md`, `markdown.format: "detect"`), not MDX: doc comments and guides are full of `<placeholders>` MDX would read as tags.
 - `docs/assets/` stays shared with the README (the Captain Whiskers screenshot) and is served as a static folder.

@@ -14,6 +14,23 @@ const config: Config = {
   tagline: "Build Claude agents with human oversight, safety, memory and a terminal UI, on top of the Claude Agent SDK.",
   favicon: "img/favicon.svg",
 
+  // Docusaurus Faster: Rspack and SWC instead of webpack and Babel, the same site in a fraction of the time.
+  future: {
+    faster: {
+      rspackBundler: true,
+      rspackPersistentCache: true,
+      swcJsLoader: true,
+      swcJsMinimizer: true,
+      lightningCssMinimizer: true,
+      mdxCrossCompilerCache: true,
+      ssgWorkerThreads: true,
+      // Its loader copies the native binary to a cache it refuses on a Windows profile whose
+      // C:\Users isn't owned as it expects (SWC 1.16): the default HTML minifier instead.
+      swcHtmlMinimizer: false,
+    },
+    v4: { removeLegacyPostBuildHeadAttribute: true },
+  },
+
   url: "https://falkenslab.github.io",
   baseUrl: "/agent-kit/",
   organizationName: "falkenslab",
