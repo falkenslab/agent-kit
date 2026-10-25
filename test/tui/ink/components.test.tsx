@@ -369,3 +369,16 @@ test("a plan in a checkpoint is drawn as markdown", async () => {
   assert.match(frame, /1\. Read the syllabus/);
   assert.doesNotMatch(frame, /\*\*Read\*\*/);
 });
+
+test("a choice panel reserves the rows of its options, so they stay on screen under long parameters (#84)", async () => {
+  const { panelReservedRows } = await import("../../../src/tui/ink/SessionView.js");
+  const options = ["Yes", "Yes, for this session", "Yes, always", "No", "No, never"];
+  assert.equal(panelReservedRows({ kind: "decision", prompt: {} }), 12);
+  assert.equal(panelReservedRows({ kind: "choice", prompt: {}, choice: { options } }), 15);
+  // At 110×34 with a rubric's parameters: the preview, plus the panel's frame with every option, fits.
+  const rubric = JSON.stringify({ criteria: Array.from({ length: 6 }, (_, i) => ({ description: `Criterion ${i}`, levels: [{ score: 0, definition: "x" }, { score: 5, definition: "y" }] })) }, null, 2);
+  const preview = previewLines(["Defining the rubric", "Tool: mcp__moodle__set_rubric", `Parameters: ${rubric}`], 34, panelReservedRows({ kind: "choice", prompt: {}, choice: { options } }), 106);
+  const frame = 3 + 1 + options.length + 1 + 1;
+  assert.ok(preview.length + frame <= 34 - 4, `${preview.length} + ${frame}`);
+  assert.match(preview.at(-1) ?? "", /more lines/);
+});

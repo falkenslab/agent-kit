@@ -52,6 +52,32 @@ const PANEL_RESERVED_ROWS = 12;
 /** The panel's border and horizontal padding, on both sides. */
 const PANEL_FRAME_COLUMNS = 4;
 
+/** The rows `PANEL_RESERVED_ROWS` counts for the panel's own frame: a decision's (borders, title, a gap, "Proceed?", its three options). */
+const DECISION_FRAME_ROWS = 8;
+
+/**
+ * The rows a checkpoint panel needs besides its preview, by its kind (#84): a choice has its
+ * options, "Other" and a line of keys, so the guided gate's five answers took four rows more than a
+ * decision's, and pushed them below the screen under a tool's long parameters. `reservedRows` is
+ * what the screen keeps for a decision's panel; the difference in frame is added to it.
+ */
+export function panelReservedRows(
+  checkpoint: { kind: string; prompt: { question?: string }; choice?: { options: readonly string[] } },
+  reservedRows = PANEL_RESERVED_ROWS,
+): number {
+  const question = checkpoint.prompt.question ? 1 : 0;
+  // Borders and the title (3), then each kind's own rows.
+  const frame =
+    checkpoint.kind === "decision"
+      ? DECISION_FRAME_ROWS
+      : checkpoint.kind === "choice"
+        ? 3 + question + 1 + (checkpoint.choice?.options.length ?? 0) + 1 + 1
+        : checkpoint.kind === "text"
+          ? 3 + question + 1 + 1 + 1
+          : 3 + question + 1 + 1;
+  return reservedRows - DECISION_FRAME_ROWS + frame;
+}
+
 /**
  * The preview's lines, capped so the whole live area stays shorter than the terminal: Ink
  * clears the entire screen (scrollback included) to redraw anything taller, and a step-gate
@@ -102,7 +128,7 @@ function CheckpointPanel({
       ) : (
         <>
           <Text bold>{prompt.title}</Text>
-          {previewLines(prompt.markdown ? renderMarkdown(prompt.lines.join("\n"), width - PANEL_FRAME_COLUMNS) : prompt.lines, stdout.rows, reservedRows, width - PANEL_FRAME_COLUMNS).map((line, index) => (
+          {previewLines(prompt.markdown ? renderMarkdown(prompt.lines.join("\n"), width - PANEL_FRAME_COLUMNS) : prompt.lines, stdout.rows, panelReservedRows(checkpoint, reservedRows), width - PANEL_FRAME_COLUMNS).map((line, index) => (
             <Text key={index}>{line}</Text>
           ))}
           {!decision && prompt.question ? <Text dimColor>{prompt.question}</Text> : null}

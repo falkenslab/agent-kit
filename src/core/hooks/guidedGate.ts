@@ -34,6 +34,9 @@ export interface GuidedGate {
   approvalAnswered(approved: boolean): void;
 }
 
+/** How much of a labelled tool's parameters its panel shows, as one line (#84). */
+const MAX_PARAMETERS = 300;
+
 /** The kit's approval tool: asking it ends a batch, and its yes starts one. */
 const APPROVAL_TOOL = "mcp__approvals__request_human_approval";
 
@@ -112,9 +115,13 @@ export function createGuidedGate(options: {
     // For one that always asks, only what covers this call, or makes it stricter (#78).
     const choices = alwaysAsks ? [answers.yes, answers.no, answers.never] : [answers.yes, answers.session, answers.always, answers.no, answers.never];
     const label = options.labels?.()[full]?.label((pre.tool_input ?? {}) as Record<string, unknown>);
+    // With a label saying what it does, its parameters in one line, cut short (#84): a rubric or a
+    // page's HTML as indented JSON filled the panel. Without one, the parameters are all it shows.
+    const compact = JSON.stringify(pre.tool_input ?? {});
+    const parameters = label ? (compact.length > MAX_PARAMETERS ? `${compact.slice(0, MAX_PARAMETERS)}…` : compact) : JSON.stringify(pre.tool_input, null, 2);
     const answer = await askForChoice(options.runDir, {
       title: t().guidedTitle(extension.name),
-      lines: [...(label ? [label] : []), t().toolLine(full), t().parametersLine(JSON.stringify(pre.tool_input, null, 2))],
+      lines: [...(label ? [label] : []), t().toolLine(full), t().parametersLine(parameters)],
     }, choices);
     const picked = answer.chosen[0];
     if (picked === answers.yes || picked === answers.session || picked === answers.always) {

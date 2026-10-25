@@ -70,6 +70,8 @@ test("in guided mode an extension's tool that changes things asks; read-only one
   assert.equal(asked.length, 1);
   assert.equal(asked[0]!.prompt.title, "Let canva do this?");
   assert.equal(asked[0]!.prompt.lines[0], "Creating Poster");
+  // With a label, the parameters in one line (#84).
+  assert.equal(asked[0]!.prompt.lines[2], 'Parameters: {"title":"Poster"}');
   assert.deepEqual(asked[0]!.options, ["Yes", "Yes, for this session", "Yes, always", "No", "No, never"]);
   assert.equal(await decide(gate, "mcp__canva__search"), undefined);
   assert.equal(await decide(gate, "mcp__other__create"), undefined);

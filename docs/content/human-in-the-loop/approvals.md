@@ -52,7 +52,7 @@ The model decides when to call the tool. It works well for "ask before posting",
 
 ## Extensions' tools that change things
 
-In guided mode, an installed extension's tool that isn't known to only read waits for the person's yes, whatever the model did before: the kit asks, not the model. Read-only tools are the same as [plan mode's](../extensions/writing.md#read-only-tools): the manifest's `readOnlyTools`, else the tools its server marks `readOnlyHint`. The question is a choice panel titled **Let `<extension>` do this?**, with the tool's label in the session's language and its parameters, for the main agent's calls and its subagents'. Its answers:
+In guided mode, an installed extension's tool that isn't known to only read waits for the person's yes, whatever the model did before: the kit asks, not the model. Read-only tools are the same as [plan mode's](../extensions/writing.md#read-only-tools): the manifest's `readOnlyTools`, else the tools its server marks `readOnlyHint`. The question is a choice panel titled **Let `<extension>` do this?**, with the tool's label in the session's language and its parameters (in one line, cut short, when the tool has a label; the panel never grows past the screen, so its answers stay in view), for the main agent's calls and its subagents'. Its answers:
 
 - **Yes**: this call.
 - **Yes, for this session**: that tool doesn't ask again until the session ends.

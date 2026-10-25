@@ -52,7 +52,7 @@ El modelo decide cuándo llamar a la herramienta. Funciona bien para "pregunta a
 
 ## Las herramientas de las extensiones que cambian cosas {#extensions-tools-that-change-things}
 
-En modo guiado, una herramienta de una extensión instalada que no se sabe que solo lee espera el sí de la persona, haga lo que haga antes el modelo: pregunta el kit, no el modelo. Las de solo lectura son las mismas que deja pasar [el modo plan](../extensions/writing.md#read-only-tools): las `readOnlyTools` del manifiesto o, si no las tiene, las que su servidor marca `readOnlyHint`. La pregunta es un panel de opciones titulado **¿Dejas que `<extensión>` haga esto?**, con la etiqueta de la herramienta en el idioma de la sesión y sus parámetros, para las llamadas del agente principal y las de sus subagentes. Sus respuestas:
+En modo guiado, una herramienta de una extensión instalada que no se sabe que solo lee espera el sí de la persona, haga lo que haga antes el modelo: pregunta el kit, no el modelo. Las de solo lectura son las mismas que deja pasar [el modo plan](../extensions/writing.md#read-only-tools): las `readOnlyTools` del manifiesto o, si no las tiene, las que su servidor marca `readOnlyHint`. La pregunta es un panel de opciones titulado **¿Dejas que `<extensión>` haga esto?**, con la etiqueta de la herramienta en el idioma de la sesión y sus parámetros (en una línea, recortada, cuando la herramienta tiene etiqueta; el panel nunca crece más allá de la pantalla, así que sus respuestas siempre se ven), para las llamadas del agente principal y las de sus subagentes. Sus respuestas:
 
 - **Sí**: esta llamada.
 - **Sí, en esta sesión**: esa herramienta no vuelve a preguntar hasta que acabe la sesión.
