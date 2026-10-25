@@ -35,6 +35,32 @@ import { getLanguage } from "../core/messages/index.js";
 export { chatExtensionsCommand, describe } from "../chat/extensions.js";
 
 /**
+ * Each action's usage and the flags it takes (#81): `--help` prints the usage, and a flag it
+ * doesn't take fails instead of being ignored, so a command that changes extensions never runs
+ * on a guess (`update --help` updated them all).
+ */
+const ACTIONS: Record<string, { usage: string[]; flags: string[] }> = {
+  list: { usage: ["list"], flags: [] },
+  info: { usage: ["info <name>"], flags: [] },
+  add: {
+    usage: ["add <folder | git URL[#ref] | plugin[@marketplace]> [--project | --agent] [--path <subfolder>] [--set key=value…] [--yes]", "add <folder> --link [--project]"],
+    flags: ["project", "agent", "path", "set", "yes", "link"],
+  },
+  remove: { usage: ["remove <name> [--project | --agent] [--yes | --keep-data]"], flags: ["project", "agent", "yes", "keep-data"] },
+  enable: { usage: ["enable <name> [--project | --agent]"], flags: ["project", "agent"] },
+  disable: { usage: ["disable <name> [--project | --agent]"], flags: ["project", "agent"] },
+  config: { usage: ["config <name> [key=value… | key… | --unset key… | confirm=on|off|reset] [--project | --agent]"], flags: ["project", "agent", "unset"] },
+  update: { usage: ["update [name] [--yes]"], flags: ["yes"] },
+  restore: { usage: ["restore [--trust]"], flags: ["trust"] },
+  trust: { usage: ["trust [name…]"], flags: [] },
+  search: { usage: ["search [words]"], flags: [] },
+  marketplace: { usage: ["marketplace add <folder | git URL[#ref] | owner/repo> [--yes]", "marketplace list | update [name] | remove <name>"], flags: ["yes"] },
+};
+
+/** Flags followed by a value of their own, which isn't a flag. */
+const VALUE_FLAGS = ["--path", "--set", "--unset"];
+
+/**
  * The `extension` command an agent exposes in its own binary (#37), e.g. `captain extension add
  * ./jokebook --project`: installs, removes, enables, disables and lists the extensions in its two
  * scopes. Returns `false` when `argv` isn't this command (so the agent goes on), and sets
@@ -132,6 +158,19 @@ export async function runExtensionCommand(
   const confirmed = async (question: string, accepts: (typed: string) => boolean): Promise<boolean> => flag("yes") || accepts((await ask(question)).trim());
   // The agent's own marketplace, known without asking; a folder is copied afresh each time (it's the agent's own code).
   const knownMarketplaces = (): Promise<KnownMarketplace[]> => catalogMarketplaces(options.dirs, options.official);
+
+  // Its usage with --help, and a flag it doesn't take refused, before anything changes (#81).
+  const known = ACTIONS[action ?? ""];
+  if (known) {
+    const usage = known.usage.map((line, index) => `${index === 0 ? "Usage: " : "       "}${command} extension ${line}`).join("\n");
+    const flags = rest.filter((arg, index) => (arg.startsWith("--") || arg === "-h") && !VALUE_FLAGS.includes(rest[index - 1]!));
+    if (flags.some((arg) => arg === "--help" || arg === "-h")) {
+      write(usage);
+      return true;
+    }
+    const unknown = flags.filter((arg) => !known.flags.includes(arg.slice(2)));
+    if (unknown.length) return fail(`${command} extension ${action} doesn't take ${unknown.join(", ")}.\n${usage}`);
+  }
 
   try {
     switch (action) {

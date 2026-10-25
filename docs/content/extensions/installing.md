@@ -66,7 +66,7 @@ if (await runExtensionCommand(process.argv.slice(2), { dirs: extensionDirs, comm
 | `extension marketplace update [name]` | Takes a fresh copy of one, or all; installed extensions stay as they are until updated. |
 | `extension marketplace remove <name>` | Forgets it; the extensions installed from it stay. |
 
-Without a scope, `remove`, `enable` and `disable` act where the extension is (in both: say which, `--project` or `--agent`). Installing never runs a script: a repository's install scripts, if any, don't run. `--yes` answers the command's questions; without a terminal, they're answered no.
+Without a scope, `remove`, `enable` and `disable` act where the extension is (in both: say which, `--project` or `--agent`). Installing never runs a script: a repository's install scripts, if any, don't run. `--yes` answers the command's questions; without a terminal, they're answered no. `--help` (or `-h`) after an action prints its usage and does nothing else, and a flag the action doesn't take makes it fail, naming the flag, before anything changes.
 
 ## Marketplaces
 
