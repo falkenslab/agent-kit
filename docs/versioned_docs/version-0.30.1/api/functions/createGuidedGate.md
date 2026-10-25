@@ -4,7 +4,7 @@
 function createGuidedGate(options): GuidedGate;
 ```
 
-Defined in: [core/hooks/guidedGate.ts:57](https://github.com/falkenslab/agent-kit/blob/main/src/core/hooks/guidedGate.ts#L57)
+Defined in: [core/hooks/guidedGate.ts:60](https://github.com/falkenslab/agent-kit/blob/main/src/core/hooks/guidedGate.ts#L60)
 
 Guided mode's gate for installed extensions' tools that change things (#74, #76): ADR-025 treats
 every extension tool as publishing unless it's known to only read, and in guided mode the person
