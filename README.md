@@ -109,3 +109,18 @@ To run a single test file:
 ```
 npx tsx --test test/tui/promptErrors.test.ts
 ```
+
+### Claude Code skills
+
+Working on the kit with Claude Code goes through Falken's Lab's own skills: committing, verifying, keeping the documentation up to date, releasing, syncing MiniSpec notes with issues, and the house style for READMEs, the documentation site and Markdown. They live in [falkenslab/falkenslab-plugins](https://github.com/falkenslab/falkenslab-plugins), a Claude Code marketplace, and are installed once, for all of Falken's Lab's repositories:
+
+```
+claude plugin marketplace add falkenslab/falkenslab-plugins
+claude plugin install falkenslab-dev@falkenslab-plugins
+claude plugin install falkenslab-style@falkenslab-plugins
+```
+
+- **falkenslab-dev**: `commit`, `verify`, `update-docs`, `release`, `sync-issues`, `upgrade-deps` and `add-tool`.
+- **falkenslab-style**: `falkenslab-docs`, `falkenslab-site-style`, `falkenslab-terminal-screenshots` and `markdown-writing`.
+
+Inside Claude Code, the same with `/plugin marketplace add falkenslab/falkenslab-plugins` and `/plugin install falkenslab-dev@falkenslab-plugins`; `/plugin marketplace update falkenslab-plugins` brings their latest version. This repository keeps only the skills that are agent-kit's own, in `.claude/skills/` (`add-export`, the MiniSpec ones and `upgrade-sdk`), and what its release adds to the general one is in [`CLAUDE.md`](./CLAUDE.md#releasing).
