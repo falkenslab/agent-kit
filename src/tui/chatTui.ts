@@ -27,6 +27,8 @@ export interface ChatTuiOptions {
   formatAction?: (toolName: string, input: unknown) => string;
   /** Signing in to an extension: whether its link opens in this computer's browser (the default), or how (see `ChatSettings.openBrowser`, #72). */
   openBrowser?: ChatSettings["openBrowser"];
+  /** Claude Code's own commands in the `/` menu: none by default, `"all"`, or the ones named (see `ChatSettings.cliCommands`, #87). */
+  cliCommands?: ChatSettings["cliCommands"];
   /** Printed once before the first prompt, if given. */
   welcomeMessage?: string;
   /** Shown before the cursor at each prompt. */
@@ -177,6 +179,7 @@ export async function runChatTui(options: Options | SessionOpener, tuiOptions: C
     toolLabels: tuiOptions.toolLabels,
     formatAction: tuiOptions.formatAction,
     ...(tuiOptions.openBrowser !== undefined ? { openBrowser: tuiOptions.openBrowser } : {}),
+    ...(tuiOptions.cliCommands !== undefined ? { cliCommands: tuiOptions.cliCommands } : {}),
     // Nothing here shows them.
     promptSuggestions: false,
     // /resume: a numbered list, and a number typed.

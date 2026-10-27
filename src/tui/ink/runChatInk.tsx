@@ -362,6 +362,7 @@ export async function runChatInk(options: Options | SessionOpener, tuiOptions: I
     toolPhrase: tuiOptions.toolPhrase,
     formatResult: tuiOptions.formatResult,
     ...(tuiOptions.openBrowser !== undefined ? { openBrowser: tuiOptions.openBrowser } : {}),
+    ...(tuiOptions.cliCommands !== undefined ? { cliCommands: tuiOptions.cliCommands } : {}),
     promptSuggestions: tuiOptions.promptSuggestions ?? true,
     // The /resume list in place of the prompt.
     pick: (title, choices) => input.pick(title, choices),

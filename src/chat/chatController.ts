@@ -79,6 +79,14 @@ export interface ChatSettings {
    * The link is shown either way, on a line of its own, for another computer.
    */
   openBrowser?: boolean | ((url: string) => Promise<boolean>);
+  /**
+   * Claude Code's own commands in the `/` menu and the state's `commands` (#87): none by default,
+   * since they're for whoever develops with Claude Code (`/batch`, `/agents`, `/mcp`…), not for the
+   * agent's person; `"all"`, or the ones named (`["compact", "context"]`). The agent's own, its
+   * plugins', its extensions', the project's, the kit's and the view's are always there, and a
+   * command typed by hand still reaches the SDK.
+   */
+  cliCommands?: "all" | readonly string[];
 }
 
 /** One tool call in the transcript. */
@@ -338,7 +346,10 @@ export async function createChatController(options: Options | SessionOpener, set
         { name: "extensions", description: t().commandExtensions, argumentHint: "[enable|disable|config|search|install|update|remove|reload]" },
       ];
       const details = new Map<string, { name: string; description: string; argumentHint: string }>();
-      for (const command of [...(commands ?? []).map(({ name, description, argumentHint }) => ({ name, description: description ?? "", argumentHint: argumentHint ?? "" })), ...local]) details.set(command.name, command);
+      // Claude Code's own (builtin) only when the agent asks for them (#87).
+      const cli = settings.cliCommands;
+      const offered = (commands ?? []).filter((command) => !command.builtin || cli === "all" || (Array.isArray(cli) && cli.includes(command.name)));
+      for (const command of [...offered.map(({ name, description, argumentHint }) => ({ name, description: description ?? "", argumentHint: argumentHint ?? "" })), ...local]) details.set(command.name, command);
       for (const name of exits) if (!details.has(name)) details.set(name, { name, description: "", argumentHint: "" });
       const sorted = [...details.values()].sort((a, b) => a.name.localeCompare(b.name));
       update({ commands: sorted.map((command) => command.name), commandDetails: sorted });
