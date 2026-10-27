@@ -1,6 +1,10 @@
 import type { HookCallback, PreToolUseHookInput } from "@anthropic-ai/claude-agent-sdk";
 import { askForDecision } from "./humanInput.js";
 import { t } from "../messages/index.js";
+import { createFriendlyToolLabel, withToolLabels, type ToolLabels } from "../toolLabels.js";
+
+/** How much of a call's parameters the panel shows, as one line (#88). */
+const MAX_PARAMETERS = 300;
 
 const SELF_ASKING_SERVERS = ["mcp__approvals__", "mcp__manualLogin__"];
 const SELF_ASKING_TOOLS = new Set(["TodoWrite"]);
@@ -13,8 +17,13 @@ const SELF_ASKING_TOOLS = new Set(["TodoWrite"]);
  * `isActive` lets one session switch between "guided" and "interactive" while it runs (see
  * session.ts's `ModeControl`): the hook stays registered and, while inactive, gives no
  * decision at all, so the tool call goes on exactly as if the hook weren't there.
+ *
+ * The panel says the call as the chat does (#88), in the person's language: the session's
+ * labels (`labels`: the extensions'), else the kit's for its own tools, then the tool's name and
+ * its parameters in one line, cut short; the person approving needn't read JSON.
  */
-export function createStepGate(runDir: string, isActive: () => boolean = () => true, selfAskingTools: readonly string[] = []): HookCallback {
+export function createStepGate(runDir: string, isActive: () => boolean = () => true, selfAskingTools: readonly string[] = [], labels: () => ToolLabels | undefined = () => undefined): HookCallback {
+  const describe = withToolLabels(labels, createFriendlyToolLabel());
   return async (input) => {
     if (!isActive()) return {};
     const pre = input as PreToolUseHookInput;
@@ -22,9 +31,10 @@ export function createStepGate(runDir: string, isActive: () => boolean = () => t
     // a source) or only keeps the task list isn't asked about first: that would be asking to ask.
     if (SELF_ASKING_SERVERS.some((prefix) => pre.tool_name.startsWith(prefix)) || SELF_ASKING_TOOLS.has(pre.tool_name) || selfAskingTools.includes(pre.tool_name)) return {};
 
+    const compact = JSON.stringify(pre.tool_input ?? {});
     const answer = await askForDecision(runDir, {
       title: t().proposedAction,
-      lines: [t().toolLine(pre.tool_name), t().parametersLine(JSON.stringify(pre.tool_input, null, 2))],
+      lines: [describe(pre.tool_name, pre.tool_input), t().toolLine(pre.tool_name), t().parametersLine(compact.length > MAX_PARAMETERS ? `${compact.slice(0, MAX_PARAMETERS)}…` : compact)],
     });
 
     if (answer === "q") {

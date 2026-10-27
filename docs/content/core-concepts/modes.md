@@ -37,7 +37,7 @@ Installed extensions are the exception: the kit itself asks before one of their 
 
 ## interactive
 
-Every tool call stops at the step gate, a `PreToolUse` hook that shows the tool and its parameters and waits for an answer:
+Every tool call stops at the step gate, a `PreToolUse` hook that shows the call as the chat labels it, the tool's name and its parameters in one line, and waits for an answer:
 
 - **Yes** (`y`, Enter): the call goes on.
 - **No** (`n`): the call is denied; the model is told the person rejected it and can try something else.

@@ -99,7 +99,7 @@ Returning something here also gives the session the `Agent` tool, and `Bash` whe
 | `humanApprovalTexts?` | generic texts | `{ description, approved, rejected }` of the approval tool (guided mode). |
 | `extensionGate?: ExtensionGateSpec` | on | Guided mode's question before an installed extension's tool that changes things: off, more tools that always ask, and what autonomous mode does. See [`extensionGate`](#extensiongate). |
 | `manualInterventionTexts?` | none | Its texts, and the opt-in, of the manual-intervention tool. |
-| `replyInLanguage?: boolean` | `true` | The line asking the agent (and each subagent) to reply in the kit's language. |
+| `replyInLanguage?: boolean \| "prompt-only"` | `true` | The line asking the agent (and each subagent) to reply in the kit's language, and, when it isn't English, a reminder after each of the main agent's tool calls and with each message; `"prompt-only"` keeps only the line. See [Languages](../sessions/languages.md). |
 | `settingSources?: SettingSource[]` | `["project"]` | Which Claude Code settings files the session loads. |
 | `skills?: string[] \| "all" \| "plugins"` | `"all"` | Which skills the agent offers: every one found, only its plugins' (`"plugins"`), or a list. |
 | `planMode?: PlanModeSpec` | none | In plan mode, the agent's plan files and its read-only MCP tools. |

@@ -51,6 +51,8 @@ Aun así, la conversación anterior tira: las respuestas cambian enseguida, pero
 
 Así, el agente responde, y escribe su base de conocimiento, en el idioma elegido, y sigue a la persona cuando esta escribe claramente en otro. Desactívalo con `replyInLanguage: false` en la spec cuando tu prompt decida el idioma por sí mismo.
 
+Una línea en el prompt de sistema queda lejos de donde escribe el modelo, y tras leer algo en inglés (una fuente, una skill, el resultado de una herramienta) su narración entre llamadas podía pasarse al inglés. Por eso, cuando el idioma no es inglés, el kit lo repite en una línea ("Reply language: Spanish, your narration between tool calls too.", unos quince tokens) tras cada llamada a herramienta del agente principal y con cada mensaje de la persona. `replyInLanguage: "prompt-only"` deja solo la línea del prompt.
+
 ## Límites {#limits}
 
 La línea es una pista fuerte, no una garantía. Comprobado a mano:

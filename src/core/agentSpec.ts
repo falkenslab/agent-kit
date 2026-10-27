@@ -161,8 +161,11 @@ export interface AgentSpec<TConfig extends BaseSessionConfig> {
    * Whether the kit tells the agent (and each subagent) to reply in the resolved language
    * (`config.language`, `--language`, the system's), following the human if they write in
    * another one. On by default; `false` leaves the reply language to the agent's own prompt.
+   * When the language isn't English, the kit also says it again after each of the main agent's
+   * tool calls and with each message of the person (#85), since the narration between tool calls
+   * drifted to English after an English result; `"prompt-only"` keeps only the prompt's line.
    */
-  replyInLanguage?: boolean;
+  replyInLanguage?: boolean | "prompt-only";
 
   /**
    * Which filesystem settings the session loads (the SDK's `settingSources`): "project" is

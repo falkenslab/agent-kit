@@ -34,6 +34,7 @@ import { createElicitationHandler } from "./elicitation.js";
 import { createReadOnlyHints, createToolHints } from "./readOnlyHints.js";
 import { projectServerDuplicates } from "./projectServers.js";
 import { createSignInReminder, SIGN_IN_RULE } from "./hooks/signInReminder.js";
+import { createLanguageReminder } from "./hooks/languageReminder.js";
 import { agentKitVersion } from "./version.js";
 
 /**
@@ -85,6 +86,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
   // for the interface too, so the agent answers in the language its interface is in.
   const language = chooseLanguage(config.language);
   const replyLine = spec.replyInLanguage === false ? null : replyLanguageInstruction(language);
+  // Said again next to what the model reads, so its narration doesn't drift to English (#85).
+  const languageReminder = spec.replyInLanguage !== false && spec.replyInLanguage !== "prompt-only" && language !== "en" ? createLanguageReminder(language) : undefined;
   const withReplyLine = (prompt: string): string => (replyLine ? `${prompt}\n\n${replyLine}` : prompt);
   const modeControl = createModeControl(mode);
 
@@ -422,7 +425,7 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           : []),
         // Registered wherever the approval tool is, and asking only while the current mode is
         // "interactive": a guided session can switch to interactive and back (ModeControl).
-        ...(includeApprovalTool ? [{ hooks: [createStepGate(runDir, () => modeControl.mode === "interactive", fromExtensions((contribution) => contribution.selfAskingTools))] }] : []),
+        ...(includeApprovalTool ? [{ hooks: [createStepGate(runDir, () => modeControl.mode === "interactive", fromExtensions((contribution) => contribution.selfAskingTools), () => toolLabels)] }] : []),
         // Likewise for "plan", which any non-autonomous session can switch into: the agent
         // only reads and plans while it's on (hooks/planGate.ts).
         ...(includeApprovalTool
@@ -451,12 +454,14 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
             ]
           : []),
       ],
-      PostToolUse: [{ hooks: [transcriptLogger.postToolUse] }],
+      PostToolUse: [{ hooks: [transcriptLogger.postToolUse] }, ...(languageReminder ? [{ hooks: [languageReminder.postToolUse] }] : [])],
       // The person's message: it ends a batch they approved (#74), and carries the sign-in reminders (#82).
-      ...(guidedGate || signInExtensions.length
+      ...(guidedGate || signInExtensions.length || languageReminder
         ? {
             UserPromptSubmit: [
               ...(guidedGate ? [{ hooks: [guidedGate.userPromptSubmit] }] : []),
+              // The reply language, next to the person's message too (#85).
+              ...(languageReminder ? [{ hooks: [languageReminder.userPromptSubmit] }] : []),
               // With the person's message, which extensions now wait for a sign-in (#82).
               ...(signInExtensions.length ? [{ hooks: [createSignInReminder({ extensions: () => signInExtensions, status: () => late.view?.controls().mcpServerStatus })] }] : []),
             ],

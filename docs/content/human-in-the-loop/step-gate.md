@@ -14,16 +14,16 @@ The step gate is a `PreToolUse` hook that stops every tool call (the main agent'
 
 ## What it asks
 
-A decision checkpoint titled **Proposed action**, with the tool's name and its parameters as formatted JSON:
+A decision checkpoint titled **Proposed action**, saying the call as the chat does, in the person's language (the extensions' labels, the kit's for its own tools), then the tool's name and its parameters in one line, cut short at 300 characters:
 
 ```text
 Proposed action
+Fetching https://example.com/news
 Tool: WebFetch
-Parameters: {
-  "url": "https://example.com/news",
-  "prompt": "Summarize the headlines"
-}
+Parameters: {"url":"https://example.com/news","prompt":"Summarize the headlines"}
 ```
+
+The person approving needn't read JSON: in an agent for teachers, "Reading the page overview" says what `mcp__knowledge__knowledge_read` with `{"page":"overview"}` does.
 
 ## What each answer does
 

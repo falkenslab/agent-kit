@@ -51,6 +51,8 @@ Even so, the earlier conversation pulls: the replies switch at once, but the mod
 
 So the agent answers, and writes its knowledge base, in the chosen language, and follows the person when they clearly write in another one. Turn it off with `replyInLanguage: false` in the spec when your prompt decides the language itself.
 
+A line in the system prompt is far from where the model writes, and after reading something in English (a source, a skill, a tool's result) its narration between tool calls could drift to English. So when the language isn't English the kit says it again, in one line ("Reply language: Spanish, your narration between tool calls too.", about fifteen tokens), after each of the main agent's tool calls and with each message of the person. `replyInLanguage: "prompt-only"` keeps only the prompt's line.
+
 ## Limits
 
 The line is a strong hint, not a guarantee. Checked by hand:

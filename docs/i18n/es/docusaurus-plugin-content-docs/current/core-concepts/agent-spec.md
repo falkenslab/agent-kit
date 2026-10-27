@@ -99,7 +99,7 @@ Devolver algo aquí también le da a la sesión la herramienta `Agent`, y `Bash`
 | `humanApprovalTexts?` | textos genéricos | `{ description, approved, rejected }` de la herramienta de aprobación (modo guiado). |
 | `extensionGate?: ExtensionGateSpec` | activada | La pregunta del modo guiado antes de una herramienta de una extensión instalada que cambia cosas: apagarla, más herramientas que siempre preguntan y qué hace el modo autónomo. Mira [`extensionGate`](#extensiongate). |
 | `manualInterventionTexts?` | ninguno | Sus textos, y la activación opcional, de la herramienta de intervención manual. |
-| `replyInLanguage?: boolean` | `true` | La línea que pide al agente (y a cada subagente) que responda en el idioma del kit. |
+| `replyInLanguage?: boolean \| "prompt-only"` | `true` | La línea que pide al agente (y a cada subagente) que responda en el idioma del kit y, cuando no es inglés, un recordatorio tras cada llamada a herramienta del agente principal y con cada mensaje; `"prompt-only"` deja solo la línea. Consulta [Idiomas](../sessions/languages.md). |
 | `settingSources?: SettingSource[]` | `["project"]` | Qué ficheros de ajustes de Claude Code carga la sesión. |
 | `skills?: string[] \| "all" \| "plugins"` | `"all"` | Qué skills ofrece el agente: todas las que encuentre, solo las de sus plugins (`"plugins"`) o una lista. |
 | `planMode?: PlanModeSpec` | ninguno | En modo plan, los ficheros de plan del agente y sus herramientas MCP de solo lectura. |

@@ -37,7 +37,7 @@ Las extensiones instaladas son la excepción: el propio kit pregunta antes de un
 
 ## interactive {#interactive}
 
-Cada llamada a herramienta se detiene en la puerta (gate) de pasos, un hook `PreToolUse` que muestra la herramienta y sus parámetros y espera una respuesta:
+Cada llamada a herramienta se detiene en la puerta (gate) de pasos, un hook `PreToolUse` que muestra la llamada como la etiqueta el chat, el nombre de la herramienta y sus parámetros en una línea, y espera una respuesta:
 
 - **Sí** (`y`, Intro): la llamada sigue adelante.
 - **No** (`n`): la llamada se deniega; al modelo se le dice que la persona la rechazó y puede probar otra cosa.

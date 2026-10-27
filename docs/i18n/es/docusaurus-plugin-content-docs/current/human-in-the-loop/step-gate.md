@@ -14,16 +14,16 @@ La puerta de pasos (step gate) es un hook `PreToolUse` que detiene cada llamada 
 
 ## Qué pregunta {#what-it-asks}
 
-Un punto de control de decisión titulado **Proposed action**, con el nombre de la herramienta y sus parámetros como JSON formateado:
+Un punto de control de decisión titulado **Acción propuesta**, que dice la llamada como la dice el chat, en el idioma de la persona (las etiquetas de las extensiones, las del kit para sus propias herramientas), y después el nombre de la herramienta y sus parámetros en una línea, recortada a 300 caracteres:
 
 ```text
-Proposed action
-Tool: WebFetch
-Parameters: {
-  "url": "https://example.com/news",
-  "prompt": "Summarize the headlines"
-}
+Acción propuesta
+Abriendo https://example.com/news
+Herramienta: WebFetch
+Parámetros: {"url":"https://example.com/news","prompt":"Summarize the headlines"}
 ```
+
+Quien aprueba no tiene que leer JSON: en un agente para docentes, "Leyendo la página overview" dice qué hace `mcp__knowledge__knowledge_read` con `{"page":"overview"}`.
 
 ## Qué hace cada respuesta {#what-each-answer-does}
 
