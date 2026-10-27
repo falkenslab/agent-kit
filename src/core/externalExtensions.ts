@@ -1,10 +1,8 @@
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, mkdtemp, readdir, readFile, rm, stat, writeFile, mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import { capabilitiesProblem, parseCapabilities, parseDescriptions, providedBy, type Extension, type ExtensionCapability } from "./extensions.js";
 import type { Language } from "./language.js";
@@ -16,6 +14,7 @@ import { extensionSecretsPath, fillOptions, missingOptions, optionsNamed, parseO
 import { isTrusted } from "./workspaceTrust.js";
 import { checkRequirements, describeMissing, findOnPath, parseRequirements, requirementsProblem, type ExtensionRequirement } from "./extensionRequirements.js";
 import { cachedPackageDir, cachedPackageProblem, cachePackage, npxServer, packageCacheDir, packageSpec, type CachedPackage } from "./npxPackages.js";
+import { cloneRepository } from "./gitClone.js";
 
 /**
  * External extensions (ADR-025, #37): installed into an agent, for all its projects (the
@@ -360,13 +359,15 @@ interface PluginFolders {
   root: string;
   /** `${CLAUDE_PLUGIN_DATA}`: its data folder. */
   data: string;
+  /** `${agent_kit.language}` and `AGENT_KIT_LANGUAGE`: the session's language (#86), for its servers to ask and answer in it. */
+  language?: string;
 }
 
-/** `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}` and `${VAR}` (the agent's variable) in a server's values. */
+/** `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`, `${agent_kit.language}` (#86) and `${VAR}` (the agent's variable) in a server's values. */
 function expand(value: string, folders: PluginFolders): string {
-  return value.replace(/\$\{(\w+)\}/g, (_, name: string) =>
-    name === "CLAUDE_PLUGIN_ROOT" ? folders.root : name === "CLAUDE_PLUGIN_DATA" ? folders.data : (process.env[name] ?? ""),
-  );
+  return value
+    .replace(/\$\{agent_kit\.language\}/g, folders.language ?? "en")
+    .replace(/\$\{(\w+)\}/g, (_, name: string) => (name === "CLAUDE_PLUGIN_ROOT" ? folders.root : name === "CLAUDE_PLUGIN_DATA" ? folders.data : (process.env[name] ?? "")));
 }
 
 /** The packages an extension's npx servers run, as its lock has them, and the cache they're in (#54). */
@@ -384,7 +385,8 @@ function serverLaunch(name: string, server: LocalServer, folders: PluginFolders,
   const { root } = folders;
   // Its folders as variables too, as Claude Code gives them to a plugin's servers.
   const declared = Object.fromEntries(Object.entries(server.env ?? {}).map(([key, value]) => [key, expand(String(value), folders)]));
-  const env = { CLAUDE_PLUGIN_ROOT: root, CLAUDE_PLUGIN_DATA: folders.data, ...declared };
+  // And the session's language (#86): a server that reads it can ask and answer in it.
+  const env = { CLAUDE_PLUGIN_ROOT: root, CLAUDE_PLUGIN_DATA: folders.data, ...(folders.language ? { AGENT_KIT_LANGUAGE: folders.language } : {}), ...declared };
   const npx = npxServer(server);
   if (typeof npx === "string") return `${npx} (its server "${name}")`;
   if (npx) {
@@ -570,7 +572,7 @@ function externalExtension(installed: InstalledExtension, manifest: ExternalMani
       const servers: Record<string, McpServerConfig> = {};
       const remote: string[] = [];
       if (Object.keys(manifest.servers).length) await mkdir(installed.dataDir, { recursive: true });
-      const folders = { root: installed.dir, data: installed.dataDir };
+      const folders = { root: installed.dir, data: installed.dataDir, language: getLanguage() };
       // A remote server's options go into its URL and headers here, when the session opens: the
       // SDK fixes them then, so a changed value takes opening the session again (#61).
       const values = Object.values(manifest.servers).some(isRemoteServer) ? await readOptionValues(installed.privateDir, installed.name, manifest.userConfig, installed.lock.options) : {};
@@ -707,7 +709,6 @@ async function problem(installed: InstalledExtension, cache: string | undefined)
   return (await serversProblem(manifest, installed.dir, { cache, locked: installed.lock.packages })) ?? { manifest, unavailable };
 }
 
-const exec = promisify(execFile);
 
 /** Whether `source` names a git repository rather than a folder. */
 export function isGitSource(source: string): boolean {
@@ -736,11 +737,9 @@ export async function addExtension(
   if (isGitSource(source)) {
     const [url, ref] = source.replace(/^github:/, "https://github.com/").split("#") as [string, string | undefined];
     clone = await mkdtemp(path.join(os.tmpdir(), "agent-kit-extension-"));
-    // A pinned commit needs the history to check it out; otherwise the tip is enough.
-    await exec("git", ["clone", ...(options.sha ? [] : ["--depth", "1"]), ...(ref ? ["--branch", ref] : []), url, clone]);
-    if (options.sha) await exec("git", ["-C", clone, "checkout", "--quiet", options.sha]);
-    commit = (await exec("git", ["-C", clone, "rev-parse", "HEAD"])).stdout.trim();
-    if (options.sha && commit !== options.sha.toLowerCase()) throw new Error(`${url} has no commit ${options.sha}.`);
+    // Without the git program (#89): a pinned commit takes the history, otherwise the tip is enough.
+    commit = await cloneRepository(url, clone, { ...(ref ? { ref } : {}), ...(options.sha ? { sha: options.sha } : {}) });
+    if (options.sha && !commit.startsWith(options.sha.toLowerCase())) throw new Error(`${url} has no commit ${options.sha}.`);
     from = clone;
   }
   try {

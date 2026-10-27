@@ -1,10 +1,9 @@
-import { execFile } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { promisify } from "node:util";
 import { addExtension, isGitSource } from "./externalExtensions.js";
 import { fetchArchivePlugin, fetchNpmPlugin } from "./pluginDownloads.js";
+import { cloneRepository } from "./gitClone.js";
 
 /**
  * Marketplaces (ADR-025, #29): a repository of extensions is a Claude Code marketplace as it is,
@@ -16,7 +15,6 @@ import { fetchArchivePlugin, fetchNpmPlugin } from "./pluginDownloads.js";
  * only by hand, after a warning (the command asks to type its name).
  */
 
-const exec = promisify(execFile);
 
 /** Where a marketplace's plugin comes from, as `marketplace.json` says (Claude Code's forms). */
 export type PluginSource =
@@ -124,9 +122,8 @@ async function fetchMarketplace(source: string): Promise<{ copy: string; commit?
   try {
     if (await isGitMarketplace(source)) {
       const [location, ref] = source.split("#") as [string, string | undefined];
-      await exec("git", ["clone", "--depth", "1", ...(ref ? ["--branch", ref] : []), gitUrl(location), copy]);
-      const commit = (await exec("git", ["-C", copy, "rev-parse", "HEAD"])).stdout.trim();
-      await rm(path.join(copy, ".git"), { recursive: true, force: true });
+      // Without the git program (#89).
+      const commit = await cloneRepository(gitUrl(location), copy, ref ? { ref } : {});
       return { copy, commit };
     }
     await cp(path.resolve(source), copy, { recursive: true, filter: (file) => path.basename(file) !== ".git" });

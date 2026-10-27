@@ -25,7 +25,7 @@ import {
 import { buildSessionOptions } from "../../src/core/session.js";
 import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
 import { runExtensionCommand, chatExtensionsCommand } from "../../src/tui/extensionCommand.js";
-import { setLanguage } from "../../src/core/messages/index.js";
+import { getLanguage, setLanguage } from "../../src/core/messages/index.js";
 
 const temp = () => fs.mkdtempSync(path.join(os.tmpdir(), "external-extensions-test-"));
 
@@ -194,10 +194,10 @@ test("a session runs an installed extension: its server through the launcher, it
     const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, runDir, spec);
     const server = (built.options.mcpServers as Record<string, { type: string; command: string; args: string[]; env: Record<string, string> }>).dice!;
     assert.equal(server.command, process.execPath);
-    assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server", "index.mjs"), '{"keep":["CLAUDE_PLUGIN_ROOT","CLAUDE_PLUGIN_DATA","DICE_SEED"]}', "--fair"]);
-    // Its folders as Claude Code gives them to a plugin's servers, and its own variables.
+    assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server", "index.mjs"), '{"keep":["CLAUDE_PLUGIN_ROOT","CLAUDE_PLUGIN_DATA","AGENT_KIT_LANGUAGE","DICE_SEED"]}', "--fair"]);
+    // Its folders as Claude Code gives them to a plugin's servers, the session's language (#86), and its own variables.
     const data = path.join(dirs.project, ".data", "dice");
-    assert.deepEqual(server.env, { CLAUDE_PLUGIN_ROOT: path.join(dirs.project, "dice"), CLAUDE_PLUGIN_DATA: data, DICE_SEED: process.env.DICE_SEED ?? "" });
+    assert.deepEqual(server.env, { CLAUDE_PLUGIN_ROOT: path.join(dirs.project, "dice"), CLAUDE_PLUGIN_DATA: data, AGENT_KIT_LANGUAGE: getLanguage(), DICE_SEED: process.env.DICE_SEED ?? "" });
     assert.ok(fs.statSync(data).isDirectory());
     assert.equal(built.toolLabels.mcp__dice__roll?.label({ sides: 6 }), "Tirando un dado de 6");
     assert.deepEqual(built.toolLabels.mcp__dice__roll?.phrase, undefined);
