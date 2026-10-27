@@ -194,10 +194,19 @@ test("a session runs an installed extension: its server through the launcher, it
     const built = await buildSessionOptions({ mode: "guided", projectDir, extensionDirs: dirs }, runDir, spec);
     const server = (built.options.mcpServers as Record<string, { type: string; command: string; args: string[]; env: Record<string, string> }>).dice!;
     assert.equal(server.command, process.execPath);
-    assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server", "index.mjs"), '{"keep":["CLAUDE_PLUGIN_ROOT","CLAUDE_PLUGIN_DATA","AGENT_KIT_LANGUAGE","DICE_SEED"]}', "--fair"]);
-    // Its folders as Claude Code gives them to a plugin's servers, the session's language (#86), and its own variables.
+    // Its folders as Claude Code gives them to a plugin's servers, the session's language as its locale (#86), and its own variables.
+    const locale = ({ en: "en_US.UTF-8", es: "es_ES.UTF-8", fr: "fr_FR.UTF-8", de: "de_DE.UTF-8" } as Record<string, string>)[getLanguage()]!;
+    const expectedEnv = {
+      CLAUDE_PLUGIN_ROOT: path.join(dirs.project, "dice"),
+      CLAUDE_PLUGIN_DATA: path.join(dirs.project, ".data", "dice"),
+      LANG: locale,
+      LC_MESSAGES: locale,
+      ...(process.env.LC_ALL ? { LC_ALL: locale } : {}),
+      DICE_SEED: process.env.DICE_SEED ?? "",
+    };
+    assert.deepEqual(server.args, [extensionLauncherPath(), path.join(dirs.project, "dice", "server", "index.mjs"), JSON.stringify({ keep: Object.keys(expectedEnv) }), "--fair"]);
     const data = path.join(dirs.project, ".data", "dice");
-    assert.deepEqual(server.env, { CLAUDE_PLUGIN_ROOT: path.join(dirs.project, "dice"), CLAUDE_PLUGIN_DATA: data, AGENT_KIT_LANGUAGE: getLanguage(), DICE_SEED: process.env.DICE_SEED ?? "" });
+    assert.deepEqual(server.env, expectedEnv);
     assert.ok(fs.statSync(data).isDirectory());
     assert.equal(built.toolLabels.mcp__dice__roll?.label({ sides: 6 }), "Tirando un dado de 6");
     assert.deepEqual(built.toolLabels.mcp__dice__roll?.phrase, undefined);

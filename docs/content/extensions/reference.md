@@ -67,7 +67,6 @@ As Claude Code reads it (or under `mcpServers` in `plugin.json`), with or withou
 | `${CLAUDE_PLUGIN_ROOT}` | The extension's folder, wherever it's installed. Also given to the server as a variable. |
 | `${CLAUDE_PLUGIN_DATA}` | Its [data folder](writing.md#its-data). Also given as a variable. |
 | `${user_config.KEY}` | One of its options' value, read when the server starts. |
-| `${agent_kit.language}` | The session's language (`en`, `es`, `fr`, `de`). Also given as the variable `AGENT_KIT_LANGUAGE`. |
 | `${VAR}` | The agent's own environment variable. |
 
 A [remote server](writing.md#a-remote-server) is `type` (`http` or `sse`), `url` and `headers` instead, the same placeholders taken in `url` and `headers` when the session opens; a header naming an option without a value isn't sent. Its address must be `https` (`http` only on `localhost`), and the session names it `<extension>-<server>`.

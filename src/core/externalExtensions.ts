@@ -359,15 +359,27 @@ interface PluginFolders {
   root: string;
   /** `${CLAUDE_PLUGIN_DATA}`: its data folder. */
   data: string;
-  /** `${agent_kit.language}` and `AGENT_KIT_LANGUAGE`: the session's language (#86), for its servers to ask and answer in it. */
+  /** The session's language (#86): its servers' locale (`LANG`, `LC_MESSAGES`), for them to ask and answer in it. */
   language?: string;
 }
 
-/** `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}`, `${agent_kit.language}` (#86) and `${VAR}` (the agent's variable) in a server's values. */
+/** `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}` and `${VAR}` (the agent's variable) in a server's values. */
 function expand(value: string, folders: PluginFolders): string {
-  return value
-    .replace(/\$\{agent_kit\.language\}/g, folders.language ?? "en")
-    .replace(/\$\{(\w+)\}/g, (_, name: string) => (name === "CLAUDE_PLUGIN_ROOT" ? folders.root : name === "CLAUDE_PLUGIN_DATA" ? folders.data : (process.env[name] ?? "")));
+  return value.replace(/\$\{(\w+)\}/g, (_, name: string) => (name === "CLAUDE_PLUGIN_ROOT" ? folders.root : name === "CLAUDE_PLUGIN_DATA" ? folders.data : (process.env[name] ?? "")));
+}
+
+/** The POSIX locale for a session's language: what any program reads to speak the person's language. */
+const LOCALES: Record<string, string> = { en: "en_US.UTF-8", es: "es_ES.UTF-8", fr: "fr_FR.UTF-8", de: "de_DE.UTF-8" };
+
+/**
+ * A server's locale in the session's language (#86): `LANG` and `LC_MESSAGES`, and `LC_ALL` when the
+ * system sets one (it would win). The standard way, so a server asks in the person's language
+ * knowing nothing of the kit, and does the same under Claude Code or any other client.
+ */
+function localeEnv(language: string | undefined): Record<string, string> {
+  const locale = language ? LOCALES[language] : undefined;
+  if (!locale) return {};
+  return { LANG: locale, LC_MESSAGES: locale, ...(process.env.LC_ALL ? { LC_ALL: locale } : {}) };
 }
 
 /** The packages an extension's npx servers run, as its lock has them, and the cache they're in (#54). */
@@ -385,8 +397,8 @@ function serverLaunch(name: string, server: LocalServer, folders: PluginFolders,
   const { root } = folders;
   // Its folders as variables too, as Claude Code gives them to a plugin's servers.
   const declared = Object.fromEntries(Object.entries(server.env ?? {}).map(([key, value]) => [key, expand(String(value), folders)]));
-  // And the session's language (#86): a server that reads it can ask and answer in it.
-  const env = { CLAUDE_PLUGIN_ROOT: root, CLAUDE_PLUGIN_DATA: folders.data, ...(folders.language ? { AGENT_KIT_LANGUAGE: folders.language } : {}), ...declared };
+  // And the session's language as its locale (#86): a server that reads it can ask and answer in it.
+  const env = { CLAUDE_PLUGIN_ROOT: root, CLAUDE_PLUGIN_DATA: folders.data, ...localeEnv(folders.language), ...declared };
   const npx = npxServer(server);
   if (typeof npx === "string") return `${npx} (its server "${name}")`;
   if (npx) {

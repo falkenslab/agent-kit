@@ -67,7 +67,6 @@ Tal como lo lee Claude Code (o en `mcpServers` dentro de `plugin.json`), con o s
 | `${CLAUDE_PLUGIN_ROOT}` | La carpeta de la extensión, esté donde esté instalada. También se le da al servidor como variable. |
 | `${CLAUDE_PLUGIN_DATA}` | Su [carpeta de datos](writing.md#its-data). También se da como variable. |
 | `${user_config.KEY}` | El valor de una de sus opciones, leído cuando arranca el servidor. |
-| `${agent_kit.language}` | El idioma de la sesión (`en`, `es`, `fr`, `de`). También se da como la variable `AGENT_KIT_LANGUAGE`. |
 | `${VAR}` | La variable de entorno propia del agente. |
 
 Un [servidor remoto](writing.md#a-remote-server) lleva en su lugar `type` (`http` o `sse`), `url` y `headers`, con los mismos marcadores en `url` y `headers`, que toman su valor al abrir la sesión; una cabecera que nombra una opción sin valor no se envía. Su dirección tiene que ser `https` (`http` solo en `localhost`), y la sesión lo llama `<extensión>-<servidor>`.
