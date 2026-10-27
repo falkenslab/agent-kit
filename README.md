@@ -1,67 +1,48 @@
-<h1>
-  <img src="https://raw.githubusercontent.com/falkenslab/agent-kit/main/docs/assets/logo-readme-any.svg" alt="agent-kit" height="64">
-</h1>
+<div align="center">
 
-[![npm](https://img.shields.io/npm/v/@falkenslab/agent-kit?logo=npm)](https://www.npmjs.com/package/@falkenslab/agent-kit)
-[![npm downloads](https://img.shields.io/npm/dm/@falkenslab/agent-kit)](https://www.npmjs.com/package/@falkenslab/agent-kit)
-[![types](https://img.shields.io/npm/types/@falkenslab/agent-kit)](https://www.npmjs.com/package/@falkenslab/agent-kit)
-[![node](https://img.shields.io/node/v/@falkenslab/agent-kit)](https://nodejs.org/)
-[![license](https://img.shields.io/npm/l/@falkenslab/agent-kit)](LICENSE)
-[![docs](https://img.shields.io/badge/docs-falkenslab.github.io%2Fagent--kit-4453b8)](https://falkenslab.github.io/agent-kit/)
+<img src="https://raw.githubusercontent.com/falkenslab/agent-kit/main/docs/static/img/logo.svg" alt="agent-kit logo: three blue building blocks and a coral one being set in place" width="112"/>
+
+# agent-kit
+
+**Build an AI agent on Claude that asks before it acts, remembers, and chats like Claude Code.**<br/>
+You write what your agent knows and does; the kit brings oversight, safety, memory and the interface.
+
+[![npm](https://img.shields.io/npm/v/@falkenslab/agent-kit?color=cb3837&logo=npm)](https://www.npmjs.com/package/@falkenslab/agent-kit)
+![Node.js 20+](https://img.shields.io/badge/node-20%2B-339933?logo=node.js&logoColor=white)
+![Claude Agent SDK](https://img.shields.io/badge/Claude-Agent%20SDK-d97757?logo=anthropic&logoColor=white)
+![TypeScript](https://img.shields.io/badge/types-included-3178c6?logo=typescript&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 
 **[📖 Documentation](https://falkenslab.github.io/agent-kit/)** · [📖 Documentación en español](https://falkenslab.github.io/agent-kit/es/)
 
-A foundation for building AI agents on top of the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk). It isn't an agent itself: it solves once what every agent needs (human oversight, safety, memory and a good terminal interface), so each concrete agent only has to write what belongs to its own domain: what it knows how to do, with which tools, and how it talks.
+</div>
 
-## What an agent built with it can do
+agent-kit is a foundation for building AI agents on top of the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk). It isn't an agent itself: it solves once what every agent needs (levels of oversight, approvals, safe limits, memory across sessions, extensions, and a terminal chat as good as Claude Code's), so each agent writes only what belongs to its own domain: what it knows how to do, with which tools, and how it talks. A teacher's assistant for Moodle and a pirate cat who tells jokes are built the same way.
 
-- **Work at different levels of oversight.** Autonomous, guided (it asks for permission before anything that can't be undone or that other people will see) or step by step (it asks before every action), and a plan mode where it only reads and plans until you let it act. Within the same conversation you can switch among guided, step by step and plan.
-- **Ask a person for help.** It asks for approvals, or stops so someone can do something by hand, such as signing in to a website. It can be answered from the keyboard or from another program driving it, for example a desktop app.
-- **Remember between sessions.** It keeps its own knowledge base, a small wiki of notes that grows with every session, and keeps the original documents you give it or that it downloads untouched. Each conversation stays in the project's folder, so you can pick it up again with `--continue` (the latest one) or `/resume` (any of them).
-- **Speak your language.** Its interface comes in English, Spanish, French or German, the system's by default or the one you ask for with `--language=fr`, and it answers in that language unless you write to it in another one.
-- **Delegate to subagents safely.** Only to the ones it declares, always waiting for their result, and without the main agent being able to slip past its own limits through them.
-- **Stay within limits.** It only reads and writes in the folders that belong to it, and never in protected files, such as one holding passwords.
-- **Use external tools.** MCP servers of its own or of the project, and skills and commands organized in plugins.
-- **Leave a trail.** It records every action and the whole conversation, with secrets hidden.
-- **Look the way you want.** The terminal's colors come from a theme by roles (the agent's replies, tool results, the focused option, borders…): pass only the ones you want to change, as a color name, a hex or a function.
-- **Chat in a terminal the way Claude Code does.** Full screen, with the reply written live and its markdown already formatted, the tools it uses shown in as much detail as the agent chooses (each call with its result, the calls alone, or one line per group; Ctrl+O unfolds them), panels for approvals, history and search, a suggestion for the next message, pasted blocks, file mentions with `@`, mouse selection (right-click to copy), and the agent's status in the tab and in the Windows taskbar.
-- **Also work without a terminal.** The same foundation runs inside a desktop app or a server, which bring their own interface.
+## ✨ Why agent-kit
 
-## Examples
+- 🎚️ **You choose how much it acts alone.** Autonomous, guided (it asks before what others will see or can't be undone), step by step, or a plan mode where it only reads and plans; switch among them in the same conversation.
+- ✋ **It asks a person, and the kit makes sure.** Approvals, choices, a file, a sign-in by hand; an installed extension's tool that changes things waits for a yes whatever the model decided, and answers can last for the session or for good.
+- 🧠 **It remembers.** A knowledge base that grows with every session, the original documents it learns from kept untouched, a memory of the person, and every conversation to pick up again with `--continue` or `/resume`.
+- 🛡️ **It stays within limits.** Only its own folders, never protected files, subagents that can't slip past the main agent's limits, secrets hidden from the logs, remote servers allowed, asked about or denied.
+- 🧩 **It grows with extensions.** Claude Code plugins with MCP servers, skills and commands, installed from a marketplace or a folder, with their own options, sign-in and a catalog in the chat; no Git needed.
+- 🌐 **It speaks your language.** Its interface in English, Spanish, French or German, and it answers in that language unless you write in another.
+- 🖥️ **A terminal chat like Claude Code's, or none at all.** Full screen, live markdown, folded tool calls, panels, history, themes; or the same agent inside a desktop app or a web page with its own interface.
 
-### Captain Whiskers
+## 🚀 Quick start
 
-[Captain Whiskers](./examples/captain-whiskers) is a toy agent to see the kit in action: a retired pirate cat who tells jokes in the terminal, in your language. It starts full screen with its logo and has a small crew of subagents: one looks for new jokes on the web, another rates them before they're told, and a third tells the time with a tool of the captain's own. It lets you try the different levels of oversight and is the best starting point for an agent of your own. Its README explains how to run it.
+You need [Node.js](https://nodejs.org) 20 or later and a Claude account. In a project with `"type": "module"` in its `package.json`:
 
-![Captain Whiskers in Windows Terminal: his logo with the mode and the agent-kit version at the top, his crew at work in the middle, a task list under the spinner, and the framed prompt and status bar at the bottom](docs/assets/captain-whiskers.png)
-
-See [everything he can do](https://falkenslab.github.io/agent-kit/docs/next/examples/captain-whiskers#what-he-can-do), with screenshots.
-
-### miyagi
-
-[miyagi](https://github.com/falkenslab/miyagi) is a real assistant for Moodle teachers. It signs in with your account in a Chrome window and works as you would: it grades submissions, answers in the forum, creates or reviews content and sums up how the class is going. It asks for your permission before publishing anything students will see, and takes notes about the course to remember everything in the next session.
-
-Oversight, memory, safety and the chat come from the kit; miyagi brings what it knows about Moodle and driving the browser.
-
-## Installation
-
-```
-npm install @falkenslab/agent-kit
+```bash
+npm install @falkenslab/agent-kit tsx
 ```
 
-To try changes to the kit without publishing them, point to a local clone with `"file:../agent-kit"` in your `package.json` and build it with `npm run build` after each change.
-
-Requires Node.js 20 or later.
-
-## A minimal agent
-
-An agent only describes what belongs to it (who it is, which MCP servers, skills and subagents it has) and picks a level of oversight; the kit sets up the session and the chat:
+Save this as `agent.ts`: the only part that's your agent's is the spec at the top.
 
 ```ts
 import path from "node:path";
 import { buildSessionOptions, ensureClaudeAuth, runChatInk, type AgentSpec, type BaseSessionConfig } from "@falkenslab/agent-kit";
 
-// The only part specific to the agent: who it is and what it has.
 const spec: AgentSpec<BaseSessionConfig> = {
   buildSystemPrompt: () => "You are a pirate cat who tells jokes. Always answer in character.",
   buildMcpServers: () => ({}), // its own MCP servers, if any
@@ -70,57 +51,125 @@ const spec: AgentSpec<BaseSessionConfig> = {
 };
 
 await ensureClaudeAuth(); // offers to create a Claude token if it finds none
-
 const config: BaseSessionConfig = { mode: "guided", projectDir: process.cwd() };
 
-// Each run gets a folder of its own under .run/ (keep it out of git): its log, its
-// transcript and the conversation, to pick it up again with --continue or /resume.
+// Each run gets a folder under .run/ (keep it out of git): its log, transcript and conversation.
 await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
   runsDir: path.resolve(".run"),
   header: { title: "My agent" },
   mode: config.mode, // Shift+Tab cycles through guided, step by step and plan
   fullscreen: true,
-  theme: { toolResult: "gray", selection: "#ffb86c" }, // only the colors you want to change
 });
 ```
 
-Save it as `agent.ts` in a project with the kit and `tsx` installed and `"type": "module"` in its `package.json`, and run it with `npx tsx agent.ts`. Captain Whiskers is this same skeleton with more pieces: skills, subagents and its logo.
+Run it with `npx tsx agent.ts`: a full-screen chat opens, in your system's language, and the agent asks before anything it shouldn't do alone. The [tutorial](https://falkenslab.github.io/agent-kit/docs/getting-started/first-agent) takes it from there.
 
-## Documentation
+## 🧪 A taste of the code
 
-The full documentation is at **[falkenslab.github.io/agent-kit](https://falkenslab.github.io/agent-kit/)**: a tutorial, guides for every part of the kit (modes, human in the loop, security, tools, subagents, the knowledge base, the terminal UI, runs, languages, themes, hosts without a terminal), recipes, and an API reference generated from the source, for each released version.
+Give it a memory and a folder of sources, with the kit's own extensions:
 
-For whoever works on the kit itself, the specification in [`.minispec/`](./.minispec/README.md) explains how each part is built and why, including the SDK behaviors checked by hand that motivate several of its safeguards.
+```ts
+import { knowledge, memory, sources } from "@falkenslab/agent-kit";
 
-## Development
+const spec: AgentSpec<BaseSessionConfig> = {
+  // …
+  extensions: [sources({ dir: "sources" }), knowledge({ dir: "knowledge" }), memory({ dir: "memory" })],
+};
+```
+
+Let it install extensions from your marketplace, and keep its data from leaving the computer without asking:
+
+```ts
+const config: BaseSessionConfig = {
+  mode: "guided",
+  projectDir: process.cwd(),
+  extensionDirs: { agent: path.join(os.homedir(), ".my-agent", "extensions") },
+  officialMarketplace: "falkenslab/agent-extensions",
+  remoteServers: "ask",
+};
+```
+
+Make a tool always wait for the person's yes, on every call:
+
+```ts
+const spec: AgentSpec<BaseSessionConfig> = {
+  // …
+  extensionGate: { confirmTools: { canva: ["create-design", "publish-design"] } },
+};
+```
+
+## 📸 See it at work
+
+[Captain Whiskers](./examples/captain-whiskers), the kit's example agent: a retired pirate cat who tells jokes in your language, with a crew of subagents (one looks for new jokes on the web, one rates them, one tells the time), a logbook and an extension of his own. He runs in the terminal, in a browser and as a Windows app.
+
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/falkenslab/agent-kit/main/docs/assets/captain-whiskers.png" alt="Captain Whiskers in Windows Terminal: his logo with the mode and the agent-kit version at the top, his crew at work in the middle, a task list under the spinner, and the framed prompt and status bar at the bottom" width="760"/>
+
+</div>
+
+See [everything he can do](https://falkenslab.github.io/agent-kit/docs/examples/captain-whiskers#what-he-can-do), with screenshots. For a real one, [miyagi](https://github.com/falkenslab/miyagi) is an assistant for Moodle teachers: it grades, answers the forum, builds content and sums up how the class is going, asking before publishing anything students will see. Oversight, memory, safety and the chat come from the kit; miyagi brings what it knows about Moodle.
+
+## 🧰 What's inside
+
+| Area | For example |
+| --- | --- |
+| 🎚️ Modes and gates | Autonomous, guided, step by step and plan; the guided gate for extensions' tools, the plan gate, the step gate |
+| ✋ Human in the loop | Approvals, choices, free text, files, manual steps, MCP elicitation forms, a response file for hosts without a keyboard |
+| 🧠 Memory | A knowledge base (an LLM wiki), sources kept as obtained, a memory of the person, runs resumed with `--continue` and `/resume` |
+| 🧩 Extensions | Claude Code plugins with MCP servers (local, npm, remote with OAuth), skills, commands and subagents; scopes, a lock, workspace trust, options, marketplaces and a catalog |
+| 🛡️ Security | A file scope gate, denied paths, subagent gates, a remote-servers gate, isolation from the runner's own Claude Code, redacted transcripts |
+| 🤖 Subagents | Declared types only, in the foreground, without Bash for the main agent |
+| 🖥️ Interfaces | A full-screen Ink chat, a plain readline chat, a progress view, a wizard, themes; a chat controller for desktop apps and web pages |
+| 🌐 Languages | English, Spanish, French and German, for the interface, the replies and the extensions' servers |
+
+Every export, with what it takes and what it gives, is in the [API reference](https://falkenslab.github.io/agent-kit/docs/api).
+
+## 📚 Documentation
+
+- **[Getting started](https://falkenslab.github.io/agent-kit/docs/getting-started/installation)**: installation and a first agent, step by step.
+- **[Modes](https://falkenslab.github.io/agent-kit/docs/core-concepts/modes)** and **[human in the loop](https://falkenslab.github.io/agent-kit/docs/human-in-the-loop/overview)**: how much the agent does alone, and how it asks.
+- **[Extensions](https://falkenslab.github.io/agent-kit/docs/extensions/overview)**: installing, writing and publishing them.
+- **[Security](https://falkenslab.github.io/agent-kit/docs/security/overview)**: every guardrail, and what the kit doesn't protect.
+- **[The terminal chat](https://falkenslab.github.io/agent-kit/docs/terminal-ui/ink-chat)**: its keys, panels, options and themes.
+- **[Captain Whiskers](https://falkenslab.github.io/agent-kit/docs/examples/captain-whiskers)**: the example agent, piece by piece.
+
+## 🛠️ Developing
+
+The design decisions, and the SDK behaviors checked by hand behind several safeguards, are in [`.minispec/`](./.minispec/README.md).
 
 | Command | What it does |
 | --- | --- |
 | `npm run build` | Builds the kit into `dist/` |
 | `npm run typecheck` | Checks the types without building |
 | `npm run lint` | Checks the code style |
-| `npm test` | Runs all the tests |
+| `npm test` | Runs all the tests (one file: `npx tsx --test test/tui/promptErrors.test.ts`) |
 | `npm run docs:install` | Installs the documentation site's dependencies (once) |
 | `npm run docs:start` | Serves the documentation site locally, reloading on changes |
 | `npm run docs:build` | Builds the documentation site (fails on broken links) |
 
-To run a single test file:
+To try changes to the kit in an agent without publishing them, point its `package.json` to a local clone (`"file:../agent-kit"`) and run `npm run build` after each change.
 
-```
-npx tsx --test test/tui/promptErrors.test.ts
-```
+Working on the kit with Claude Code goes through Falken's Lab's own skills (commit, verify, update-docs, release, sync-issues, and the house style for READMEs, sites and Markdown), from the [falkenslab/falkenslab-plugins](https://github.com/falkenslab/falkenslab-plugins) marketplace. Install them once, for all of Falken's Lab's repositories:
 
-### Claude Code skills
-
-Working on the kit with Claude Code goes through Falken's Lab's own skills: committing, verifying, keeping the documentation up to date, releasing, syncing MiniSpec notes with issues, and the house style for READMEs, the documentation site and Markdown. They live in [falkenslab/falkenslab-plugins](https://github.com/falkenslab/falkenslab-plugins), a Claude Code marketplace, and are installed once, for all of Falken's Lab's repositories:
-
-```
+```bash
 claude plugin marketplace add falkenslab/falkenslab-plugins
 claude plugin install falkenslab-dev@falkenslab-plugins
 claude plugin install falkenslab-style@falkenslab-plugins
 ```
 
-- **falkenslab-dev**: `commit`, `verify`, `update-docs`, `release`, `sync-issues`, `upgrade-deps` and `add-tool`.
-- **falkenslab-style**: `falkenslab-docs`, `falkenslab-site-style`, `falkenslab-terminal-screenshots` and `markdown-writing`.
+<details>
+<summary>What each plugin brings, and what stays in this repository</summary>
+
+- 🔧 **falkenslab-dev**: `commit`, `verify`, `update-docs`, `release`, `sync-issues`, `upgrade-deps` and `add-tool`.
+- 🎨 **falkenslab-style**: `falkenslab-docs`, `falkenslab-site-style`, `falkenslab-terminal-screenshots` and `markdown-writing`.
 
 Inside Claude Code, the same with `/plugin marketplace add falkenslab/falkenslab-plugins` and `/plugin install falkenslab-dev@falkenslab-plugins`; `/plugin marketplace update falkenslab-plugins` brings their latest version. This repository keeps only the skills that are agent-kit's own, in `.claude/skills/` (`add-export`, the MiniSpec ones and `upgrade-sdk`), and what its release adds to the general one is in [`CLAUDE.md`](./CLAUDE.md#releasing).
+
+</details>
+
+<div align="center">
+
+Made with 💖 by Falken's Lab Team
+
+</div>
