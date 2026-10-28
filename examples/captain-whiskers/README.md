@@ -17,7 +17,7 @@ npm install
 npm start
 ```
 
-It needs Claude authentication: `CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY`) in the environment, or the token saved in his `config.json` (see [His home](#his-home)); the environment wins. If there's none, the terminal offers to create one with `claude setup-token`, and the browser and the app ask for it on the page; either way it's saved in `config.json` for next time.
+It needs Claude: a sign-in with your Claude account, or an API key. If you aren't signed in and there's no `ANTHROPIC_API_KEY` in the environment, the terminal offers to sign in: Claude Code, which comes with the Agent SDK, opens Anthropic's page and keeps the sign-in itself (you paste the code that page shows, if it shows one). The browser and the app offer the same on the page, or an API key (`sk-ant-api…`), which they keep in his `config.json` (see [His home](#his-home)). He never takes or keeps a Claude account's token: [Anthropic's terms](https://code.claude.com/docs/en/legal-and-compliance) don't let an agent do that.
 
 ## Usage
 
@@ -49,7 +49,7 @@ It shows every tool call with its result (`toolDetail: "full"`, the kit's defaul
 npm start -- --web
 ```
 
-prints a URL (`http://127.0.0.1:<port>/?token=…`): open it in a browser. It's his own web host (`web/`) on the kit's chat controller: the same conversation, tool calls folded with their labels, the approvals and choices as dialogs, a file picker when he asks for one (`request_file`), the mode, earlier conversations and his extensions in side panels, in his language, light or dark as your system, and laid out for a phone. Typing `/` opens a menu of his commands, his extensions' and the chat's; the lightning button has quick actions; the globe switches his language on the fly (and remembers it, in his `config.json`); and a file dropped on the page, or attached with the clip, goes into his chest, ready to learn. Without a Claude key, the page asks for one and keeps it in his `config.json`.
+prints a URL (`http://127.0.0.1:<port>/?token=…`): open it in a browser. It's his own web host (`web/`) on the kit's chat controller: the same conversation, tool calls folded with their labels, the approvals and choices as dialogs, a file picker when he asks for one (`request_file`), the mode, earlier conversations and his extensions in side panels, in his language, light or dark as your system, and laid out for a phone. Typing `/` opens a menu of his commands, his extensions' and the chat's; the lightning button has quick actions; the globe switches his language on the fly (and remembers it, in his `config.json`); and a file dropped on the page, or attached with the clip, goes into his chest, ready to learn. Without Claude, the page offers to sign in with your Claude account (a link to Anthropic's page in case the browser didn't open, and a box for the code it shows) or to use an API key, which it keeps in his `config.json`.
 
 - It listens on `127.0.0.1` only, and nothing gets in without the token in the URL. One window at a time: opening it elsewhere takes over, and the first one says so.
 - **From your phone**: a tunnel to that port (`cloudflared tunnel --url http://127.0.0.1:<port>`, `ngrok http <port>`, Tailscale) and the URL with the token. Anyone with that URL acts as you, and he acts in the world (downloads, writes his logbook): share it with no one, and keep `guided` or `interactive` mode so he asks before what matters.
@@ -89,7 +89,7 @@ Everything he keeps lives in his home, `~/.captain-whiskers` (`CAPTAIN_HOME` mov
 
 ```text
 ~/.captain-whiskers/
-├── config.json   his Claude key, the language chosen in the browser or the app, the app's window
+├── config.json   an API key, if you gave one, the language chosen in the browser or the app, the app's window
 ├── logbook/      his knowledge base
 ├── treasure/     his chest of originals
 ├── memory/       what he remembers of you
@@ -102,7 +102,7 @@ Everything he keeps lives in his home, `~/.captain-whiskers` (`CAPTAIN_HOME` mov
 - `logbook/` is his knowledge base (`knowledgeDir`), kept only through the kit's `knowledge_*` tools. Besides the kit's page types it has one of his own, `joke` (in `logbook/jokes/`), with the parrot's score shown in the index.
 - `treasure/` is his chest of originals (`sourcesDir`). On the first start it gets the two samples in `treasure-samples/`: a PowerPoint on knots (with speaker notes) and a Word document with the ship's rules, which he reads with `extract_text`.
 
-Delete `~/.captain-whiskers` to start over (keep `config.json` if you don't want to sign in again). Reading DOCX and PPTX and keeping web pages as markdown use the kit's optional libraries, already in this project's `package.json`.
+Delete `~/.captain-whiskers` to start over (keep `config.json` to keep an API key you gave him; a sign-in with your Claude account is kept by Claude Code, in `~/.claude`). Reading DOCX and PPTX and keeping web pages as markdown use the kit's optional libraries, already in this project's `package.json`.
 
 ## Crew (subagents)
 

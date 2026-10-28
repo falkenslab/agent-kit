@@ -11,7 +11,7 @@ description: Install agent-kit in a new or existing Node.js project.
 - **Node.js 20 or later.** The kit uses `process.loadEnvFile()`, top-level `await` in examples and other modern Node APIs.
 - **An ES module project.** The kit is published as ESM only: your `package.json` needs `"type": "module"` (or your files use the `.mjs`/`.mts` extension).
 - **TypeScript is recommended but optional.** Types ship with the package (`dist/index.d.ts`). The examples in this documentation are TypeScript run with [`tsx`](https://tsx.is/), which needs no build step.
-- **Claude authentication**: a Claude Pro/Max subscription token or an Anthropic API key (see [Authentication](authentication.md)).
+- **Claude**: a Claude account (Pro/Max) the person signs in with through Anthropic's own page, or an Anthropic API key (see [Authentication](authentication.md)).
 
 ## Install
 

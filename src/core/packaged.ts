@@ -16,6 +16,23 @@ export function outsideArchive(file: string): string {
 }
 
 /**
+ * The module requests that name the SDK's CLI binary on this platform, in the SDK's order:
+ * `@anthropic-ai/claude-agent-sdk-<platform>-<arch>/claude[.exe]`, both libcs on Linux (musl
+ * first when the system runs on it, as the SDK decides).
+ */
+export function claudeBinaryRequests(platform: NodeJS.Platform = process.platform, arch: string = process.arch, musl: boolean = platform === "linux" && runsOnMusl()): string[] {
+  const packages = platform === "linux" ? (musl ? [`linux-${arch}-musl`, `linux-${arch}`] : [`linux-${arch}`, `linux-${arch}-musl`]) : [`${platform}-${arch}`];
+  return packages.map((suffix) => `@anthropic-ai/claude-agent-sdk-${suffix}/claude${platform === "win32" ? ".exe" : ""}`);
+}
+
+/** A Linux whose C library is musl (Alpine): Node's report names no glibc version there. */
+function runsOnMusl(): boolean {
+  if (process.platform !== "linux") return false;
+  const report = process.report?.getReport() as { header?: { glibcVersionRuntime?: string } } | undefined;
+  return Boolean(report?.header) && report?.header?.glibcVersionRuntime === undefined;
+}
+
+/**
  * The SDK's CLI binary unpacked next to the archive, when the kit runs packaged: the SDK would
  * resolve it inside `app.asar`, where it can't be executed, and its first turn would hang with
  * no error (confirmed empirically). Looked up as the SDK does (`@anthropic-ai/claude-agent-sdk-
@@ -27,11 +44,10 @@ export function unpackedClaudeExecutable(
   platform: NodeJS.Platform = process.platform,
   arch: string = process.arch,
 ): string | undefined {
-  const packages = platform === "linux" ? [`linux-${arch}`, `linux-${arch}-musl`] : [`${platform}-${arch}`];
-  for (const suffix of packages) {
+  for (const request of claudeBinaryRequests(platform, arch)) {
     let file: string;
     try {
-      file = resolve(`@anthropic-ai/claude-agent-sdk-${suffix}/claude${platform === "win32" ? ".exe" : ""}`);
+      file = resolve(request);
     } catch {
       continue;
     }

@@ -2,8 +2,8 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
-import { addMarketplace, agentKitVersion, createChatController, getLanguage, installFromMarketplace, listMarketplaces, resolveClaudeAuth, SUPPORTED_LANGUAGES, switchLanguage, type ChatController, type Language, type Mode } from "@falkenslab/agent-kit";
-import { CAPTAIN_DIR, claudeKeyVariable, SHIPYARD, loadConfig, saveConfig, texts, useSavedClaudeKey, version, type createCaptain } from "../captain.js";
+import { addMarketplace, agentKitVersion, createChatController, getLanguage, claudeSignedIn, installFromMarketplace, listMarketplaces, startClaudeSignIn, SUPPORTED_LANGUAGES, switchLanguage, type ChatController, type ClaudeSignIn, type Language, type Mode } from "@falkenslab/agent-kit";
+import { CAPTAIN_DIR, isApiKey, SHIPYARD, loadConfig, saveConfig, texts, useSavedApiKey, version, type createCaptain } from "../captain.js";
 import { chestTexts, pageTexts } from "./texts.js";
 
 // El capitán en el navegador (ADR-026, #44): su propia web, sobre el controlador de chat del
@@ -24,8 +24,9 @@ export interface WebChatOptions {
 const MAX_UPLOAD = 50 * 1024 * 1024;
 
 /**
- * Arranca su web: devuelve la URL (con el token) y cómo cerrarla. Sin token de Claude, la página
- * lo pide; con él, abre la sesión.
+ * Arranca su web: devuelve la URL (con el token) y cómo cerrarla. Sin sesión de Claude, la página
+ * ofrece iniciarla con la cuenta de Claude (la inicia Claude Code, en la página de Anthropic) o
+ * usar una API key; con ella, abre la sesión.
  */
 export async function startWebChat(captain: Captain, options: WebChatOptions = {}): Promise<{ url: string; close: () => Promise<void> }> {
   const token = options.token ?? randomBytes(18).toString("base64url");
@@ -38,8 +39,8 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
   }
   // The language the person last chose here, kept in his home (#47).
   const saved = (await loadConfig(captain.home)).language;
-  // His Claude key, from his config.json when the environment brings none.
-  await useSavedClaudeKey(captain.home);
+  // The API key pasted here before, from his config.json when the environment brings none.
+  await useSavedApiKey(captain.home);
   if (saved) switchLanguage(saved);
 
   // La sesión, en cuanto hay con qué autenticarse.
@@ -61,7 +62,35 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
     })();
     return opening;
   }
-  if (resolveClaudeAuth()) void openChat();
+  if (await claudeSignedIn()) void openChat();
+
+  // A sign-in with the Claude account in progress (#90): Claude Code's own `auth login`, which
+  // opens Anthropic's page and keeps the sign-in itself. The page shows its link, in case the
+  // browser didn't open, and takes the code Anthropic's page shows; nothing here sees a token.
+  let signing: { flow: ClaudeSignIn; url: string | null; cancelled: boolean } | null = null;
+  let signInFailed = false;
+  function startSignIn(): void {
+    if (signing || chat) return;
+    signInFailed = false;
+    const current = { flow: startClaudeSignIn(), url: null as string | null, cancelled: false };
+    signing = current;
+    void current.flow.url.then((url) => {
+      current.url = url ?? null;
+      schedule();
+    });
+    // The sign-in screen stays until the chat is open.
+    void current.flow.done
+      .then(async (signedIn) => {
+        // Cancelled on the page: back to the choice, no error.
+        signInFailed = !signedIn && !current.cancelled;
+        if (signedIn) await openChat();
+      })
+      .finally(() => {
+        if (signing === current) signing = null;
+        schedule();
+      });
+    schedule();
+  }
 
   // Una persona a la vez: la última conexión manda, y la anterior se entera.
   let client: ServerResponse | null = null;
@@ -75,7 +104,7 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
     }, 50);
   }
   function snapshot() {
-    return { signedIn: Boolean(chat), chat: chat?.getState() ?? null };
+    return { signedIn: Boolean(chat), signIn: signing ? { url: signing.url } : null, signInFailed, chat: chat?.getState() ?? null };
   }
   function send(event: string, data: unknown): void {
     client?.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -102,7 +131,20 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
 
   /** What the person does, by path. */
   async function act(action: string, data: Record<string, unknown>): Promise<unknown> {
-    if (action === "login") return await signIn(String(data.token ?? ""));
+    if (action === "sign-in") {
+      startSignIn();
+      return {};
+    }
+    if (action === "sign-in-code") {
+      signing?.flow.sendCode(String(data.code ?? ""));
+      return {};
+    }
+    if (action === "sign-in-cancel") {
+      if (signing) signing.cancelled = true;
+      signing?.flow.cancel();
+      return {};
+    }
+    if (action === "api-key") return await useApiKey(String(data.key ?? ""));
     if (!chat) return { error: "signed out" };
     const current = chat;
     switch (action) {
@@ -194,13 +236,17 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
     }
   }
 
-  /** The token the person pasted: an API key or an OAuth token, into his config.json and the process. */
-  async function signIn(pasted: string): Promise<unknown> {
+  /**
+   * The API key the person pasted, into his config.json and the process. A Claude account's
+   * token (`sk-ant-oat…`) is refused: Anthropic's terms don't let an agent take one (#90).
+   */
+  async function useApiKey(pasted: string): Promise<unknown> {
     const value = pasted.trim();
-    const variable = claudeKeyVariable(value);
-    if (!variable) return { error: "invalid" };
-    process.env[variable] = value;
-    await saveConfig(captain.home, { claudeToken: value });
+    if (value.startsWith("sk-ant-oat")) return { error: "account token" };
+    if (!isApiKey(value)) return { error: "invalid" };
+    process.env.ANTHROPIC_API_KEY = value;
+    await saveConfig(captain.home, { apiKey: value });
+    signing?.flow.cancel();
     await openChat();
     return {};
   }
@@ -335,6 +381,7 @@ export async function startWebChat(captain: Captain, options: WebChatOptions = {
     url: `http://127.0.0.1:${port}/?token=${token}`,
     async close() {
       clearInterval(heartbeat);
+      signing?.flow.cancel();
       client?.end();
       (chat as ChatController | null)?.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));

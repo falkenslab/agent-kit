@@ -3,7 +3,7 @@
 // leaves this process, and loads it in the window: the same page as in a browser, with the
 // window's own file picker. Everything he keeps goes in his home, ~/.captain-whiskers, the same
 // as in the terminal and the browser: his logbook, chest, conversations, memory, extensions, and
-// his config.json (the Claude key he signs in with, his language, this window's place). The
+// his config.json (an API key if one was pasted, his language, this window's place). The
 // app's own data folder keeps only Electron's caches.
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";

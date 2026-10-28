@@ -14,7 +14,7 @@ El kit no impone una estructura, pero todo lo que hace es relativo a unas pocas 
 my-agent/
 ├── package.json          "type": "module", depends on @falkenslab/agent-kit
 ├── tsconfig.json
-├── .env                  CLAUDE_CODE_OAUTH_TOKEN=… (git-ignored)
+├── .env                  ANTHROPIC_API_KEY=…, if you use one (git-ignored)
 ├── .gitignore            .env, .run/, node_modules/
 ├── agent.ts              the entry point: spec, config, chat
 ├── prompts/              system prompt templates (createPromptLoader)

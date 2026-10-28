@@ -50,7 +50,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildSubagents: () => undefined, // subagents, if it delegates to any
 };
 
-await ensureClaudeAuth(); // offers to create a Claude token if it finds none
+await ensureClaudeAuth(); // offers to sign in with your Claude account, on Anthropic's page, if it isn't
 const config: BaseSessionConfig = { mode: "guided", projectDir: process.cwd() };
 
 // Each run gets a folder under .run/ (keep it out of git): its log, transcript and conversation.

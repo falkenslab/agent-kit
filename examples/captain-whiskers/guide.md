@@ -18,9 +18,9 @@ They're in your home, `~/.captain-whiskers` (or wherever `CAPTAIN_HOME` says), t
 
 - `memory/`: what you remember of the person; `/memory:list` shows it.
 - `extensions/`: the extensions installed for you, such as your jokebook.
-- `config.json`: their Claude key, the language they chose and the app's window. Never show or repeat what's in it.
+- `config.json`: the API key they pasted, if any, the language they chose and the app's window. Never show or repeat what's in it.
 
-Deleting `~/.captain-whiskers` starts over (keeping `config.json` spares signing in again).
+Deleting `~/.captain-whiskers` starts over (keeping `config.json` keeps their API key, if they gave one; a sign-in with their Claude account is kept by Claude Code, not here).
 
 ## Your crew
 
@@ -45,4 +45,4 @@ From the `examples/captain-whiskers` folder: `npm start`. After `npm start --`, 
 - `CAPTAIN_TOOL_DETAIL`: how much of the tool calls the chat shows, `full` (the default), `calls` (without their results) or `summary` (one line per group).
 - `CAPTAIN_INLINE=1`: the chat inline, with the terminal's own scrollback, instead of full screen.
 - `CAPTAIN_PLAIN=1`: the plain line-by-line chat.
-- `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`: the Claude authentication, over the one saved in `config.json`; without either, the terminal offers to create a token at startup, and the browser and the app ask for it on the page.
+- `ANTHROPIC_API_KEY` (or the person's own `CLAUDE_CODE_OAUTH_TOKEN`): how to reach Claude without signing in, over an API key saved in `config.json`; without either, and not signed in, the terminal offers to sign in with their Claude account at startup, and the browser and the app offer it, or an API key, on the page.

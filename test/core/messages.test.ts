@@ -33,7 +33,7 @@ test("a key missing in a language falls back to English", () => {
   assert.equal(partial.labels.reading("a.txt"), "Reading a.txt");
   // Nested groups merge key by key, not as a whole.
   assert.equal(messagesFor("de").labels.reading("a.txt"), "Liest a.txt");
-  assert.equal(messagesFor("de").auth.noToken.startsWith("Es wurde"), true);
+  assert.equal(messagesFor("de").auth.notSignedIn.startsWith("Du bist"), true);
 });
 
 test("the kit's labels follow the current language", () => {

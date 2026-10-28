@@ -47,7 +47,6 @@ export interface CaptainTexts {
   mode: string;
   welcome: string;
   suggestion: string;
-  tokenSaved: (file: string) => string;
 }
 
 const TEXTS: Record<Language, CaptainTexts> = {
@@ -57,7 +56,6 @@ const TEXTS: Record<Language, CaptainTexts> = {
     mode: "modo",
     welcome: "El Capitán Bigotes ha subido a bordo. Escribe /exit para desembarcar, /captain-whiskers:joke para pedirle uno directamente o /resume para retomar una conversación.",
     suggestion: "cuéntame un chiste fresco",
-    tokenSaved: (file) => `Token guardado en ${file}.`,
   },
   en: {
     name: "Captain Whiskers",
@@ -65,7 +63,6 @@ const TEXTS: Record<Language, CaptainTexts> = {
     mode: "mode",
     welcome: "Captain Whiskers is aboard. Type /exit to disembark, /captain-whiskers:joke to ask for a joke right away or /resume to pick up a conversation.",
     suggestion: "tell me a fresh joke",
-    tokenSaved: (file) => `Token saved to ${file}.`,
   },
   fr: {
     name: "Capitaine Moustaches",
@@ -73,7 +70,6 @@ const TEXTS: Record<Language, CaptainTexts> = {
     mode: "mode",
     welcome: "Le Capitaine Moustaches est à bord. Tape /exit pour débarquer, /captain-whiskers:joke pour une blague tout de suite ou /resume pour reprendre une conversation.",
     suggestion: "raconte-moi une nouvelle blague",
-    tokenSaved: (file) => `Jeton enregistré dans ${file}.`,
   },
   de: {
     name: "Käpt'n Schnurrbart",
@@ -81,7 +77,6 @@ const TEXTS: Record<Language, CaptainTexts> = {
     mode: "Modus",
     welcome: "Käpt'n Schnurrbart ist an Bord. Tippe /exit zum Vonbordgehen, /captain-whiskers:joke für einen Witz oder /resume, um ein Gespräch fortzusetzen.",
     suggestion: "erzähl mir einen neuen Witz",
-    tokenSaved: (file) => `Token in ${file} gespeichert.`,
   },
 };
 /** Sus textos en `language`, o en el idioma del kit ahora mismo. */
@@ -223,7 +218,7 @@ export async function createCaptain(options: { home?: string; mode?: Mode } = {}
     extensionDirs,
     // Su astillero: el catálogo de /extensions (en la terminal, la web y la app) ofrece lo que tiene.
     officialMarketplace: SHIPYARD,
-    // Su clave de Claude, en config.json: nunca a la vista del modelo.
+    // Su API key, si se le dio una, en config.json: nunca a la vista del modelo.
     deniedPaths: [configPath(home)],
   };
   // Cada ejecución en su carpeta de .run/: su log, su transcripción y la conversación, para
@@ -234,10 +229,14 @@ export async function createCaptain(options: { home?: string; mode?: Mode } = {}
   return { home, mode, config, runsDir, extensionDirs, opener, historyPath: path.join(runsDir, "history.jsonl") };
 }
 
-/** Su configuración (config.json en su casa): la clave de Claude, el idioma elegido, la ventana de su app. */
+/**
+ * Su configuración (config.json en su casa): su API key si se le dio una, el idioma elegido, la
+ * ventana de su app. Nunca un token de una cuenta de Claude: las condiciones de Anthropic no
+ * dejan que un agente lo guarde (la sesión la guarda Claude Code al iniciarla, #90).
+ */
 export interface CaptainConfig {
-  /** La clave con la que entra en Claude: un token OAuth (`sk-ant-oat…`) o una API key (`sk-ant-api…`). */
-  claudeToken?: string;
+  /** Una API key de Anthropic (`sk-ant-api…`), la que se pegó en su página. */
+  apiKey?: string;
   language?: Language;
   /** Dónde y de qué tamaño quedó la ventana de su app de escritorio. */
   window?: { x?: number; y?: number; width: number; height: number };
@@ -250,6 +249,8 @@ export async function loadConfig(home: string = CAPTAIN_HOME): Promise<CaptainCo
   try {
     const config = JSON.parse(await readFile(configPath(home), "utf8")) as CaptainConfig;
     if (config.language && !SUPPORTED_LANGUAGES.includes(config.language)) delete config.language;
+    // El token de cuenta que guardaban versiones anteriores: fuera en cuanto se vuelva a guardar.
+    delete (config as { claudeToken?: unknown }).claudeToken;
     return config;
   } catch {
     return {};
@@ -263,17 +264,16 @@ export async function saveConfig(home: string, changes: CaptainConfig): Promise<
 `, { encoding: "utf8", mode: 0o600 });
 }
 
-/** La variable de entorno que el SDK lee para una clave: por su prefijo, o ninguna si no lo parece. */
-export function claudeKeyVariable(token: string): "CLAUDE_CODE_OAUTH_TOKEN" | "ANTHROPIC_API_KEY" | null {
-  return token.startsWith("sk-ant-api") ? "ANTHROPIC_API_KEY" : token.startsWith("sk-ant-oat") ? "CLAUDE_CODE_OAUTH_TOKEN" : null;
+/** Si lo pegado es una API key de Anthropic (`sk-ant-api…`): lo único que guarda. */
+export function isApiKey(value: string): boolean {
+  return value.startsWith("sk-ant-api");
 }
 
-/** La clave guardada, puesta en el entorno para el SDK; la del entorno, si ya hay una, manda. */
-export async function useSavedClaudeKey(home: string = CAPTAIN_HOME): Promise<void> {
+/** Su API key guardada, puesta en el entorno para el SDK; lo que ya traiga el entorno manda. */
+export async function useSavedApiKey(home: string = CAPTAIN_HOME): Promise<void> {
   if (process.env.CLAUDE_CODE_OAUTH_TOKEN || process.env.ANTHROPIC_API_KEY) return;
-  const token = (await loadConfig(home)).claudeToken;
-  const variable = token ? claudeKeyVariable(token) : null;
-  if (variable) process.env[variable] = token;
+  const key = (await loadConfig(home)).apiKey;
+  if (key && isApiKey(key)) process.env.ANTHROPIC_API_KEY = key;
 }
 
 /** Copia las muestras al cofre si aún no tiene nada (una carpeta nueva, o vacía). */

@@ -77,13 +77,16 @@ A view that draws as things happen (a terminal) follows `onEvent()` instead: the
 ```ts title="main/agent.ts"
 import path from "node:path";
 import { app, ipcMain, type BrowserWindow } from "electron";
-import { buildSessionOptions, createChatController, resolveClaudeAuth, setLanguage } from "@falkenslab/agent-kit";
+import { buildSessionOptions, claudeSignedIn, createChatController, setLanguage, startClaudeSignIn } from "@falkenslab/agent-kit";
 import { spec, type Config } from "./spec.js";
 
 export async function startAgent(window: BrowserWindow, workspace: string): Promise<void> {
-  if (!resolveClaudeAuth({ claudeCodeOAuthToken: await readTokenFromKeychain() })) {
-    window.webContents.send("agent:needs-login");
-    return;
+  // Claude Code's own sign-in (Anthropic's page); the app never sees a token.
+  if (!(await claudeSignedIn())) {
+    const signIn = startClaudeSignIn();
+    void signIn.url.then((url) => window.webContents.send("agent:sign-in", url));
+    ipcMain.on("agent:sign-in-code", (_event, code: string) => signIn.sendCode(code));
+    if (!(await signIn.done)) return;
   }
   setLanguage(app.getLocale().startsWith("es") ? "es" : "en");
 
@@ -135,7 +138,7 @@ Captain Whiskers is a full example: `examples/captain-whiskers/web/` (his web ho
 
 - **Don't import the terminal UI at startup if you don't need it.** Everything is exported from the package root; importing it installs the terminal interaction port, which `panels: "state"` (or your own `setInteractionPort()`) replaces. The terminal port does nothing without a TTY anyway.
 - **One language and one theme per process.** Set the language with `setLanguage()` before building options, or switch it later with the controller's `setLanguage()`; themes only affect the terminal UI.
-- **Credentials**: `resolveClaudeAuth()` never prompts; getting a token (a login screen that runs `claude setup-token`, a settings field) is your host's job.
+- **Credentials**: `claudeSignedIn()` never prompts. To sign in, `startClaudeSignIn()` runs Claude Code's own `auth login`: show its `url` as a link and a box for the code Anthropic's page shows. Never ask for, store or pass on a Claude account's token: [Anthropic's terms](https://code.claude.com/docs/en/legal-and-compliance) don't allow it (see [Authentication](../getting-started/authentication.md)). An API key field is fine.
 - **Where run folders go**: somewhere private to the user (`app.getPath("userData")`), since they hold whole conversations.
 - **Your own reader instead**: a host can still drive `runQuery()` and `createInputQueue()` itself. Then `prompt-suggestion` arrives after `turn-end` and `mcp-error` before the first turn: keep one reader for the whole session.
 

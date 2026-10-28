@@ -6,7 +6,7 @@ export { setTheme, getTheme, DEFAULT_THEME, type Theme, type ThemeColor } from "
 export { isExitPromptError } from "./tui/promptErrors.js";
 export { allowAnyMcpTool } from "./core/mcpPermissions.js";
 export { createPromptLoader } from "./core/promptTemplate.js";
-export { resolveClaudeAuth, type ClaudeAuthConfig } from "./core/claudeAuth.js";
+export { claudeExecutable, claudeSignedIn, startClaudeSignIn, type ClaudeAuthOptions, type ClaudeSignIn } from "./core/claudeAuth.js";
 export { ensureClaudeAuth } from "./tui/claudeAuth.js";
 export {
   createFriendlyToolLabel,

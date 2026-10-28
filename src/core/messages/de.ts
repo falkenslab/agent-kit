@@ -204,12 +204,14 @@ export const de: Partial<Messages> = {
   },
 
   auth: {
-    noToken: "Es wurde kein Claude-Authentifizierungstoken gefunden",
-    noTokenDetail: "(weder die Umgebungsvariable CLAUDE_CODE_OAUTH_TOKEN noch ein im Code übergebenes).",
-    generateQuestion: 'Jetzt eines mit "claude setup-token" erzeugen? (erfordert ein Claude-Pro/Max-Abonnement)',
-    cantStart: "Der Agent kann ohne Token nicht starten. Setze CLAUDE_CODE_OAUTH_TOKEN von Hand (oder starte erneut und lass es erzeugen) und versuche es noch einmal.",
-    generatingHeading: "=== Claude-Authentifizierungstoken wird erzeugt ===",
-    browserWillOpen: "Zum Anmelden öffnet sich ein Browser; folge den Anweisungen, die der Befehl unten ausgibt.",
-    generated: "Token für diese Ausführung erzeugt. Speichere es selbst (z. B. CLAUDE_CODE_OAUTH_TOKEN im Profil deiner Shell), um diesen Schritt beim nächsten Mal zu überspringen.",
+    notSignedIn: "Du bist nicht bei Claude angemeldet",
+    notSignedInDetail: "Melde dich mit deinem Claude-Konto auf Anthropics eigener Seite an: Das übernimmt Claude Code, das mit diesem Agenten kommt, und es speichert die Anmeldung selbst. Oder setze ANTHROPIC_API_KEY, um einen API-Schlüssel zu verwenden.",
+    signInQuestion: "Jetzt mit deinem Claude-Konto anmelden?",
+    cantStart: "Der Agent kann ohne Claude nicht starten. Starte ihn erneut und melde dich an, oder setze ANTHROPIC_API_KEY.",
+    signingInHeading: "=== Anmeldung bei Claude ===",
+    browserWillOpen: "Ein Browser öffnet sich mit Anthropics Anmeldeseite. Zeigt die Seite einen Code, füge ihn hier ein.",
+    signedIn: "Angemeldet. Claude Code speichert die Anmeldung, du wirst nicht erneut gefragt.",
+    notCompleted: "Die Anmeldung wurde nicht abgeschlossen. Starte den Agenten erneut, um es noch einmal zu versuchen, oder setze ANTHROPIC_API_KEY.",
+    noClaude: "Das Claude-Code-Programm, das mit dem Agent SDK kommt (@anthropic-ai/claude-agent-sdk-<Plattform>-<Architektur>), ist nicht installiert, daher ist keine Anmeldung möglich. Installiere den Agenten neu, oder setze ANTHROPIC_API_KEY.",
   },
 };

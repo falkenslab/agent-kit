@@ -8,7 +8,7 @@ description: A step-by-step tutorial, from a chat with a system prompt to an age
 
 This tutorial builds a small research assistant, **Scout**, one step at a time. Each step is a complete `agent.ts` you can run with `npx tsx agent.ts`; each adds one capability of the kit.
 
-Before you start, set up a project as in [Installation](installation.md) and make sure [authentication](authentication.md) works (`CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment).
+Before you start, set up a project as in [Installation](installation.md) and make sure the agent can reach Claude (a sign-in with your Claude account, or `ANTHROPIC_API_KEY`: see [Authentication](authentication.md)).
 
 ## Step 1: a chat with a system prompt
 
@@ -30,7 +30,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildSubagents: () => undefined,
 };
 
-// 2. Credentials: offers to create a token if there's none.
+// 2. Claude: offers to sign in with the Claude account if the agent can't reach it.
 await ensureClaudeAuth();
 
 // 3. How it runs: the oversight mode and the folder it works in.

@@ -6,9 +6,9 @@ description: Common problems when building or running an agent with the kit, and
 
 # Troubleshooting
 
-## The agent doesn't start: no Claude authentication token
+## The agent doesn't start: not signed in to Claude
 
-Set `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token` creates one with a Pro/Max subscription) or `ANTHROPIC_API_KEY`. Node doesn't read `.env` files by itself: load yours with `process.loadEnvFile()` (see [Authentication](../getting-started/authentication.md)).
+Sign in with your Claude account when the agent offers it (`ensureClaudeAuth()` runs Claude Code's own `claude auth login`, which opens Anthropic's page; paste the code the page shows, if it shows one), or set `ANTHROPIC_API_KEY`. If it says Claude Code's binary isn't installed, reinstall the agent's dependencies: the Agent SDK ships it as `@anthropic-ai/claude-agent-sdk-<platform>-<arch>`, an optional dependency some installs skip. Node doesn't read `.env` files by itself: load yours with `process.loadEnvFile()` (see [Authentication](../getting-started/authentication.md)).
 
 ## `ERR_REQUIRE_ESM` or "Cannot use import statement outside a module"
 

@@ -204,12 +204,14 @@ export const fr: Partial<Messages> = {
   },
 
   auth: {
-    noToken: "Aucun jeton d'authentification Claude n'a été trouvé",
-    noTokenDetail: "(ni la variable d'environnement CLAUDE_CODE_OAUTH_TOKEN, ni un jeton passé par le code).",
-    generateQuestion: 'En générer un maintenant avec "claude setup-token" ? (nécessite un abonnement Claude Pro/Max)',
-    cantStart: "L'agent ne peut pas démarrer sans jeton. Définissez CLAUDE_CODE_OAUTH_TOKEN à la main (ou relancez et acceptez de le générer), puis réessayez.",
-    generatingHeading: "=== Génération d'un jeton d'authentification Claude ===",
-    browserWillOpen: "Un navigateur va s'ouvrir pour vous connecter ; suivez les instructions que la commande affiche ci-dessous.",
-    generated: "Jeton généré pour cette exécution. Enregistrez-le vous-même (par ex. CLAUDE_CODE_OAUTH_TOKEN dans le profil de votre shell) pour éviter cette étape la prochaine fois.",
+    notSignedIn: "Tu n'es pas connecté à Claude",
+    notSignedInDetail: "Connecte-toi avec ton compte Claude sur la page d'Anthropic : c'est Claude Code, fourni avec cet agent, qui s'en charge et garde lui-même la connexion. Ou définis ANTHROPIC_API_KEY pour utiliser une clé d'API.",
+    signInQuestion: "Se connecter maintenant avec ton compte Claude ?",
+    cantStart: "L'agent ne peut pas démarrer sans Claude. Relance-le et connecte-toi, ou définis ANTHROPIC_API_KEY.",
+    signingInHeading: "=== Connexion à Claude ===",
+    browserWillOpen: "Un navigateur va s'ouvrir sur la page de connexion d'Anthropic. Si la page affiche un code, colle-le ici.",
+    signedIn: "Connecté. Claude Code garde la connexion : on ne te la redemandera pas.",
+    notCompleted: "La connexion n'a pas abouti. Relance l'agent pour réessayer, ou définis ANTHROPIC_API_KEY.",
+    noClaude: "Le binaire de Claude Code fourni avec l'Agent SDK (@anthropic-ai/claude-agent-sdk-<plateforme>-<architecture>) n'est pas installé : impossible de se connecter. Réinstalle l'agent, ou définis ANTHROPIC_API_KEY.",
   },
 };

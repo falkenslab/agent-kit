@@ -9,7 +9,7 @@ description: Checklist for adding or changing anything in agent-kit's public API
 
 `src/` is split along one question: **does this code assume a terminal?**
 - `src/core/`: no `console.*`, `process.stdout`, `readline`, colors or prompts. Must be usable from Electron's main process, a server or a sidecar. This is where `AgentSpec`, `buildSessionOptions()`, hooks, tools, auth resolution, transcript logging and `runQuery()` live.
-- `src/tui/`: terminal-only (`readline`, `picocolors`, `@inquirer/prompts`): `runChatTui()`, `ensureClaudeAuth()`, `ui`.
+- `src/tui/`: terminal-only (`readline`, `picocolors`, `@inquirer/prompts`): `runChatTui()`, `ensureClaudeAuth()`, `ui`. (`claudeSignedIn()` and `startClaudeSignIn()` are core: they print nothing.)
 - `src/extensions/<name>/`: an internal extension (ADR-025), the knowledge base or the sources folder: its store, tools and prompt section, declared to the core through `src/core/extensions.ts` (its `index.ts` returns its contribution). Like the core, no terminal. It imports the core; the core imports it only through `src/core/extensions.ts`, and it never imports another extension (ESLint enforces both). Its plugin (skills, commands, manifest) goes in `extensions/<name>/`.
 - `core/` must never import from `tui/`. Only `src/index.ts` may import from both.
 - If a core function needs to print or prompt, that is a sign it belongs in `tui/`, or the terminal behavior must be gated (see `askForDecision()`, silent when stdin is not a TTY).

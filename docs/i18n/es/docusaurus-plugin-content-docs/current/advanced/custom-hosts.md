@@ -77,13 +77,16 @@ Una vista que dibuja según ocurren las cosas (un terminal) sigue en su lugar `o
 ```ts title="main/agent.ts"
 import path from "node:path";
 import { app, ipcMain, type BrowserWindow } from "electron";
-import { buildSessionOptions, createChatController, resolveClaudeAuth, setLanguage } from "@falkenslab/agent-kit";
+import { buildSessionOptions, claudeSignedIn, createChatController, setLanguage, startClaudeSignIn } from "@falkenslab/agent-kit";
 import { spec, type Config } from "./spec.js";
 
 export async function startAgent(window: BrowserWindow, workspace: string): Promise<void> {
-  if (!resolveClaudeAuth({ claudeCodeOAuthToken: await readTokenFromKeychain() })) {
-    window.webContents.send("agent:needs-login");
-    return;
+  // Claude Code's own sign-in (Anthropic's page); the app never sees a token.
+  if (!(await claudeSignedIn())) {
+    const signIn = startClaudeSignIn();
+    void signIn.url.then((url) => window.webContents.send("agent:sign-in", url));
+    ipcMain.on("agent:sign-in-code", (_event, code: string) => signIn.sendCode(code));
+    if (!(await signIn.done)) return;
   }
   setLanguage(app.getLocale().startsWith("es") ? "es" : "en");
 
@@ -135,7 +138,7 @@ Captain Whiskers es un ejemplo completo: `examples/captain-whiskers/web/` (su ho
 
 - **No importes la interfaz de terminal al arrancar si no la necesitas.** Todo se exporta desde la raíz del paquete; importarlo instala el puerto de interacción del terminal, que `panels: "state"` (o tu propio `setInteractionPort()`) sustituye. De todos modos, el puerto del terminal no hace nada sin TTY.
 - **Un idioma y un tema por proceso.** Define el idioma con `setLanguage()` antes de construir las opciones, o cámbialo después con el `setLanguage()` del controlador; los temas solo afectan a la interfaz de terminal.
-- **Credenciales**: `resolveClaudeAuth()` nunca pregunta; conseguir un token (una pantalla de inicio de sesión que ejecuta `claude setup-token`, un campo de ajustes) es trabajo de tu host.
+- **Credenciales**: `claudeSignedIn()` nunca pregunta. Para iniciar sesión, `startClaudeSignIn()` ejecuta el propio `auth login` de Claude Code: muestra su `url` como enlace y un cuadro para el código que muestra la página de Anthropic. Nunca pidas, guardes ni pases el token de una cuenta de Claude: las [condiciones de Anthropic](https://code.claude.com/docs/en/legal-and-compliance) no lo permiten (consulta [Autenticación](../getting-started/authentication.md)). Un campo para una API key, sí.
 - **Dónde van las carpetas de las ejecuciones**: en algún sitio privado del usuario (`app.getPath("userData")`), porque guardan conversaciones enteras.
 - **Tu propio lector en su lugar**: un host todavía puede manejar `runQuery()` y `createInputQueue()` por sí mismo. Entonces `prompt-suggestion` llega después de `turn-end` y `mcp-error` antes del primer turno: mantén un único lector para toda la sesión.
 

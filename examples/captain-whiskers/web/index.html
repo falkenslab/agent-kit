@@ -233,6 +233,13 @@
   .signin h2 { margin: 12px 0 8px; font-size: 21px; }
   .signin p { color: var(--text-2); font-size: 14.5px; margin: 0 0 16px; }
   .signin .error { color: var(--error); font-size: 13.5px; min-height: 1.3em; margin-top: 8px; }
+  .signin .wide { width: 100%; margin-top: 8px; }
+  .signin .wait { text-align: left; margin-top: 4px; }
+  .signin .wait p { margin: 0 0 8px; font-size: 13.5px; }
+  .signin .wait a { color: var(--gold); word-break: break-all; font-size: 13px; }
+  .signin .row { display: flex; gap: 8px; margin-top: 8px; } .signin .row .btn { flex: 1; }
+  .signin .or { display: flex; align-items: center; gap: 10px; color: var(--dim); font-size: 12.5px; margin: 18px 0 4px; }
+  .signin .or::before, .signin .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 
   @media (max-width: 640px) {
     .popover { position: fixed; top: auto; left: 0; right: 0; bottom: 0; border-radius: 18px 18px 0 0; padding: 8px 8px max(12px, env(safe-area-inset-bottom)); min-width: 0; max-height: 70vh; overflow-y: auto; }
@@ -288,9 +295,17 @@
     <span id="logo-signin"></span>
     <h2 id="signin-title"></h2>
     <p id="signin-text"></p>
+    <button class="btn primary wide" id="signin-claude" type="button"></button>
+    <div class="wait" id="signin-wait" hidden>
+      <p id="signin-wait-text"></p>
+      <p><a id="signin-link" target="_blank" rel="noopener noreferrer"></a></p>
+      <input class="field" id="signin-code" autocomplete="off" spellcheck="false">
+      <div class="row"><button class="btn ghost" id="signin-cancel" type="button"></button><button class="btn primary" id="signin-code-button" type="button"></button></div>
+    </div>
+    <div class="or" id="signin-or"></div>
     <input class="field" id="signin-key" type="password" autocomplete="off" spellcheck="false">
+    <button class="btn wide" id="signin-button" type="button"></button>
     <div class="error" id="signin-error"></div>
-    <button class="btn primary" id="signin-button" type="button" style="width:100%;margin-top:8px"></button>
   </div>
 </section>
 
@@ -594,6 +609,7 @@ $("jump").addEventListener("click", () => ($("scroller").scrollTop = $("scroller
 function render() {
   const signedIn = Boolean(state?.signedIn);
   $("signin").classList.toggle("on", !signedIn && connected);
+  renderSignIn();
   for (const id of ["scroller", "footer"]) $(id).style.display = signedIn ? "" : "none";
   document.querySelector(".dock").style.display = signedIn ? "" : "none";
   $("toolbar").style.visibility = signedIn ? "" : "hidden";
@@ -1520,9 +1536,33 @@ $("composer").addEventListener("submit", async (event) => {
   }
 });
 
+// Sign in with the Claude account: Claude Code opens Anthropic's page (the link, in case it
+// didn't), and the code that page shows, if it shows one, goes back to it. Or an API key.
+function renderSignIn() {
+  const signing = state?.signIn;
+  $("signin-claude").hidden = Boolean(signing);
+  $("signin-wait").hidden = !signing;
+  $("signin-link").textContent = signing?.url ? T.signInLink : "";
+  if (signing?.url) $("signin-link").href = signing.url;
+  else $("signin-link").removeAttribute("href");
+  if (state?.signInFailed && !$("signin-error").textContent) $("signin-error").textContent = T.signInFailed;
+}
+$("signin-claude").addEventListener("click", async () => {
+  $("signin-error").textContent = "";
+  const result = await act("sign-in");
+  if (result.error && result.error !== "network") $("signin-error").textContent = result.error;
+});
+$("signin-code-button").addEventListener("click", () => {
+  const code = $("signin-code").value.trim();
+  if (!code) return;
+  $("signin-code").value = "";
+  void act("sign-in-code", { code });
+});
+$("signin-code").addEventListener("keydown", (event) => event.key === "Enter" && $("signin-code-button").click());
+$("signin-cancel").addEventListener("click", () => void act("sign-in-cancel"));
 $("signin-button").addEventListener("click", async () => {
-  const result = await act("login", { token: $("signin-key").value });
-  $("signin-error").textContent = result.error ? T.invalidKey : "";
+  const result = await act("api-key", { key: $("signin-key").value });
+  $("signin-error").textContent = result.error === "account token" ? T.accountToken : result.error ? T.invalidKey : "";
 });
 $("signin-key").addEventListener("keydown", (event) => event.key === "Enter" && $("signin-button").click());
 
@@ -1554,6 +1594,12 @@ function applyInfo() {
   $("ext-button").title = T.extensions;
   $("signin-title").textContent = T.signInTitle;
   $("signin-text").innerHTML = inline(T.signInText);
+  $("signin-claude").textContent = T.signInClaude;
+  $("signin-wait-text").textContent = T.signInWaiting;
+  $("signin-code").placeholder = T.signInCode;
+  $("signin-code-button").textContent = T.signInSendCode;
+  $("signin-cancel").textContent = T.signInCancel;
+  $("signin-or").textContent = T.signInOr;
   $("signin-key").placeholder = T.signInPlaceholder;
   $("signin-button").textContent = T.signIn;
 }

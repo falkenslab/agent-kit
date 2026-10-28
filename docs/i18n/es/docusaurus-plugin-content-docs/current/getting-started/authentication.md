@@ -1,90 +1,85 @@
 ---
 sidebar_position: 2
 title: Autenticación
-description: Cómo se autentica contra Claude un agente construido con el kit, y cómo conseguir un token de forma interactiva.
+description: Cómo llega a Claude un agente construido con el kit - una sesión con la cuenta de Claude de la persona, por el propio flujo de Anthropic, o una API key.
 ---
 
 # Autenticación
 
-El Claude Agent SDK ejecuta el CLI de Claude Code como subproceso, y ese subproceso lee sus credenciales del entorno. El kit nunca guarda un token por su cuenta: solo lo busca y, en un terminal, puede ayudar a la persona a conseguir uno.
+El Claude Agent SDK ejecuta Claude Code como subproceso, y Claude Code encuentra sus propias credenciales: una API key en el entorno, o la cuenta de Claude con la que se ha iniciado sesión en él. El kit nunca ve, devuelve ni guarda el token de una cuenta de Claude. Solo pregunta si la persona ha iniciado sesión y, si no, ejecuta el propio inicio de sesión de Claude Code.
+
+## Por qué: las condiciones de Anthropic {#why-anthropics-terms}
+
+Las [condiciones legales y de cumplimiento](https://code.claude.com/docs/en/legal-and-compliance) de Anthropic («Authentication and credential use») dicen que quien desarrolla sobre el Agent SDK no puede recoger, guardar ni hacer de intermediario de credenciales o tokens de sesión de Claude.ai: el inicio de sesión en una cuenta de Claude tiene que completarse por el propio flujo de Anthropic. Una persona puede iniciar sesión en el binario de Claude Code sin modificar con su propia suscripción de Claude, y las API keys están permitidas.
+
+Por eso el kit ejecuta el binario de Claude Code que trae el Agent SDK (`@anthropic-ai/claude-agent-sdk-<plataforma>-<arquitectura>`, sin modificar; nadie necesita tener Claude Code instalado) y deja que sea él quien inicie la sesión: `claude auth login` abre la página de Anthropic en el navegador, y el binario guarda él mismo las credenciales (en `~/.claude/`, o en el Llavero en macOS), donde las encuentra cada sesión de tu agente. Nada en el kit lee ese archivo.
 
 ## De dónde salen las credenciales {#where-credentials-come-from}
 
-En este orden:
+1. **`ANTHROPIC_API_KEY`**: una API key de Anthropic (el uso se factura a la cuenta de la API), definida por la persona o por tu host.
+2. **`CLAUDE_CODE_OAUTH_TOKEN`**, cuando la persona la define en su propio entorno: es ajuste suyo, y el kit no la pide, ni la crea, ni la guarda.
+3. **La cuenta de Claude con la sesión iniciada en Claude Code**: lo que dice `claude auth status`.
 
-1. **`ANTHROPIC_API_KEY`**: una clave de API de Anthropic (el uso se factura a la cuenta de la API). Cuando está definida, no se comprueba nada más.
-2. **`CLAUDE_CODE_OAUTH_TOKEN`**: un token de larga duración de una suscripción Claude Pro/Max, creado con `claude setup-token`.
-3. **Un token que tu código pasa** (`claudeCodeOAuthToken`), que el kit copia en `CLAUDE_CODE_OAUTH_TOKEN` para el subproceso.
-
-## `resolveClaudeAuth()`: buscarlo, sin interfaz {#resolveclaudeauth-look-it-up-headless}
+## `claudeSignedIn()`: preguntar, sin terminal {#claudesignedin-ask-headless}
 
 ```ts
-import { resolveClaudeAuth } from "@falkenslab/agent-kit";
+import { claudeSignedIn } from "@falkenslab/agent-kit";
 
-if (!resolveClaudeAuth({ claudeCodeOAuthToken: await myVault.get("claude") })) {
-  throw new Error("No Claude credentials");
+if (!(await claudeSignedIn())) {
+  // Ofrece iniciar sesión (startClaudeSignIn()) o una API key.
 }
 ```
 
-Es una búsqueda pura, sin E/S y sin salida por consola, segura en un servidor o en el proceso principal de Electron. Devuelve `true` cuando alguna de las tres fuentes tiene credenciales.
+Verdadero cuando el entorno tiene `ANTHROPIC_API_KEY` o `CLAUDE_CODE_OAUTH_TOKEN`; si no, ejecuta `claude auth status --json` y devuelve su `loggedIn`. No escribe nada en la consola: sirve en un servidor o en el proceso principal de Electron.
 
-## `ensureClaudeAuth()`: buscarlo o conseguir uno en un terminal {#ensureclaudeauth-look-it-up-or-get-one-in-a-terminal}
+## `ensureClaudeAuth()`: iniciar sesión desde un terminal {#ensureclaudeauth-sign-in-from-a-terminal}
 
 ```ts
 import { ensureClaudeAuth } from "@falkenslab/agent-kit";
 
-const newToken = await ensureClaudeAuth();
-if (newToken) {
-  // A token was just generated: save it wherever you keep secrets, for next time.
-}
+await ensureClaudeAuth();
 ```
 
-Cuando no encuentra credenciales:
+Cuando la persona no ha iniciado sesión:
 
-1. explica que no se ha encontrado ningún token;
-2. pregunta si se genera uno ahora con `claude setup-token` (ejecuta `npx @anthropic-ai/claude-code setup-token`, que abre un navegador para iniciar sesión);
-3. define `CLAUDE_CODE_OAUTH_TOKEN` para este proceso y devuelve el token.
+1. se lo dice, y que puede iniciarla con su cuenta de Claude en la página de Anthropic o definir `ANTHROPIC_API_KEY`;
+2. pregunta si iniciarla ahora;
+3. ejecuta `claude auth login` en el terminal: el navegador se abre en la página de Anthropic y, si la página muestra un código, la persona lo pega en el terminal;
+4. vuelve a comprobar `claudeSignedIn()`.
 
-Termina el proceso si la persona se niega o pulsa Ctrl+C: sin token no hay agente que ejecutar. Devuelve `undefined` cuando ya había credenciales.
+No devuelve nada, y no hay nada que guardar: Claude Code guarda la sesión, así que el siguiente arranque entra directamente. Termina el proceso si la persona dice que no, pulsa Ctrl+C o el inicio de sesión no se completa.
 
-Los textos siguen el idioma del kit; pasa `{ language }` como segundo argumento para forzar uno:
+Los textos siguen el idioma del kit; pasa `{ language }` para forzar uno:
 
 ```ts
-await ensureClaudeAuth({}, { language: "es" });
+await ensureClaudeAuth({ language: "es" });
 ```
 
-## Guardar el token en un fichero `.env` {#keeping-the-token-in-a-env-file}
+## `startClaudeSignIn()`: iniciar sesión desde una ventana o una página web {#startclaudesignin-sign-in-from-a-window-or-a-web-page}
 
-Node no lee ficheros `.env` por sí solo. Captain Whiskers carga el suyo al arrancar y guarda en él un token recién generado:
+Un host sin terminal ejecuta el mismo inicio de sesión con tuberías normales, y muestra en su propia pantalla lo que la persona necesita:
 
-```ts title="agent.ts"
-import { appendFile, readFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { ensureClaudeAuth } from "@falkenslab/agent-kit";
+```ts
+import { startClaudeSignIn } from "@falkenslab/agent-kit";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const envPath = path.join(here, ".env");
-
-// What's already in the environment wins over the file; without a file nothing changes.
-try {
-  process.loadEnvFile(envPath);
-} catch (error) {
-  if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-}
-
-const newToken = await ensureClaudeAuth();
-if (newToken) {
-  const previous = await readFile(envPath, "utf8").catch(() => "");
-  const separator = previous && !previous.endsWith("\n") ? "\n" : "";
-  await appendFile(envPath, `${separator}CLAUDE_CODE_OAUTH_TOKEN=${newToken}\n`);
-}
+const signIn = startClaudeSignIn(); // { console: true } para una cuenta de Anthropic Console
+const url = await signIn.url;       // la página de Anthropic: muéstrala como enlace, por si el navegador no se abrió
+// Cuando la persona pega el código que muestra esa página:
+signIn.sendCode(code);
+if (await signIn.done) openTheChat(); // done: el binario terminó, y la persona tiene la sesión iniciada
+// signIn.cancel() lo detiene.
 ```
+
+El binario abre el navegador él mismo. `url` es `undefined` si terminó sin escribir una, y `done` se resuelve con `claudeSignedIn()` cuando ha terminado. La página web del Capitán Bigotes hace exactamente esto: consulta [Captain Whiskers](../examples/captain-whiskers.md).
+
+## Una API key {#an-api-key}
+
+Una API key está permitida: define `ANTHROPIC_API_KEY` antes de que empiece la sesión. Un agente puede pedírsela a la persona (un campo de ajustes) y guardarla, como guarda el Capitán Bigotes la que se pega en su página. Node no lee archivos `.env` por sí solo: carga uno con `process.loadEnvFile()`.
 
 :::warning Mantén los secretos fuera del control de versiones
-Añade `.env` a tu `.gitignore`. El kit oculta `CLAUDE_CODE_OAUTH_TOKEN` en su propia [transcripción](../security/transcript.md), pero un `.env` subido por error es público para siempre.
+Añade `.env` a tu `.gitignore`. El kit oculta `CLAUDE_CODE_OAUTH_TOKEN` en su propia [transcripción](../security/transcript.md) cuando el entorno tiene uno, pero un `.env` subido por error es público para siempre.
 :::
 
-## Tu sesión de Claude Code no es la de tu agente {#your-claude-code-login-is-not-your-agents}
+## Tu sesión de Claude Code es la de tu agente {#your-claude-code-sign-in-is-your-agents}
 
-Si también usas Claude Code en la misma máquina, su sesión iniciada y su configuración viven en `~/.claude/`. El kit mantiene casi todo eso lejos de tu agente (consulta [Permisos y aislamiento](../security/permissions-and-isolation.md)), pero el CLI sigue añadiendo al contexto el nombre y el correo electrónico de la cuenta con la sesión iniciada. Eso puede influir en el idioma de las respuestas; consulta [Idiomas](../sessions/languages.md#limits).
+La sesión vive en `~/.claude/`, el mismo sitio donde la guarda Claude Code: si también usas Claude Code en la misma máquina, tu agente usa la cuenta con la que has iniciado sesión allí, e iniciarla desde cualquiera de los dos sirve para ambos. El kit mantiene el resto de esa carpeta (ajustes, skills, `CLAUDE.md`) lejos de tu agente (consulta [Permisos y aislamiento](../security/permissions-and-isolation.md)), pero el CLI sigue añadiendo al contexto el nombre y el correo electrónico de la cuenta con la sesión iniciada. Eso puede influir en el idioma de las respuestas; consulta [Idiomas](../sessions/languages.md#limits).

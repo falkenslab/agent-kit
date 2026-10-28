@@ -204,12 +204,14 @@ export const es: Partial<Messages> = {
   },
 
   auth: {
-    noToken: "No se ha encontrado ningún token de autenticación de Claude",
-    noTokenDetail: "(ni la variable de entorno CLAUDE_CODE_OAUTH_TOKEN ni uno pasado por código).",
-    generateQuestion: '¿Generar uno ahora con "claude setup-token"? (requiere una suscripción Claude Pro/Max)',
-    cantStart: "El agente no puede arrancar sin un token. Define CLAUDE_CODE_OAUTH_TOKEN a mano (o vuelve a ejecutarlo y acepta generarlo) e inténtalo de nuevo.",
-    generatingHeading: "=== Generando un token de autenticación de Claude ===",
-    browserWillOpen: "Se abrirá un navegador para iniciar sesión; sigue las instrucciones que el propio comando muestra abajo.",
-    generated: "Token generado para esta ejecución. Guárdalo tú (p. ej. CLAUDE_CODE_OAUTH_TOKEN en el perfil de tu shell) para no repetir esto la próxima vez.",
+    notSignedIn: "No has iniciado sesión en Claude",
+    notSignedInDetail: "Inicia sesión con tu cuenta de Claude en la propia página de Anthropic: lo hace Claude Code, que viene con este agente, y guarda él mismo la sesión. O define ANTHROPIC_API_KEY para usar una API key.",
+    signInQuestion: "¿Iniciar sesión ahora con tu cuenta de Claude?",
+    cantStart: "El agente no puede arrancar sin Claude. Vuelve a ejecutarlo e inicia sesión, o define ANTHROPIC_API_KEY.",
+    signingInHeading: "=== Iniciando sesión en Claude ===",
+    browserWillOpen: "Se abrirá un navegador en la página de inicio de sesión de Anthropic. Si la página muestra un código, pégalo aquí.",
+    signedIn: "Sesión iniciada. Claude Code la guarda, así que no se volverá a pedir.",
+    notCompleted: "El inicio de sesión no se completó. Vuelve a ejecutar el agente para reintentarlo, o define ANTHROPIC_API_KEY.",
+    noClaude: "No está instalado el binario de Claude Code que trae el Agent SDK (@anthropic-ai/claude-agent-sdk-<plataforma>-<arquitectura>), así que no hay cómo iniciar sesión. Reinstala el agente, o define ANTHROPIC_API_KEY.",
   },
 };

@@ -50,8 +50,8 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> chat contr
 - `todos.ts` — the SDK's `TodoWrite` task list, in every session: `parseTodos()`, `todoChanges()`; the chats draw the list instead of the calls.
 - `tools/time.ts` — `current_time`, `date_math` (server `time`), in every session and mode; `config.timeZone` or the system's.
 - `sessionFacts.ts` — `SessionFacts`, what a session is at the moment it's asked (#43): `buildSessionOptions()` builds the view (identity, versions, extensions and their servers, what's off, subagents, skills; the mode read from `ModeControl`) and ties it to the options under a symbol, so it survives a spread; `runQuery()` attaches the running session (its tools and skills from `init`, `supportedCommands()`, `getContextUsage()`). Extensions read it through `ExtensionContext.session()`.
-- `hooks/transcriptLogger.ts` — `transcript.jsonl`: secrets and the OAuth token redacted, long strings and base64 payloads summarized.
-- `claudeAuth.ts` — `resolveClaudeAuth()`: pure lookup, no I/O (ADR-009).
+- `hooks/transcriptLogger.ts` — `transcript.jsonl`: secrets and an environment's OAuth token redacted, long strings and base64 payloads summarized.
+- `claudeAuth.ts` — Claude Code's own sign-in, never a token (ADR-009): `claudeExecutable()` (the SDK's binary, unpacked when packaged), `claudeSignedIn()` (`auth status`), `startClaudeSignIn()` (`auth login` over pipes: URL, code, done).
 - `toolLabels.ts`, `promptTemplate.ts` — friendly tool labels, prompt loading.
 
 ## Key pieces (`src/extensions/`)
@@ -76,7 +76,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> chat contr
 - `language.ts` — `applyLanguage()`: chooses the kit's language for an entry point and shows the warnings.
 - `consoleRenderer.ts` — `createConsoleRenderer()`: prints events, shared by chat and one-shot runs.
 - `terminalInteraction.ts` — `terminalInteractionPort`, the default port installed by `index.ts`; `setSharedReadline()` for the chat's interface.
-- `claudeAuth.ts` — `ensureClaudeAuth()`: offers `claude setup-token`, returns a new token for the caller to persist.
+- `claudeAuth.ts` — `ensureClaudeAuth()`: offers `claude auth login` on the terminal when `claudeSignedIn()` is false; returns nothing.
 - `theme.ts` — the color theme by roles, its defaults and `setTheme()`; `ui.ts` — the palette (`ui` namespace), each function drawing its role in the current theme (ADR-021). `ink/inkTheme.tsx` — `KitTheme`, `@inkjs/ui`'s components in the theme.
 - `ink/` — the Ink UI (ADR-014): `runChatInk()` (the Ink view of the chat controller: `/resume` picks in place of the prompt, `/copy`, Shift+Tab), `createProgressView()`, `runWizard()`; `sessionModel.ts` (the screen built from the controller's events), `markdown.ts` (markdown to terminal lines), `toolGroup.ts` (folded tool calls), `inkInteraction.ts` (the Ink port), `SessionView.tsx` (history, live line, spinner, approval panel, status bar; inline or full screen), `PromptInput.tsx`, `fullscreen.ts` (alternate screen, mouse, scroll view; ADR-015), `header.ts` (title, fields and logo).
 

@@ -6,9 +6,9 @@ description: Problemas habituales al construir o ejecutar un agente con el kit, 
 
 # Solución de problemas
 
-## El agente no arranca: no hay token de autenticación de Claude {#the-agent-doesnt-start-no-claude-authentication-token}
+## El agente no arranca: no has iniciado sesión en Claude {#the-agent-doesnt-start-not-signed-in-to-claude}
 
-Define `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token` crea uno con una suscripción Pro/Max) o `ANTHROPIC_API_KEY`. Node no lee los ficheros `.env` por sí solo: carga el tuyo con `process.loadEnvFile()` (consulta [Autenticación](../getting-started/authentication.md)).
+Inicia sesión con tu cuenta de Claude cuando el agente lo ofrezca (`ensureClaudeAuth()` ejecuta el propio `claude auth login` de Claude Code, que abre la página de Anthropic; pega el código que muestra la página, si muestra uno), o define `ANTHROPIC_API_KEY`. Si dice que no está instalado el binario de Claude Code, reinstala las dependencias del agente: el Agent SDK lo trae como `@anthropic-ai/claude-agent-sdk-<plataforma>-<arquitectura>`, una dependencia opcional que algunas instalaciones se saltan. Node no lee los ficheros `.env` por sí solo: carga el tuyo con `process.loadEnvFile()` (consulta [Autenticación](../getting-started/authentication.md)).
 
 ## `ERR_REQUIRE_ESM` o "Cannot use import statement outside a module" {#err_require_esm-or-cannot-use-import-statement-outside-a-module}
 

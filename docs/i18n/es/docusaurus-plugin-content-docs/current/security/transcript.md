@@ -26,7 +26,7 @@ Un hook `PreToolUse` y otro `PostToolUse` añaden una línea por evento:
 - Las respuestas del modo guiado sobre las herramientas de una extensión instalada también van ahí, una línea cada una: `{"ts":"…","event":"guided_decision","extension":"canva","tool":"mcp__canva__create-design","answer":"session"}`. La respuesta es `yes`, `session`, `always`, `no` o `never` (las de la persona), `kept-never` (denegada por una respuesta guardada antes), `autonomous-deny` (nadie a quien preguntar) o `server-asks` (se deja pasar: su servidor pregunta él mismo a la persona).
 - El fichero se crea en la primera llamada a una herramienta; una sesión sin llamadas a herramientas no lo tiene.
 - Los resultados largos se cortan a los 2.000 caracteres, y las cargas en base64 (capturas de pantalla) se sustituyen por `[image omitted, N bytes base64]`, para que la transcripción de un agente de navegador siga siendo legible.
-- En cada línea se ocultan los secretos antes de escribirla: cada valor de `config.secrets`, y siempre `CLAUDE_CODE_OAUTH_TOKEN`, se convierten en `***`.
+- En cada línea se ocultan los secretos antes de escribirla: cada valor de `config.secrets`, y `CLAUDE_CODE_OAUTH_TOKEN` siempre que el entorno tenga uno, se convierten en `***`.
 
 ```ts
 const password = await readPasswordFromVault();

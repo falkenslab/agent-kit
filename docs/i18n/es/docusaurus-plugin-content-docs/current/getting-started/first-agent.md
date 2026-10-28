@@ -8,7 +8,7 @@ description: Un tutorial paso a paso, desde un chat con un prompt del sistema ha
 
 Este tutorial construye un pequeño asistente de investigación, **Scout**, paso a paso. Cada paso es un `agent.ts` completo que puedes ejecutar con `npx tsx agent.ts`; cada uno añade una capacidad del kit.
 
-Antes de empezar, prepara un proyecto como en [Instalación](installation.md) y asegúrate de que la [autenticación](authentication.md) funciona (`CLAUDE_CODE_OAUTH_TOKEN` o `ANTHROPIC_API_KEY` en el entorno).
+Antes de empezar, prepara un proyecto como en [Instalación](installation.md) y asegúrate de que el agente puede llegar a Claude (una sesión con tu cuenta de Claude, o `ANTHROPIC_API_KEY`: consulta [Autenticación](authentication.md)).
 
 ## Paso 1: un chat con un prompt del sistema {#step-1-a-chat-with-a-system-prompt}
 
@@ -30,7 +30,7 @@ const spec: AgentSpec<BaseSessionConfig> = {
   buildSubagents: () => undefined,
 };
 
-// 2. Credentials: offers to create a token if there's none.
+// 2. Claude: offers to sign in with the Claude account if the agent can't reach it.
 await ensureClaudeAuth();
 
 // 3. How it runs: the oversight mode and the folder it works in.

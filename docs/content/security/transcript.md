@@ -26,7 +26,7 @@ A `PreToolUse` and a `PostToolUse` hook append one line per event:
 - Guided mode's answers about an installed extension's tools go to it too, one line each: `{"ts":"…","event":"guided_decision","extension":"canva","tool":"mcp__canva__create-design","answer":"session"}`. The answer is `yes`, `session`, `always`, `no` or `never` (the person's), `kept-never` (denied by an answer kept before), `autonomous-deny` (no one to ask) or `server-asks` (let through: its server asks the person itself).
 - The file is created on the first tool call; a session without tool calls has none.
 - Long results are cut at 2,000 characters, and base64 payloads (screenshots) are replaced by `[image omitted, N bytes base64]`, so a browser agent's transcript stays readable.
-- Every line is redacted before it's written: each value in `config.secrets`, and `CLAUDE_CODE_OAUTH_TOKEN` always, become `***`.
+- Every line is redacted before it's written: each value in `config.secrets`, and `CLAUDE_CODE_OAUTH_TOKEN` whenever the environment has one, become `***`.
 
 ```ts
 const password = await readPasswordFromVault();

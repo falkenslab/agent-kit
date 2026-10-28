@@ -56,5 +56,5 @@ flowchart LR
 11. **[API reference](api/index.md)**: every export, generated from the source.
 
 :::info Requirements
-Node.js 20 or later, and a Claude subscription token or an Anthropic API key. The kit is ESM only and written in TypeScript; its type declarations ship with the package.
+Node.js 20 or later, and a Claude account to sign in with (through Anthropic's own page) or an Anthropic API key. The kit is ESM only and written in TypeScript; its type declarations ship with the package.
 :::

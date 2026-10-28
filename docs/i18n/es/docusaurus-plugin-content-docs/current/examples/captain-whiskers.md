@@ -140,7 +140,7 @@ npm start -- --web                      # in a browser: prints the URL to open
 
 Como aplicación de escritorio, desde `examples/captain-whiskers/desktop/`: `npm run build` y después `npm start` (sin empaquetar) o `npm run dist` (un asistente de instalación que pregunta dónde instalarlo).
 
-Necesita `CLAUDE_CODE_OAUTH_TOKEN` o `ANTHROPIC_API_KEY` en el entorno, o el token guardado en su `config.json`; sin ninguno, el terminal ofrece crear un token, y el navegador y la aplicación lo piden en la página.
+Necesita Claude: una sesión con tu cuenta de Claude, o una API key. Si no has iniciado sesión y el entorno no tiene `ANTHROPIC_API_KEY`, el terminal ofrece iniciarla (`ensureClaudeAuth()`: Claude Code abre la página de Anthropic y guarda la sesión), y el navegador y la aplicación ofrecen lo mismo en la página (`startClaudeSignIn()`), o una API key. Nunca toma ni guarda el token de una cuenta de Claude: consulta [Autenticación](../getting-started/authentication.md#why-anthropics-terms).
 
 ## Ficheros {#files}
 
@@ -166,7 +166,7 @@ examples/captain-whiskers/
 └── treasure-samples/            a PPTX on knots and a DOCX of the ship's rules
 
 ~/.captain-whiskers/             his home and his project, the same for his three faces
-├── config.json                  his Claude key, his language, the app's window
+├── config.json                  an API key if one was pasted, his language, the app's window
 ├── logbook/                     his knowledge base
 ├── treasure/                    his chest of originals
 ├── memory/                      what he remembers of you
@@ -177,13 +177,13 @@ examples/captain-whiskers/
 ## 1. Su clave y su idioma {#1-his-key-and-his-language}
 
 ```ts
-// The environment's key wins; otherwise the one saved in his config.json.
-await useSavedClaudeKey(home);
+// The environment's key wins; otherwise an API key pasted on his page, from his config.json.
+await useSavedApiKey(home);
 
 const { language } = detectLanguage();
 ```
 
-El `config.json` de su casa guarda la clave de Claude (`claudeToken`), el idioma elegido en su navegador o su aplicación y la ventana de la aplicación, escrito de modo que solo su usuario pueda leerlo. El ámbito de ficheros del kit mantiene al modelo lejos de él: `deniedPaths: [path.join(home, "config.json")]`.
+El `config.json` de su casa guarda la API key pegada en su página (`apiKey`; el token de una cuenta de Claude se rechaza), el idioma elegido en su navegador o su aplicación y la ventana de la aplicación, escrito de modo que solo su usuario pueda leerlo. La sesión con la cuenta de Claude no está ahí: la guarda Claude Code. El ámbito de ficheros del kit mantiene al modelo lejos de él: `deniedPaths: [path.join(home, "config.json")]`.
 
 `detectLanguage()` resuelve el idioma del kit (`--language` o, si no, el del sistema) para que el capitán pueda elegir sus propios textos: su nombre y sus textos en pantalla vienen en los cuatro idiomas, en un registro `TEXTS` indexado por idioma. Consulta [Idiomas](../sessions/languages.md#an-agents-own-texts).
 
@@ -279,7 +279,7 @@ const config: BaseSessionConfig = {
   mode,
   projectDir: home, // his home is his project: the model sees treasure/ (and logbook/ and memory/, through their tools)
   extensionDirs: { agent: path.join(home, "extensions") }, // one scope: his only project
-  deniedPaths: [path.join(home, "config.json")], // his Claude key
+  deniedPaths: [path.join(home, "config.json")], // an API key, if he was given one
 };
 const toolDetail = details.find((d) => d === process.env.CAPTAIN_TOOL_DETAIL) ?? "full";
 
@@ -309,7 +309,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 
 El terminal es una de sus tres caras; las tres son vistas del [controlador del chat](../advanced/custom-hosts.md#the-chat-controller) del kit, y ninguna de las gráficas es del kit: son suyas, como establece el [ADR-026](https://github.com/falkenslab/agent-kit/blob/main/.minispec/decisions/ADR-026-graphical-interface.md).
 
-- **`web/server.ts`** (unas 320 líneas): su jokebook instalado en el primer arranque, las acciones del panel lateral de extensiones (el catálogo, instalar, actualizar, desinstalar, ajustes, reabrir) sobre las del controlador, un controlador con `panels: "state"`, un servidor HTTP en `127.0.0.1` con un token en la URL, el estado mediante server-sent events, las acciones de la persona mediante `POST`, una ventana cada vez, subidas para `request_file`, ficheros añadidos a su cofre a través de la `api` de la extensión `sources` (`chat.api("sources").addSource`), el idioma cambiado con el `setLanguage()` del controlador y guardado en el `config.json` de su casa, y el inicio de sesión (la clave, también en `config.json`) desde la página cuando no hay clave de Claude.
+- **`web/server.ts`** (unas 320 líneas): su jokebook instalado en el primer arranque, las acciones del panel lateral de extensiones (el catálogo, instalar, actualizar, desinstalar, ajustes, reabrir) sobre las del controlador, un controlador con `panels: "state"`, un servidor HTTP en `127.0.0.1` con un token en la URL, el estado mediante server-sent events, las acciones de la persona mediante `POST`, una ventana cada vez, subidas para `request_file`, ficheros añadidos a su cofre a través de la `api` de la extensión `sources` (`chat.api("sources").addSource`), el idioma cambiado con el `setLanguage()` del controlador y guardado en el `config.json` de su casa, y el inicio de sesión desde la página cuando no puede llegar a Claude: con la cuenta de Claude mediante `startClaudeSignIn()` (un enlace a la página de Anthropic por si el navegador no se abrió, un cuadro para el código que muestra, el chat en cuanto `done` lo dice), o con una API key, guardada en `config.json`.
 - **`web/index.html`**: una página, sin dependencias ni compilación: la conversación dibujada bloque a bloque (solo lo que cambia), las llamadas a herramientas plegadas con un spinner mientras se ejecutan, las aprobaciones, elecciones y planes como diálogos, un menú de comandos con `/` (los suyos, los de sus extensiones y los del chat, a partir de los `commandDetails` del estado), acciones rápidas y el idioma arriba, ficheros soltados o adjuntados para llenar su cofre, el modo con lo que significa cada uno, las conversaciones anteriores y las extensiones en paneles laterales, tema claro y oscuro, y diseño adaptado a un móvil.
 - **`desktop/main.mjs`**: Electron alrededor de esa página. El proceso principal arranca el host web con un token que nunca sale de él, desde su misma casa (la carpeta de datos propia de Electron solo guarda sus cachés), guarda la posición de la ventana en su `config.json` y abre los enlaces en el navegador; nada más, así que la aplicación es exactamente su web. Empaquetada con `electron-builder` y solo `asarUnpack`: el kit [funciona empaquetado](../advanced/custom-hosts.md#packaging-an-electron-app) por sí solo.
 

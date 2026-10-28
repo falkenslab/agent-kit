@@ -1,7 +1,6 @@
-import path from "node:path";
 import pc from "picocolors";
 import { agentKitVersion, ensureClaudeAuth, getLanguage, messagesFor, runChatInk, runExtensionCommand, ui, type ToolDetail } from "@falkenslab/agent-kit";
-import { createCaptain, saveConfig, SHIPYARD, texts, useSavedClaudeKey } from "./captain.js";
+import { createCaptain, SHIPYARD, texts, useSavedApiKey } from "./captain.js";
 import { startWebChat } from "./web/server.js";
 
 // El capitán en la terminal, y en el navegador con --web. Lo que hace ser al capitán está en
@@ -19,9 +18,9 @@ const LOGO = [
 
 async function main(): Promise<void> {
   // Todo lo suyo vive en su casa, ~/.captain-whiskers (o CAPTAIN_HOME), la misma en sus tres
-  // caras; su clave de Claude, en su config.json, si el entorno no trae una.
+  // caras; la API key que se le diera en su página, en su config.json, si el entorno no trae una.
   const captain = await createCaptain();
-  await useSavedClaudeKey(captain.home);
+  await useSavedApiKey(captain.home);
   const text = texts();
 
   // `npm start -- extension add ./extensions/jokebook` (list, remove, enable, disable): el
@@ -29,8 +28,8 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (await runExtensionCommand(args, { dirs: captain.extensionDirs, command: "npm start --", official: SHIPYARD })) return;
 
-  // En el navegador: su propia web, sobre el controlador de chat del kit. Sin token, la página
-  // lo pide y la guarda en su config.json.
+  // En el navegador: su propia web, sobre el controlador de chat del kit. Sin sesión de Claude,
+  // la página ofrece iniciarla con la cuenta de Claude o usar una API key.
   if (args.includes("--web")) {
     const port = process.env.CAPTAIN_PORT ? Number(process.env.CAPTAIN_PORT) : undefined;
     const { url } = await startWebChat(captain, { ...(port ? { port } : {}), ...(process.env.CAPTAIN_WEB_TOKEN ? { token: process.env.CAPTAIN_WEB_TOKEN } : {}) });
@@ -38,13 +37,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Sin CLAUDE_CODE_OAUTH_TOKEN/ANTHROPIC_API_KEY (en el entorno o en su config.json) ofrece
-  // generar un token. El kit no lo guarda: lo devuelve, y aquí va a config.json para la próxima vez.
-  const newToken = await ensureClaudeAuth();
-  if (newToken) {
-    await saveConfig(captain.home, { claudeToken: newToken });
-    console.log(ui.dim(text.tokenSaved(path.join(captain.home, "config.json"))));
-  }
+  // Sin sesión de Claude ni clave en el entorno, ofrece iniciar sesión con la cuenta de Claude:
+  // la inicia Claude Code, en la página de Anthropic, y la guarda él; aquí no se guarda nada.
+  await ensureClaudeAuth();
 
   // Cuánto de las herramientas enseña el chat: CAPTAIN_TOOL_DETAIL=full (por defecto), calls
   // o summary.

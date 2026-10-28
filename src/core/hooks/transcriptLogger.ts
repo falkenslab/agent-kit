@@ -24,8 +24,8 @@ function redact(text: string, secrets: readonly string[]): string {
 /**
  * Logs every tool call (request + result) as one JSON line, redacting `secrets` (e.g. a
  * domain-specific password — see `BaseSessionConfig.secrets`) plus
- * `CLAUDE_CODE_OAUTH_TOKEN`, which this kit always scrubs regardless of domain since it
- * owns the auth-token concept (see claudeAuth.ts).
+ * `CLAUDE_CODE_OAUTH_TOKEN` when the person's environment sets one, which this kit always
+ * scrubs regardless of domain (it never handles a token itself: see claudeAuth.ts).
  */
 export function createTranscriptLogger(transcriptPath: string, secrets: readonly string[] = []): TranscriptLogger {
   const allSecrets = [...secrets, process.env.CLAUDE_CODE_OAUTH_TOKEN].filter((s): s is string => Boolean(s));

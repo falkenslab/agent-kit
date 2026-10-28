@@ -140,7 +140,7 @@ npm start -- --web                      # in a browser: prints the URL to open
 
 As a desktop app, from `examples/captain-whiskers/desktop/`: `npm run build`, then `npm start` (unpackaged) or `npm run dist` (an installer wizard that asks where to install him).
 
-It needs `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the environment, or the token saved in his `config.json`; without one, the terminal offers to create a token, and the browser and the app ask for it on the page.
+He needs Claude: a sign-in with your Claude account, or an API key. If you aren't signed in and the environment has no `ANTHROPIC_API_KEY`, the terminal offers to sign in (`ensureClaudeAuth()`: Claude Code opens Anthropic's page and keeps the sign-in), and the browser and the app offer the same on the page (`startClaudeSignIn()`), or an API key. He never takes or keeps a Claude account's token: see [Authentication](../getting-started/authentication.md#why-anthropics-terms).
 
 ## Files
 
@@ -166,7 +166,7 @@ examples/captain-whiskers/
 └── treasure-samples/            a PPTX on knots and a DOCX of the ship's rules
 
 ~/.captain-whiskers/             his home and his project, the same for his three faces
-├── config.json                  his Claude key, his language, the app's window
+├── config.json                  an API key if one was pasted, his language, the app's window
 ├── logbook/                     his knowledge base
 ├── treasure/                    his chest of originals
 ├── memory/                      what he remembers of you
@@ -177,13 +177,13 @@ examples/captain-whiskers/
 ## 1. His key and his language
 
 ```ts
-// The environment's key wins; otherwise the one saved in his config.json.
-await useSavedClaudeKey(home);
+// The environment's key wins; otherwise an API key pasted on his page, from his config.json.
+await useSavedApiKey(home);
 
 const { language } = detectLanguage();
 ```
 
-His home's `config.json` keeps the Claude key (`claudeToken`), the language chosen in his browser or app, and the app's window, written readable only by its user. The kit's file scope keeps the model off it: `deniedPaths: [path.join(home, "config.json")]`.
+His home's `config.json` keeps an API key pasted on his page (`apiKey`; a Claude account's token is refused), the language chosen in his browser or app, and the app's window, written readable only by its user. A sign-in with the Claude account isn't there: Claude Code keeps it. The kit's file scope keeps the model off it: `deniedPaths: [path.join(home, "config.json")]`.
 
 `detectLanguage()` resolves the kit's language (`--language`, else the system's) so the captain can pick his own texts: his name and on-screen texts come in the four languages, in a `TEXTS` record keyed by language. See [Languages](../sessions/languages.md#an-agents-own-texts).
 
@@ -279,7 +279,7 @@ const config: BaseSessionConfig = {
   mode,
   projectDir: home, // his home is his project: the model sees treasure/ (and logbook/ and memory/, through their tools)
   extensionDirs: { agent: path.join(home, "extensions") }, // one scope: his only project
-  deniedPaths: [path.join(home, "config.json")], // his Claude key
+  deniedPaths: [path.join(home, "config.json")], // an API key, if he was given one
 };
 const toolDetail = details.find((d) => d === process.env.CAPTAIN_TOOL_DETAIL) ?? "full";
 
@@ -309,7 +309,7 @@ await runChatInk((run) => buildSessionOptions(config, run.dir, spec, { run }), {
 
 The terminal is one of his three faces; all three are views of the kit's [chat controller](../advanced/custom-hosts.md#the-chat-controller), and none of the graphical ones is the kit's: they're his own, as [ADR-026](https://github.com/falkenslab/agent-kit/blob/main/.minispec/decisions/ADR-026-graphical-interface.md) has it.
 
-- **`web/server.ts`** (about 320 lines): his jokebook installed on the first start, the extensions drawer's actions (the catalog, installing, updating, uninstalling, settings, reopening) on the controller's, a controller with `panels: "state"`, an HTTP server on `127.0.0.1` with a token in the URL, the state by server-sent events, the person's actions by `POST`, one window at a time, uploads for `request_file`, files added to his chest through the `sources` extension's `api` (`chat.api("sources").addSource`), the language switched with the controller's `setLanguage()` and kept in his home's `config.json`, and signing in (the key, into `config.json` too) from the page when there's no Claude key.
+- **`web/server.ts`** (about 320 lines): his jokebook installed on the first start, the extensions drawer's actions (the catalog, installing, updating, uninstalling, settings, reopening) on the controller's, a controller with `panels: "state"`, an HTTP server on `127.0.0.1` with a token in the URL, the state by server-sent events, the person's actions by `POST`, one window at a time, uploads for `request_file`, files added to his chest through the `sources` extension's `api` (`chat.api("sources").addSource`), the language switched with the controller's `setLanguage()` and kept in his home's `config.json`, and signing in from the page when he can't reach Claude: with the Claude account through `startClaudeSignIn()` (a link to Anthropic's page in case the browser didn't open, a box for the code it shows, the chat once `done` says so), or with an API key, kept in `config.json`.
 - **`web/index.html`**: one page, no dependencies or build: the conversation drawn block by block (only what changed), tool calls folded with a spinner while they run, the approvals, choices and plans as dialogs, a menu of commands on `/` (his, his extensions' and the chat's, from the state's `commandDetails`), quick actions and the language at the top, files dropped or attached to fill his chest, the mode with what each one means, earlier conversations and extensions in side panels, light and dark, laid out for a phone.
 - **`desktop/main.mjs`**: Electron around that page. The main process starts the web host with a token that never leaves it, from his same home (Electron's own data folder keeps only its caches), keeps the window's place in his `config.json`, and opens links in the browser; nothing else, so the app is exactly his web. Packaged with `electron-builder` and `asarUnpack` only: the kit [runs packaged](../advanced/custom-hosts.md#packaging-an-electron-app) by itself.
 

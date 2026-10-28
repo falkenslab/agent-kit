@@ -212,13 +212,15 @@ export interface Messages {
 
   // Claude authentication.
   auth: {
-    noToken: string;
-    noTokenDetail: string;
-    generateQuestion: string;
+    notSignedIn: string;
+    notSignedInDetail: string;
+    signInQuestion: string;
     cantStart: string;
-    generatingHeading: string;
+    signingInHeading: string;
     browserWillOpen: string;
-    generated: string;
+    signedIn: string;
+    notCompleted: string;
+    noClaude: string;
   };
 }
 
@@ -424,12 +426,14 @@ export const en: Messages = {
   },
 
   auth: {
-    noToken: "No Claude authentication token was found",
-    noTokenDetail: "(neither the CLAUDE_CODE_OAUTH_TOKEN environment variable, nor one passed in).",
-    generateQuestion: 'Generate one now with "claude setup-token" (requires a Claude Pro/Max subscription)?',
-    cantStart: "The agent can't start without a token. Set CLAUDE_CODE_OAUTH_TOKEN by hand (or run this again and accept generating it) and try again.",
-    generatingHeading: "=== Generating a Claude authentication token ===",
-    browserWillOpen: "A browser will open to log in; follow the instructions the command itself prints below.",
-    generated: "Token generated for this run. Save it yourself (e.g. CLAUDE_CODE_OAUTH_TOKEN in your shell profile) to skip this next time.",
+    notSignedIn: "You aren't signed in to Claude",
+    notSignedInDetail: "Sign in with your Claude account on Anthropic's own page: Claude Code, which comes with this agent, does it and keeps the sign-in itself. Or set ANTHROPIC_API_KEY to use an API key.",
+    signInQuestion: "Sign in with your Claude account now?",
+    cantStart: "The agent can't start without Claude. Run it again and sign in, or set ANTHROPIC_API_KEY.",
+    signingInHeading: "=== Signing in to Claude ===",
+    browserWillOpen: "A browser will open on Anthropic's sign-in page. If the page shows a code, paste it here.",
+    signedIn: "Signed in. Claude Code keeps the sign-in, so this won't be asked again.",
+    notCompleted: "The sign-in didn't complete. Run the agent again to retry, or set ANTHROPIC_API_KEY.",
+    noClaude: "Claude Code's binary, which comes with the Agent SDK (@anthropic-ai/claude-agent-sdk-<platform>-<arch>), isn't installed, so there's no way to sign in. Reinstall the agent, or set ANTHROPIC_API_KEY.",
   },
 };
