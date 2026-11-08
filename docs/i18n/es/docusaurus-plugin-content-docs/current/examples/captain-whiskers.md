@@ -136,6 +136,7 @@ CAPTAIN_TOOL_DETAIL=summary npm start   # tool calls as one line per group
 CAPTAIN_INLINE=1 npm start              # inline, with the terminal's scrollback
 CAPTAIN_PLAIN=1 npm start               # the plain readline chat
 npm start -- --web                      # in a browser: prints the URL to open
+npm start -- mcp                        # as an MCP server over stdio, always autonomous
 ```
 
 Como aplicación de escritorio, desde `examples/captain-whiskers/desktop/`: `npm run build` y después `npm start` (sin empaquetar) o `npm run dist` (un asistente de instalación que pregunta dónde instalarlo).

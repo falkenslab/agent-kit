@@ -110,7 +110,7 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "Advanced",
-      items: ["advanced/events", "advanced/one-shot-runs", "advanced/custom-hosts", "advanced/hooks"],
+      items: ["advanced/events", "advanced/one-shot-runs", "advanced/custom-hosts", "advanced/serving-over-mcp", "advanced/hooks"],
     },
     {
       type: "category",

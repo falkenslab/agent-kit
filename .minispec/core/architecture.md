@@ -11,6 +11,7 @@ createInputQueue() (multi-turn) -> runQuery() -> AgentEvent stream -> chat contr
 
 - `src/core/` — never touches `console.*`, `process.stdout` or `readline`; usable from any Node host.
 - `src/chat/` — the chat's logic without an interface (ADR-026): the chat controller, the runs, the history, `/extensions`. No terminal: the terminal chats in `src/tui/` are views of it, and so will be the web and desktop ones.
+- `src/mcp/` — an agent served as an MCP server (ADR-027): one more view of the chat controller, no terminal, exported from its own subpath (`@falkenslab/agent-kit/mcp`).
 - `src/extensions/<name>/` — the kit's internal extensions (ADR-025): `awareness`, `knowledge`, `sources`, `memory`. Like the core, no terminal. They import the core; the core imports them only through `src/core/extensions.ts`, and no extension imports another (an ESLint rule enforces both).
 - `src/tui/` — the only code that assumes a terminal (`readline`, `picocolors`, `@inquirer/prompts`, Ink).
 - `src/index.ts` — the only file importing from both, and the whole public API (ADR-011).

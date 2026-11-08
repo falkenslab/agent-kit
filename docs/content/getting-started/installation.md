@@ -80,7 +80,7 @@ And a `tsconfig.json` that matches how the kit is built:
 
 ## Everything comes from the package root
 
-Every public symbol is exported from `@falkenslab/agent-kit` itself. Never import from `@falkenslab/agent-kit/dist/...`: internal paths change between versions without notice.
+Every public symbol is exported from `@falkenslab/agent-kit` itself, but for [serving an agent over MCP](../advanced/serving-over-mcp.md), at `@falkenslab/agent-kit/mcp`, so an agent that does not serve itself never loads it. Never import from `@falkenslab/agent-kit/dist/...`: internal paths change between versions without notice.
 
 ```ts
 import { buildSessionOptions, runChatInk, ui, type AgentSpec } from "@falkenslab/agent-kit";

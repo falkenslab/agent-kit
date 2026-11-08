@@ -30,6 +30,17 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "default": "./dist/mcp/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
     "assets",
@@ -52,6 +63,7 @@
     "@anthropic-ai/claude-agent-sdk": "^0.3.300",
     "@inkjs/ui": "^2.0.0",
     "@inquirer/prompts": "^8.5.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/react": "^19.3.0",
     "ink": "^6.8.0",
     "isomorphic-git": "^1.44.5",

@@ -633,6 +633,18 @@ export async function createChatController(options: Options | SessionOpener, set
       }
       await runTurn(line);
     },
+    /**
+     * A turn that doesn't come from the person's keyboard (another agent's, over MCP): the text
+     * goes to the agent as it is, never read as one of the chat's commands (`/extensions`, `/resume`).
+     */
+    async turn(raw: string): Promise<void> {
+      const line = raw.trim();
+      if (!line) return;
+      log(`${promptLabel}${line}\n`);
+      addEntry({ id: nextId++, kind: "user", text: line });
+      emit({ type: "user", text: line });
+      await runTurn(line);
+    },
     /** Stops the turn running, if any. */
     interrupt(): void {
       if (!state.busy || interrupted) return;

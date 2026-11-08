@@ -4,7 +4,7 @@
 - Commits follow Conventional Commits, one logical change each (see the `commit` skill).
 - Relative imports inside `src/` use explicit `.js` extensions (NodeNext).
 - Nothing under `src/core/` imports from `src/tui/`.
-- Every public symbol is exported from `src/index.ts` (see the `add-export` skill); consumers never deep-import.
+- Every public symbol is exported from `src/index.ts` (see the `add-export` skill), but for `serveMcp()`, at the `@falkenslab/agent-kit/mcp` subpath so an agent that does not serve itself never loads it (ADR-027); consumers never deep-import.
 - Doc comments explain *why*, and mark SDK behavior verified by hand as "confirmed empirically".
 - A bug fixed or an SDK quirk found gets a regression test in `test/`, mirroring `src/`.
 - Documentation Markdown (`README.md`, `CLAUDE.md`, `.minispec/`): one line per paragraph and list item, no horizontal rules between sections. Skill and plugin Markdown keeps its own formatting.

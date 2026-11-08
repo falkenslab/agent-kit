@@ -120,7 +120,7 @@ See [everything he can do](https://falkenslab.github.io/agent-kit/docs/examples/
 | 🧩 Extensions | Claude Code plugins with MCP servers (local, npm, remote with OAuth), skills, commands and subagents; scopes, a lock, workspace trust, options, marketplaces and a catalog |
 | 🛡️ Security | A file scope gate, denied paths, subagent gates, a remote-servers gate, isolation from the runner's own Claude Code, redacted transcripts |
 | 🤖 Subagents | Declared types only, in the foreground, without Bash for the main agent |
-| 🖥️ Interfaces | A full-screen Ink chat, a plain readline chat, a progress view, a wizard, themes; a chat controller for desktop apps and web pages |
+| 🖥️ Interfaces | A full-screen Ink chat, a plain readline chat, a progress view, a wizard, themes; a chat controller for desktop apps and web pages; an MCP server, so other agents can ask it things |
 | 🌐 Languages | English, Spanish, French and German, for the interface, the replies and the extensions' servers |
 
 Every export, with what it takes and what it gives, is in the [API reference](https://falkenslab.github.io/agent-kit/docs/api).

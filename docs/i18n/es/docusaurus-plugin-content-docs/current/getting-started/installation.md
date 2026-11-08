@@ -80,7 +80,7 @@ Y un `tsconfig.json` que encaje con cómo se compila el kit:
 
 ## Todo sale de la raíz del paquete {#everything-comes-from-the-package-root}
 
-Cada símbolo público se exporta desde el propio `@falkenslab/agent-kit`. No importes nunca desde `@falkenslab/agent-kit/dist/...`: las rutas internas cambian entre versiones sin previo aviso.
+Cada símbolo público se exporta desde el propio `@falkenslab/agent-kit`, salvo [servir un agente por MCP](../advanced/serving-over-mcp.md), en `@falkenslab/agent-kit/mcp`, para que un agente que no se sirve a sí mismo nunca lo cargue. No importes nunca desde `@falkenslab/agent-kit/dist/...`: las rutas internas cambian entre versiones sin previo aviso.
 
 ```ts
 import { buildSessionOptions, runChatInk, ui, type AgentSpec } from "@falkenslab/agent-kit";

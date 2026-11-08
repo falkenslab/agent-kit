@@ -1,6 +1,7 @@
 import pc from "picocolors";
 import { agentKitVersion, ensureClaudeAuth, getLanguage, messagesFor, runChatInk, runExtensionCommand, ui, type ToolDetail } from "@falkenslab/agent-kit";
-import { createCaptain, SHIPYARD, texts, useSavedApiKey } from "./captain.js";
+import { serveMcp } from "@falkenslab/agent-kit/mcp";
+import { createCaptain, SHIPYARD, texts, useSavedApiKey, version } from "./captain.js";
 import { startWebChat } from "./web/server.js";
 
 // El capitán en la terminal, y en el navegador con --web. Lo que hace ser al capitán está en
@@ -17,15 +18,19 @@ const LOGO = [
 ];
 
 async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  // Como servidor MCP (`npm start -- mcp`): otro agente le pregunta por stdio. Siempre autónomo,
+  // porque por ahí nadie puede contestar lo que él pregunte.
+  const serving = args[0] === "mcp";
   // Todo lo suyo vive en su casa, ~/.captain-whiskers (o CAPTAIN_HOME), la misma en sus tres
   // caras; la API key que se le diera en su página, en su config.json, si el entorno no trae una.
-  const captain = await createCaptain();
+  const captain = await createCaptain(serving ? { mode: "autonomous" } : {});
   await useSavedApiKey(captain.home);
   const text = texts();
+  if (serving) return await serveMcp(captain.opener, { runsDir: captain.runsDir, identity: { name: text.name, version, description: "a retired pirate cat who tells jokes" } });
 
   // `npm start -- extension add ./extensions/jokebook` (list, remove, enable, disable): el
   // comando del kit, en su propio arranque, antes que nada.
-  const args = process.argv.slice(2);
   if (await runExtensionCommand(args, { dirs: captain.extensionDirs, command: "npm start --", official: SHIPYARD })) return;
 
   // En el navegador: su propia web, sobre el controlador de chat del kit. Sin sesión de Claude,

@@ -43,6 +43,18 @@ It runs in `guided` mode by default, so it can ask you things: which kind of jok
 
 It shows every tool call with its result (`toolDetail: "full"`, the kit's default); `CAPTAIN_TOOL_DETAIL=calls` shows the calls without their results, and `CAPTAIN_TOOL_DETAIL=summary` one line per group. Ctrl+O unfolds them either way.
 
+## As an MCP server
+
+```
+npm start -- mcp
+```
+
+serves him over stdio, always in autonomous mode, so another agent can ask him things with one tool, `ask`. To add him to Claude Code, with absolute paths (`file:///C:/...` on Windows):
+
+```
+claude mcp add captain -- node --import file:///path/to/captain-whiskers/node_modules/tsx/dist/loader.mjs /path/to/captain-whiskers/agent.ts mcp
+```
+
 ## In a browser
 
 ```
