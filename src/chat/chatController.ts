@@ -7,7 +7,7 @@ import type { FormAnswer, FormRequest } from "../core/elicitation.js";
 import { getLanguage, switchLanguage, t } from "../core/messages/index.js";
 import { LANGUAGE_NAMES, type Language } from "../core/language.js";
 import { runQuery, type AgentEvent, type AgentRun, type SessionUsage } from "../core/runner.js";
-import { createRunFolder, listRuns, readConversation, readRunSession, type RunFolder } from "../core/runs.js";
+import { createRunFolder, listRuns, readConversationSteps, readRunSession, type ConversationMessage, type RunFolder } from "../core/runs.js";
 import { createInputQueue, togglePlanMode, type ExtensionsStatus, type ModeControl } from "../core/session.js";
 import { hasOpenTodos, parseTodos, TODO_TOOL, type Todo } from "../core/todos.js";
 import { withToolLabels, withToolPhrases, withToolResults, type ToolLabels, type ToolResult } from "../core/toolLabels.js";
@@ -95,6 +95,8 @@ export interface TranscriptCall {
   toolName: string;
   label: string;
   result: { isError: boolean; text: string } | null;
+  /** An MCP result's `_meta`, untouched: data for this view, which the model never sees (absent when the tool returned none). */
+  meta?: Record<string, unknown>;
   /** What a subagent it started did, by label. */
   children: string[];
 }
@@ -258,13 +260,17 @@ export async function createChatController(options: Options | SessionOpener, set
     emit({ type: "notice", tone, text });
   }
 
+  // A reply of its own coming: the answer to a message sent into the turn, after a `turn-end`.
+  let newReply = false;
+
   /** What the agent does, into the transcript. */
   function record(event: AgentEvent): void {
     const last = state.transcript.at(-1);
     switch (event.type) {
       case "text":
-        if (last?.kind === "agent") update({ transcript: [...state.transcript.slice(0, -1), { ...last, text: last.text + event.text }] });
+        if (last?.kind === "agent" && !newReply) update({ transcript: [...state.transcript.slice(0, -1), { ...last, text: last.text + event.text }] });
         else addEntry({ id: nextId++, kind: "agent", text: event.text });
+        newReply = false;
         return;
       case "action": {
         const todos = event.toolName === TODO_TOOL ? parseTodos(event.input) : null;
@@ -290,7 +296,7 @@ export async function createChatController(options: Options | SessionOpener, set
             : {
                 ...entry,
                 calls: entry.calls.map((call) =>
-                  call.id !== id ? call : event.type === "tool-result" ? { ...call, result: { isError: event.isError, text: event.text } } : { ...call, children: [...call.children, label!] },
+                  call.id !== id ? call : event.type === "tool-result" ? { ...call, result: { isError: event.isError, text: event.text }, ...(event.meta ? { meta: event.meta } : {}) } : { ...call, children: [...call.children, label!] },
                 ),
               },
         );
@@ -323,9 +329,17 @@ export async function createChatController(options: Options | SessionOpener, set
   let readError: unknown = null;
   let unsubscribeMode: (() => void) | undefined;
   let interrupted = false;
+  // A message sent into this turn (`steer()`): its `turn-end` may not be the last, so the turn
+  // ends at `session-idle`, once a `turn-end` has come after the latest message sent. Before
+  // that, an idle is an earlier one, still on its way.
+  let steered = false;
+  let awaitingIdle = false;
   function finishTurn(): void {
     const done = turnDone;
     turnDone = null;
+    newReply = false;
+    steered = false;
+    awaitingIdle = false;
     done?.();
   }
 
@@ -374,10 +388,22 @@ export async function createChatController(options: Options | SessionOpener, set
         while (true) {
           const { value, done } = await events.next();
           if (own !== generation || done) break;
+          if (value.type === "session-idle") {
+            if (awaitingIdle) finishTurn();
+            continue;
+          }
           if (value.type !== "prompt-suggestion") logRenderer.render(value);
           record(value);
           emit({ type: "agent", event: value });
-          if (value.type === "turn-end") finishTurn();
+          if (value.type === "turn-end") {
+            if (!steered) finishTurn();
+            else {
+              awaitingIdle = true;
+              newReply = true;
+              // What's left to answer can be interrupted too.
+              interrupted = false;
+            }
+          }
         }
       } catch (error) {
         if (own === generation) readError = error;
@@ -394,6 +420,12 @@ export async function createChatController(options: Options | SessionOpener, set
   // Extensions turned off or on in the running session, told to the model with the next message
   // too: the prompt's Extensions section still says what the session opened with.
   const extensionNotices: string[] = [];
+  /** A line with what the model hasn't been told yet before it: each note goes once. */
+  function withNotices(line: string): string {
+    const notices = [languageNotice, ...extensionNotices.splice(0)].filter(Boolean);
+    languageNotice = null;
+    return notices.length ? `${notices.join("\n")}\n\n${line}` : line;
+  }
   async function runTurn(line: string): Promise<void> {
     interrupted = false;
     const from = state.transcript.length;
@@ -402,9 +434,7 @@ export async function createChatController(options: Options | SessionOpener, set
     update({ busy: true, turnStartedAt: startedAt, activity: null, subagentActivity: null, suggestion: null });
     emit({ type: "turn-start" });
     const finished = new Promise<void>((resolve) => (turnDone = resolve));
-    const notices = [languageNotice, ...extensionNotices.splice(0)].filter(Boolean);
-    queue.push(notices.length ? `${notices.join("\n")}\n\n${line}` : line);
-    languageNotice = null;
+    queue.push(withNotices(line));
     await finished;
     logRenderer.endLine();
     latestReply = state.transcript.slice(from).flatMap((entry) => (entry.kind === "agent" ? [entry.text] : [])).join("").trim();
@@ -419,10 +449,23 @@ export async function createChatController(options: Options | SessionOpener, set
   /** Draws a run's earlier conversation, if it has one. */
   async function showConversation(folder: RunFolder, fromResume: boolean): Promise<void> {
     if (!folder.sessionId) return;
-    const messages = await readConversation(folder.dir);
+    const steps = await readConversationSteps(folder.dir);
+    const messages = steps.filter((step): step is ConversationMessage => step.role !== "tool");
     const [summary] = (await listRuns(path.dirname(folder.dir))).filter((other) => path.resolve(other.dir) === path.resolve(folder.dir));
     const updatedAt = summary?.updatedAt ?? new Date();
-    const replayed: TranscriptEntry[] = messages.map((message) => ({ id: nextId++, kind: message.role === "user" ? "user" : "agent", text: message.text }));
+    const replayed: TranscriptEntry[] = [];
+    for (const step of steps) {
+      if (step.role !== "tool") {
+        replayed.push({ id: nextId++, kind: step.role === "user" ? "user" : "agent", text: step.text });
+        continue;
+      }
+      if (step.toolName === TODO_TOOL) continue;
+      // A call the session ended in the middle of has no result; `null` would read as still running.
+      const call: TranscriptCall = { id: step.id, toolName: step.toolName, label: formatAction(step.toolName, step.input), result: step.result ?? { isError: false, text: "" }, children: [], ...(step.meta ? { meta: step.meta } : {}) };
+      const last = replayed.at(-1);
+      if (last?.kind === "tools") last.calls.push(call);
+      else replayed.push({ id: nextId++, kind: "tools", calls: [call] });
+    }
     update({ transcript: fromResume ? replayed : [...state.transcript, ...replayed], turns: (fromResume ? 0 : state.turns) + messages.filter((message) => message.role === "user").length });
     emit({ type: "conversation", messages, updatedAt, fromResume });
   }
@@ -516,6 +559,21 @@ export async function createChatController(options: Options | SessionOpener, set
     await controller.trustWorkspace();
   }
 
+  /** A line of the person's, in the session log, the transcript and to the views. */
+  function showLine(line: string): void {
+    log(`${promptLabel}${line}\n`);
+    addEntry({ id: nextId++, kind: "user", text: line });
+    emit({ type: "user", text: line });
+  }
+
+  /** A line of the person's, kept for ↑/↓. */
+  async function remember(line: string): Promise<void> {
+    if (!settings.historyPath) return;
+    historyEntries = capHistory([...historyEntries, { text: line, timestamp: new Date().toISOString() }], historyLimit);
+    update({ history: historyEntries.map((entry) => entry.text) });
+    await saveHistory(settings.historyPath, historyEntries);
+  }
+
   // A choice in place of the prompt, when the view doesn't ask it itself.
   let choiceResolve: ((value: string | null) => void) | null = null;
   function pick(title: string, options: { label: string; value: string }[]): Promise<string | null> {
@@ -604,14 +662,8 @@ export async function createChatController(options: Options | SessionOpener, set
     async send(raw: string): Promise<"exit" | void> {
       const line = raw.trim();
       if (!line) return;
-      log(`${promptLabel}${line}\n`);
-      addEntry({ id: nextId++, kind: "user", text: line });
-      emit({ type: "user", text: line });
-      if (settings.historyPath) {
-        historyEntries = capHistory([...historyEntries, { text: line, timestamp: new Date().toISOString() }], historyLimit);
-        update({ history: historyEntries.map((entry) => entry.text) });
-        await saveHistory(settings.historyPath, historyEntries);
-      }
+      showLine(line);
+      await remember(line);
       const lower = line.toLowerCase();
       if (exitCommands.has(lower)) return "exit";
       const own = settings.commands?.[lower.slice(1)];
@@ -640,10 +692,26 @@ export async function createChatController(options: Options | SessionOpener, set
     async turn(raw: string): Promise<void> {
       const line = raw.trim();
       if (!line) return;
-      log(`${promptLabel}${line}\n`);
-      addEntry({ id: nextId++, kind: "user", text: line });
-      emit({ type: "user", text: line });
+      showLine(line);
       await runTurn(line);
+    },
+    /**
+     * A message for the agent while a turn runs (#92), without stopping it: it joins the turn at
+     * its next tool call, or is answered right after when no call is left, and it stays in the
+     * transcript where it was sent. The turn `send()` is waiting for lasts until it's answered.
+     * False, and nothing sent, when no turn is running (use `send()`) and for a slash command or
+     * an exit line, which wait for the turn to end.
+     */
+    async steer(raw: string): Promise<boolean> {
+      const line = raw.trim();
+      if (!line || !turnDone || exitCommands.has(line.toLowerCase()) || slashCommandToken(line)) return false;
+      showLine(line);
+      queue.push(withNotices(line), { priority: "next" });
+      steered = true;
+      // Any idle on its way is from before this message.
+      awaitingIdle = false;
+      await remember(line);
+      return true;
     },
     /** Stops the turn running, if any. */
     interrupt(): void {

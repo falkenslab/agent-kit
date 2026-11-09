@@ -30,11 +30,12 @@ type AgentEvent =
   | { type: "text"; text: string }
   | { type: "action"; toolName: string; input: unknown; toolUseId?: string }
   | { type: "subagent-action"; toolName: string; input: unknown; toolUseId?: string; parentToolUseId?: string }
-  | { type: "tool-result"; toolUseId: string; toolName: string; isError: boolean; text: string }
+  | { type: "tool-result"; toolUseId: string; toolName: string; isError: boolean; text: string; meta?: Record<string, unknown> }
   | { type: "mcp-error"; failedServers: string[] }
   | { type: "info"; text: string; level: "info" | "notice" | "suggestion" | "warning" | "local-command" }
   | { type: "turn-end"; status: string; failed: boolean; resultText: string | null; errorText: string; usage?: SessionUsage }
-  | { type: "prompt-suggestion"; suggestion: string };
+  | { type: "prompt-suggestion"; suggestion: string }
+  | { type: "session-idle" };
 ```
 
 | Event | When | Notes |
@@ -42,11 +43,12 @@ type AgentEvent =
 | `text` | each streamed piece of the agent's reply | Concatenate them. There's no "block started" event: track whether the previous event was `text` to add a label. |
 | `action` | the main agent calls a tool | `toolUseId` pairs it with its `tool-result`. |
 | `subagent-action` | a subagent calls a tool | `parentToolUseId` is the `Agent` call that started the subagent. Kept apart so it never looks like the main agent acted. |
-| `tool-result` | a main agent's tool call returns | The result as plain text (images and other parts left out); `isError` if it failed. Subagents' results aren't reported. |
+| `tool-result` | a main agent's tool call returns | The result as plain text (images and other parts left out); `isError` if it failed. Subagents' results aren't reported. `meta` is an MCP result's `_meta`, untouched (absent when the tool returned none): data for your interface, which the model never sees. |
 | `mcp-error` | at startup, some MCP servers failed to connect | The session goes on without them. |
 | `info` | the CLI's own output: a local command's output, a notice, an unknown command | Without it, an unknown slash command looked like silence. |
 | `turn-end` | a turn finished | **Check `failed`, not `status`**: the SDK can report `status: "success"` for a turn that failed on an API error, with the message in `resultText`. `usage` is the session's cumulative total. |
 | `prompt-suggestion` | the predicted next message (with `promptSuggestions: true`) | Arrives **after** its turn's `turn-end`. |
+| `session-idle` | nothing is left to answer | Once, after the last `turn-end`. It only matters with messages sent into a running turn: see below. |
 
 ```ts
 interface SessionUsage {
@@ -106,6 +108,8 @@ run.close();
 :::
 
 With switchable modes, pass the session's mode control, `createInputQueue({ modeControl })`: when the person switches into or out of plan mode, the next message carries a `<system-reminder>` telling the model so (see [modes](../core-concepts/modes.md#plan)). Both chats do this for you.
+
+To send a message while a turn runs, `queue.push(text, { priority: "next" })`: it joins the turn at its next tool call, without stopping it, or gets a turn of its own when no call is left. So a `turn-end` may not be the last: wait for `session-idle`. The chat controller's `steer()` does all this for you.
 
 `createDeferred()` is a small helper (`{ promise, resolve }`) to signal "this turn finished" between a reader loop and the code waiting for it.
 

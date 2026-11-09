@@ -48,6 +48,7 @@ Cuando se reanuda una ejecución:
 
 - el agente recuerda la conversación completa, subagentes incluidos;
 - la conversación se vuelve a dibujar: desde el principio en pantalla completa, y tras lo que ya hay en pantalla en el modo en línea (el scrollback de una terminal no se puede deshacer), y después una línea `(resumed the conversation of <date>)`;
+- el `transcript` del estado, para una vista gráfica, recupera también las llamadas a herramientas en su sitio, con sus resultados y su `meta` (las terminales vuelven a dibujar el texto);
 - el `session.log` y el `transcript.jsonl` de la ejecución siguen creciendo en la misma carpeta;
 - `initialPrompt` no se vuelve a enviar.
 

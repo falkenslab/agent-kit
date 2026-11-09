@@ -1,6 +1,7 @@
 import { appendFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
+import { toolResultMeta, toolResultText } from "./runner.js";
 
 /**
  * One run of an agent: a folder under the agent's runs folder (`<runsDir>/<timestamp>/`)
@@ -27,6 +28,18 @@ export interface RunSummary extends RunFolder {
 export interface ConversationMessage {
   role: "user" | "assistant";
   text: string;
+}
+
+/** One tool call of the main agent's in a kept conversation, with what came back. */
+export interface ConversationToolCall {
+  role: "tool";
+  id: string;
+  toolName: string;
+  input: unknown;
+  /** Null when the session ended before the result. */
+  result: { isError: boolean; text: string } | null;
+  /** An MCP result's `_meta`, as the live `tool-result` event has it. */
+  meta?: Record<string, unknown>;
 }
 
 const CONVERSATION = "conversation.jsonl";
@@ -170,6 +183,13 @@ export function createRunStore(dir: string): SessionStore {
 
 /** A transcript entry's text when it's something the human wrote or the agent replied, or null. */
 export function entryText(entry: SessionStoreEntry): ConversationMessage | null {
+  // A message sent into a running turn is kept as a queued command, not as a user entry
+  // (confirmed empirically, SDK 0.3.300).
+  const queued = entry.type === "attachment" ? (entry.attachment as { type?: string; commandMode?: string; prompt?: unknown } | undefined) : undefined;
+  if (queued?.type === "queued_command" && queued.commandMode === "prompt" && typeof queued.prompt === "string") {
+    const text = humanText(queued.prompt);
+    return text ? { role: "user", text } : null;
+  }
   if (entry.type !== "user" && entry.type !== "assistant") return null;
   if (entry.isMeta || entry.isSidechain) return null;
   const content = (entry.message as { content?: unknown } | undefined)?.content;
@@ -184,17 +204,49 @@ export function entryText(entry: SessionStoreEntry): ConversationMessage | null 
       .map((part) => part.text ?? "")
       .join("");
   }
+  const shown = humanText(text);
+  return shown ? { role: entry.type, text: shown } : null;
+}
+
+/** A message's text as a person reads it, or null when nothing of it is theirs. */
+function humanText(raw: string): string | null {
   // The kit's own notes to the model (a plan-mode switch) go before the human's words.
-  text = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>\s*/g, "");
+  const text = raw.replace(/<system-reminder>[\s\S]*?<\/system-reminder>\s*/g, "");
   // Slash commands and the CLI's own notes arrive as tagged text, not as the human's words.
-  if (!text.trim() || /^\s*<[a-z-]+>/.test(text)) return null;
-  return { role: entry.type, text };
+  return !text.trim() || /^\s*<[a-z-]+>/.test(text) ? null : text;
 }
 
 /** The human's messages and the agent's replies in a run's conversation, in order. */
 export async function readConversation(dir: string): Promise<ConversationMessage[]> {
   const entries = (await readEntries(path.join(dir, CONVERSATION))) ?? [];
   return entries.map(entryText).filter((message): message is ConversationMessage => message !== null);
+}
+
+/** A run's conversation with the main agent's tool calls in their place: what a view shows of a resumed one. */
+export async function readConversationSteps(dir: string): Promise<(ConversationMessage | ConversationToolCall)[]> {
+  const entries = (await readEntries(path.join(dir, CONVERSATION))) ?? [];
+  const steps: (ConversationMessage | ConversationToolCall)[] = [];
+  const calls = new Map<string, ConversationToolCall>();
+  for (const entry of entries) {
+    const message = entryText(entry);
+    if (message) steps.push(message);
+    const content = (entry.message as { content?: unknown } | undefined)?.content;
+    if (entry.isSidechain || !Array.isArray(content)) continue;
+    for (const part of content as { type?: string; id?: string; name?: string; input?: unknown; tool_use_id?: string; is_error?: boolean; content?: unknown }[]) {
+      if (entry.type === "assistant" && part.type === "tool_use" && part.id && part.name && !calls.has(part.id)) {
+        const call: ConversationToolCall = { role: "tool", id: part.id, toolName: part.name, input: part.input, result: null };
+        calls.set(part.id, call);
+        steps.push(call);
+      } else if (entry.type === "user" && part.type === "tool_result" && part.tool_use_id) {
+        const call = calls.get(part.tool_use_id);
+        if (!call) continue;
+        call.result = { isError: part.is_error === true, text: toolResultText(part.content) };
+        const meta = toolResultMeta(entry.mcpMeta);
+        if (meta) call.meta = meta;
+      }
+    }
+  }
+  return steps;
 }
 
 /** The runs under `runsDir` that kept a conversation, newest first; runs without `session.json` are left out. */

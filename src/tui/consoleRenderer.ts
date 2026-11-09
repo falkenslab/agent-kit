@@ -88,6 +88,7 @@ export function createConsoleRenderer(options: ConsoleRendererOptions = {}): Con
       case "subagent-action":
       case "tool-result":
       case "prompt-suggestion":
+      case "session-idle":
         return;
       case "mcp-error":
         writeLine(ui.warn(t().mcpFailed(event.failedServers.join(", "))));

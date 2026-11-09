@@ -48,6 +48,7 @@ When a run is resumed:
 
 - the agent remembers the whole conversation, subagents included;
 - the conversation is redrawn: from the start in full screen, after what's already on screen inline (a terminal's scrollback can't be taken back), then a line `(resumed the conversation of <date>)`;
+- the state's `transcript`, for a graphical view, gets the tool calls back in their place too, with their results and `meta` (the terminals redraw the text);
 - the run's `session.log` and `transcript.jsonl` keep growing in the same folder;
 - `initialPrompt` isn't sent again.
 

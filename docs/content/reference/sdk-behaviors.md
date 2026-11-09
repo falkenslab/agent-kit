@@ -36,6 +36,9 @@ The kit encodes several behaviors of the Claude Agent SDK (and the Claude Code C
 - **Prompt suggestions arrive after their turn's `result`.**
 - **The prompt iterable must stay open** for a multi-turn session: the SDK closes the transport when it ends ("ProcessTransport is not ready for writing" on the next message). Hence `createInputQueue()`.
 - **`usage` and `total_cost_usd` in a result are cumulative** for the session in streaming input mode.
+- **A message sent during a turn depends on its `priority`** (SDK 0.3.300): `next` joins the turn at its next tool boundary, in one `result`, or gets a turn of its own, a second `result`, when no tool call is left (several sent then share it); `now` cuts the running tool; `later` always waits for its own turn. Folded in, it's stored as a `queued_command` attachment, not a user entry, and `UserPromptSubmit` still runs for it. An interrupt doesn't drop it.
+- **`result` doesn't say the work is over; `session_state_changed` with `state: "idle"` does**, once, after the last `result`, and only with `CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1` in the environment. The kit turns it into `session-idle`.
+- **An MCP result's `_meta` isn't in `tool_result` or a `PostToolUse` hook**, and the model doesn't get it: it's on the stream's `tool_use_result` and the stored entry's `mcpMeta`. The kit gives it as `tool-result`'s `meta`.
 
 ## Configuration and context
 

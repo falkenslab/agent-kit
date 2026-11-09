@@ -30,11 +30,12 @@ type AgentEvent =
   | { type: "text"; text: string }
   | { type: "action"; toolName: string; input: unknown; toolUseId?: string }
   | { type: "subagent-action"; toolName: string; input: unknown; toolUseId?: string; parentToolUseId?: string }
-  | { type: "tool-result"; toolUseId: string; toolName: string; isError: boolean; text: string }
+  | { type: "tool-result"; toolUseId: string; toolName: string; isError: boolean; text: string; meta?: Record<string, unknown> }
   | { type: "mcp-error"; failedServers: string[] }
   | { type: "info"; text: string; level: "info" | "notice" | "suggestion" | "warning" | "local-command" }
   | { type: "turn-end"; status: string; failed: boolean; resultText: string | null; errorText: string; usage?: SessionUsage }
-  | { type: "prompt-suggestion"; suggestion: string };
+  | { type: "prompt-suggestion"; suggestion: string }
+  | { type: "session-idle" };
 ```
 
 | Evento | Cuándo | Notas |
@@ -42,11 +43,12 @@ type AgentEvent =
 | `text` | cada fragmento emitido de la respuesta del agente | Concaténalos. No hay un evento de "bloque iniciado": lleva la cuenta de si el evento anterior fue `text` para añadir una etiqueta. |
 | `action` | el agente principal llama a una herramienta | `toolUseId` lo empareja con su `tool-result`. |
 | `subagent-action` | un subagente llama a una herramienta | `parentToolUseId` es la llamada a `Agent` que inició el subagente. Se mantiene aparte para que nunca parezca que actuó el agente principal. |
-| `tool-result` | vuelve una llamada a una herramienta del agente principal | El resultado como texto plano (sin imágenes ni otras partes); `isError` si falló. Los resultados de los subagentes no se notifican. |
+| `tool-result` | vuelve una llamada a una herramienta del agente principal | El resultado como texto plano (sin imágenes ni otras partes); `isError` si falló. Los resultados de los subagentes no se notifican. `meta` es el `_meta` de un resultado MCP, tal cual (no está si la herramienta no devolvió ninguno): datos para tu interfaz, que el modelo nunca ve. |
 | `mcp-error` | al arrancar, algunos servidores MCP no pudieron conectarse | La sesión sigue sin ellos. |
 | `info` | la salida propia de la CLI: la salida de un comando local, un aviso, un comando desconocido | Sin él, un comando con barra desconocido parecía silencio. |
 | `turn-end` | ha terminado un turno | **Comprueba `failed`, no `status`**: el SDK puede informar de `status: "success"` en un turno que falló por un error de la API, con el mensaje en `resultText`. `usage` es el total acumulado de la sesión. |
 | `prompt-suggestion` | el siguiente mensaje previsto (con `promptSuggestions: true`) | Llega **después** del `turn-end` de su turno. |
+| `session-idle` | no queda nada por responder | Una vez, tras el último `turn-end`. Solo importa con mensajes enviados a un turno en marcha: mira más abajo. |
 
 ```ts
 interface SessionUsage {
@@ -110,6 +112,8 @@ Con modos intercambiables, pasa el control de modo de la sesión, `createInputQu
 `createDeferred()` es un pequeño helper (`{ promise, resolve }`) para avisar de que "este turno ha terminado" entre un bucle lector y el código que lo espera.
 
 ## Leer los eventos de forma continua {#reading-events-continuously}
+
+Para enviar un mensaje mientras corre un turno, `queue.push(text, { priority: "next" })`: entra en el turno en su siguiente llamada a una herramienta, sin detenerlo, o tiene su propio turno si no queda ninguna. Así que un `turn-end` puede no ser el último: espera a `session-idle`. El `steer()` del controlador del chat hace todo esto por ti.
 
 Una interfaz normalmente ejecuta un único lector para toda la sesión y reacciona a los eventos según llegan, porque algunos llegan entre turnos (`prompt-suggestion` después de `turn-end`, `mcp-error` antes del primer turno):
 

@@ -690,20 +690,24 @@ async function projectSkills(projectDir: string): Promise<string[]> {
  *
  * With `modeControl`, each message goes after the note on a plan-mode switch the model
  * hasn't been told about yet (`ModeControl.takeNotice()`).
+ *
+ * `push(text, { priority: "next" })` is for a turn already running: the message joins it at its
+ * next tool boundary without stopping it, or gets a turn of its own when no tool call is left
+ * (confirmed empirically, SDK 0.3.300; `"now"` would cut the running tool).
  */
 export function createInputQueue(options: { modeControl?: ModeControl } = {}): {
-  push: (text: string) => void;
+  push: (text: string, delivery?: { priority?: "next" }) => void;
   end: () => void;
   iterable: AsyncIterable<SDKUserMessage>;
 } {
-  const pending: string[] = [];
+  const pending: { text: string; priority?: "next" }[] = [];
   let wake: (() => void) | null = null;
   let ended = false;
 
   async function* generator(): AsyncGenerator<SDKUserMessage> {
     while (!ended) {
-      const text = pending.shift();
-      if (text === undefined) {
+      const next = pending.shift();
+      if (next === undefined) {
         await new Promise<void>((resolve) => {
           wake = resolve;
         });
@@ -711,16 +715,17 @@ export function createInputQueue(options: { modeControl?: ModeControl } = {}): {
       }
       yield {
         type: "user",
-        message: { role: "user", content: text },
+        message: { role: "user", content: next.text },
         parent_tool_use_id: null,
+        ...(next.priority ? { priority: next.priority } : {}),
       };
     }
   }
 
   return {
-    push(text: string) {
+    push(text: string, delivery: { priority?: "next" } = {}) {
       const notice = options.modeControl?.takeNotice?.();
-      pending.push(notice ? `${notice}\n\n${text}` : text);
+      pending.push({ text: notice ? `${notice}\n\n${text}` : text, ...delivery });
       wake?.();
       wake = null;
     },

@@ -30,7 +30,7 @@ await chat.send("Tell me a joke"); // a line: a command, or a turn (resolves whe
 
 | Field | What it holds |
 | --- | --- |
-| `transcript` | The conversation in blocks: the person's lines (`user`), the agent's markdown (`agent`), groups of tool calls with their labels, results and subagents' actions (`tools`), notices (`notice`, with a tone: `plain`, `dim`, `warn`, `error`) and how long each turn took (`turn-summary`). |
+| `transcript` | The conversation in blocks: the person's lines (`user`), the agent's markdown (`agent`), groups of tool calls with their labels, results and subagents' actions (`tools`; a call whose MCP tool returned a `_meta` has it as `meta`, for your page to use: the model never sees it and the kit doesn't read it), notices (`notice`, with a tone: `plain`, `dim`, `warn`, `error`) and how long each turn took (`turn-summary`). |
 | `busy`, `turnStartedAt`, `activity`, `subagentActivity` | A turn running, since when, and what the agent and a subagent are doing now. |
 | `todos` | The agent's task list, while a task is open. |
 | `mode`, `switchableModes` | The mode, and the ones the person can switch to. |
@@ -47,7 +47,8 @@ await chat.send("Tell me a joke"); // a line: a command, or a turn (resolves whe
 | Action | What it does |
 | --- | --- |
 | `send(line)` | A line the person sent: an exit command (resolves to `"exit"`), one of the chat's commands (`/resume`, `/plan`, `/extensions`), an unknown slash command (a warning, never sent), or a turn. |
-| `interrupt()` | Stops the turn running. |
+| `steer(line)` | A message for the agent while a turn runs, without stopping it: it joins the turn at its next tool call, or is answered right after when no call is left. It stays in the transcript where it was sent, and the `send()` already waiting, and `busy`, last until it's answered. Resolves to `false`, with nothing sent, when no turn is running (use `send()`) and for a slash command or an exit line, which wait for the turn to end. |
+| `interrupt()` | Stops the turn running. A message already sent with `steer()` is still answered. |
 | `setMode(mode)`, `cycleMode()`, `togglePlan()` | Switches the mode as the session allows. |
 | `listRuns()`, `resume(dir?)` | The runs to resume, and switching to one (without `dir`, it asks: `pick`, or the state's `choice`). |
 | `newConversation()` | A new conversation in a new run, the current one left to resume: a graphical view's "new chat" button. |

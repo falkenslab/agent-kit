@@ -36,6 +36,9 @@ El kit codifica varios comportamientos del Claude Agent SDK (y de la CLI de Clau
 - **Las sugerencias de prompt llegan después del `result` de su turno.**
 - **El iterable del prompt tiene que seguir abierto** para una sesión de varios turnos: el SDK cierra el transporte cuando termina ("ProcessTransport is not ready for writing" en el siguiente mensaje). De ahí `createInputQueue()`.
 - **`usage` y `total_cost_usd` en un resultado son acumulados** para la sesión en el modo de entrada en streaming.
+- **Un mensaje enviado durante un turno depende de su `priority`** (SDK 0.3.300): `next` entra en el turno en su siguiente paso entre herramientas, con un solo `result`, o tiene su propio turno, un segundo `result`, si no queda ninguna llamada (los que se envíen entonces lo comparten); `now` corta la herramienta en curso; `later` siempre espera a su propio turno. Al entrar en el turno se guarda como adjunto `queued_command`, no como entrada de usuario, y `UserPromptSubmit` se ejecuta igualmente. Una interrupción no lo descarta.
+- **`result` no dice que el trabajo haya terminado; `session_state_changed` con `state: "idle"` sí**, una vez, tras el último `result`, y solo con `CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1` en el entorno. El kit lo convierte en `session-idle`.
+- **El `_meta` de un resultado MCP no está en `tool_result` ni en un hook `PostToolUse`**, y el modelo no lo recibe: está en el `tool_use_result` del stream y en el `mcpMeta` de la entrada guardada. El kit lo da como `meta` de `tool-result`.
 
 ## Configuración y contexto {#configuration-and-context}
 

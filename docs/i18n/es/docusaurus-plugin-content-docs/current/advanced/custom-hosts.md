@@ -30,7 +30,7 @@ await chat.send("Tell me a joke"); // a line: a command, or a turn (resolves whe
 
 | Campo | Qué contiene |
 | --- | --- |
-| `transcript` | La conversación en bloques: las líneas de la persona (`user`), el markdown del agente (`agent`), grupos de llamadas a herramientas con sus etiquetas, resultados y acciones de los subagentes (`tools`), avisos (`notice`, con un tono: `plain`, `dim`, `warn`, `error`) y cuánto duró cada turno (`turn-summary`). |
+| `transcript` | La conversación en bloques: las líneas de la persona (`user`), el markdown del agente (`agent`), grupos de llamadas a herramientas con sus etiquetas, resultados y acciones de los subagentes (`tools`; una llamada cuya herramienta MCP devolvió un `_meta` lo tiene como `meta`, para que lo use tu página: el modelo nunca lo ve y el kit no lo lee), avisos (`notice`, con un tono: `plain`, `dim`, `warn`, `error`) y cuánto duró cada turno (`turn-summary`). |
 | `busy`, `turnStartedAt`, `activity`, `subagentActivity` | Un turno en curso, desde cuándo, y qué están haciendo ahora el agente y un subagente. |
 | `todos` | La lista de tareas del agente, mientras haya una tarea abierta. |
 | `mode`, `switchableModes` | El modo, y aquellos a los que puede cambiar la persona. |
@@ -47,7 +47,8 @@ await chat.send("Tell me a joke"); // a line: a command, or a turn (resolves whe
 | Acción | Qué hace |
 | --- | --- |
 | `send(line)` | Una línea que ha enviado la persona: un comando de salida (se resuelve con `"exit"`), uno de los comandos del chat (`/resume`, `/plan`, `/extensions`), un comando con barra desconocido (un aviso, nunca se envía) o un turno. |
-| `interrupt()` | Detiene el turno en curso. |
+| `steer(line)` | Un mensaje para el agente mientras corre un turno, sin detenerlo: entra en el turno en su siguiente llamada a una herramienta, o se responde justo después si no queda ninguna. Se queda en la transcripción donde se envió, y el `send()` que ya espera, y `busy`, duran hasta que se responde. Se resuelve a `false`, sin enviar nada, si no hay ningún turno en curso (usa `send()`) y con un comando de barra o una línea de salida, que esperan a que acabe el turno. |
+| `interrupt()` | Detiene el turno en curso. Un mensaje ya enviado con `steer()` se responde igualmente. |
 | `setMode(mode)`, `cycleMode()`, `togglePlan()` | Cambia el modo según lo permita la sesión. |
 | `listRuns()`, `resume(dir?)` | Las ejecuciones que se pueden reanudar, y cambiar a una (sin `dir`, pregunta: `pick`, o el `choice` del estado). |
 | `newConversation()` | Una conversación nueva en una ejecución nueva, dejando la actual para reanudarla: el botón "nuevo chat" de una vista gráfica. |

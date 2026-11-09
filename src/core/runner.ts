@@ -31,8 +31,10 @@ export type AgentEvent =
   | { type: "subagent-action"; toolName: string; input: unknown; toolUseId?: string; parentToolUseId?: string }
   /** What one of the main agent's tool calls returned, paired with its `action` by
    * `toolUseId`, as plain text (images and other non-text parts left out). Subagents'
-   * results stay out, as their actions do. A console log ignores it. */
-  | { type: "tool-result"; toolUseId: string; toolName: string; isError: boolean; text: string }
+   * results stay out, as their actions do. A console log ignores it. `meta` is an MCP
+   * result's `_meta`, untouched: data for the client, which the model never sees and the kit
+   * doesn't interpret (absent when the tool returned none). */
+  | { type: "tool-result"; toolUseId: string; toolName: string; isError: boolean; text: string; meta?: Record<string, unknown> }
   /** One or more MCP servers failed to connect at session startup. */
   | { type: "mcp-error"; failedServers: string[] }
   /** A turn (one full `query()` response cycle) has finished. `failed` is the real
@@ -53,7 +55,11 @@ export type AgentEvent =
   /** The predicted next prompt, when `Options.promptSuggestions` is on. It arrives after
    * that turn's `turn-end`, so a reader that stops at `turn-end` sees it first thing in the
    * next turn; a console log ignores it. */
-  | { type: "prompt-suggestion"; suggestion: string };
+  | { type: "prompt-suggestion"; suggestion: string }
+  /** Nothing is left to answer. It arrives once, after the last `turn-end`: a message sent
+   * into a running turn with no tool call left gets a `turn-end` of its own, so a `turn-end`
+   * doesn't say the work is over, and this does (confirmed empirically, SDK 0.3.300). */
+  | { type: "session-idle" };
 
 /**
  * Running totals for the whole `query()` session so far, not for one turn: the SDK's own
@@ -90,6 +96,17 @@ export function toolResultText(content: unknown): string {
     .filter((part): part is { type: "text"; text: string } => typeof part === "object" && part !== null && part.type === "text")
     .map((part) => part.text)
     .join("\n");
+}
+
+/**
+ * An MCP result's `_meta`, from what holds it: a stream message's `tool_use_result` or a stored
+ * entry's `mcpMeta` (confirmed empirically, SDK 0.3.300: neither `tool_result` nor a
+ * `PostToolUse` hook carries it).
+ */
+export function toolResultMeta(holder: unknown): Record<string, unknown> | undefined {
+  if (typeof holder !== "object" || holder === null) return undefined;
+  const meta = (holder as { _meta?: unknown })._meta;
+  return typeof meta === "object" && meta !== null && !Array.isArray(meta) ? (meta as Record<string, unknown>) : undefined;
 }
 
 /** How full the session's context window is (see `AgentRun.contextUsage()`). */
@@ -159,7 +176,9 @@ async function restoreSavedSwitches(result: { mcpServerStatus(): Promise<McpServ
  * `close`, `supportedCommands`) is passed through unchanged.
  */
 export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options: Options): AgentRun {
-  const result = query({ prompt, options });
+  // The session's state, for `session-idle`: the CLI only reports it when asked (confirmed
+  // empirically, SDK 0.3.300). `env` replaces the subprocess environment, so the rest goes on.
+  const result = query({ prompt, options: { ...options, env: { ...(options.env ?? process.env), CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: "1" } } });
   // What the session is, for an extension that asks (sessionFacts.ts): the controls now, the
   // tools and skills when the session starts.
   const view = sessionViewOf(options);
@@ -188,6 +207,11 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
 
       if (message.type === "system" && message.subtype === "informational") {
         yield { type: "info", text: message.content, level: message.level };
+        continue;
+      }
+
+      if (message.type === "system" && message.subtype === "session_state_changed") {
+        if (message.state === "idle") yield { type: "session-idle" };
         continue;
       }
 
@@ -222,11 +246,13 @@ export function runQuery(prompt: string | AsyncIterable<SDKUserMessage>, options
       }
 
       if (message.type === "user" && message.parent_tool_use_id === null && Array.isArray(message.message.content)) {
+        // One result per message in practice; were there several, `tool_use_result` couldn't be told apart.
+        const meta = message.message.content.filter((block) => block.type === "tool_result").length === 1 ? toolResultMeta(message.tool_use_result) : undefined;
         for (const block of message.message.content) {
           if (block.type !== "tool_result") continue;
           const toolName = toolNames.get(block.tool_use_id);
           if (!toolName) continue;
-          yield { type: "tool-result", toolUseId: block.tool_use_id, toolName, isError: block.is_error === true, text: toolResultText(block.content) };
+          yield { type: "tool-result", toolUseId: block.tool_use_id, toolName, isError: block.is_error === true, text: toolResultText(block.content), ...(meta ? { meta } : {}) };
         }
       }
 
