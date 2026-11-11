@@ -47,10 +47,37 @@ export function createConsoleRenderer(options: ConsoleRendererOptions = {}): Con
   // The main agent's task list, to print only what changed in each TodoWrite call.
   let todos: Todo[] = [];
 
-  function write(text: string): void {
-    if (text.length === 0) return;
+  function put(text: string): void {
     output(text);
     options.onWrite?.(text);
+  }
+
+  // The agent's streamed text is colored once for as long as it streams, not chunk by chunk
+  // (#95): a code per chunk split its words in a log, and filled a terminal with codes. What
+  // closes the color, once anything else is written.
+  let agentClose: string | null = null;
+  function closeAgent(): void {
+    if (agentClose === null) return;
+    if (agentClose) put(agentClose);
+    agentClose = null;
+  }
+  function writeAgent(text: string): void {
+    if (text.length === 0) return;
+    if (agentClose === null) {
+      // The role's codes, around a marker: whatever the theme makes of it (a name, a hex, a function).
+      const parts = ui.agent("\u0000").split("\u0000");
+      if (parts.length !== 2) return write(ui.agent(text));
+      if (parts[0]) put(parts[0]);
+      agentClose = parts[1]!;
+    }
+    put(text);
+    atLineStart = text.endsWith("\n");
+  }
+
+  function write(text: string): void {
+    if (text.length === 0) return;
+    closeAgent();
+    put(text);
     atLineStart = text.endsWith("\n");
   }
 
@@ -71,7 +98,7 @@ export function createConsoleRenderer(options: ConsoleRendererOptions = {}): Con
           write(`${options.agentLabel} `);
           labelPrinted = true;
         }
-        write(ui.agent(event.text));
+        writeAgent(event.text);
         return;
       case "action": {
         const next = event.toolName === TODO_TOOL ? parseTodos(event.input) : null;
@@ -97,6 +124,7 @@ export function createConsoleRenderer(options: ConsoleRendererOptions = {}): Con
         writeLine((event.level === "warning" ? ui.warn : ui.dim)(`(${event.text})`));
         return;
       case "turn-end":
+        closeAgent();
         if (event.failed && event.errorText) writeLine(ui.error(event.errorText));
         return;
     }
@@ -108,6 +136,7 @@ export function createConsoleRenderer(options: ConsoleRendererOptions = {}): Con
     writeLine,
     endLine,
     startTurn: () => {
+      closeAgent();
       labelPrinted = false;
     },
     get atLineStart() {

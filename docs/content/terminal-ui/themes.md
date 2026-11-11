@@ -45,11 +45,15 @@ Each role takes one of:
 
 ```ts
 import pc from "picocolors";
+import { colorSupported } from "@falkenslab/agent-kit";
+
+// Colors when the kit's own do: picocolors' default colors on Windows even into a file.
+const c = pc.createColors(colorSupported());
 
 theme: {
-  agent: (text) => pc.bold(pc.cyan(text)),
+  agent: (text) => c.bold(c.cyan(text)),
   toolResult: "gray",
-  error: (text) => pc.bgRed(pc.white(` ${text} `)),
+  error: (text) => c.bgRed(c.white(` ${text} `)),
 },
 ```
 
@@ -90,4 +94,4 @@ welcomeMessage: ui.dim("Ask me anything. /exit to leave."),
 
 ## Without color
 
-When the terminal has no color support (or `NO_COLOR` is set), names and hexes draw plain text; functions are still called, so a function should use a color library that honors it (picocolors does). Widths are always measured without escape codes, so a theme never changes the layout, and the session log is always plain text.
+The terminal UI colors only when stdout is a terminal (not a `dumb` one), on every platform: output redirected to a file or a pipe (`--plain --headless > run.log`, CI, a scheduled task) is plain text. `NO_COLOR` turns color off and `FORCE_COLOR` on (`0` or `false` off). It's decided once, when the kit loads, and `colorSupported()` gives the answer. Without color, names and hexes draw plain text; functions are still called, so a function should decide the same way: `pc.createColors(colorSupported())`, as in the example above (picocolors' own default is always on on Windows). Streamed text is colored once for as long as it streams, not chunk by chunk. Widths are always measured without escape codes, so a theme never changes the layout, and the session log is always plain text.

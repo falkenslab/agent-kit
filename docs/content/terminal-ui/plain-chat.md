@@ -36,6 +36,7 @@ you>
 ```
 
 - `agentLabel` is printed before each reply, and colors it.
+- Its output redirected to a file or a pipe is plain text, on Windows too; `FORCE_COLOR` keeps the colors ([Themes](themes.md#without-color)).
 - Esc interrupts the turn; Ctrl+C interrupts it, or leaves at an idle prompt.
 - ↑/↓ go through the history (`historyPath`).
 - An unknown `/command` is caught before it reaches the model.

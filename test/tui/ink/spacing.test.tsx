@@ -34,7 +34,8 @@ test("the blank lines between kinds of output reach the screen, one render at a 
   await settle();
 
   const screen = stripAnsi(view.lastFrame() ?? "");
-  assert.match(screen, /you> hello +\n\n● Arrr! Sending the kitty\.\n\n● run Agent\n {2}⎿ {2}…\n● run Agent/);
+  // The bar's padding is there only with color.
+  assert.match(screen, /you> hello *\n\n● Arrr! Sending the kitty\.\n\n● run Agent\n {2}⎿ {2}…\n● run Agent/);
 });
 
 test("the blank line above the prompt is there while typing, and Enter doesn't add another", async () => {
@@ -61,5 +62,5 @@ test("the blank line above the prompt is there while typing, and Enter doesn't a
   model.render({ type: "text", text: "On it.\n" });
   model.endTurn();
   await settle();
-  assert.match(stripAnsi(view.lastFrame() ?? ""), /✻ Worked for \d+s\n\n you> another +\n\n● On it\.\n/);
+  assert.match(stripAnsi(view.lastFrame() ?? ""), /✻ Worked for \d+s\n\n you> another *\n\n● On it\.\n/);
 });

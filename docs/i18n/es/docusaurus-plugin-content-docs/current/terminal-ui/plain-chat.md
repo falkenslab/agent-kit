@@ -36,6 +36,7 @@ you>
 ```
 
 - `agentLabel` se imprime antes de cada respuesta, y le da color.
+- Su salida redirigida a un fichero o a una tubería es texto plano, también en Windows; `FORCE_COLOR` mantiene los colores ([Temas](themes.md#without-color)).
 - Esc interrumpe el turno; Ctrl+C lo interrumpe, o sale con el prompt inactivo.
 - ↑/↓ recorren el historial (`historyPath`).
 - Un `/command` desconocido se detecta antes de que llegue al modelo.

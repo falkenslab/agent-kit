@@ -45,11 +45,15 @@ Cada rol admite uno de estos:
 
 ```ts
 import pc from "picocolors";
+import { colorSupported } from "@falkenslab/agent-kit";
+
+// Colorea cuando colorea el kit: el picocolors por defecto colorea en Windows incluso hacia un fichero.
+const c = pc.createColors(colorSupported());
 
 theme: {
-  agent: (text) => pc.bold(pc.cyan(text)),
+  agent: (text) => c.bold(c.cyan(text)),
   toolResult: "gray",
-  error: (text) => pc.bgRed(pc.white(` ${text} `)),
+  error: (text) => c.bgRed(c.white(` ${text} `)),
 },
 ```
 
@@ -90,4 +94,4 @@ welcomeMessage: ui.dim("Ask me anything. /exit to leave."),
 
 ## Sin color {#without-color}
 
-Cuando la terminal no admite color (o está definida `NO_COLOR`), los nombres y los hexadecimales dibujan texto plano; las funciones se siguen llamando, así que una función debería usar una librería de colores que lo respete (picocolors lo hace). Los anchos se miden siempre sin códigos de escape, así que un tema nunca cambia la maquetación, y el log de la sesión es siempre texto plano.
+La interfaz de terminal solo colorea cuando stdout es una terminal (que no sea `dumb`), en cualquier plataforma: la salida redirigida a un fichero o a una tubería (`--plain --headless > run.log`, CI, una tarea programada) es texto plano. `NO_COLOR` quita el color y `FORCE_COLOR` lo pone (`0` o `false` lo quitan). Se decide una vez, al cargar el kit, y `colorSupported()` da la respuesta. Sin color, los nombres y los hexadecimales dibujan texto plano; las funciones se siguen llamando, así que una función debería decidir igual: `pc.createColors(colorSupported())`, como en el ejemplo de arriba (el picocolors por defecto colorea siempre en Windows). El texto que llega en streaming se colorea una sola vez mientras llega, no trozo a trozo. Los anchos se miden siempre sin códigos de escape, así que un tema nunca cambia la maquetación, y el log de la sesión es siempre texto plano.

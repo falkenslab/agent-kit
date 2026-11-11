@@ -82,18 +82,33 @@ export function applyTheme(overrides: Partial<Theme> | undefined): void {
   if (overrides) setTheme(overrides);
 }
 
+/**
+ * Whether the terminal UI colors what it writes: when stdout is a terminal (and not a `dumb`
+ * one), `NO_COLOR` turning it off and `FORCE_COLOR` on (off for `0` or `false`). Not picocolors'
+ * `isColorSupported`, which is true on Windows whatever stdout is (#95): a run redirected to a
+ * file got a log full of escape codes there.
+ */
+export function colorSupported(env: NodeJS.ProcessEnv = process.env, isTTY: boolean = Boolean(process.stdout?.isTTY)): boolean {
+  if (env.NO_COLOR) return false;
+  if (env.FORCE_COLOR !== undefined) return !["0", "false"].includes(env.FORCE_COLOR.toLowerCase());
+  return isTTY && env.TERM !== "dumb";
+}
+
+/** Decided once, when the kit loads: what the process's stdout is doesn't change. */
+export const colorOn = colorSupported();
+
 const HEX = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i;
 const COLORS = pc.createColors(true);
 const NAMES = new Set(Object.keys(pc).filter((key) => typeof (pc as unknown as Record<string, unknown>)[key] === "function" && key !== "createColors"));
 
 /**
  * `text` in `color`: a function is applied as given; a name or a hex becomes the terminal's
- * escape codes, or nothing when the terminal has no color (`enabled`). `background` for a
- * background color (a name becomes its `bg` form).
+ * escape codes, or nothing when there's no color (`enabled`, by default `colorSupported()`'s
+ * answer for this process). `background` for a background color (a name becomes its `bg` form).
  */
 export function paint(color: ThemeColor, text: string, options: { background?: boolean; enabled?: boolean } = {}): string {
   if (typeof color === "function") return color(text);
-  const enabled = options.enabled ?? pc.isColorSupported;
+  const enabled = options.enabled ?? colorOn;
   if (!enabled) return text;
   const hex = HEX.exec(color);
   if (hex) {

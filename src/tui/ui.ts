@@ -5,7 +5,10 @@
  */
 
 import pc from "picocolors";
-import { getTheme, paint } from "./theme.js";
+import { colorOn, getTheme, paint } from "./theme.js";
+
+// Bold, italics and strikethrough follow the same decision as the theme's colors (#95).
+const styles = pc.createColors(colorOn);
 
 /*
  * Color palette for a consistent console look across whatever CLI is built on this kit.
@@ -46,8 +49,8 @@ export const toolLabel = (s: string): string => paint(getTheme().toolLabel, s);
 /** The one-line result under a tool call. */
 export const toolResult = (s: string): string => paint(getTheme().toolResult, s);
 /** Bold, whatever the theme. */
-export const bold = (s: string): string => pc.bold(s);
+export const bold = (s: string): string => styles.bold(s);
 /** Italics, whatever the theme. */
-export const italic = (s: string): string => pc.italic(s);
+export const italic = (s: string): string => styles.italic(s);
 /** Strikethrough, whatever the theme. */
-export const strike = (s: string): string => pc.strikethrough(s);
+export const strike = (s: string): string => styles.strikethrough(s);
