@@ -16,16 +16,18 @@ Each run leaves a trail in its folder:
 
 ## `transcript.jsonl`
 
-A `PreToolUse` and a `PostToolUse` hook append one line per event:
+A `PreToolUse`, a `PostToolUse` and a `PostToolUseFailure` hook append one line per event:
 
 ```json
 {"ts":"2026-09-29T10:15:02.114Z","event":"pre_tool_use","tool":"WebFetch","input":{"url":"https://example.com","prompt":"Summarize"}}
 {"ts":"2026-09-29T10:15:04.870Z","event":"post_tool_use","tool":"WebFetch","result":"Example Domain. This domain is for use in illustrative examples…"}
+{"ts":"2026-09-29T10:15:06.301Z","event":"post_tool_use_failure","tool":"mcp__moodle__save_submission","error":"The assignment doesn't accept files."}
 ```
 
+- A call that failed has a `post_tool_use_failure` line instead of `post_tool_use`, with the error the model got: an MCP tool's result with `isError`, or one that threw. It says `"interrupted": true` when the call was interrupted. A call denied before it runs (by a gate, `canUseTool` or the person) has only its `pre_tool_use`.
 - Guided mode's answers about an installed extension's tools go to it too, one line each: `{"ts":"…","event":"guided_decision","extension":"canva","tool":"mcp__canva__create-design","answer":"session"}`. The answer is `yes`, `session`, `always`, `no` or `never` (the person's), `kept-never` (denied by an answer kept before), `autonomous-deny` (no one to ask) or `server-asks` (let through: its server asks the person itself).
 - The file is created on the first tool call; a session without tool calls has none.
-- Long results are cut at 2,000 characters, and base64 payloads (screenshots) are replaced by `[image omitted, N bytes base64]`, so a browser agent's transcript stays readable.
+- Long results and errors are cut at 2,000 characters, and base64 payloads (screenshots) are replaced by `[image omitted, N bytes base64]`, so a browser agent's transcript stays readable.
 - Every line is redacted before it's written: each value in `config.secrets`, and `CLAUDE_CODE_OAUTH_TOKEN` whenever the environment has one, become `***`.
 
 ```ts

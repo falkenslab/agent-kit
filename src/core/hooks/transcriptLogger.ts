@@ -3,12 +3,15 @@ import type {
   HookCallback,
   PreToolUseHookInput,
   PostToolUseHookInput,
+  PostToolUseFailureHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 
-/** The two hooks that write `transcript.jsonl`: register `preToolUse` as a `PreToolUse` hook and `postToolUse` as a `PostToolUse` one. */
+/** The hooks that write `transcript.jsonl`: register `preToolUse` as a `PreToolUse` hook, `postToolUse` as a `PostToolUse` one and `postToolUseFailure` as a `PostToolUseFailure` one. */
 export interface TranscriptLogger {
   preToolUse: HookCallback;
   postToolUse: HookCallback;
+  /** A call that failed (#96): it fires instead of `PostToolUse`, and without it the record ends at the call. */
+  postToolUseFailure: HookCallback;
   /** Another event the kit keeps in it (a gate's answer, #74): one line, with its time. */
   note(event: string, entry: Record<string, unknown>): Promise<void>;
 }
@@ -57,7 +60,19 @@ export function createTranscriptLogger(transcriptPath: string, secrets: readonly
     return {};
   };
 
-  return { preToolUse, postToolUse, note: async (event, entry) => await write({ ts: new Date().toISOString(), event, ...entry }) };
+  const postToolUseFailure: HookCallback = async (input) => {
+    const failure = input as PostToolUseFailureHookInput;
+    await write({
+      ts: new Date().toISOString(),
+      event: "post_tool_use_failure",
+      tool: failure.tool_name,
+      error: summarizeToolResponse(failure.error),
+      ...(failure.is_interrupt ? { interrupted: true } : {}),
+    });
+    return {};
+  };
+
+  return { preToolUse, postToolUse, postToolUseFailure, note: async (event, entry) => await write({ ts: new Date().toISOString(), event, ...entry }) };
 }
 
 /** Avoids bloating the transcript with large payloads (browser-tool screenshots/base64). */

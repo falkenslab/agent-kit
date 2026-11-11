@@ -34,11 +34,11 @@ When standard input isn't a terminal (a background process, a CI job, a pipe), t
 
 ## Knowing a checkpoint is waiting
 
-The run's [transcript](../security/transcript.md) (`<runDir>/transcript.jsonl`) gets a `pre_tool_use` line before every tool call, before any gate runs, and a `post_tool_use` line when the call ends. So:
+The run's [transcript](../security/transcript.md) (`<runDir>/transcript.jsonl`) gets a `pre_tool_use` line before every tool call, before any gate runs, and a `post_tool_use` line when the call ends (`post_tool_use_failure` when it failed). So:
 
 - an **approval** is waiting when the last line is a `pre_tool_use` of `mcp__approvals__request_human_approval` (its `input.summary` says what for);
 - a **manual intervention** is waiting after a `pre_tool_use` of `mcp__manualLogin__request_manual_login`;
-- in **interactive** mode, the step gate is waiting on every `pre_tool_use` that has no `post_tool_use` yet.
+- in **interactive** mode, the step gate is waiting on every `pre_tool_use` that has no `post_tool_use` or `post_tool_use_failure` yet.
 
 A supervisor that approves by a policy of its own:
 
@@ -47,7 +47,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 interface TranscriptLine {
-  event: "pre_tool_use" | "post_tool_use";
+  event: "pre_tool_use" | "post_tool_use" | "post_tool_use_failure";
   tool: string;
   input?: { summary?: string };
 }

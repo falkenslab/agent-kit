@@ -455,6 +455,8 @@ export async function buildSessionOptions<TConfig extends BaseSessionConfig>(
           : []),
       ],
       PostToolUse: [{ hooks: [transcriptLogger.postToolUse] }, ...(languageReminder ? [{ hooks: [languageReminder.postToolUse] }] : [])],
+      // A call that failed gets this one instead (#96).
+      PostToolUseFailure: [{ hooks: [transcriptLogger.postToolUseFailure] }],
       // The person's message: it ends a batch they approved (#74), and carries the sign-in reminders (#82).
       ...(guidedGate || signInExtensions.length || languageReminder
         ? {

@@ -34,11 +34,11 @@ Cuando la entrada estándar no es un terminal (un proceso en segundo plano, un t
 
 ## Saber que un punto de control está esperando {#knowing-a-checkpoint-is-waiting}
 
-La [transcripción](../security/transcript.md) de la ejecución (`<runDir>/transcript.jsonl`) recibe una línea `pre_tool_use` antes de cada llamada a una herramienta, antes de que se ejecute ninguna puerta, y una línea `post_tool_use` cuando la llamada termina. Así:
+La [transcripción](../security/transcript.md) de la ejecución (`<runDir>/transcript.jsonl`) recibe una línea `pre_tool_use` antes de cada llamada a una herramienta, antes de que se ejecute ninguna puerta, y una línea `post_tool_use` cuando la llamada termina (`post_tool_use_failure` cuando ha fallado). Así:
 
 - una **aprobación** está esperando cuando la última línea es un `pre_tool_use` de `mcp__approvals__request_human_approval` (su `input.summary` dice para qué);
 - una **intervención manual** está esperando tras un `pre_tool_use` de `mcp__manualLogin__request_manual_login`;
-- en modo **interactivo**, la puerta de pasos está esperando en cada `pre_tool_use` que aún no tiene su `post_tool_use`.
+- en modo **interactivo**, la puerta de pasos está esperando en cada `pre_tool_use` que aún no tiene su `post_tool_use` ni su `post_tool_use_failure`.
 
 Un supervisor que aprueba según una política propia:
 
@@ -47,7 +47,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 interface TranscriptLine {
-  event: "pre_tool_use" | "post_tool_use";
+  event: "pre_tool_use" | "post_tool_use" | "post_tool_use_failure";
   tool: string;
   input?: { summary?: string };
 }

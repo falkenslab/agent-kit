@@ -16,16 +16,18 @@ Cada ejecución deja un rastro en su carpeta:
 
 ## `transcript.jsonl` {#transcriptjsonl}
 
-Un hook `PreToolUse` y otro `PostToolUse` añaden una línea por evento:
+Un hook `PreToolUse`, otro `PostToolUse` y otro `PostToolUseFailure` añaden una línea por evento:
 
 ```json
 {"ts":"2026-09-29T10:15:02.114Z","event":"pre_tool_use","tool":"WebFetch","input":{"url":"https://example.com","prompt":"Summarize"}}
 {"ts":"2026-09-29T10:15:04.870Z","event":"post_tool_use","tool":"WebFetch","result":"Example Domain. This domain is for use in illustrative examples…"}
+{"ts":"2026-09-29T10:15:06.301Z","event":"post_tool_use_failure","tool":"mcp__moodle__save_submission","error":"La tarea no admite ficheros."}
 ```
 
+- Una llamada que ha fallado tiene una línea `post_tool_use_failure` en lugar de `post_tool_use`, con el error que recibió el modelo: el resultado de una herramienta MCP con `isError`, o una que lanzó una excepción. Lleva `"interrupted": true` cuando la llamada se interrumpió. Una llamada denegada antes de ejecutarse (por una puerta, `canUseTool` o la persona) solo tiene su `pre_tool_use`.
 - Las respuestas del modo guiado sobre las herramientas de una extensión instalada también van ahí, una línea cada una: `{"ts":"…","event":"guided_decision","extension":"canva","tool":"mcp__canva__create-design","answer":"session"}`. La respuesta es `yes`, `session`, `always`, `no` o `never` (las de la persona), `kept-never` (denegada por una respuesta guardada antes), `autonomous-deny` (nadie a quien preguntar) o `server-asks` (se deja pasar: su servidor pregunta él mismo a la persona).
 - El fichero se crea en la primera llamada a una herramienta; una sesión sin llamadas a herramientas no lo tiene.
-- Los resultados largos se cortan a los 2.000 caracteres, y las cargas en base64 (capturas de pantalla) se sustituyen por `[image omitted, N bytes base64]`, para que la transcripción de un agente de navegador siga siendo legible.
+- Los resultados y errores largos se cortan a los 2.000 caracteres, y las cargas en base64 (capturas de pantalla) se sustituyen por `[image omitted, N bytes base64]`, para que la transcripción de un agente de navegador siga siendo legible.
 - En cada línea se ocultan los secretos antes de escribirla: cada valor de `config.secrets`, y `CLAUDE_CODE_OAUTH_TOKEN` siempre que el entorno tenga uno, se convierten en `***`.
 
 ```ts
