@@ -46,8 +46,8 @@ await chat.send("Tell me a joke"); // a line: a command, or a turn (resolves whe
 
 | Acción | Qué hace |
 | --- | --- |
-| `send(line)` | Una línea que ha enviado la persona: un comando de salida (se resuelve con `"exit"`), uno de los comandos del chat (`/resume`, `/plan`, `/extensions`), un comando con barra desconocido (un aviso, nunca se envía) o un turno. |
-| `steer(line)` | Un mensaje para el agente mientras corre un turno, sin detenerlo: entra en el turno en su siguiente llamada a una herramienta, o se responde justo después si no queda ninguna. Se queda en la transcripción donde se envió, y el `send()` que ya espera, y `busy`, duran hasta que se responde. Se resuelve a `false`, sin enviar nada, si no hay ningún turno en curso (usa `send()`) y con un comando de barra o una línea de salida, que esperan a que acabe el turno. |
+| `send(line)` | Una línea que ha enviado la persona: un comando de salida (se resuelve con `"exit"`), uno de los comandos del chat (`/resume`, `/plan`, `/extensions`), un comando con barra desconocido (un aviso, nunca se envía) o un turno. Si llega mientras se cambia de sesión (`newConversation()`, `resume()`, una extensión que obliga a abrir la sesión de nuevo), espera a la sesión nueva y va a ella. |
+| `steer(line)` | Un mensaje para el agente mientras corre un turno, sin detenerlo: entra en el turno en su siguiente llamada a una herramienta, o se responde justo después si no queda ninguna. Se queda en la transcripción donde se envió, y el `send()` que ya espera, y `busy`, duran hasta que se responde. Se resuelve a `false`, sin enviar nada, si no hay ningún turno en curso (usa `send()`) y con un comando de barra o una línea de salida, que esperan a que acabe el turno, y mientras se cambia de sesión. |
 | `interrupt()` | Detiene el turno en curso. Un mensaje ya enviado con `steer()` se responde igualmente. |
 | `setMode(mode)`, `cycleMode()`, `togglePlan()` | Cambia el modo según lo permita la sesión. |
 | `listRuns()`, `resume(dir?)` | Las ejecuciones que se pueden reanudar, y cambiar a una (sin `dir`, pregunta: `pick`, o el `choice` del estado). |

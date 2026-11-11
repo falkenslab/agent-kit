@@ -46,8 +46,8 @@ await chat.send("Tell me a joke"); // a line: a command, or a turn (resolves whe
 
 | Action | What it does |
 | --- | --- |
-| `send(line)` | A line the person sent: an exit command (resolves to `"exit"`), one of the chat's commands (`/resume`, `/plan`, `/extensions`), an unknown slash command (a warning, never sent), or a turn. |
-| `steer(line)` | A message for the agent while a turn runs, without stopping it: it joins the turn at its next tool call, or is answered right after when no call is left. It stays in the transcript where it was sent, and the `send()` already waiting, and `busy`, last until it's answered. Resolves to `false`, with nothing sent, when no turn is running (use `send()`) and for a slash command or an exit line, which wait for the turn to end. |
+| `send(line)` | A line the person sent: an exit command (resolves to `"exit"`), one of the chat's commands (`/resume`, `/plan`, `/extensions`), an unknown slash command (a warning, never sent), or a turn. Sent while the session is being switched (`newConversation()`, `resume()`, an extension that needs the session opened again), it waits for the new session and goes there. |
+| `steer(line)` | A message for the agent while a turn runs, without stopping it: it joins the turn at its next tool call, or is answered right after when no call is left. It stays in the transcript where it was sent, and the `send()` already waiting, and `busy`, last until it's answered. Resolves to `false`, with nothing sent, when no turn is running (use `send()`) and for a slash command or an exit line, which wait for the turn to end, and while the session is being switched. |
 | `interrupt()` | Stops the turn running. A message already sent with `steer()` is still answered. |
 | `setMode(mode)`, `cycleMode()`, `togglePlan()` | Switches the mode as the session allows. |
 | `listRuns()`, `resume(dir?)` | The runs to resume, and switching to one (without `dir`, it asks: `pick`, or the state's `choice`). |

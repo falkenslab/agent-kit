@@ -527,7 +527,28 @@ export async function createChatController(options: Options | SessionOpener, set
     }
   }
 
-  async function switchTo(folder: RunFolder, fromResume: boolean): Promise<void> {
+  // The session being switched (#93): between ending the old queue and connecting the new one, a
+  // line pushed would go to a queue nobody reads, and the turn waiting for it would never end.
+  let switching: Promise<void> | null = null;
+  /** Runs `work`, a switch of session, after any switch under way; `send()` waits for both. */
+  function whileSwitching(work: () => Promise<void>): Promise<void> {
+    const previous = switching;
+    const done: Promise<void> = (async () => {
+      await previous?.catch(() => undefined);
+      await work();
+    })().finally(() => {
+      if (switching === done) switching = null;
+    });
+    switching = done;
+    return done;
+  }
+  /** Until no switch of session is under way. */
+  async function switched(): Promise<void> {
+    while (switching) await switching.catch(() => undefined);
+  }
+
+  /** Switches the session now: only inside `whileSwitching()`. */
+  async function switchNow(folder: RunFolder, fromResume: boolean): Promise<void> {
     queue.end();
     run.close();
     current = await openSession(opener!, folder);
@@ -536,6 +557,9 @@ export async function createChatController(options: Options | SessionOpener, set
     emit({ type: "session" });
     if (fromResume) await showConversation(current.run as RunFolder, true);
     void askTrust();
+  }
+  function switchTo(folder: RunFolder, fromResume: boolean): Promise<void> {
+    return whileSwitching(() => switchNow(folder, fromResume));
   }
 
   /**
@@ -658,10 +682,13 @@ export async function createChatController(options: Options | SessionOpener, set
     /**
      * A line the person sent: an exit command ("exit"), one of the chat's commands, or a turn,
      * resolved when it ends. An unknown slash command is caught before it reaches the model.
+     * Sent while the session is being switched (`newConversation()`, `resume()`), it waits for
+     * the new session and goes there.
      */
     async send(raw: string): Promise<"exit" | void> {
       const line = raw.trim();
       if (!line) return;
+      await switched();
       showLine(line);
       await remember(line);
       const lower = line.toLowerCase();
@@ -692,6 +719,7 @@ export async function createChatController(options: Options | SessionOpener, set
     async turn(raw: string): Promise<void> {
       const line = raw.trim();
       if (!line) return;
+      await switched();
       showLine(line);
       await runTurn(line);
     },
@@ -700,11 +728,11 @@ export async function createChatController(options: Options | SessionOpener, set
      * its next tool call, or is answered right after when no call is left, and it stays in the
      * transcript where it was sent. The turn `send()` is waiting for lasts until it's answered.
      * False, and nothing sent, when no turn is running (use `send()`) and for a slash command or
-     * an exit line, which wait for the turn to end.
+     * an exit line, which wait for the turn to end, and while the session is being switched.
      */
     async steer(raw: string): Promise<boolean> {
       const line = raw.trim();
-      if (!line || !turnDone || exitCommands.has(line.toLowerCase()) || slashCommandToken(line)) return false;
+      if (!line || !turnDone || switching || exitCommands.has(line.toLowerCase()) || slashCommandToken(line)) return false;
       showLine(line);
       queue.push(withNotices(line), { priority: "next" });
       steered = true;
@@ -754,12 +782,24 @@ export async function createChatController(options: Options | SessionOpener, set
     /** `/resume`: with `dir`, switches to that run; without it, asks which. */
     async resume(dir?: string): Promise<void> {
       if (!opener || !runsDir) return;
-      const runs = await listRuns(runsDir);
-      if (runs.length === 0) return notice(t().noEarlierRuns);
-      const chosen = dir ?? (await pick(t().resumeTitle, (await controller.listRuns()).map(({ label, dir: value }) => ({ label, value }))));
-      const summary = runs.find((other) => other.dir === chosen);
-      if (!summary || (current.run && path.resolve(summary.dir) === path.resolve(current.run.dir))) return;
-      await switchTo(await runFolderOf(summary), true);
+      const runsIn = runsDir;
+      let chosen = dir;
+      if (chosen === undefined) {
+        // Asked first: while the person chooses, the session they're in is still theirs.
+        if ((await listRuns(runsIn)).length === 0) return notice(t().noEarlierRuns);
+        const picked = await pick(t().resumeTitle, (await controller.listRuns()).map(({ label, dir: value }) => ({ label, value })));
+        if (!picked) return;
+        chosen = picked;
+      }
+      const target = chosen;
+      // From here a line sent waits for the run it's resuming (#93), its reads included.
+      await whileSwitching(async () => {
+        const runs = await listRuns(runsIn);
+        if (runs.length === 0) return notice(t().noEarlierRuns);
+        const summary = runs.find((other) => other.dir === target);
+        if (!summary || (current.run && path.resolve(summary.dir) === path.resolve(current.run.dir))) return;
+        await switchNow(await runFolderOf(summary), true);
+      });
     },
     /**
      * Starts a new conversation in a new run, leaving the current one to resume later: what a
@@ -767,13 +807,16 @@ export async function createChatController(options: Options | SessionOpener, set
      */
     async newConversation(): Promise<void> {
       if (!opener || !runsDir) return;
-      queue.end();
-      run.close();
-      current = await openSession(opener, await createRunFolder(runsDir));
-      openLog();
-      update({ transcript: [], turns: 0, usage: null, contextPercent: null, todos: null, suggestion: null });
-      connect();
-      emit({ type: "session" });
+      const dir = runsDir;
+      await whileSwitching(async () => {
+        queue.end();
+        run.close();
+        current = await openSession(opener, await createRunFolder(dir));
+        openLog();
+        update({ transcript: [], turns: 0, usage: null, contextPercent: null, todos: null, suggestion: null });
+        connect();
+        emit({ type: "session" });
+      });
     },
     /**
      * Enables or disables an installed extension: in the running session when it was running when
