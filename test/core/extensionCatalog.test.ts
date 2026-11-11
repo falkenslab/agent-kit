@@ -249,3 +249,30 @@ test("the chat's catalog offers only the agent's catalogTopics, and serves an en
     controller.close();
   }
 });
+
+test("several words match an extension with any of them, closest first: more words, and a name or topic over a description (#94)", async () => {
+  const root = path.join(temp(), "school");
+  fs.mkdirSync(path.join(root, ".claude-plugin"), { recursive: true });
+  const plugins = [
+    { name: "quiz", description: "Interactive fun for children.", tags: ["quiz"] },
+    { name: "notes", description: "Keeps notes." },
+    { name: "style", description: "Makes a course look nice.", tags: ["style"] },
+    { name: "games", description: "Interactive games with points for children.", tags: ["games", "interactive"] },
+  ];
+  fs.writeFileSync(path.join(root, ".claude-plugin", "marketplace.json"), JSON.stringify({ name: "school", owner: { name: "Ada" }, plugins: plugins.map((plugin) => ({ ...plugin, source: `./${plugin.name}` })) }));
+  for (const plugin of plugins) {
+    fs.mkdirSync(path.join(root, plugin.name, ".claude-plugin"), { recursive: true });
+    fs.writeFileSync(path.join(root, plugin.name, ".claude-plugin", "plugin.json"), JSON.stringify({ name: plugin.name, version: "1.0.0" }));
+  }
+  const dirs = { agent: path.join(temp(), "extensions") };
+  await addMarketplace(root, dirs.agent);
+  const names = async (words: string[]) => (await extensionCatalog(dirs, { words })).map((entry) => entry.plugin.name);
+
+  // No extension has every word, and the ones that have some come first by how close they are.
+  assert.deepEqual(await names(["gamification", "games", "interactive", "visual", "style", "children"]), ["games", "quiz", "style"]);
+  // The same word: in a topic (games) it weighs more than in a description (quiz), which comes first in the catalog.
+  assert.deepEqual(await names(["interactive"]), ["games", "quiz"]);
+  // A tie keeps the catalog's order.
+  assert.deepEqual(await names(["children"]), ["quiz", "games"]);
+  assert.deepEqual(await names(["nothing", "here"]), []);
+});

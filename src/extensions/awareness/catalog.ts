@@ -44,7 +44,7 @@ export function createCatalogTool(config: BaseSessionConfig, session: () => Prom
 
   return tool(
     "extensions_catalog",
-    "Your extensions and your catalogs: what's installed here and how it stands (running, or off and why, options missing), what the catalogs you know offer (from their copies on this computer, with each copy's age) and, with `refresh: true`, what's new in them online. With `words`, only what matches (name, description, capabilities, topics). Read-only: it never installs, enables or configures anything; installing is the person's, with `/extensions install <name>@<marketplace>`.",
+    "Your extensions and your catalogs: what's installed here and how it stands (running, or off and why, options missing), what the catalogs you know offer (from their copies on this computer, with each copy's age) and, with `refresh: true`, what's new in them online. With `words`, what matches any of them (name, description, capabilities, topics), closest first. Read-only: it never installs, enables or configures anything; installing is the person's, with `/extensions install <name>@<marketplace>`.",
     {
       words: z.string().optional().describe("A few words of the task or extension to look for, e.g. `grading rubrics` or `weather`. Without them, everything."),
       refresh: z.boolean().optional().describe("Fetch the catalogs again from their source first, and say what's new: only when the person asks what's new, or the copies are over a week old."),
@@ -90,7 +90,7 @@ export function createCatalogTool(config: BaseSessionConfig, session: () => Prom
       }).catch(() => [] as CatalogEntry[]);
       const copies = known.map((marketplace) => `${marketplace.name}${marketplace.official ? " (yours)" : ""}, copied ${age(marketplace.updated, now)}`).join("; ");
       sections.push(
-        `## Offered by your catalogs\n\n${known.length ? `From their copies on this computer: ${copies}.` : "No catalog is known: the person adds one with `/extensions` (a marketplace)."}${words?.trim() ? ` Matching "${words.trim()}".` : ""}\n\n${entries.map(describeEntry).join("\n") || "Nothing matches."}`,
+        `## Offered by your catalogs\n\n${known.length ? `From their copies on this computer: ${copies}.` : "No catalog is known: the person adds one with `/extensions` (a marketplace)."}${words?.trim() ? ` Closest to "${words.trim()}" first.` : ""}\n\n${entries.map(describeEntry).join("\n") || "Nothing matches."}`,
       );
 
       if (refresh) {

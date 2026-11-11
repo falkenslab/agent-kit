@@ -121,21 +121,27 @@ export function isNewer(offered: string | undefined, installed: string | undefin
   return inKitRange(offered, `>${installed.split("-")[0]}`);
 }
 
-/** Everything the known marketplaces offer, matching `words` (in its name, description, category, tags or keywords) when given; its texts in `language` (the kit's by default). */
+/** Everything the known marketplaces offer; with `words`, what matches any of them (in its name, description, capabilities, category, tags or keywords), closest first; its texts in `language` (the kit's by default). */
 export async function extensionCatalog(dirs: ExtensionDirs, options: { official?: string; words?: readonly string[]; topics?: readonly string[]; language?: Language } = {}): Promise<CatalogEntry[]> {
   const installed = (await listInstalled(dirs)).filter((extension) => !extension.shadowed);
   const words = (options.words ?? []).map((word) => word.toLowerCase());
   // What the agent offers its users (#59): only what has one of its topics.
   const wanted = options.topics?.length ? new Set(options.topics.map((topic) => topic.toLowerCase())) : undefined;
   const entries: CatalogEntry[] = [];
+  const scores = new Map<string, number>();
   for (const marketplace of await knownMarketplaces(dirs, options.official)) {
     for (const plugin of marketplace.manifest?.plugins ?? []) {
       const look = await offered(marketplace, plugin, options.language ?? getLanguage());
       const topics = [...new Set([...look.keywords, ...(plugin.tags ?? []), ...(plugin.keywords ?? []), ...(plugin.category ? [plugin.category] : [])].map((topic) => topic.toLowerCase()))];
       if (wanted && !topics.some((topic) => wanted.has(topic))) continue;
-      // Its capabilities count too: a search for "grading" finds what grades.
-      const text = [plugin.name, plugin.description, look.description, ...topics, ...look.capabilities.flatMap(({ id, label, description }) => [id, label, description])].join(" ").toLowerCase();
-      if (!words.every((word) => text.includes(word))) continue;
+      // Any word matching is enough (#94): a need told in several words still finds what has some
+      // of them, closest first. A word in the name or a topic weighs more than one in the
+      // description; its capabilities count too: a search for "grading" finds what grades.
+      const strong = [plugin.name, ...topics].join(" ").toLowerCase();
+      const weak = [plugin.description, look.description, ...look.capabilities.flatMap(({ id, label, description }) => [id, label, description])].join(" ").toLowerCase();
+      const score = words.reduce((sum, word) => sum + (strong.includes(word) ? 2 : weak.includes(word) ? 1 : 0), 0);
+      if (words.length && !score) continue;
+      scores.set(`${plugin.name}@${marketplace.name}`, score);
       const version = look.version;
       const mine = installed.find((extension) => extension.name === plugin.name);
       const fromHere = mine?.lock.marketplace === `${plugin.name}@${marketplace.name}`;
@@ -157,7 +163,8 @@ export async function extensionCatalog(dirs: ExtensionDirs, options: { official?
       });
     }
   }
-  return entries;
+  // A stable sort: ties keep the catalogs' order.
+  return entries.sort((a, b) => (scores.get(b.spec) ?? 0) - (scores.get(a.spec) ?? 0));
 }
 
 /** Whether installing `spec` needs the person's confirmation first: a plugin of a marketplace that isn't the agent's own. */
