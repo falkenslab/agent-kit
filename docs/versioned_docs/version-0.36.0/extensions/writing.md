@@ -59,26 +59,40 @@ async function locate(name) {
   return place;
 }
 
+// A day's hours (between 7 and 22) when rain is likely (50% or more), as ranges: "rain likely 14–18h".
+function rainyHours(hourly, day) {
+  const hours = hourly.time.map((time, i) => [time, hourly.precipitation_probability[i]]).filter(([time]) => time.startsWith(day));
+  const ranges = [];
+  for (const [time, chance] of hours) {
+    const hour = Number(time.slice(11, 13));
+    if (hour < 7 || hour > 22 || chance < 50) continue;
+    const last = ranges.at(-1);
+    if (last && last[1] === hour - 1) last[1] = hour;
+    else ranges.push([hour, hour]);
+  }
+  return ranges.length ? `rain likely ${ranges.map(([from, to]) => (from === to ? `${from}h` : `${from}–${to + 1}h`)).join(", ")}` : "no rainy hours";
+}
+
 server.registerTool(
   "forecast",
   {
     title: "Weather forecast",
-    description: "The weather now and the forecast for the next days in the person's city (or another, if they name one): temperature, rain chance and wind.",
+    description: "The weather now and the forecast for the next days in the person's city (or another, if they name one): temperature, rain chance (and the hours when rain is likely) and wind.",
     inputSchema: { city: z.string().optional().describe("Another city than the person's"), days: z.number().int().min(1).max(7).default(1) },
     // It only reads: plan mode lets it through.
     annotations: { readOnlyHint: true, openWorldHint: true },
   },
   async ({ city: other, days }) => {
     const name = other || city;
-    if (!name) return { isError: true, content: [{ type: "text", text: "No city set: the person sets it in the extension's settings (city)." }] };
+    if (!name) return { isError: true, content: [{ type: "text", text: "No city set: ask the person which city, and call again with it as city. To keep it, they can set the extension's city setting, where their app has one." }] };
     const place = await locate(name);
     const units = imperial ? "&temperature_unit=fahrenheit&wind_speed_unit=mph" : "";
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=${days}${units}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&hourly=precipitation_probability&timezone=auto&forecast_days=${days}${units}`;
     const data = await (await fetch(url)).json();
     const t = imperial ? "°F" : "°C";
     const lines = [
       `${place.name} (${place.country}): now ${data.current.temperature_2m}${t}, wind ${data.current.wind_speed_10m} ${imperial ? "mph" : "km/h"}.`,
-      ...data.daily.time.map((day, i) => `${day}: ${data.daily.temperature_2m_min[i]}–${data.daily.temperature_2m_max[i]}${t}, rain ${data.daily.precipitation_probability_max[i]}%.`),
+      ...data.daily.time.map((day, i) => `${day}: ${data.daily.temperature_2m_min[i]}–${data.daily.temperature_2m_max[i]}${t}, rain ${data.daily.precipitation_probability_max[i]}% (${rainyHours(data.hourly, day)}).`),
     ];
     return { content: [{ type: "text", text: lines.join("\n") }] };
   },
@@ -86,6 +100,8 @@ server.registerTool(
 
 await server.connect(new StdioServerTransport());
 ```
+
+Each day's line ends with the hours when rain is likely, so the skill (step 5) can plan around them: `2026-11-12: 14–19°C, rain 98% (rain likely 7h, 15–23h).`, or `(no rainy hours)`. The model reads the result as it is: plain lines it can quote are enough.
 
 **Bundle it into one file.** The kit installs an extension's files and runs them as they are: it never runs `npm install`. So the server ships with what it needs inside it:
 
@@ -209,9 +225,10 @@ description: Plan the person's day or week around the weather - check the foreca
 
 # Planning around the weather
 
-1. Call `forecast` (with `days` for a week). Never guess the weather.
-2. Put what has to be outdoors on the dry, mild hours or days; say why ("rain 70% on Thursday").
+1. Call `forecast` (with `days` for a week). Never guess the weather. If it says no city is set, ask the person for theirs and call it again with `city`.
+2. Put what has to be outdoors on the dry, mild days, and within a day outside the hours `forecast` says rain is likely; say why ("rain likely 15–19h on Thursday"). Strong wind counts too.
 3. Name a plan B when the rain chance is over 40%.
+4. Asked only for today's weather, answer in two short lines: what the day looks like, and whether a jacket or an umbrella is needed (what `/weather:today` does where there are commands).
 ```
 
 A command is a flow the person types (`/weather:today`):
@@ -378,7 +395,7 @@ A server can run elsewhere, as a service, and be reached over HTTP: nothing is i
 
 ### What it can't do
 
-Unlike an extension in your agent's code ([The kit's own](the-kits-own.md#writing-one-in-your-agents-code)): hooks (none of its plugin's run), the kit's panels, a store passed from code, its own folders for the file tools. Its subagents get no `Bash`: one that lists it loses it, and one without `tools` gets none. Its tools go through the same gates as any other: the approval in interactive mode, plan mode, the transcript.
+Unlike an extension in your agent's code ([The kit's own](the-kits-own.md#writing-one-in-your-agents-code)): hooks (none of its plugin's run: Claude Code runs them, and the marketplace's catalog lists them as its `hooks`), the kit's panels, a store passed from code, its own folders for the file tools. Its subagents get no `Bash`: one that lists it loses it, and one without `tools` gets none. Its tools go through the same gates as any other: the approval in interactive mode, plan mode, the transcript.
 
 ### When it's turned off
 
