@@ -51,6 +51,7 @@ The repository its links point to comes from `--repo owner/name`, else `GITHUB_R
 | 🛰️ `remote` | The hosts its remote MCP servers talk to |
 | 🔌 `servers` | Its MCP servers (`plugin.json`'s `mcpServers`, else `.mcp.json`): `package` (npx, bunx or uvx: the package, its version and npm page), `bundled` (a program it brings), `remote` (transport and host) or `command` (its name only). Never an argument's secret nor an `env` value |
 | 📚 `skills`, `commands`, `agents` | Each one's name and its frontmatter's `description`, from `skills/`, `commands/` and `agents/` (or the paths `plugin.json` names) |
+| 🪝 `hooks` | Its Claude Code hooks (`plugin.json`'s `hooks`, else `hooks/hooks.json`): their files' `description` and the `events` they hook. Never a command nor a matcher. Only Claude Code runs them |
 | 🛠️ `tools` | The tools `metadata["agent-kit"]` knows (labels, capabilities, `readOnlyTools`, `confirmTools`, `serverConfirmTools`): each one's label per language, and `readOnly` or `confirm` (`always`, `server`). A static read: a running server may list more |
 | 🧭 `kit` | The agent-kit versions it works with (`metadata["agent-kit"].kit`) |
 

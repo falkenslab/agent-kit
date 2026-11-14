@@ -109,6 +109,16 @@
         "skills": { "description": "Its skills: each one's folder name and its SKILL.md's description, sorted by name.", "$ref": "#/$defs/named" },
         "commands": { "description": "Its commands: each one's file name and its description, sorted by name.", "$ref": "#/$defs/named" },
         "agents": { "description": "Its subagents: each one's file name and its description, sorted by name.", "$ref": "#/$defs/named" },
+        "hooks": {
+          "description": "Its Claude Code hooks (plugin.json's hooks, else hooks/hooks.json): their files' descriptions and the events they hook, sorted. Only Claude Code runs them: agent-kit and Codex don't. Never a command nor a matcher.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["events"],
+          "properties": {
+            "description": { "type": "string", "minLength": 1 },
+            "events": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+          }
+        },
         "tools": {
           "description": "The tools its metadata[\"agent-kit\"] knows (labels, capabilities, readOnlyTools, confirmTools, serverConfirmTools), by short name: a static read, a running server may list more.",
           "type": "array",

@@ -219,5 +219,36 @@ test("a catalog says what each extension holds: its servers of every kind, skill
   assert.equal(campus.kit, ">=0.29.0");
   // One with nothing to show has none of the keys.
   const notes = catalog.extensions.find((extension) => extension.name === "notes")!;
-  for (const key of ["servers", "skills", "commands", "agents", "tools", "kit"]) assert.equal(key in notes, false, key);
+  for (const key of ["servers", "skills", "commands", "agents", "hooks", "tools", "kit"]) assert.equal(key in notes, false, key);
+});
+
+test("a catalog says which Claude Code hooks an extension brings: their description and events, from wherever Claude Code finds them (#98)", async () => {
+  const root = makeMarketplace();
+  const write = (file: string, content: unknown) => {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    fs.writeFileSync(path.join(root, file), typeof content === "string" ? content : JSON.stringify(content));
+  };
+  const hook = (matcher: string) => [{ matcher, hooks: [{ type: "command", command: "node \"${CLAUDE_PLUGIN_ROOT}/hooks/check.mjs\" --secret" }] }];
+  // campus: the default file, with two events.
+  write("campus/hooks/hooks.json", { description: "Reminders around the campus' tools.", hooks: { PreToolUse: hook("Bash"), PostToolUse: hook("Write|Edit") } });
+  // notes: two files plugin.json names, one without a description, an event in both.
+  const notesManifest = path.join(root, "notes/.claude-plugin/plugin.json");
+  write("notes/.claude-plugin/plugin.json", { ...read(notesManifest), hooks: ["config/a.json", "config/b.json"] });
+  write("notes/config/a.json", { description: "Checks a note after it's written.", hooks: { PostToolUse: hook("Write") } });
+  write("notes/config/b.json", { hooks: { PostToolUse: hook("Edit"), SessionStart: hook("") } });
+
+  const catalog = await buildCatalog(root, { repo: "ada/harbor" });
+  assert.ok(validCatalog(catalog), ajv.errorsText(validCatalog.errors));
+  const sheet = (name: string) => catalog.extensions.find((extension) => extension.name === name)!;
+  assert.deepEqual(sheet("campus").hooks, { description: "Reminders around the campus' tools.", events: ["PostToolUse", "PreToolUse"] });
+  assert.deepEqual(sheet("notes").hooks, { description: "Checks a note after it's written.", events: ["PostToolUse", "SessionStart"] });
+  // Never a command nor a matcher.
+  assert.ok(!JSON.stringify(catalog).includes("check.mjs"));
+
+  // Inline in plugin.json, without a description; and a file whose events are all empty is none.
+  write("notes/.claude-plugin/plugin.json", { ...read(notesManifest), hooks: { hooks: { Stop: hook("") } } });
+  write("campus/hooks/hooks.json", { description: "Nothing yet.", hooks: { PreToolUse: [] } });
+  const again = await buildCatalog(root, { repo: "ada/harbor" });
+  assert.deepEqual(again.extensions.find((extension) => extension.name === "notes")!.hooks, { events: ["Stop"] });
+  assert.equal("hooks" in again.extensions.find((extension) => extension.name === "campus")!, false);
 });

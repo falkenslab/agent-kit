@@ -2,8 +2,8 @@
 // @falkenslab/agent-kit-catalog: a Claude Code marketplace's extensions as one file, catalog.json — each
 // one's name, version, description (and per language), topics, category, author, links (READMEs per language), install
 // commands, capabilities, requirements, the remote hosts it talks to, images (as
-// raw.githubusercontent.com URLs) and a technical sheet (its servers, skills, commands, subagents and
-// tools) — from .claude-plugin/marketplace.json and each extension's folder. A page or a client shows the marketplace from it without cloning the repository.
+// raw.githubusercontent.com URLs) and a technical sheet (its servers, skills, commands, subagents,
+// Claude Code hooks and tools) — from .claude-plugin/marketplace.json and each extension's folder. A page or a client shows the marketplace from it without cloning the repository.
 // No dependencies: it runs with npx in any CI.
 //
 //   npx @falkenslab/agent-kit-catalog [folder]           writes <folder>/catalog.json (folder: the current one)
@@ -257,6 +257,27 @@ export function toolsOf(kit) {
   });
 }
 
+/**
+ * Its Claude Code hooks (#98), where Claude Code finds them: plugin.json's `hooks` (a path, several,
+ * or the configuration inline), else hooks/hooks.json. Their files' descriptions and the events they
+ * hook, sorted; never a command nor a matcher, which may name paths. None when it brings none.
+ */
+async function hooksOf(dir, manifest) {
+  const given = manifest.hooks;
+  const sources = given && typeof given === "object" && !Array.isArray(given) ? [given] : typeof given === "string" ? [given] : isStrings(given) ? given : ["hooks/hooks.json"];
+  const configs = await Promise.all(sources.map((source) => (typeof source === "string" ? readJson(path.join(dir, source)).catch(() => undefined) : source)));
+  const descriptions = [];
+  const events = new Set();
+  for (const config of configs) {
+    if (!config || typeof config !== "object") continue;
+    if (typeof config.description === "string" && config.description.trim()) descriptions.push(config.description.trim());
+    const hooks = config.hooks && typeof config.hooks === "object" ? config.hooks : {};
+    for (const [event, matchers] of Object.entries(hooks)) if (Array.isArray(matchers) && matchers.length) events.add(event);
+  }
+  if (!events.size) return undefined;
+  return { ...(descriptions.length ? { description: descriptions.join(" ") } : {}), events: [...events].sort() };
+}
+
 /** An extension's technical sheet (#80): what it holds, read from its folder, for a page to show. */
 async function technicalSheet(dir, manifest, kit) {
   const servers = Object.entries(await serversOf(dir, manifest)).map(([name, server]) => describeServer(name, server));
@@ -266,6 +287,8 @@ async function technicalSheet(dir, manifest, kit) {
     const found = (await Promise.all(foldersOf(dir, manifest, kind).map((folder) => entriesOf(folder, kind)))).flat().sort((a, b) => a.name.localeCompare(b.name));
     if (found.length) sheet[kind] = found;
   }
+  const hooks = await hooksOf(dir, manifest);
+  if (hooks) sheet.hooks = hooks;
   const tools = toolsOf(kit);
   if (tools.length) sheet.tools = tools;
   if (typeof kit?.kit === "string") sheet.kit = kit.kit;
