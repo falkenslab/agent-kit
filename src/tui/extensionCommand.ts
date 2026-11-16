@@ -20,6 +20,7 @@ import {
   remoteHosts,
   listInstalled,
   removeExtension,
+  requirementsMissing,
   setExtensionEnabled,
   setExtensionOptions,
   type ExtensionDirs,
@@ -208,6 +209,11 @@ export async function runExtensionCommand(
           // Where what the agent sends goes (#61).
           if (remote.length) write(`It talks to ${remote.join(", ")}: what the agent sends there leaves this computer.`);
         };
+        // Checked again once its options are set (`--set`): a program they name is checked there.
+        const lackingNow = async (name: string, fallback: readonly string[]): Promise<readonly string[]> => {
+          const found = (await listInstalled(options.dirs)).find((extension) => extension.name === name && extension.scope === scope);
+          return found ? await requirementsMissing(found) : fallback;
+        };
         // A plugin of a marketplace, unless it's a folder here or a git URL.
         const isFolder = await stat(path.resolve(source)).then((found) => found.isDirectory(), () => false);
         if (flag("link")) {
@@ -216,7 +222,7 @@ export async function runExtensionCommand(
           await trusted(result.name);
           await configure(result.name, dir);
           write(`Linked ${result.name} in the ${scope} scope: it runs from ${path.resolve(source)}, whose files aren't checked. A rebuild takes effect when its server starts again (a new session, or \`/extensions disable\` and \`enable\` in the chat).`);
-          lacking(result.missing, result.remote);
+          lacking(await lackingNow(result.name, result.missing), result.remote);
           return true;
         }
         if (!isFolder && !isGitSource(source) && /^[A-Za-z0-9][\w.-]*(@[A-Za-z0-9][\w.-]*)?$/.test(source)) {
@@ -231,7 +237,7 @@ export async function runExtensionCommand(
           await trusted(result.name);
           await configure(result.name, dir);
           write(`${result.replaced ? "Reinstalled" : "Installed"} ${result.name} from ${result.marketplace} in the ${scope} scope (${dir})${result.commit ? `, at ${result.commit.slice(0, 12)}` : ""}. It's enabled: it runs from the next session.`);
-          lacking(result.missing, result.remote);
+          lacking(await lackingNow(result.name, result.missing), result.remote);
           return true;
         }
         const subdir = value("path");
@@ -239,7 +245,7 @@ export async function runExtensionCommand(
         await trusted(result.name);
         await configure(result.name, dir);
         write(`${result.replaced ? "Reinstalled" : "Installed"} ${result.name} in the ${scope} scope (${dir})${result.commit ? `, at ${result.commit.slice(0, 12)}` : ""}. It's enabled: it runs from the next session.`);
-        lacking(result.missing, result.remote);
+        lacking(await lackingNow(result.name, result.missing), result.remote);
         return true;
       }
       case "remove":

@@ -20,7 +20,9 @@ import {
   onPath,
   readLock,
   removeExtension,
+  requirementsMissing,
   setExtensionEnabled,
+  setExtensionOptions,
 } from "../../src/core/externalExtensions.js";
 import { buildSessionOptions } from "../../src/core/session.js";
 import type { AgentSpec, BaseSessionConfig } from "../../src/core/agentSpec.js";
@@ -378,6 +380,32 @@ test("an extension needing a program this computer lacks installs, saying so, an
   assert.deepEqual((await loadExternalExtensions(dirs)).extensions.map((extension) => extension.name), ["dice"]);
   // A check that could do something isn't installed.
   await assert.rejects(addExtension(makeExtension("dice", { requirements: [{ ...lab, program: "docker", version: { args: ["run", "alpine"], min: "1" } }] }), dirs.agent), /checks docker's version with "run"/);
+});
+
+test("a program its options name (a virtual environment's python) is checked there: set, the capability is on; unset, the PATH's", async () => {
+  const source = makeExtension("dice", {
+    capabilities: [{ id: "dice-lab", skills: [], tools: ["simulate"], texts: { en: { label: "Simulating odds" } } }],
+    requirements: [{ ...lab, setting: "python", version: { args: ["--version"], min: "18.0.0" }, for: ["dice-lab"] }],
+  });
+  const manifest = path.join(source, ".claude-plugin", "plugin.json");
+  fs.writeFileSync(manifest, JSON.stringify({ ...JSON.parse(fs.readFileSync(manifest, "utf8")), userConfig: { python: { type: "file", title: "Python", description: "The Python its server runs." } } }));
+  const dirs = { agent: path.join(temp(), "extensions") };
+  // Not set yet: the PATH's, which this computer lacks.
+  assert.equal((await addExtension(source, dirs.agent)).missing.length, 1);
+  const [before] = await listInstalled(dirs);
+  assert.match((await requirementsMissing(before!))[0]!, /isn't on this computer/);
+  // Set to a program that's there (this Node): nothing missing, at install's next check and when it loads.
+  await setExtensionOptions(dirs.agent, "dice", { python: process.execPath });
+  const [after] = await listInstalled(dirs);
+  assert.deepEqual(await requirementsMissing(after!), []);
+  assert.deepEqual((await addExtension(source, dirs.agent)).missing, []);
+  // Set to nothing there: said where it looked.
+  await setExtensionOptions(dirs.agent, "dice", { python: path.join(temp(), "python.exe") });
+  const [wrong] = await listInstalled(dirs);
+  assert.match((await requirementsMissing(wrong!))[0]!, /isn't at .*python\.exe \(its python setting\)/);
+  // A setting its userConfig doesn't declare is refused.
+  const undeclared = makeExtension("cards", { capabilities: [{ id: "dice-lab", skills: [], tools: [], texts: { en: { label: "x" } } }], requirements: [{ ...lab, setting: "python", for: ["dice-lab"] }] });
+  await assert.rejects(addExtension(undeclared, dirs.agent), /checks no-such-program-for-agent-kit through the setting python, which its userConfig doesn't declare/);
 });
 
 test("a program only one capability needs keeps that capability off, and its skills, and the agent says what to install; the rest works", async () => {

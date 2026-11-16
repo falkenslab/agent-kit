@@ -91,6 +91,7 @@
       "properties": {
         "name": { "description": "What the person reads: Docker.", "type": "string", "minLength": 1 },
         "program": { "description": "Its bare name, found on the PATH (on Windows with PATHEXT's extensions): never a path.", "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$" },
+        "setting": { "description": "One of its userConfig options that, when the person sets it, is the path of the program to check instead of the PATH's: the one its server will run (a virtual environment's python).", "type": "string", "minLength": 1 },
         "version": {
           "description": "How to check its version: run with these arguments only (options or version, no shell), the first x.y.z it prints compared with min.",
           "type": "object",

@@ -14,6 +14,11 @@ export interface ExtensionRequirement {
   name: string;
   /** The program, by its bare name, found on the `PATH` (`docker`; on Windows with `PATHEXT`'s extensions). */
   program: string;
+  /**
+   * One of its options (`userConfig`) that, when the person sets it, is the program to check instead:
+   * the path of the one its server will run (a virtual environment's `python`). Unset, the `PATH`'s.
+   */
+  setting?: string;
   /** How to check its version: its arguments (options or `version` only) and the oldest it works with. */
   version?: { args: string[]; min: string };
   /** How to install it on each system: a command, or a link. */
@@ -25,8 +30,10 @@ export interface ExtensionRequirement {
 /** What checking a requirement found. */
 export interface RequirementCheck {
   requirement: ExtensionRequirement;
-  /** On the `PATH`. */
+  /** On the `PATH`, or where its setting says. */
   found: boolean;
+  /** The file its setting named, when the person set one: checked there, not on the `PATH`. */
+  at?: string;
   /** The version it said, when it was asked and said one. */
   version?: string;
   /** There, and new enough (or its version couldn't be read). */
@@ -45,7 +52,7 @@ export function parseRequirements(raw: unknown): ExtensionRequirement[] {
   const text = (value: unknown): string | undefined => (typeof value === "string" && value ? value : undefined);
   return raw.flatMap((item) => {
     if (!item || typeof item !== "object") return [];
-    const { name, program, version, install, for: needed } = item as Record<string, unknown>;
+    const { name, program, setting, version, install, for: needed } = item as Record<string, unknown>;
     const programName = text(program);
     if (!programName) return [];
     const check = version && typeof version === "object" ? (version as Record<string, unknown>) : undefined;
@@ -54,6 +61,7 @@ export function parseRequirements(raw: unknown): ExtensionRequirement[] {
       {
         name: text(name) ?? programName,
         program: programName,
+        ...(text(setting) ? { setting: text(setting) } : {}),
         ...(check ? { version: { args: Array.isArray(check.args) ? check.args.map(String) : [], min: String(check.min ?? "") } } : {}),
         install: Object.fromEntries((["windows", "macos", "linux", "url"] as const).flatMap((key) => (text(how[key]) ? [[key, text(how[key])]] : []))),
         for: Array.isArray(needed) ? needed.filter((id): id is string => typeof id === "string") : [],
@@ -64,11 +72,13 @@ export function parseRequirements(raw: unknown): ExtensionRequirement[] {
 
 /**
  * Why an extension's requirements can't be checked safely or don't hold together (a program given
- * as a path, a version argument that isn't an option, a capability it doesn't provide), or nothing.
+ * as a path, a version argument that isn't an option, a capability it doesn't provide, a setting
+ * its `userConfig` doesn't declare when `options` lists those it does), or nothing.
  */
-export function requirementsProblem(requirements: readonly ExtensionRequirement[], provides: readonly string[]): string | undefined {
+export function requirementsProblem(requirements: readonly ExtensionRequirement[], provides: readonly string[], options?: readonly string[]): string | undefined {
   for (const requirement of requirements) {
     if (!PROGRAM.test(requirement.program)) return `needs the program "${requirement.program}", which isn't a bare name found on the PATH`;
+    if (requirement.setting && options && !options.includes(requirement.setting)) return `checks ${requirement.program} through the setting ${requirement.setting}, which its userConfig doesn't declare`;
     if (requirement.version) {
       const unsafe = requirement.version.args.find((arg) => !VERSION_ARG.test(arg));
       if (unsafe !== undefined) return `checks ${requirement.program}'s version with "${unsafe}": only options (--version, -v) or version`;
@@ -101,25 +111,46 @@ export function atLeast(version: string, min: string): boolean {
   return true;
 }
 
+/** How a requirement is checked: the version check's limit, the environment, and the extension's option values (`settings`). */
+export interface RequirementCheckOptions {
+  timeoutMs?: number;
+  env?: NodeJS.ProcessEnv;
+  /** Its option values: a requirement with a `setting` the person set is checked at that path. */
+  settings?: Record<string, unknown>;
+}
+
+/** The file a requirement's setting names, when the person set it: what its server will run. */
+function settingFile(requirement: ExtensionRequirement, settings: Record<string, unknown> | undefined): string | undefined {
+  const value = requirement.setting ? settings?.[requirement.setting] : undefined;
+  return typeof value === "string" && value.trim() ? path.resolve(value.trim()) : undefined;
+}
+
 /**
- * Checks one requirement: finds its program on the `PATH` and, when it says how, runs it with its
- * version arguments only: no shell, nothing else on the command line, and stopped after
- * `timeoutMs`. A Windows script (`.cmd`, `.bat`) can't run without a shell, and a program that
- * says no version can't be compared: either counts as there.
+ * Checks one requirement: finds its program on the `PATH`, or at the path its setting holds when the
+ * person set one (the program its server will run, which the `PATH` may not have or may shadow:
+ * Windows' `python3` is the Store's alias), and, when it says how, runs it with its version
+ * arguments only: no shell, nothing else on the command line, and stopped after `timeoutMs`. A
+ * Windows script (`.cmd`, `.bat`) can't run without a shell, and a program that says no version
+ * can't be compared: either counts as there.
  */
-export async function checkRequirement(requirement: ExtensionRequirement, options: { timeoutMs?: number; env?: NodeJS.ProcessEnv } = {}): Promise<RequirementCheck> {
-  const file = PROGRAM.test(requirement.program) ? await findOnPath(requirement.program, options.env) : undefined;
-  if (!file) return { requirement, found: false, ok: false };
-  if (!requirement.version || /\.(cmd|bat)$/i.test(file)) return { requirement, found: true, ok: true };
+export async function checkRequirement(requirement: ExtensionRequirement, options: RequirementCheckOptions = {}): Promise<RequirementCheck> {
+  const at = settingFile(requirement, options.settings);
+  const file = at
+    ? await stat(at).then((entry) => (entry.isFile() ? at : undefined), () => undefined)
+    : PROGRAM.test(requirement.program)
+      ? await findOnPath(requirement.program, options.env)
+      : undefined;
+  if (!file) return { requirement, found: false, ...(at ? { at } : {}), ok: false };
+  if (!requirement.version || /\.(cmd|bat)$/i.test(file)) return { requirement, found: true, ...(at ? { at } : {}), ok: true };
   const said = await new Promise<string>((resolve) => {
     execFile(file, requirement.version!.args, { timeout: options.timeoutMs ?? 5000, windowsHide: true, shell: false, ...(options.env ? { env: options.env } : {}) }, (_error, stdout, stderr) => resolve(`${stdout ?? ""}\n${stderr ?? ""}`));
   });
   const version = said.match(/\d+\.\d+(?:\.\d+)?/)?.[0];
-  return { requirement, found: true, ...(version ? { version } : {}), ok: !version || atLeast(version, requirement.version.min) };
+  return { requirement, found: true, ...(at ? { at } : {}), ...(version ? { version } : {}), ok: !version || atLeast(version, requirement.version.min) };
 }
 
 /** Checks an extension's requirements, all at once. */
-export function checkRequirements(requirements: readonly ExtensionRequirement[], options: { timeoutMs?: number; env?: NodeJS.ProcessEnv } = {}): Promise<RequirementCheck[]> {
+export function checkRequirements(requirements: readonly ExtensionRequirement[], options: RequirementCheckOptions = {}): Promise<RequirementCheck[]> {
   return Promise.all(requirements.map((requirement) => checkRequirement(requirement, options)));
 }
 
@@ -133,7 +164,8 @@ export function installHint(requirement: ExtensionRequirement, platform: NodeJS.
 export function describeMissing(check: RequirementCheck, platform: NodeJS.Platform = process.platform): string {
   const { requirement } = check;
   const wanted = `${requirement.name} (${requirement.program}${requirement.version ? ` ${requirement.version.min} or later` : ""})`;
-  const state = check.found ? `, and this computer has ${check.version}` : ", which isn't on this computer";
+  const where = check.at ? ` at ${check.at} (its ${requirement.setting} setting)` : "";
+  const state = check.found ? `, and${where ? ` the one${where}` : " this computer"} has ${check.version}` : where ? `, which isn't${where}` : ", which isn't on this computer";
   const hint = installHint(requirement, platform);
   const how = !hint ? "" : /^https?:\/\//.test(hint) ? `: see ${hint}` : `: install it with \`${hint}\``;
   return `${wanted}${state}${how}`;

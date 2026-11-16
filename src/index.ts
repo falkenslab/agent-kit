@@ -44,7 +44,7 @@ export {
   type FolderOption,
   type UnavailableCapability,
 } from "./core/extensions.js";
-export { checkRequirements, type ExtensionRequirement, type RequirementCheck } from "./core/extensionRequirements.js";
+export { checkRequirements, type ExtensionRequirement, type RequirementCheck, type RequirementCheckOptions } from "./core/extensionRequirements.js";
 export {
   addExtension,
   codeStoreDir,
@@ -54,6 +54,7 @@ export {
   extensionOptionStates,
   setExtensionOptions,
   removeExtension,
+  requirementsMissing,
   setExtensionEnabled,
   setExtensionConfirm,
   listInstalled,

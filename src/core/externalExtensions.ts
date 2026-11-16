@@ -690,6 +690,17 @@ export function missingRequirement(check: Awaited<ReturnType<typeof checkRequire
   return `needs ${describeMissing(check)}${needed}`;
 }
 
+/**
+ * What an installed extension needs and this computer lacks, as `missingRequirement()` says it,
+ * checked with its options as they are now: after `extension add --set`, a program the options
+ * name (a virtual environment's python) is checked there, not on the `PATH`.
+ */
+export async function requirementsMissing(installed: InstalledExtension): Promise<string[]> {
+  if (!installed.manifest) return [];
+  const values = await readOptionValues(installed.privateDir, installed.name, installed.manifest.userConfig, installed.lock.options);
+  return (await checkRequirements(installed.manifest.requirements, { settings: values })).filter((check) => !check.ok).map((check) => missingRequirement(check));
+}
+
 /** What an installed extension can't do on this computer, and why: its capabilities whose requirements are missing (#63). */
 export interface UnavailableCapabilities {
   capabilities: string[];
@@ -707,16 +718,18 @@ async function problem(installed: InstalledExtension, cache: string | undefined)
   }
   if (manifest.name !== installed.name) return `is installed as "${installed.name}" but its manifest says "${manifest.name}"`;
   if (manifest.kit && !inKitRange(agentKitVersion(), manifest.kit)) return `works with agent-kit ${manifest.kit}, and this agent runs ${agentKitVersion()}`;
-  const requirements = requirementsProblem(manifest.requirements, manifest.provides);
+  const requirements = requirementsProblem(manifest.requirements, manifest.provides, Object.keys(manifest.userConfig));
   if (requirements) return requirements;
+  const values = await readOptionValues(installed.privateDir, installed.name, manifest.userConfig, installed.lock.options);
   // A program the whole extension needs keeps it off; one only some capabilities need, those (#63).
-  const checks = (await checkRequirements(manifest.requirements)).filter((check) => !check.ok);
+  // A program its options name (a virtual environment's python) is checked where they say.
+  const checks = (await checkRequirements(manifest.requirements, { settings: values })).filter((check) => !check.ok);
   const whole = checks.filter((check) => !check.requirement.for.length);
   if (whole.length) return whole.map((check) => missingRequirement(check)).join("; ");
   const unavailable = checks.map((check) => ({ capabilities: check.requirement.for, reason: `needs ${describeMissing(check)}` }));
   const capabilities = await capabilitiesProblem(installed.dir, manifest.capabilities);
   if (capabilities) return capabilities;
-  const options = optionsProblem(manifest, await readOptionValues(installed.privateDir, installed.name, manifest.userConfig, installed.lock.options));
+  const options = optionsProblem(manifest, values);
   if (options) return options;
   return (await serversProblem(manifest, installed.dir, { cache, locked: installed.lock.packages })) ?? { manifest, unavailable };
 }
@@ -757,10 +770,12 @@ export async function addExtension(
   try {
     if (options.subdir) from = path.join(from, options.subdir);
     const manifest = await readExternalManifest(from);
-    const servers = (await serversProblem(manifest, from)) ?? (await capabilitiesProblem(from, manifest.capabilities)) ?? requirementsProblem(manifest.requirements, manifest.provides);
+    const servers = (await serversProblem(manifest, from)) ?? (await capabilitiesProblem(from, manifest.capabilities)) ?? requirementsProblem(manifest.requirements, manifest.provides, Object.keys(manifest.userConfig));
     if (servers) throw new Error(`${manifest.name} can't be installed: it ${servers}.`);
-    // What it needs and this computer lacks: said, never installed, and it installs anyway (#63).
-    const missing = (await checkRequirements(manifest.requirements)).filter((check) => !check.ok).map((check) => missingRequirement(check));
+    // What it needs and this computer lacks: said, never installed, and it installs anyway (#63);
+    // a reinstall checks a program its options name where they said (options set now are checked by the caller, `requirementsMissing()`).
+    const before = (await readLock(scopeDir))[manifest.name]?.options ?? {};
+    const missing = (await checkRequirements(manifest.requirements, { settings: before })).filter((check) => !check.ok).map((check) => missingRequirement(check));
     // Where what the agent sends goes, for the person to know (#61).
     const remote = remoteHosts(manifest);
     const target = path.join(scopeDir, manifest.name);
