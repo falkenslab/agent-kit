@@ -29,8 +29,11 @@ const KIT_RANGE = /^\s*(?:(?:>=|<=|>|<|=)?\s*v?\d+(?:\.\d+){0,2})(?:\s+(?:>=|<=|
 const readJson = async (file) => JSON.parse(await readFile(file, "utf8"));
 const isStrings = (value) => Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
 
-/** What's wrong with an extension's metadata["agent-kit"], as agent-kit-metadata.schema.json says. */
-export function metadataProblems(kit) {
+/**
+ * What's wrong with an extension's metadata["agent-kit"], as agent-kit-metadata.schema.json says;
+ * with its plugin.json's `userConfig`, also a requirement's `setting` it doesn't declare.
+ */
+export function metadataProblems(kit, userConfig) {
   if (kit === undefined) return [];
   if (!kit || typeof kit !== "object" || Array.isArray(kit)) return ['metadata["agent-kit"] isn\'t an object'];
   const problems = [];
@@ -47,7 +50,11 @@ export function metadataProblems(kit) {
           problems.push(`a requirement's program isn't a bare name found on the PATH: ${JSON.stringify(program)}`);
           continue;
         }
-        if (Object.keys(requirement).some((key) => !["name", "program", "version", "install", "for"].includes(key))) problems.push(`its requirement ${program} has an unknown field`);
+        if (Object.keys(requirement).some((key) => !["name", "program", "setting", "version", "install", "for"].includes(key))) problems.push(`its requirement ${program} has an unknown field`);
+        if (requirement.setting !== undefined) {
+          if (typeof requirement.setting !== "string" || !requirement.setting) problems.push(`its requirement ${program}'s setting isn't an option's name`);
+          else if (userConfig !== undefined && !(userConfig && typeof userConfig === "object" && Object.hasOwn(userConfig, requirement.setting))) problems.push(`its requirement ${program} is checked through the setting ${requirement.setting}, which its userConfig doesn't declare`);
+        }
         if (typeof requirement.name !== "string" || !requirement.name) problems.push(`its requirement ${program} has no name`);
         const version = requirement.version;
         if (version !== undefined) {
@@ -345,7 +352,7 @@ export async function buildCatalog(root, options = {}) {
     if (manifest.name !== entry.name) problems.push(`${entry.name}: its plugin.json is named ${manifest.name}`);
     if (manifest.version !== entry.version) problems.push(`${entry.name}: plugin.json says ${manifest.version}, marketplace.json ${entry.version}`);
     const kit = manifest.metadata?.["agent-kit"];
-    for (const problem of metadataProblems(kit)) problems.push(`${entry.name}: ${problem}`);
+    for (const problem of metadataProblems(kit, manifest.userConfig ?? {})) problems.push(`${entry.name}: ${problem}`);
     // The skills its capabilities name are files: they must be there. Its tools only a running server lists.
     for (const capability of Array.isArray(kit?.capabilities) ? kit.capabilities : [])
       for (const skill of isStrings(capability?.skills) ? capability.skills : [])

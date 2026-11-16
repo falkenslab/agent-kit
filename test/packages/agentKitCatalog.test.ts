@@ -37,6 +37,7 @@ test("the generator's own checks agree with the metadata schema", () => {
       requirements: [
         { name: "Docker", program: "docker", version: { args: ["--version"], min: "24.0.0" }, install: { windows: "winget install Docker.DockerDesktop", url: "https://docs.docker.com/get-docker/" }, for: ["lab"] },
         { name: "ffmpeg", program: "ffmpeg", install: { linux: "sudo apt install ffmpeg" } },
+        { name: "Python with faster-whisper", program: "python3", setting: "python", install: { windows: "py -m pip install faster-whisper" }, for: ["lab"] },
       ],
     },
   ];
@@ -72,6 +73,7 @@ test("the generator's own checks agree with the metadata schema", () => {
     { requirements: [{ name: "Docker", program: "docker", install: { beos: "x" } }] },
     { requirements: [{ name: "Docker", program: "docker", install: { url: "docker.com" } }] },
     { requirements: [{ program: "docker", install: { url: "https://docker.com" } }] },
+    { requirements: [{ name: "Python", program: "python3", setting: "", install: { url: "https://python.org" } }] },
   ];
   for (const kit of good) {
     assert.ok(validMetadata(kit), `${JSON.stringify(kit)}: ${ajv.errorsText(validMetadata.errors)}`);
@@ -251,4 +253,10 @@ test("a catalog says which Claude Code hooks an extension brings: their descript
   const again = await buildCatalog(root, { repo: "ada/harbor" });
   assert.deepEqual(again.extensions.find((extension) => extension.name === "notes")!.hooks, { events: ["Stop"] });
   assert.equal("hooks" in again.extensions.find((extension) => extension.name === "campus")!, false);
+});
+
+test("a requirement's setting must be an option its plugin.json declares", () => {
+  const kit = { requirements: [{ name: "Python", program: "python3", setting: "python", install: { url: "https://python.org" } }] };
+  assert.deepEqual(metadataProblems(kit, { python: { type: "file", title: "Python", description: "Its Python." } }), []);
+  assert.deepEqual(metadataProblems(kit, {}), ["its requirement python3 is checked through the setting python, which its userConfig doesn't declare"]);
 });

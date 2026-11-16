@@ -24,8 +24,11 @@ export interface Catalog {
   extensions: CatalogExtension[];
 }
 
-/** What's wrong with an extension's metadata["agent-kit"], as agent-kit's agent-kit-metadata.schema.json says; none when it fits. */
-export function metadataProblems(kit: unknown): string[];
+/**
+ * What's wrong with an extension's metadata["agent-kit"], as agent-kit's agent-kit-metadata.schema.json says; none when it fits.
+ * With its plugin.json's `userConfig`, also a requirement's `setting` that it doesn't declare.
+ */
+export function metadataProblems(kit: unknown, userConfig?: unknown): string[];
 
 /**
  * The catalog of the marketplace in `root`: throws saying everything that keeps it from being
